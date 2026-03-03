@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <style>
+      @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-5px); } }
+      .claw { animation: float 3s ease-in-out infinite; }
+    </style>
+  </defs>
+  <rect width="100" height="100" fill="#0f172a"/>
+  <g class="claw" transform="translate(50, 50)">
+    <!-- Main circle -->
+    <circle cx="0" cy="0" r="35" fill="#6366f1" opacity="0.1" stroke="#6366f1" stroke-width="2"/>
+    <circle cx="0" cy="0" r="28" fill="none" stroke="#6366f1" stroke-width="1.5" opacity="0.5"/>
+    <!-- Claw symbol -->
+    <text x="0" y="15" text-anchor="middle" font-size="45" fill="#6366f1" font-weight="bold">🦾</text>
+  </g>
+</svg>
