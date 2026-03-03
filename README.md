@@ -1,6 +1,15 @@
 # Gravity Claw 🦾
 
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Node.js](https://img.shields.io/badge/Node.js-v20+-green)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
+![Status](https://img.shields.io/badge/Status-Early%20Development-orange)
+
 Gravity Claw is a high-performance, secure, and pro-active personal AI agent ecosystem. Built from scratch in TypeScript, it transforms a simple LLM into a "Personal OS" capable of automation, multi-agent orchestration, and rich interactive experiences.
+
+**[Features](#-features) • [Quick Start](#-quick-start) • [Architecture](#-architecture) • [Docs](#-documentation) • [Contributing](#-contributing) • [Security](#-security)**
+
+---
 
 ## ⚠️ Project Status
 
@@ -12,17 +21,22 @@ Before getting started, ensure you have:
 
 - **Node.js**: Version 20 or higher
 - **npm**: Version 10 or higher
-- **API Keys**: At least one of the following:
+- **API Keys** (at least one):
   - OpenAI API key
   - Anthropic (Claude) API key
   - Google AI API key
   - Groq API key
   - OpenRouter API key
-  - **OR** Ollama locally installed for air-gapped mode (no API keys needed)
-- **Optional**: 
-  - Telegram Bot Token (for Telegram channel)
-  - Supabase credentials (for cloud memory)
-  - ElevenLabs API key (for high-quality TTS)
+  - **OR** Ollama locally installed (for air-gapped mode)
+
+### Optional Dependencies
+
+- **Telegram Bot Token** - For Telegram integration
+- **WhatsApp Credentials** - For WhatsApp integration  
+- **Supabase** - For cloud memory sync
+- **ElevenLabs API Key** - For high-quality voice synthesis
+
+---
 
 ## 🚀 Quick Start
 
@@ -45,104 +59,25 @@ npm run cli -- help
 npm run cli -- chat
 ```
 
-## 🖥️ Command Line Interface
+## 🖥️ CLI Commands
 
-Gravity Claw includes a production-grade CLI for managing your AI agent:
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Start with hot reload (development) |
+| `npm start` | Start in production mode |
+| `npm run cli -- chat` | Interactive chat REPL |
+| `npm run cli -- doctor` | Health checks & diagnostics |
+| `npm run cli -- config` | View configuration |
+| `npm run cli -- tools` | List all available tools |
+| `npm run cli -- sessions` | Manage conversation sessions |
+| `npm run typecheck` | Type checking |
+| `npm run test` | Run tests in watch mode |
+| `npm run test:run` | Run tests once |
+| `npm run test:coverage` | Generate coverage report |
 
-### Available Commands
+For detailed CLI usage, see [docs/CLI.md](docs/CLI.md)
 
-| Command | Description |
-|---------|-------------|
-| `gravityclaw start` | Start all Gravity Claw services (default) |
-| `gravityclaw chat` | Interactive REPL chat mode |
-| `gravityclaw doctor` | Run health checks and diagnostics |
-| `gravityclaw config` | View current configuration |
-| `gravityclaw tools` | List all available tools |
-| `gravityclaw sessions` | Manage conversation sessions |
-| `gravityclaw version` | Show version information |
-| `gravityclaw help` | Display help |
-
-### Interactive Chat Mode
-
-Launch a terminal REPL to chat directly with your agent:
-
-```bash
-npm run cli -- chat
-
-# Or with options:
-npm run cli -- chat --session my-session --verbose
-```
-
-Commands within chat mode:
-- Type your message and press Enter
-- `clear` - Clear session history
-- `exit` or `quit` - Exit chat mode
-
-### Session Management
-
-Manage conversation history:
-
-```bash
-# List all sessions
-npm run cli -- sessions list
-
-# Clear a specific session
-npm run cli -- sessions clear <session-id>
-
-# Export session to JSON
-npm run cli -- sessions export <session-id> > backup.json
-```
-
-### System Diagnostics
-
-Run comprehensive health checks:
-
-```bash
-npm run cli -- doctor
-```
-
-This checks:
-- ✅ Environment configuration
-- ✅ Database connectivity  
-- ✅ Tools registry
-- ✅ LLM provider setup
-- ✅ File paths
-- ✅ Node.js version
-
-### View Configuration
-
-Display your current settings:
-
-```bash
-npm run cli -- config
-```
-
-Shows:
-- Core settings (provider, model, log level)
-- Channel status (Telegram, WhatsApp)
-- Feature flags
-
-### List Tools
-
-See all registered tools:
-
-```bash
-npm run cli -- tools
-```
-
-Displays tools organized by category with descriptions.
-
-### 📚 Full CLI Documentation
-
-See [docs/CLI.md](docs/CLI.md) for complete CLI documentation including:
-- Detailed command reference
-- Usage examples
-- Troubleshooting guide
-- Advanced usage patterns
-
-```
-
-## 🏗️ Core Architecture
+---
 
 Gravity Claw is designed as a modular **Personal OS**:
 - **Channels**: Multi-platform support (Telegram, WhatsApp, WebChat) with unified messaging.
@@ -156,37 +91,92 @@ Gravity Claw is designed as a modular **Personal OS**:
 
 | Feature | Description |
 |---|---|
-| **Air-gapped Mode** | Full local operation via Ollama; blocks all external fetch calls. |
-| **Encrypted Secrets** | AES-256-GCM management for API keys, decoupled from environment. |
-| **Whitelist Security** | Strict user ID filtering for all communication channels. |
-| **Path Allowlisting** | File operations restricted to specific safe directories. |
-| **Admin Controls** | Granular tool permissions for group chats. |
+| **Air-Gapped Mode** | Full local operation via Ollama; blocks all external fetch calls |
+| **Encrypted Secrets** | AES-256-GCM management for API keys, decoupled from environment |
+| **User Allowlisting** | Strict user ID filtering for all communication channels |
+| **Path Allowlisting** | File operations restricted to specific safe directories |
+| **Admin Controls** | Granular tool permissions for group chats |
+| **No External Calls** | Complete network isolation in air-gap mode |
 
-## 🛠️ Advanced Features
+See [SECURITY.md](SECURITY.md) for detailed security policy and vulnerability reporting.
 
-- **Voice & Speech**: Whisper transcription and high-fidelity TTS (OpenAI/ElevenLabs).
-- **Automation**: Browser automation (Playwright), Shell execution, and Scheduled tasks.
-- **Extensibility**: **MCP Bridge** for external tool servers, `skills/` prompt assets, and the runtime plugin system in `src/plugins/`.
-- **Analytics**: Real-time token usage and cost tracking with daily recap reports.
+---
 
-## 🔌 Extensibility Model
+## 🏗️ Architecture Overview
 
-- **`src/plugins/`**: Runtime plugin system (registry + traits for providers, channels, tools, memory).
-- **`skills/`**: Skill documents that guide behavior/prompts; these are not runtime plugin modules.
-- Plugin authoring reference: [src/plugins/README.md](src/plugins/README.md)
+**Request Flow:**
+```
+Channel (Telegram/WhatsApp/Web) 
+  → ChannelRouter 
+  → runAgent() (LLM orchestrator) 
+  → callClaude() (tool-use loop)
+  → Tool execution
+  → Repeat until completion
+```
 
-## 📦 Deployment
+**Core Components:**
+- `src/agent.ts` - Agentic loop with tool execution
+- `src/llm/orchestrator.ts` - LLM provider management & history
+- `src/tools/` - Modular tool registry
+- `src/memory/` - Hybrid storage (SQLite + Vector + Graph)
+- `src/channels/` - Multi-platform adapters
+- `src/plugins/` - Runtime extension system
+
+For detailed architecture, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (if available) or review the codebase.
+
+---
+
+## 🔌 Extensibility
+
+### Plugins (`src/plugins/`)
+Runtime system for extending providers, channels, tools, and memory— no restart required.
+
+### Skills (`skills/`)
+Prompt-based behavior guidance documents (not runtime modules).
+
+### MCP Bridge
+Integrate external Model Context Protocol tool servers.
+
+Reference: [src/plugins/README.md](src/plugins/README.md)
+
+## � Deployment
 
 ### Docker (Recommended)
 ```bash
 docker-compose up -d
 ```
 
-### Manual VPS
-1. Clone to your server.
-2. Install Node.js 20+.
-3. Configure `.env`.
-4. Run `npm install && npm start`.
+### Manual VPS / Self-Hosted
+```bash
+# 1. Install Node.js 20+
+
+# 2. Clone repository
+git clone https://github.com/noorulahamed/gravityclaw.git
+cd gravityclaw
+
+# 3. Install dependencies
+npm install
+
+# 4. Configure environment
+cp .env.example .env
+# Edit .env with your API keys
+
+# 5. Start in background (using PM2, screen, or systemd)
+npm start
+```
+
+### Air-Gapped Mode
+For offline operation:
+```bash
+# 1. Install Ollama
+# 2. Pull a model: ollama pull mistral (or your preferred model)
+# 3. Set in .env: LLM_PROVIDER=ollama
+npm start
+```
+
+See [docs/AIRGAP.md](docs/AIRGAP.md) for detailed air-gap setup.
+
+---
 
 ## 📜 Roadmap
 
@@ -233,15 +223,20 @@ Found a security vulnerability? Please report it privately:
 
 For more details, see [SECURITY.md](SECURITY.md).
 
-## 📞 Support & Community
+## � Documentation
 
-- 💬 **Issues**: [GitHub Issues](https://github.com/noorulahamed/gravityclaw/issues) - Bug reports and feature requests
-- 💡 **Discussions**: [GitHub Discussions](https://github.com/noorulahamed/gravityclaw/discussions) - Questions and community chat
-- 📖 **Documentation**: 
-  - [Air-gapped Mode](docs/AIRGAP.md)
-  - [Encrypted Secrets](docs/ENCRYPTED_SECRETS.md)
-  - [Canvas (A2UI)](docs/CANVAS.md)
-  - [Model Switching](docs/MODEL_SWITCHING.md)
+| Document | Purpose |
+|----------|---------|
+| [docs/CLI.md](docs/CLI.md) | Command-line interface reference |
+| [docs/AIRGAP.md](docs/AIRGAP.md) | Air-gapped mode setup & usage |
+| [docs/ENCRYPTED_SECRETS.md](docs/ENCRYPTED_SECRETS.md) | Secret management & encryption |
+| [docs/CANVAS.md](docs/CANVAS.md) | Live Canvas (A2UI) widget system |
+| [docs/MODEL_SWITCHING.md](docs/MODEL_SWITCHING.md) | Dynamic model provider switching |
+| [src/plugins/README.md](src/plugins/README.md) | Plugin authoring guide |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
+| [SECURITY.md](SECURITY.md) | Security policy & vulnerability reporting |
+
+---
 
 ## 📄 License
 
