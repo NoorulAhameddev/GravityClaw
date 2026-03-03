@@ -15,6 +15,8 @@ package-lock.json
 pnpm-lock.yaml
 yarn.lock
 lerna-debug.log
+poetry.lock
+requirements.txt.lock
 
 
 # ============================================================================
@@ -54,19 +56,24 @@ coverage/
 .secrets/
 secrets.enc.json
 secrets.json
+secrets.*.json
 credentials.json
 .credentials
+private.key
+private.pem
+.api-keys/
+.tokens/
 
 
-# ============================================================================
-# DATABASE FILES & DATA
-# ============================================================================
-# SQLite
-gravity.db*
+gravity.db-shm
+gravity.db-wal
 *.db
 *.db-shm
 *.db-wal
-*.sqlite*
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+.database/
 .datbase/
 
 # Baileys WhatsApp Auth (SENSITIVE)
@@ -75,6 +82,17 @@ app-state-sync-key-*
 creds.json
 device-list-*
 lid-mapping-*
+pre-key-*
+sender-key-*
+session-*
+app-state-sync-version-*
+
+# Application data
+memory-files/
+*.memo
+.cache/
+*.cache
+.datapping-*
 
 # Application data
 memory-files/
@@ -160,20 +178,31 @@ plugins/external/
 public/canvas/build/
 verify-airgap.ts
 test-output*.txt
-*-output.txt
-
-
+*-LOCAL DEVELOPMENT SCRIPTS & TEMPORARY FILES
 # ============================================================================
-# GIT
-# ============================================================================
-.git-credentials
-.git-store
-
-
-# ============================================================================
-# MISC PROJECT FILES (Debug/temporary - remove once development is complete)
-# ============================================================================
+scripts/debug/
+scripts/test/
 check_tools.ts
+debug_agent.ts
+add_numbers.py
+factorial.c
+read_db.ts
+improved-ui-final.png
+temp_*.py
+delete_files.py
+dashboard_current.md
+
+# Working notes and progress reports (development phase only)
+BACKEND_INTEGRATION_REPORT.md
+DASHBOARD_PROGRESS.md
+UI_IMPROVEMENTS_SUMMARY.md
+WEBSOCKET_FIX_COMPLETION.md
+GITIGNORE_*.md
+
+# Output files
+*-output.txt
+test-output-*.txt
+output*.json
 debug_agent.ts
 add_numbers.py
 factorial.c
@@ -185,3 +214,11 @@ BACKEND_INTEGRATION_REPORT.md
 DASHBOARD_PROGRESS.md
 UI_IMPROVEMENTS_SUMMARY.md
 WEBSOCKET_FIX_COMPLETION.md
+
+# ============================================================================
+# ARCHIVE & WORKING DIRECTORIES
+# ============================================================================
+# Keep .archive structure but ignore generated files
+.archive/*
+!.archive/
+!.archive/README.md
