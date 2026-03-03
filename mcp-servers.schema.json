@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "mcpServers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "Command to execute (e.g., 'node', 'python', 'npx')"
+          },
+          "args": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Command arguments"
+          },
+          "env": {
+            "type": "object",
+            "additionalProperties": { "type": "string" },
+            "description": "Environment variables"
+          },
+          "disabled": {
+            "type": "boolean",
+            "description": "If true, server will not be started",
+            "default": false
+          }
+        },
+        "required": ["command", "args"]
+      }
+    }
+  },
+  "required": ["mcpServers"]
+}

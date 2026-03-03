@@ -1,0 +1,32 @@
+# Secrets — never commit
+.env
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Logs and Test Outputs
+*.log
+logs/
+*-output.txt
+test-output*.txt
+verify-airgap.ts
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Gravity Claw Data (Never commit)
+gravity.db*
+secrets.enc.json
+baileys_auth_info/
+memory-files/
+plugins/external/
+public/canvas/build/
