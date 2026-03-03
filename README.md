@@ -2,6 +2,28 @@
 
 Gravity Claw is a high-performance, secure, and pro-active personal AI agent ecosystem. Built from scratch in TypeScript, it transforms a simple LLM into a "Personal OS" capable of automation, multi-agent orchestration, and rich interactive experiences.
 
+## ⚠️ Project Status
+
+**Early Development** - Gravity Claw is under active development. Core features are functional, but APIs and configuration may change. Not recommended for production use yet. Contributions and feedback are welcome!
+
+## 📋 Requirements
+
+Before getting started, ensure you have:
+
+- **Node.js**: Version 20 or higher
+- **npm**: Version 10 or higher
+- **API Keys**: At least one of the following:
+  - OpenAI API key
+  - Anthropic (Claude) API key
+  - Google AI API key
+  - Groq API key
+  - OpenRouter API key
+  - **OR** Ollama locally installed for air-gapped mode (no API keys needed)
+- **Optional**: 
+  - Telegram Bot Token (for Telegram channel)
+  - Supabase credentials (for cloud memory)
+  - ElevenLabs API key (for high-quality TTS)
+
 ## 🚀 Quick Start
 
 ```bash
@@ -67,3 +89,57 @@ docker-compose up -d
 - [x] **Level 4 — Connectivity** (MCP, Webhooks, Plugins)
 - [x] **Level 5 — Intelligence** (Swarms, Mesh, Recommendations)
 - [x] **Level 6 — Experience** (Voice, Live Canvas, Airgap)
+
+## 🤝 Contributing
+
+We welcome contributions! Whether it's bug fixes, new features, documentation, or ideas:
+
+1. Read our [Contributing Guide](CONTRIBUTING.md)
+2. Check out [open issues](https://github.com/noorulahamed/gravityclaw/issues)
+3. Follow our [Code of Conduct](CODE_OF_CONDUCT.md)
+4. Submit your pull request!
+
+### Development Setup
+
+```bash
+git clone https://github.com/noorulahamed/gravityclaw.git
+cd gravityclaw
+npm install
+npm run dev
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on code standards, testing, and the PR process.
+
+## 🔒 Security
+
+Security is a top priority. Gravity Claw includes:
+
+- **Air-gapped mode** for complete offline operation
+- **Encrypted secrets** with AES-256-GCM
+- **User allowlisting** to restrict access
+- **Path allowlisting** for file operations
+
+Found a security vulnerability? Please report it privately:
+
+- See our [Security Policy](SECURITY.md) for reporting guidelines
+- Do not open public issues for security concerns
+
+For more details, see [SECURITY.md](SECURITY.md).
+
+## 📞 Support & Community
+
+- 💬 **Issues**: [GitHub Issues](https://github.com/noorulahamed/gravityclaw/issues) - Bug reports and feature requests
+- 💡 **Discussions**: [GitHub Discussions](https://github.com/noorulahamed/gravityclaw/discussions) - Questions and community chat
+- 📖 **Documentation**: 
+  - [Air-gapped Mode](docs/AIRGAP.md)
+  - [Encrypted Secrets](docs/ENCRYPTED_SECRETS.md)
+  - [Canvas (A2UI)](docs/CANVAS.md)
+  - [Model Switching](docs/MODEL_SWITCHING.md)
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+**Built with ❤️ by the Gravity Claw community**

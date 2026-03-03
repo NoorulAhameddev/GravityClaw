@@ -2,6 +2,35 @@
   "name": "gravyclaw",
   "version": "0.1.0",
   "description": "Gravity Claw — a lean, secure personal AI agent",
+  "keywords": [
+    "ai-agent",
+    "personal-assistant",
+    "telegram-bot",
+    "whatsapp",
+    "mcp",
+    "automation",
+    "multi-agent",
+    "agent-swarms",
+    "typescript",
+    "llm",
+    "openai",
+    "anthropic",
+    "voice-agent"
+  ],
+  "author": "Noorul Ahamed",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/noorulahamed/gravityclaw.git"
+  },
+  "homepage": "https://github.com/noorulahamed/gravityclaw#readme",
+  "bugs": {
+    "url": "https://github.com/noorulahamed/gravityclaw/issues"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
