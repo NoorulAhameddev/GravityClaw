@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gravity Claw - Live Canvas</title>
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: blob:;
+        connect-src 'self' ws: wss:;
+        frame-src 'self' blob:;
+    ">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ccc;
+            transition: background 0.3s;
+        }
+
+        .status-indicator.connected {
+            background: #4caf50;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }
+
+        .status-indicator.disconnected {
+            background: #f44336;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .canvas-container {
+            width: 100%;
+            max-width: 1200px;
+            height: 80vh;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .canvas-header {
+            padding: 1rem 1.5rem;
+            background: #f5f5f5;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .canvas-content {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #canvas-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+
+        .placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .placeholder-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .placeholder h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: #666;
+        }
+
+        .placeholder p {
+            font-size: 1rem;
+            max-width: 500px;
+        }
+
+        .session-info {
+            font-size: 0.8rem;
+            color: #999;
+            padding: 0.5rem 1.5rem;
+            background: #fafafa;
+            border-top: 1px solid #e0e0e0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .error-banner {
+            background: #ff5252;
+            color: white;
+            padding: 1rem 1.5rem;
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .error-banner.show {
+            display: flex;
+        }
+
+        .loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🦾 Gravity Claw - Live Canvas</h1>
+        <div class="status">
+            <div class="status-indicator" id="status-indicator"></div>
+            <span id="status-text">Connecting...</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="canvas-container">
+            <div class="canvas-header">
+                <span>Interactive Canvas</span>
+            </div>
+            <div class="error-banner" id="error-banner">
+                <span>⚠️</span>
+                <span id="error-message"></span>
+            </div>
+            <div class="canvas-content">
+                <div class="placeholder" id="placeholder">
+                    <div class="placeholder-icon">🎨</div>
+                    <h2>Waiting for Canvas Push</h2>
+                    <p>The agent will push interactive widgets here when ready. Connect your agent to this session to see live updates.</p>
+                </div>
+                <iframe 
+                    id="canvas-frame" 
+                    sandbox="allow-scripts allow-same-origin"
+                    style="display: none;"
+                ></iframe>
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+            <div class="session-info">
+                Session ID: <span id="session-id">-</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Extract session ID from URL or generate one
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session') || 'web-' + Date.now();
+        document.getElementById('session-id').textContent = sessionId;
+
+        // WebSocket connection
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/canvas?session=${sessionId}`;
+        
+        let ws;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+
+        function connect() {
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                console.log('Canvas WebSocket connected');
+                reconnectAttempts = 0;
+                updateStatus('connected', 'Connected');
+                hideError();
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    handleMessage(message);
+                } catch (err) {
+                    console.error('Error parsing message:', err);
+                    showError('Failed to parse message from server');
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                showError('Connection error occurred');
+            };
+
+            ws.onclose = () => {
+                console.log('Canvas WebSocket disconnected');
+                updateStatus('disconnected', 'Disconnected');
+                
+                // Attempt to reconnect
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
+                    console.log(`Reconnecting in ${delay}ms... (attempt ${reconnectAttempts})`);
+                    setTimeout(connect, delay);
+                } else {
+                    showError('Connection lost. Please refresh the page.');
+                }
+            };
+        }
+
+        function handleMessage(message) {
+            console.log('Received message:', message);
+
+            switch (message.type) {
+                case 'connected':
+                    console.log('Canvas session established:', message.sessionId);
+                    break;
+
+                case 'canvas_push':
+                    renderCanvas(message.html, message.js);
+                    break;
+
+                case 'pong':
+                    // Heartbeat response
+                    break;
+
+                default:
+                    console.warn('Unknown message type:', message.type);
+            }
+        }
+
+        function renderCanvas(html, js) {
+            const placeholder = document.getElementById('placeholder');
+            const frame = document.getElementById('canvas-frame');
+            const loading = document.getElementById('loading');
+
+            // Show loading
+            loading.classList.add('show');
+
+            // Create a sandboxed document
+            const doc = frame.contentDocument || frame.contentWindow.document;
+            
+            // Write the HTML with inline styles and scripts
+            const fullHtml = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <style>
+                        body {
+                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                            margin: 0;
+                            padding: 20px;
+                            background: white;
+                        }
+                        * {
+                            box-sizing: border-box;
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${html}
+                    ${js ? `<script>${js}</script>` : ''}
+                </body>
+                </html>
+            `;
+
+            doc.open();
+            doc.write(fullHtml);
+            doc.close();
+
+            // Hide placeholder and show canvas
+            placeholder.style.display = 'none';
+            frame.style.display = 'block';
+            loading.classList.remove('show');
+
+            console.log('Canvas rendered');
+        }
+
+        function updateStatus(status, text) {
+            const indicator = document.getElementById('status-indicator');
+            const statusText = document.getElementById('status-text');
+            
+            indicator.className = 'status-indicator ' + status;
+            statusText.textContent = text;
+        }
+
+        function showError(message) {
+            const banner = document.getElementById('error-banner');
+            const messageEl = document.getElementById('error-message');
+            
+            messageEl.textContent = message;
+            banner.classList.add('show');
+        }
+
+        function hideError() {
+            const banner = document.getElementById('error-banner');
+            banner.classList.remove('show');
+        }
+
+        // Send heartbeat every 30 seconds
+        setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'ping' }));
+            }
+        }, 30000);
+
+        // Start connection
+        connect();
+
+        // Handle page unload
+        window.addEventListener('beforeunload', () => {
+            if (ws) {
+                ws.close();
+            }
+        });
+    </script>
+</body>
+</html>
