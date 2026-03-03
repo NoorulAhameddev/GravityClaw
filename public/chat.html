@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gravity Claw - Web Chat</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --border: #d9e1ee;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --bot: #e8f0ff;
+      --user: #2563eb;
+      --user-text: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .chat-app {
+      width: 100%;
+      max-width: 900px;
+      height: min(90vh, 760px);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .title { font-weight: 700; }
+    .status { font-size: 12px; color: var(--muted); }
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      background: #ef4444;
+    }
+    .status-dot.connected { background: #10b981; }
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #fbfcff;
+    }
+    .message {
+      max-width: 80%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .message.bot {
+      align-self: flex-start;
+      background: var(--bot);
+      color: var(--text);
+      border: 1px solid #dbe7ff;
+    }
+    .message.user {
+      align-self: flex-end;
+      background: var(--user);
+      color: var(--user-text);
+    }
+    .typing {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 0 14px 8px;
+      min-height: 18px;
+    }
+    .composer {
+      border-top: 1px solid var(--border);
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+    .composer input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline: none;
+    }
+    .composer input:focus { border-color: var(--accent); }
+    .composer button {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .composer button:hover { background: var(--accent-hover); }
+    .composer button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-app">
+    <div class="header">
+      <div class="title">🦾 Gravity Claw Web Chat</div>
+      <div class="status"><span id="status-dot" class="status-dot"></span><span id="status-text">Disconnected</span></div>
+    </div>
+
+    <div id="messages" class="messages"></div>
+    <div id="typing" class="typing"></div>
+
+    <form id="composer" class="composer">
+      <input id="input" type="text" placeholder="Type a message..." autocomplete="off" />
+      <button id="send" type="submit" disabled>Send</button>
+    </form>
+  </div>
+
+  <script>
+    const messagesEl = document.getElementById('messages');
+    const typingEl = document.getElementById('typing');
+    const inputEl = document.getElementById('input');
+    const sendBtn = document.getElementById('send');
+    const formEl = document.getElementById('composer');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}`;
+
+    let ws;
+    let reconnectMs = 1000;
+    let reconnectTimer;
+
+    function setStatus(connected) {
+      if (connected) {
+        statusDot.classList.add('connected');
+        statusText.textContent = 'Connected';
+        sendBtn.disabled = false;
+      } else {
+        statusDot.classList.remove('connected');
+        statusText.textContent = 'Disconnected';
+        sendBtn.disabled = true;
+      }
+    }
+
+    function addMessage(role, text) {
+      const bubble = document.createElement('div');
+      bubble.className = `message ${role}`;
+      bubble.textContent = text;
+      messagesEl.appendChild(bubble);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function connect() {
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        clearTimeout(reconnectTimer);
+        reconnectMs = 1000;
+        setStatus(true);
+        addMessage('bot', 'Connected. You can start chatting now.');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+
+          if (payload.type === 'typing') {
+            typingEl.textContent = 'Agent is typing...';
+            return;
+          }
+
+          if (payload.type === 'message' && typeof payload.text === 'string') {
+            typingEl.textContent = '';
+            addMessage(payload.isBot ? 'bot' : 'user', payload.text);
+            return;
+          }
+
+          if (payload.type === 'tool_response') {
+            typingEl.textContent = '';
+            addMessage('bot', JSON.stringify(payload, null, 2));
+          }
+        } catch {
+          addMessage('bot', String(event.data));
+        }
+      };
+
+      ws.onerror = () => {
+        setStatus(false);
+      };
+
+      ws.onclose = () => {
+        setStatus(false);
+        typingEl.textContent = '';
+        reconnectTimer = setTimeout(connect, reconnectMs);
+        reconnectMs = Math.min(reconnectMs * 2, 10000);
+      };
+    }
+
+    formEl.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const text = inputEl.value.trim();
+      if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+      addMessage('user', text);
+      ws.send(JSON.stringify({ type: 'message', text }));
+      inputEl.value = '';
+      inputEl.focus();
+    });
+
+    connect();
+    inputEl.focus();
+  </script>
+</body>
+</html>
