@@ -39,6 +39,107 @@ npm run dev
 
 # 4. Run in production
 npm start
+
+# 5. Use the CLI
+npm run cli -- help
+npm run cli -- chat
+```
+
+## 🖥️ Command Line Interface
+
+Gravity Claw includes a production-grade CLI for managing your AI agent:
+
+### Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `gravityclaw start` | Start all Gravity Claw services (default) |
+| `gravityclaw chat` | Interactive REPL chat mode |
+| `gravityclaw doctor` | Run health checks and diagnostics |
+| `gravityclaw config` | View current configuration |
+| `gravityclaw tools` | List all available tools |
+| `gravityclaw sessions` | Manage conversation sessions |
+| `gravityclaw version` | Show version information |
+| `gravityclaw help` | Display help |
+
+### Interactive Chat Mode
+
+Launch a terminal REPL to chat directly with your agent:
+
+```bash
+npm run cli -- chat
+
+# Or with options:
+npm run cli -- chat --session my-session --verbose
+```
+
+Commands within chat mode:
+- Type your message and press Enter
+- `clear` - Clear session history
+- `exit` or `quit` - Exit chat mode
+
+### Session Management
+
+Manage conversation history:
+
+```bash
+# List all sessions
+npm run cli -- sessions list
+
+# Clear a specific session
+npm run cli -- sessions clear <session-id>
+
+# Export session to JSON
+npm run cli -- sessions export <session-id> > backup.json
+```
+
+### System Diagnostics
+
+Run comprehensive health checks:
+
+```bash
+npm run cli -- doctor
+```
+
+This checks:
+- ✅ Environment configuration
+- ✅ Database connectivity  
+- ✅ Tools registry
+- ✅ LLM provider setup
+- ✅ File paths
+- ✅ Node.js version
+
+### View Configuration
+
+Display your current settings:
+
+```bash
+npm run cli -- config
+```
+
+Shows:
+- Core settings (provider, model, log level)
+- Channel status (Telegram, WhatsApp)
+- Feature flags
+
+### List Tools
+
+See all registered tools:
+
+```bash
+npm run cli -- tools
+```
+
+Displays tools organized by category with descriptions.
+
+### 📚 Full CLI Documentation
+
+See [docs/CLI.md](docs/CLI.md) for complete CLI documentation including:
+- Detailed command reference
+- Usage examples
+- Troubleshooting guide
+- Advanced usage patterns
+
 ```
 
 ## 🏗️ Core Architecture

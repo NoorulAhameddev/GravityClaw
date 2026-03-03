@@ -32,9 +32,13 @@
     "npm": ">=10.0.0"
   },
   "type": "module",
+  "bin": {
+    "gravityclaw": "./bin/gravityclaw.mjs"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
+    "cli": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest --config config/vitest.config.ts",
     "test:ui": "vitest --ui --config config/vitest.config.ts",
