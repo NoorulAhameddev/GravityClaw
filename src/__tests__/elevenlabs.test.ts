@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { createElevenLabsService } from '../voice/elevenlabs.js';
-import { elevenLabsTextToSpeechTool, elevenLabsTextToSpeechStreamingTool } from '../tools/elevenlabs.js';
+import { elevenLabsTextToSpeechTool, elevenLabsTextToSpeechStreamingTool } from '../tools/voice/elevenlabs.js';
 
 describe('ElevenLabs Text-to-Speech', () => {
   let service: ReturnType<typeof createElevenLabsService>;

@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { webSearchTool, clearSearchCacheTool } from '../tools/search.js';
+import { webSearchTool, clearSearchCacheTool } from '../tools/memory/search.js';
 
 // Mock fetch
 global.fetch = vi.fn();

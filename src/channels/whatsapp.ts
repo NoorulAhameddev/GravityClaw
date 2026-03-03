@@ -8,7 +8,7 @@ import { Boom } from "@hapi/boom";
 // @ts-expect-error - no types available
 import qrcode from "qrcode-terminal";
 import { createLogger } from "../logger.ts";
-import type { Channel, UnifiedMessage } from "./base.ts";
+import type { Channel, UnifiedMessage } from "../types/channels.js";
 import { config } from "../config.ts";
 import {
     getGroupSessionId,

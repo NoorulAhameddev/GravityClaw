@@ -65,7 +65,7 @@ describe('Agent System', () => {
 
     it('should allow registering tools', async () => {
       const { registry } = await import('../tools/index.ts');
-      const { datetimeTool } = await import('../tools/datetime.ts');
+      const { datetimeTool } = await import('../tools/system/datetime.ts');
 
       // Register the tool (in case it's not already registered)
       registry.register(datetimeTool);
@@ -78,8 +78,8 @@ describe('Agent System', () => {
 
     it('should generate OpenAI-compatible tool definitions', async () => {
       const { registry } = await import('../tools/index.ts');
-      const { datetimeTool } = await import('../tools/datetime.ts');
-      const { shellTool } = await import('../tools/shell.ts');
+      const { datetimeTool } = await import('../tools/system/datetime.ts');
+      const { shellTool } = await import('../tools/system/shell.ts');
 
       // Ensure tools are registered
       registry.register(datetimeTool);

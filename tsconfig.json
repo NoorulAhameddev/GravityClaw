@@ -1,27 +1,12 @@
 {
-    "compilerOptions": {
-        "target": "ES2022",
-        "module": "ESNext",
-        "moduleResolution": "bundler",
-        "lib": [
-            "ES2022"
-        ],
-        "strict": true,
-        "noUncheckedIndexedAccess": true,
-        "exactOptionalPropertyTypes": true,
-        "noImplicitOverride": true,
-        "allowImportingTsExtensions": true,
-        "noEmit": true,
-        "verbatimModuleSyntax": true,
-        "skipLibCheck": true,
-        "outDir": "dist",
-        "rootDir": "src"
-    },
-    "include": [
-        "src/**/*"
-    ],
-    "exclude": [
-        "node_modules",
-        "dist"
-    ]
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "//": "Canonical TypeScript config lives in config/tsconfig.json. This file extends it with root-relative paths.",
+  "extends": "./config/tsconfig.json",
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

@@ -1,4 +1,4 @@
-import type { Channel, UnifiedMessage } from "./base.ts";
+import type { Channel, UnifiedMessage } from "../types/channels.js";
 import { runAgent } from "../agent.ts";
 import { createLogger } from "../logger.ts";
 import { db } from "../db.ts";

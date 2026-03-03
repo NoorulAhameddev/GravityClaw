@@ -36,10 +36,10 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test": "vitest --config config/vitest.config.ts",
+    "test:ui": "vitest --ui --config config/vitest.config.ts",
+    "test:run": "vitest run --config config/vitest.config.ts",
+    "test:coverage": "vitest run --coverage --config config/vitest.config.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

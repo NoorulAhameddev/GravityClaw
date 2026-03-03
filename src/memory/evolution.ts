@@ -2,6 +2,18 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { db } from "../db.ts";
 import { createLogger } from "../logger.ts";
+import type {
+  EvolutionConfig,
+  EvolutionReport,
+  CategoryOrganizerInput,
+  CategoryOrganizer,
+} from "../types/memory.js";
+export type {
+  EvolutionConfig,
+  EvolutionReport,
+  CategoryOrganizerInput,
+  CategoryOrganizer,
+} from "../types/memory.js";
 import {
   readAllFacts,
   rewriteSessionFacts,
@@ -13,39 +25,11 @@ import {
 const log = createLogger("memory:evolution");
 const EVOLUTION_LOG_PATH = path.resolve(process.cwd(), "logs", "memory-evolution.log");
 
-export interface EvolutionConfig {
-  duplicateSimilarityThreshold: number;
-  staleDays: number;
-  lowImportanceThreshold: number;
-}
-
-export interface EvolutionReport {
-  sessionId: string;
-  startedAt: string;
-  finishedAt: string;
-  totalFactsBefore: number;
-  totalFactsAfter: number;
-  mergedFacts: number;
-  removedFacts: number;
-  categoryChanges: number;
-  categoriesSuggested: number;
-  notes: string[];
-}
-
 const DEFAULT_CONFIG: EvolutionConfig = {
   duplicateSimilarityThreshold: 0.9,
   staleDays: 90,
   lowImportanceThreshold: 1,
 };
-
-export interface CategoryOrganizerInput {
-  category: string;
-  facts: string[];
-}
-
-export type CategoryOrganizer = (
-  groups: CategoryOrganizerInput[]
-) => Promise<Record<string, string>>;
 
 function tokenize(text: string): string[] {
   return text

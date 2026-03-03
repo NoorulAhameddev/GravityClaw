@@ -2,25 +2,12 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
 import { db } from "../db.ts";
+import type { MarkdownFact, FactAccessStat } from "../types/memory.js";
+
+export type { MarkdownFact, FactAccessStat } from "../types/memory.js";
 
 const DEFAULT_MEMORY_ROOT = path.resolve(process.cwd(), "memory-files");
 let memoryRoot = DEFAULT_MEMORY_ROOT;
-
-export interface MarkdownFact {
-    timestamp: string;
-    category: string;
-    fact: string;
-}
-
-export interface FactAccessStat {
-        sessionId: string;
-        factHash: string;
-        factText: string;
-        category: string;
-        accessCount: number;
-        lastAccessed: string;
-        importance: number;
-}
 
 function initFactStatsTable(): void {
         db.exec(`

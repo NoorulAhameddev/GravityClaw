@@ -65,8 +65,14 @@ Gravity Claw is designed as a modular **Personal OS**:
 
 - **Voice & Speech**: Whisper transcription and high-fidelity TTS (OpenAI/ElevenLabs).
 - **Automation**: Browser automation (Playwright), Shell execution, and Scheduled tasks.
-- **Extensibility**: **MCP Bridge** for external tool servers and a dynamic **Plugin System**.
+- **Extensibility**: **MCP Bridge** for external tool servers, `skills/` prompt assets, and the runtime plugin system in `src/plugins/`.
 - **Analytics**: Real-time token usage and cost tracking with daily recap reports.
+
+## 🔌 Extensibility Model
+
+- **`src/plugins/`**: Runtime plugin system (registry + traits for providers, channels, tools, memory).
+- **`skills/`**: Skill documents that guide behavior/prompts; these are not runtime plugin modules.
+- Plugin authoring reference: [src/plugins/README.md](src/plugins/README.md)
 
 ## 📦 Deployment
 

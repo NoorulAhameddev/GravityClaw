@@ -64,10 +64,10 @@ export class MCPClient {
    * Load MCP servers configuration from mcp-servers.json
    */
   private loadConfig(): MCPServersConfig | null {
-    const configPath = path.join(process.cwd(), "mcp-servers.json");
+    const configPath = path.join(process.cwd(), "config", "mcp-servers.json");
 
     if (!fs.existsSync(configPath)) {
-      log.info("mcp-servers.json not found, MCP bridge disabled");
+      log.info("config/mcp-servers.json not found, MCP bridge disabled");
       return null;
     }
 
@@ -75,7 +75,7 @@ export class MCPClient {
       const content = fs.readFileSync(configPath, "utf-8");
       return JSON.parse(content) as MCPServersConfig;
     } catch (error) {
-      log.error(`Error loading mcp-servers.json: ${error}`);
+      log.error(`Error loading config/mcp-servers.json: ${error}`);
       return null;
     }
   }

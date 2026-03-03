@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { join } from 'path';
 import { writeFileSync, unlinkSync } from 'fs';
 import { createTranscriptionService, isAudioFile } from '../voice/transcription.js';
-import { transcribeAudioTool } from '../tools/voice.js';
+import { transcribeAudioTool } from '../tools/voice/voice.js';
 
 describe('Voice Transcription', () => {
   let service: ReturnType<typeof createTranscriptionService>;

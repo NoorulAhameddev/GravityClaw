@@ -16,7 +16,7 @@ import {
   listFilesTool,
   deleteFileTool,
   searchFilesTool,
-} from '../tools/files.js';
+} from '../tools/system/files.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';

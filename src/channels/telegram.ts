@@ -1,11 +1,11 @@
 import { Bot } from "grammy";
 import { config } from "../config.ts";
 import { createLogger } from "../logger.ts";
-import type { Channel, UnifiedMessage } from "./base.ts";
+import type { Channel, UnifiedMessage } from "../types/channels.js";
 import { createTranscriptionService } from "../voice/transcription.ts";
 import { createTTSService } from "../voice/tts.ts";
 import { createElevenLabsService } from "../voice/elevenlabs.ts";
-import { getVoiceSettings } from "../tools/voice-settings.ts";
+import { getVoiceSettings } from "../tools/voice/voice-settings.ts";
 import { writeFileSync, unlinkSync, readFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";

@@ -1,21 +1,36 @@
 import type { ChatCompletionTool } from "openai/resources/chat/completions.js";
+import type { Tool, ToolRegistry as ToolRegistryType } from "../types/tools.js";
 
-/**
- * Every tool Gravity Claw can use implements this interface.
- * Input schema follows JSON Schema (OpenAI tool format).
- */
-export interface Tool {
-    name: string;
-    description: string;
-    inputSchema: {
-        type: "object";
-        properties?: Record<string, unknown>;
-        required?: string[];
-    };
-    execute(input: Record<string, unknown>): Promise<string>;
-}
+export type { Tool, ToolRegistry } from "../types/tools.js";
+import {
+    adminTools,
+    communicationTools,
+    spawnAgentTool,
+    aggregateResultsTool,
+} from "./core/index.ts";
+import {
+    voiceTools,
+    ttsTools,
+    elevenLabsTools,
+    voiceSettingsTools,
+    wakeWordTools,
+    talkModeTools,
+} from "./voice/index.ts";
+import {
+    memoryTools,
+    saveFactTool,
+    recallFactsTool,
+    saveEntityTool,
+    saveRelationshipTool,
+    queryGraphTool,
+    searchMemorySemanticTool,
+    searchTools,
+} from "./memory/index.ts";
+import { datetimeTool, shellTool, searchAttachmentsTool, fileOperationTools } from "./system/index.ts";
+import { dashboardTools } from "./ui/index.ts";
+import { browserTools } from "./automation/index.ts";
 
-class ToolRegistry {
+class ToolRegistry implements ToolRegistryType {
     private readonly tools = new Map<string, Tool>();
 
     register(tool: Tool): void {
@@ -40,3 +55,32 @@ class ToolRegistry {
 }
 
 export const registry = new ToolRegistry();
+
+export function registerBuiltInTools(): void {
+    registry.register(datetimeTool);
+    registry.register(shellTool);
+    registry.register(saveFactTool);
+    registry.register(recallFactsTool);
+    registry.register(saveEntityTool);
+    registry.register(saveRelationshipTool);
+    registry.register(queryGraphTool);
+    registry.register(searchAttachmentsTool);
+    registry.register(searchMemorySemanticTool);
+
+    voiceTools.forEach(tool => registry.register(tool));
+    ttsTools.forEach(tool => registry.register(tool));
+    elevenLabsTools.forEach(tool => registry.register(tool));
+    voiceSettingsTools.forEach(tool => registry.register(tool));
+    wakeWordTools.forEach(tool => registry.register(tool));
+    talkModeTools.forEach(tool => registry.register(tool));
+    fileOperationTools.forEach(tool => registry.register(tool));
+    searchTools.forEach(tool => registry.register(tool));
+    browserTools.forEach(tool => registry.register(tool));
+    communicationTools.forEach(tool => registry.register(tool));
+    dashboardTools.forEach(tool => registry.register(tool));
+    memoryTools.forEach(tool => registry.register(tool));
+    adminTools.forEach(tool => registry.register(tool));
+
+    registry.register(spawnAgentTool);
+    registry.register(aggregateResultsTool);
+}
