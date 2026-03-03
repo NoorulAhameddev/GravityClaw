@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { browserTools } from "../tools/browser.ts";
+import { browserTools } from "../tools/automation/browser.ts";
 
 // Mock playwright
 const mockPage = {

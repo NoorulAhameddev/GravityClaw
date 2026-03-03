@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getVoiceSettings, setVoiceSettings, setVoiceModeTool, setTTSProviderTool, getVoiceSettingsTool } from '../tools/voice-settings.ts';
+import { getVoiceSettings, setVoiceSettings, setVoiceModeTool, setTTSProviderTool, getVoiceSettingsTool } from '../tools/voice/voice-settings.ts';
 
 describe('Voice Settings Management', () => {
   beforeEach(() => {

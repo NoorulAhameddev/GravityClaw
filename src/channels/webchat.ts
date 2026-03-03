@@ -1,6 +1,6 @@
 import { WebSocket } from "ws";
 import { createLogger } from "../logger.ts";
-import type { Channel, UnifiedMessage } from "./base.ts";
+import type { Channel, UnifiedMessage } from "../types/channels.js";
 import { wss, startServer } from "../server.ts";
 
 const log = createLogger("webchat");

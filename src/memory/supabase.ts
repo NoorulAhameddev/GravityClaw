@@ -3,17 +3,11 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { config } from "../config.ts";
 import { createLogger } from "../logger.ts";
 import { db } from "../db.ts";
+import type { SemanticSearchResult } from "../types/memory.js";
+
+export type { SemanticSearchResult } from "../types/memory.js";
 
 const log = createLogger("memory:supabase");
-
-export interface SemanticSearchResult {
-  id: string;
-  sessionId: string;
-  role: string;
-  content: string;
-  timestamp: string;
-  similarity: number;
-}
 
 interface SessionSyncPayload {
   id: string;

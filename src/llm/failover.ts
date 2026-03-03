@@ -1,4 +1,4 @@
-import type { LLMProvider, LLMResponse, LLMChatOptions } from "./base.ts";
+import type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions.js";
 import { createLogger } from "../logger.ts";
 

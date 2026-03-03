@@ -1,4 +1,4 @@
-import type { LLMProvider } from "./base.ts";
+import type { LLMProvider } from "../types/llm.js";
 import { OpenRouterProvider } from "./openrouter.ts";
 import { OpenAIProvider } from "./openai.ts";
 import { AnthropicProvider } from "./anthropic.ts";
@@ -13,7 +13,7 @@ import { createLogger } from "../logger.ts";
 const log = createLogger("llm");
 
 export { SYSTEM_PROMPT } from "./base.ts";
-export type { LLMProvider, LLMResponse, LLMChatOptions } from "./base.ts";
+export type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
 export { FailoverProvider } from "./failover.ts";
 export { OpenRouterProvider } from "./openrouter.ts";
 export type { OpenRouterModel } from "./openrouter.ts";

@@ -1,5 +1,5 @@
 import { mobileGateway } from "../gateway/mobile.ts";
-import type { UnifiedMessage, Channel } from "./base.ts";
+import type { UnifiedMessage, Channel } from "../types/channels.js";
 import { createLogger } from "../logger.ts";
 
 const log = createLogger("mobile-channel");

@@ -1,33 +1,10 @@
 import { db } from "../db.ts";
 import { createLogger } from "../logger.ts";
+import type { GraphEntity, GraphRelationship, GraphQueryResult } from "../types/memory.js";
+
+export type { GraphEntity, GraphRelationship, GraphQueryResult } from "../types/memory.js";
 
 const log = createLogger("graph");
-
-export interface GraphEntity {
-  id: number;
-  sessionId: string;
-  name: string;
-  type: string;
-  properties: Record<string, unknown>;
-  accessCount?: number;
-  lastAccessed?: string | null;
-}
-
-export interface GraphRelationship {
-  id: number;
-  sessionId: string;
-  fromId: number;
-  toId: number;
-  relationType: string;
-  metadata: Record<string, unknown>;
-}
-
-export interface GraphQueryResult {
-  rootEntity: GraphEntity;
-  depth: number;
-  entities: GraphEntity[];
-  relationships: GraphRelationship[];
-}
 
 export function initGraphMemory(): void {
   db.exec(`

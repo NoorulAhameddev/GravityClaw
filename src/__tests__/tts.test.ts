@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { createTTSService } from '../voice/tts.js';
-import { textToSpeechTool, textToSpeechStreamingTool } from '../tools/tts.js';
+import { textToSpeechTool, textToSpeechStreamingTool } from '../tools/voice/tts.js';
 
 describe('Text-to-Speech (TTS)', () => {
   let service: ReturnType<typeof createTTSService>;

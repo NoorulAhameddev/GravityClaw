@@ -2,32 +2,21 @@ import OpenAI from "openai";
 import { db } from "../db.ts";
 import { config } from "../config.ts";
 import { createLogger } from "../logger.ts";
+import type {
+  AttachmentType,
+  AttachmentInput,
+  AttachmentRecord,
+  ImageAnalysisOptions,
+} from "../types/memory.js";
+
+export type {
+  AttachmentType,
+  AttachmentInput,
+  AttachmentRecord,
+  ImageAnalysisOptions,
+} from "../types/memory.js";
 
 const log = createLogger("multimodal");
-
-export type AttachmentType = "image" | "audio" | "video" | "document" | "other";
-
-export interface AttachmentInput {
-  type: AttachmentType;
-  url?: string;
-  base64Data?: string;
-  extractedText?: string;
-}
-
-export interface AttachmentRecord {
-  id: number;
-  sessionId: string;
-  type: AttachmentType;
-  url: string | null;
-  base64Data: string | null;
-  extractedText: string | null;
-  timestamp: string;
-}
-
-export interface ImageAnalysisOptions {
-  analyzer?: (input: { url?: string; base64Data?: string }) => Promise<string>;
-  model?: string;
-}
 
 export function initMultimodalMemory(): void {
   db.exec(`

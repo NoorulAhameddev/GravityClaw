@@ -42,7 +42,7 @@ import {
   stopWakeWordTool,
   getWakeWordStatusTool,
   listWakeWordsTool,
-} from '../tools/wake-word.ts';
+} from '../tools/voice/wake-word.ts';
 
 describe('Wake Word Detection', () => {
   describe('Tool Metadata', () => {

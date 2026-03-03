@@ -17,25 +17,11 @@ import { getModelPricing, isApproachingContextLimit } from "../llm/pricing.ts";
 import { getProvider } from "../llm/index.ts";
 import { db } from "../db.ts";
 import { createLogger } from "../logger.ts";
+import type { PruningConfig } from "../types/memory.js";
+
+export type { PruningConfig } from "../types/memory.js";
 
 const log = createLogger("pruning");
-
-/**
- * Configuration for context pruning
- */
-export interface PruningConfig {
-  /** Threshold as percentage (0-100) - prune when exceeded */
-  contextThreshold: number;
-
-  /** Number of recent exchanges to keep (user/assistant pairs) */
-  keepRecentExchanges: number;
-
-  /** Enable automatic pruning before LLM calls */
-  autoprune: boolean;
-
-  /** Minimum conversation size before pruning (avoid pruning very small conversations) */
-  minMessageCount: number;
-}
 
 /**
  * Default pruning configuration

@@ -15,10 +15,10 @@ export interface AgentRunOptions {
     sessionId: string;
     requestConfirmation?: (command: string) => Promise<boolean>;
     onProgress?: (text: string) => Promise<void>;
-    userId?: string;
-    platform?: string;
-    groupId?: string;
-    isGroup?: boolean;
+    userId?: string | undefined;
+    platform?: string | undefined;
+    groupId?: string | undefined;
+    isGroup?: boolean | undefined;
 }
 
 export interface AgentRunResult {
@@ -102,7 +102,7 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
             // Confirmation gate for dangerous shell commands
             if (name === "run_shell" && requestConfirmation) {
                 const command = String(input["command"] ?? "");
-                const { isDangerous } = await import("./tools/shell.ts");
+                const { isDangerous } = await import("./tools/system/shell.ts");
                 if (isDangerous(command)) {
                     log.warn(`Dangerous command, requesting confirmation: ${command}`);
                     const confirmed = await requestConfirmation(command);

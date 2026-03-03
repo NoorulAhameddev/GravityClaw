@@ -61,7 +61,7 @@ import {
   startTalkModeTool, 
   stopTalkModeTool, 
   getTalkModeStatusTool,
-} from '../tools/talk-mode.ts';
+} from '../tools/voice/talk-mode.ts';
 
 describe('Talk Mode', () => {
   // Reset mock state before each test

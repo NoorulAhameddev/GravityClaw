@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { db } from "../db.ts";
 import { AgentSwarm, type SwarmConfig } from "../agents/swarm.ts";
 import { addUserMessage, addAssistantMessage, getHistory, clearHistory } from "../llm/index.ts";
-import { spawnAgentTool, aggregateResultsTool } from "../tools/swarm.ts";
+import { spawnAgentTool, aggregateResultsTool } from "../tools/core/swarm.ts";
 
 describe("Agent Swarm System", () => {
   const testSessionId = "test:swarm:parent";
