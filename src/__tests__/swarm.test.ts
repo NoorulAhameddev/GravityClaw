@@ -15,7 +15,7 @@ describe("Agent Swarm System", () => {
   beforeEach(() => {
     // Clean up test data before each test
     db.prepare("DELETE FROM memory WHERE session_id LIKE ?").run("test:swarm:%");
-    db.prepare("DELETE FROM agent_swarms WHERE parent_session LIKE ?").run(
+    db.prepare("DELETE FROM agent_swarms WHERE parent_session_id LIKE ?").run(
       "test:swarm:%"
     );
   });
@@ -23,7 +23,7 @@ describe("Agent Swarm System", () => {
   afterEach(() => {
     // Clean up test data after each test
     db.prepare("DELETE FROM memory WHERE session_id LIKE ?").run("test:swarm:%");
-    db.prepare("DELETE FROM agent_swarms WHERE parent_session LIKE ?").run(
+    db.prepare("DELETE FROM agent_swarms WHERE parent_session_id LIKE ?").run(
       "test:swarm:%"
     );
   });
@@ -92,12 +92,12 @@ describe("Agent Swarm System", () => {
 
       // Check if database entry was created
       const entry = db
-        .prepare("SELECT * FROM agent_swarms WHERE child_session = ?")
+        .prepare("SELECT * FROM agent_swarms WHERE child_session_id = ?")
         .get(sessionId) as any;
 
       expect(entry).toBeDefined();
       expect(entry.role).toBe("researcher");
-      expect(entry.parent_session).toBe(testSessionId);
+      expect(entry.parent_session_id).toBe(testSessionId);
       expect(entry.status).toBe("completed");
     });
 
@@ -243,12 +243,12 @@ describe("Agent Swarm System", () => {
       const sessionId = await swarm.spawnAgent("researcher", "Test task");
 
       const entry = db
-        .prepare("SELECT * FROM agent_swarms WHERE child_session = ?")
+        .prepare("SELECT * FROM agent_swarms WHERE child_session_id = ?")
         .get(sessionId) as any;
 
       expect(entry).toBeDefined();
-      expect(entry.parent_session).toBe(testSessionId);
-      expect(entry.child_session).toBe(sessionId);
+      expect(entry.parent_session_id).toBe(testSessionId);
+      expect(entry.child_session_id).toBe(sessionId);
       expect(entry.role).toBe("researcher");
       expect(entry.status).toBe("completed");
       expect(entry.created_at).toBeDefined();
@@ -261,7 +261,7 @@ describe("Agent Swarm System", () => {
       const sessionId2 = await swarm.spawnAgent("coder", "Task 2");
 
       const entries = db
-        .prepare("SELECT * FROM agent_swarms WHERE parent_session = ? ORDER BY created_at")
+        .prepare("SELECT * FROM agent_swarms WHERE parent_session_id = ? ORDER BY created_at")
         .all(testSessionId) as any[];
 
       expect(entries.length).toBeGreaterThanOrEqual(2);
@@ -274,12 +274,12 @@ describe("Agent Swarm System", () => {
 
       const entry = db
         .prepare(
-          "SELECT parent_session, child_session FROM agent_swarms WHERE child_session = ?"
+          "SELECT parent_session_id, child_session_id FROM agent_swarms WHERE child_session_id = ?"
         )
         .get(sessionId) as any;
 
-      expect(entry.parent_session).toBe(testSessionId);
-      expect(entry.child_session).toBe(sessionId);
+      expect(entry.parent_session_id).toBe(testSessionId);
+      expect(entry.child_session_id).toBe(sessionId);
     });
   });
 

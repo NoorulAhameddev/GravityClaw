@@ -100,7 +100,7 @@ export class AgentSwarm {
     try {
       // Create database entry for swarm tracking
       db.prepare(
-        `INSERT INTO agent_swarms (id, parent_session, child_session, role, status, created_at)
+        `INSERT INTO agent_swarms (id, parent_session_id, child_session_id, role, status, created_at)
          VALUES (?, ?, ?, ?, ?, ?)`
       ).run(
         crypto.randomUUID(),
@@ -136,7 +136,7 @@ export class AgentSwarm {
         addAssistantMessage(sessionId, response.text);
 
         // Update status to completed
-        db.prepare(`UPDATE agent_swarms SET status = ? WHERE child_session = ?`).run(
+        db.prepare(`UPDATE agent_swarms SET status = ? WHERE child_session_id = ?`).run(
           "completed",
           sessionId
         );
@@ -145,7 +145,7 @@ export class AgentSwarm {
       return sessionId;
     } catch (error) {
       log.error(`Error spawning ${role} agent:`, error);
-      db.prepare(`UPDATE agent_swarms SET status = ? WHERE child_session = ?`).run(
+      db.prepare(`UPDATE agent_swarms SET status = ? WHERE child_session_id = ?`).run(
         "failed",
         sessionId
       );

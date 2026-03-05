@@ -122,7 +122,7 @@ Channel (Telegram/WhatsApp/Web)
 - `src/channels/` - Multi-platform adapters
 - `src/plugins/` - Runtime extension system
 
-For detailed architecture, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (if available) or review the codebase.
+For detailed architecture, see [docs/architecture/ARCHITECTURE_OVERVIEW.md](docs/architecture/ARCHITECTURE_OVERVIEW.md).
 
 ---
 
@@ -174,7 +174,7 @@ For offline operation:
 npm start
 ```
 
-See [docs/AIRGAP.md](docs/AIRGAP.md) for detailed air-gap setup.
+See [docs/features/airgap/AIRGAP.md](docs/features/airgap/AIRGAP.md) for detailed air-gap setup.
 
 ---
 
@@ -223,18 +223,43 @@ Found a security vulnerability? Please report it privately:
 
 For more details, see [SECURITY.md](SECURITY.md).
 
-## � Documentation
+## 📚 Documentation
 
+### 🚀 Start Here
 | Document | Purpose |
 |----------|---------|
-| [docs/CLI.md](docs/CLI.md) | Command-line interface reference |
-| [docs/AIRGAP.md](docs/AIRGAP.md) | Air-gapped mode setup & usage |
-| [docs/ENCRYPTED_SECRETS.md](docs/ENCRYPTED_SECRETS.md) | Secret management & encryption |
-| [docs/CANVAS.md](docs/CANVAS.md) | Live Canvas (A2UI) widget system |
-| [docs/MODEL_SWITCHING.md](docs/MODEL_SWITCHING.md) | Dynamic model provider switching |
-| [src/plugins/README.md](src/plugins/README.md) | Plugin authoring guide |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
-| [SECURITY.md](SECURITY.md) | Security policy & vulnerability reporting |
+| **[📚 Documentation Index](docs/INDEX.md)** | **Complete documentation hub & navigation** |
+| [🛠️ Tools Reference](docs/TOOLS_REFERENCE.md) | Catalog of all 80+ tools with examples |
+| [📖 CLI Guide](docs/CLI.md) | Command-line interface reference |
+| [🏗️ Architecture](ARCHITECTURE_OVERVIEW.md) | Complete system design & data flow |
+
+### 🤖 Core Features
+| Document | Purpose |
+|----------|---------|
+| [Multi-Agent Systems](docs/MULTI_AGENT_SYSTEMS.md) | Swarms & Mesh workflows for complex tasks |
+| [Skills Guide](docs/SKILLS_GUIDE.md) | Create prompt-based knowledge assets with code |
+| [Proactive Features](docs/PROACTIVE_FEATURES.md) | Heartbeat check-ins, daily recommendations, evening recaps |
+| [Live Canvas (A2UI)](docs/CANVAS.md) | Push rich HTML/JS widgets to users |
+| [Model Switching](docs/MODEL_SWITCHING.md) | Dynamic provider/model selection |
+
+### 🔒 Security & Operations
+| Document | Purpose |
+|----------|---------|
+| [Security Policy](SECURITY.md) | Security features & vulnerability reporting |
+| [Air-Gapped Mode](docs/AIRGAP.md) | Complete offline operation with local models |
+| [Encrypted Secrets](docs/ENCRYPTED_SECRETS.md) | AES-256-GCM secret management |
+| [Backup & Restore](docs/BACKUP_RESTORE_SYSTEM.md) | Automated backup system |
+| [Observability](docs/OBSERVABILITY.md) | Logging, metrics, tracing, monitoring |
+| [Rate Limiting](docs/RATE_LIMITING.md) | API rate limiting configuration |
+| [Performance Optimization](docs/PERFORMANCE.md) | Speed & efficiency tuning |
+
+### 🧩 Development & Integration
+| Document | Purpose |
+|----------|---------|
+| [API Reference](docs/API.md) | REST & WebSocket API documentation |
+| [Plugin System](src/plugins/README.md) | Create runtime extensions |
+| [Deployment Guide](docs/DEPLOYMENT.md) | Production deployment (VPS, Docker) |
+| [Contributing Guide](CONTRIBUTING.md) | How to contribute to the project |
 
 ---
 

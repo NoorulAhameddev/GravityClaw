@@ -12,7 +12,11 @@ import { skillManagementTools, skillsManager } from "./skills/index.ts";
 import { spawnAgentTool, aggregateResultsTool, communicationTools, adminTools } from "./tools/core/index.ts";
 import { canvasPushTool } from "./canvas/index.ts";
 import { heartbeatTools, isHeartbeatTask, markHeartbeatRun, isHeartbeatResponseNoteworthy, isHeartbeatEnabledForSession } from "./heartbeat/index.ts";
-import { dashboardTools } from "./tools/ui/index.ts";
+import { dashboardTools, uiAdminTools } from "./tools/ui/index.ts";
+import { securityTools } from "./tools/security/index.ts";
+import { exportChatHistoryTool, exportMemoryTool, exportUsageStatsTool, exportGraphTool } from "./tools/export/index.ts";
+import { backupTools } from "./tools/backup/index.ts";
+import { initializeBackupSystem, stopBackupScheduler, DEFAULT_BACKUP_CONFIG } from "./backup/index.ts";
 import { EVENING_RECAP_PROMPT, buildEveningRecap } from "./recap/index.ts";
 import { startDailyRecommendations } from "./recommendations/index.ts";
 import { runAgent } from "./agent.ts";
@@ -21,8 +25,21 @@ import { TelegramChannel } from "./channels/telegram.ts";
 import { WhatsAppChannel } from "./channels/whatsapp.ts";
 import { WebChatChannel } from "./channels/webchat.ts";
 import { createLogger } from "./logger.ts";
+import { db } from "./db.ts";
+import path from "path";
+import { fileURLToPath } from "url";
+import { validateSecurityConfiguration } from "./security/startup-validation.ts";
+import {
+    initializePerformanceOptimizations,
+    initializeMemoryOptimizations,
+    precompileCommonPatterns,
+} from "./performance/index.ts";
 
 import { initializePlugins } from "./plugins/registry.ts";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const dbPath = path.join(__dirname, "../gravity.db");
 
 const log = createLogger("main");
 
@@ -52,6 +69,13 @@ skillManagementTools.forEach(tool => registry.register(tool));
 communicationTools.forEach(tool => registry.register(tool));
 heartbeatTools.forEach(tool => registry.register(tool));
 dashboardTools.forEach(tool => registry.register(tool));
+uiAdminTools.forEach(tool => registry.register(tool));
+securityTools.forEach(tool => registry.register(tool));
+registry.register(exportChatHistoryTool);
+registry.register(exportMemoryTool);
+registry.register(exportUsageStatsTool);
+registry.register(exportGraphTool);
+backupTools.forEach(tool => registry.register(tool));
 memoryTools.forEach(tool => registry.register(tool));
 adminTools.forEach(tool => registry.register(tool));
 registry.register(spawnAgentTool);
@@ -67,6 +91,25 @@ async function main() {
         process.exit(1);
     }
 
+    // Validate security configuration
+    try {
+        validateSecurityConfiguration();
+    } catch (err) {
+        log.error("Security validation failed", err);
+        process.exit(1);
+    }
+
+    // Initialize performance monitoring and optimizations
+    try {
+        initializePerformanceOptimizations();
+        initializeMemoryOptimizations();
+        precompileCommonPatterns();
+        log.info("✅ Performance optimizations initialized");
+    } catch (err) {
+        log.warn("⚠️  Warning: Performance optimization initialization failed", { error: err });
+        // Do not exit - performance monitoring is optional
+    }
+
     // Initialize plugin system
     await initializePlugins();
     
@@ -77,6 +120,21 @@ async function main() {
     await skillsManager.initialize();
     const skillTools = skillsManager.getSkillTools();
     skillTools.forEach(tool => registry.register(tool));
+
+    // Initialize backup system
+    try {
+        await initializeBackupSystem(db, dbPath, {
+            enabled: DEFAULT_BACKUP_CONFIG.enabled,
+            cronExpression: DEFAULT_BACKUP_CONFIG.cronExpression,
+            retentionDays: DEFAULT_BACKUP_CONFIG.retentionDays,
+            encryptBackups: DEFAULT_BACKUP_CONFIG.encryptBackups,
+            compressBackups: DEFAULT_BACKUP_CONFIG.compressBackups,
+        });
+        log.info("✅ Backup system initialized and scheduler started");
+    } catch (err) {
+        log.error("⚠️  Warning: Backup system initialization failed", err);
+        // Do not exit - backup is optional
+    }
 
     // Dynamic tool listing
     const tools = registry.getOpenAIDefinitions().map(d => d.function.name);
@@ -145,6 +203,7 @@ async function main() {
     const shutdown = async (signal: string) => {
         log.info(`${signal} received — stopping router…`);
         recommendationsRuntime.stop();
+        stopBackupScheduler();
         await router.stopAll();
         await mcpClient.shutdown();
         await skillsManager.shutdown();

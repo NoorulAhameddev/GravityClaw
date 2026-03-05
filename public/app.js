@@ -3,14 +3,16 @@
 // ─────────────────────────────────────────────
 
 // ── Router ──────────────────────────────────
-const PAGES = ['chat', 'dashboard', 'memory', 'canvas', 'tools'];
-let currentPage = 'chat';
+const PAGES = ['overview', 'chat', 'canvas', 'scheduler', 'webhooks', 'heartbeats', 'sessions', 'memory', 'analytics', 'swarms', 'workflows', 'tools', 'usage', 'admin', 'plugins'];
+let currentPage = 'overview';
 
 function navigate(page) {
   if (!PAGES.includes(page)) return;
   if (currentPage === page) return;
-  
+
+  const oldPage = currentPage;
   currentPage = page;
+
   PAGES.forEach(p => {
     const el = document.getElementById(`page-${p}`);
     const nav = document.querySelector(`[data-page="${p}"]`);
@@ -19,11 +21,21 @@ function navigate(page) {
   });
 
   // Page-specific actions
-  if (page === 'dashboard') loadDashboard();
+  if (page === 'overview') loadOverview();
   if (page === 'memory') loadMemory();
   if (page === 'tools') loadTools();
-  
+  if (page === 'scheduler') loadScheduler();
+  if (page === 'webhooks') loadWebhooks();
+  if (page === 'heartbeats') loadHeartbeats();
+  if (page === 'sessions') loadSessions();
+  if (page === 'swarms') loadSwarms();
+  if (page === 'workflows') loadWorkflows();
+  if (page === 'usage') loadUsage();
+  if (page === 'admin') loadAdmin();
+
   document.title = `Gravity Claw — ${page.charAt(0).toUpperCase() + page.slice(1)}`;
+  if (pageTitle) pageTitle.textContent = page.charAt(0).toUpperCase() + page.slice(1);
+  window.location.hash = page;
 }
 
 document.querySelectorAll('[data-page]').forEach(el => {
@@ -53,32 +65,23 @@ function wsConnect() {
   ws.onopen = () => {
     clearTimeout(wsTimer);
     wsDelay = 1000;
-    setDot('ws-dot', 'ok');
-    setText('ws-status', 'Connected');
-    document.getElementById('send-btn').disabled = false;
+
+    // Update all WS status indicators
+    updateStatus('ws', 'ok', 'Connected');
+
+    const sendBtn = document.getElementById('chat-send');
+    if (sendBtn) sendBtn.disabled = false;
     toast('Connected to server', 'ok');
   };
 
-  ws.onmessage = ({ data }) => {
-    try {
-      const m = JSON.parse(data);
-      if (m.type === 'typing') {
-        showTyping(true);
-        return;
-      }
-      if (m.type === 'message' && m.isBot) {
-        showTyping(false);
-        appendMsg('bot', m.text);
-      }
-    } catch (e) {
-      console.error('Message parse error:', e);
-    }
-  };
+  ws.onmessage = enhancedMessageHandler;
 
   ws.onclose = () => {
-    setDot('ws-dot', '');
-    setText('ws-status', 'Disconnected');
-    document.getElementById('send-btn').disabled = true;
+    updateStatus('ws', '', 'Disconnected');
+
+    const sendBtn = document.getElementById('chat-send');
+    if (sendBtn) sendBtn.disabled = true;
+
     wsTimer = setTimeout(() => {
       wsDelay = Math.min(wsDelay * 1.5, WS_MAX_DELAY);
       wsConnect();
@@ -86,15 +89,116 @@ function wsConnect() {
   };
 
   ws.onerror = (e) => {
-    setDot('ws-dot', 'warn');
-    setText('ws-status', 'Error');
+    updateStatus('ws', 'warn', 'Error');
     console.error('WebSocket error:', e);
   };
 }
 
+function updateStatus(type, state, msg) {
+  // Map state to CSS classes used in index.html
+  const clsMap = { 'ok': 'green', 'err': 'red', 'warn': 'yellow', 'connecting': 'yellow' };
+  const cssCls = clsMap[state] || '';
+
+  // Update dots
+  const dots = {
+    ws: ['ws-dot', 'ws-clients-dot'],
+    server: ['server-dot'],
+    canvas: ['canvas-dot']
+  }[type] || [];
+
+  dots.forEach(id => setDot(id, cssCls));
+
+  // Update texts
+  const texts = {
+    ws: ['ws-status', 'ws-status-text', 'chat-ws-status'],
+    server: ['server-status', 'server-status-text', 'status-value'],
+    canvas: ['canvas-status']
+  }[type] || [];
+
+  texts.forEach(id => setText(id, msg));
+
+  // Update status-icon in the dashboard banner if it exists
+  if (type === 'server') {
+    const icon = document.getElementById('status-icon');
+    if (icon) icon.style.color = state === 'ok' ? 'var(--green)' : 'var(--red)';
+  }
+}
+
+// ── Tool Call Helper ─────────────────────────
+const pendingToolCalls = new Map();
+
+function callTool(toolName, args = {}) {
+  return new Promise((resolve, reject) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      reject(new Error('WebSocket not connected'));
+      return;
+    }
+
+    const id = `tool-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const timeout = setTimeout(() => {
+      pendingToolCalls.delete(id);
+      reject(new Error(`Tool call timeout: ${toolName}`));
+    }, 30000);
+
+    pendingToolCalls.set(id, { resolve, reject, timeout });
+
+    ws.send(JSON.stringify({
+      type: 'tool_call',
+      id,
+      tool: toolName,
+      args
+    }));
+  });
+}
+
+// Enhanced message handler to process tool responses
+const originalOnMessage = ws?.onmessage;
+function enhancedMessageHandler(event) {
+  try {
+    const m = JSON.parse(event.data);
+
+    // Handle tool responses
+    if (m.type === 'tool_response' && m.id) {
+      const pending = pendingToolCalls.get(m.id);
+      if (pending) {
+        clearTimeout(pending.timeout);
+        pendingToolCalls.delete(m.id);
+
+        if (m.error) {
+          pending.reject(new Error(m.error));
+        } else {
+          // Parse result if it's JSON string
+          let result = m.result;
+          if (typeof result === 'string') {
+            try {
+              result = JSON.parse(result);
+            } catch {
+              // Keep as string if not JSON
+            }
+          }
+          pending.resolve(result);
+        }
+      }
+      return;
+    }
+
+    // Handle chat messages and typing indicators
+    if (m.type === 'typing') {
+      showTyping(true);
+      return;
+    }
+    if (m.type === 'message' && m.isBot) {
+      showTyping(false);
+      appendMsg('bot', m.text);
+    }
+  } catch (e) {
+    console.error('Message parse error:', e);
+  }
+}
+
 // ── Chat ─────────────────────────────────────
 function appendMsg(role, text) {
-  const wrap = document.getElementById('chat-msgs');
+  const wrap = document.getElementById('chat-messages');
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const icon = role === 'user' ? '👤' : '🦾';
   const el = document.createElement('div');
@@ -106,16 +210,16 @@ function appendMsg(role, text) {
       <div class="msg-time">${time}</div>
     </div>`;
   wrap.appendChild(el);
-  
+
   // Smooth scroll to bottom
   wrap.scrollTop = wrap.scrollHeight;
-  
+
   // Add subtle feedback
   el.offsetHeight; // Trigger reflow
 }
 
 function showTyping(on) {
-  const el = document.getElementById('typing-row');
+  const el = document.getElementById('chat-typing');
   if (on) {
     el.innerHTML = `
       <span>Agent is thinking</span>
@@ -139,7 +243,7 @@ chatForm.addEventListener('submit', e => {
     toast('Not connected', 'err');
     return;
   }
-  
+
   appendMsg('user', text);
   ws.send(JSON.stringify({ type: 'message', text }));
   chatTa.value = '';
@@ -161,99 +265,221 @@ chatTa.addEventListener('keydown', e => {
 
 document.getElementById('clear-btn')?.addEventListener('click', () => {
   if (confirm('Clear all messages?')) {
-    document.getElementById('chat-msgs').innerHTML = '';
+    document.getElementById('chat-messages').innerHTML = '';
     showTyping(false);
     toast('Chat cleared', 'info');
   }
 });
 
 // ── Dashboard ────────────────────────────────
-async function loadDashboard() {
+async function loadOverview() {
   try {
-    const [health, toolsRes, memRes] = await Promise.all([
+    const [health, stats, usage] = await Promise.all([
       api('/api/health'),
-      api('/api/tools').catch(() => ({ count: 0 })),
-      api('/api/memory').catch(() => ({ data: [] })),
+      api('/api/stats'),
+      api('/api/usage')
     ]);
 
-    set('s-status', health.status === 'ok' ? '✓ Online' : '✗ Down');
-    set('s-uptime', fmtUptime(health.uptime));
-    set('s-port', health.server?.port ?? '—');
-    set('s-wsc', health.server?.wsClients ?? 0);
-    set('s-tools', toolsRes.count ?? '—');
-    set('s-sessions', memRes.data?.length ?? 0);
-    set('s-ts', new Date(health.timestamp).toLocaleString());
+    // Update overview statuses
+    updateStatus('server', health.status === 'ok' ? 'ok' : 'err', health.status === 'ok' ? 'Online' : 'Error');
+    set('uptime-value', fmtUptime(health.uptime));
+    set('ws-clients-value', health.server?.wsClients ?? 0);
+    set('port-value', health.server?.port ?? 3000);
 
-    const usage = await api('/api/usage').catch(() => null);
-    if (usage?.success) renderUsage(usage.data);
+    // Update stats cards
+    const s = stats.data || {};
+    set('st-sessions', s.sessions);
+    set('st-tasks', s.activeTasks);
+    set('st-memory', s.memorySessions);
+    set('st-swarms', s.swarms);
+    set('st-workflows', s.workflows);
+    set('st-webhooks', s.webhooks);
+
+    // Update usage cards
+    const u = usage.byPeriod?.today || {};
+    set('usage-today-reqs', u.requests ?? 0);
+    set('usage-today-cost', `$${(u.cost || 0).toFixed(4)}`);
+
+    const uw = usage.byPeriod?.week || {};
+    set('usage-week-reqs', uw.requests ?? 0);
+    set('usage-week-cost', `$${(uw.cost || 0).toFixed(4)}`);
+
+    const ua = usage.byPeriod?.allTime || {};
+    set('usage-all-reqs', ua.requests ?? 0);
+    set('usage-all-cost', `$${(ua.cost || 0).toFixed(4)}`);
+
+    set('usage-tokens', ua.tokens ?? 0);
+    set('usage-latency', `${Math.round(usage.avgLatency || 0)}ms avg`);
+
   } catch (err) {
-    console.error('Dashboard error:', err);
-    toast('Failed to load dashboard', 'err');
+    console.error('Overview load error:', err);
+    updateStatus('server', 'err', 'Offline');
   }
 }
 
-function fmtUptime(s) {
-  if (s == null) return '—';
-  const h = Math.floor(s / 3600),
-    m = Math.floor((s % 3600) / 60),
-    sec = Math.floor(s % 60);
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${sec}s`;
-  return `${sec}s`;
+async function loadHealth() {
+  try {
+    const h = await api('/api/health');
+    updateStatus('server', h.status === 'ok' ? 'ok' : 'err', h.status === 'ok' ? 'Server Online' : 'Server Error');
+  } catch {
+    updateStatus('server', 'err', 'Server Offline');
+  }
 }
 
-function renderUsage(data) {
-  const el = document.getElementById('usage-section');
-  if (!el || !data) return;
-  const today = data.byPeriod?.today || {};
-  const week = data.byPeriod?.week || {};
-  const all = data.byPeriod?.allTime || {};
+async function loadScheduler() {
+  const tb = document.getElementById('tb-scheduler');
+  if (!tb) return;
+  try {
+    const { data } = await api('/api/scheduler/tasks');
+    set('sched-stat-total', data.length);
+    if (!data.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px">No tasks found</td></tr>'; return; }
+    tb.innerHTML = data.map(t => `<tr>
+      <td>${esc(t.name)}</td><td style="font-family:monospace">${esc(t.cron_expression)}</td>
+      <td style="font-family:monospace">${esc(t.session_id)}</td>
+      <td><span class="status-badge ${t.enabled ? 'online' : 'offline'}">${t.enabled ? 'Enabled' : 'Disabled'}</span></td>
+      <td>${fmtDate(t.last_run)}</td><td>${fmtDate(t.next_run)}</td><td>${fmtDate(t.created_at)}</td>
+    </tr>`).join('');
+  } catch (e) { tb.innerHTML = `<tr><td colspan="7">Error: ${e.message}</td></tr>`; }
+}
 
-  let modelsHtml = '';
-  if (data.models?.length) {
-    modelsHtml = `
-      <div class="section" style="margin-top:20px">
-        <div class="sec-title">By Model (All Time)</div>
-        <table class="tbl" style="background:var(--card);border-radius:8px;overflow:hidden">
-          <thead><tr><th>Model</th><th>Calls</th><th>Tokens</th><th>Cost</th></tr></thead>
-          <tbody>
-            ${data.models.map(m => `
-              <tr>
-                <td style="font-family:monospace;font-size:12px"><strong>${esc(m.model)}</strong></td>
-                <td><strong>${m.calls}</strong></td>
-                <td>${(m.tokens || 0).toLocaleString()}</td>
-                <td><strong>$${(m.cost || 0).toFixed(5)}</strong></td>
-              </tr>`).join('')}
-          </tbody>
-        </table>
+async function loadWebhooks() {
+  const tb = document.getElementById('tb-webhooks');
+  if (!tb) return;
+  try {
+    const { data } = await api('/api/webhooks');
+    set('wh-stat-total', data.length);
+    if (!data.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px">No webhooks</td></tr>'; return; }
+    const origin = window.location.origin;
+    tb.innerHTML = data.map(w => {
+      const url = `${origin}/webhook/${w.session_id}/${encodeURIComponent(w.name)}`;
+      return `<tr><td>${esc(w.name)}</td><td style="font-family:monospace">${esc(w.session_id)}</td>
+        <td style="font-family:monospace;max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(url)}</td>
+        <td><button class="btn sm" onclick="copyToClipboard('${esc(url)}')">Copy</button></td>
+        <td>${fmtDate(w.created_at)}</td></tr>`;
+    }).join('');
+  } catch (e) { tb.innerHTML = `<tr><td colspan="5">Error: ${e.message}</td></tr>`; }
+}
+
+async function loadHeartbeats() {
+  const tb = document.getElementById('tb-heartbeats');
+  if (!tb) return;
+  try {
+    const { data } = await api('/api/heartbeats');
+    set('hb-stat-total', data.length);
+    if (!data.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px">No heartbeats</td></tr>'; return; }
+    tb.innerHTML = data.map(h => `<tr>
+      <td style="font-family:monospace">${esc(h.session_id)}</td><td>${h.interval_minutes}m</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${esc(h.prompt)}">${esc(h.prompt)}</td>
+      <td><span class="status-badge ${h.enabled ? 'online' : 'offline'}">${h.enabled ? 'Enabled' : 'Disabled'}</span></td>
+      <td>${fmtDate(h.last_run)}</td><td>${fmtDate(h.created_at)}</td>
+    </tr>`).join('');
+  } catch (e) { tb.innerHTML = `<tr><td colspan="6">Error: ${e.message}</td></tr>`; }
+}
+
+async function loadSessions() {
+  const tb = document.getElementById('tb-sessions');
+  if (!tb) return;
+  try {
+    const { data } = await api('/api/sessions');
+    set('sess-stat-total', data.length);
+    if (!data.length) { tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px">No sessions</td></tr>'; return; }
+    tb.innerHTML = data.map(s => `<tr>
+      <td style="font-family:monospace">${esc(s.id || s.session_id)}</td>
+      <td>${s.message_count}</td>
+      <td><span class="status-badge ${s.allow_messages ? 'online' : 'offline'}">${s.allow_messages ? 'Active' : 'Stopped'}</span></td>
+      <td>${fmtDate(s.updated_at)}</td>
+    </tr>`).join('');
+  } catch (e) { tb.innerHTML = `<tr><td colspan="4">Error: ${e.message}</td></tr>`; }
+}
+
+async function loadSwarms() {
+  const tb = document.getElementById('tb-swarms');
+  if (!tb) return;
+  try {
+    const { data } = await api('/api/swarms');
+    set('sw-stat-total', data.length);
+    if (!data.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px">No swarms</td></tr>'; return; }
+    tb.innerHTML = data.map(s => `<tr>
+      <td style="font-family:monospace;font-size:11px">${esc(String(s.id).substring(0, 8))}…</td>
+      <td style="font-family:monospace">${esc(s.parent_session_id)}</td>
+      <td style="font-family:monospace">${esc(s.child_session_id)}</td>
+      <td>${esc(s.role)}</td><td><span class="status-badge online">${esc(s.status)}</span></td>
+      <td>${fmtDate(s.created_at)}</td>
+    </tr>`).join('');
+  } catch (e) { tb.innerHTML = `<tr><td colspan="6">Error: ${e.message}</td></tr>`; }
+}
+
+async function loadWorkflows() {
+  const tb = document.getElementById('tb-workflows');
+  if (!tb) return;
+  try {
+    const { data } = await api('/api/workflows');
+    set('wf-stat-total', data.length);
+    if (!data.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px">No workflows</td></tr>'; return; }
+    tb.innerHTML = data.map(w => {
+      const pct = Math.round((w.progress || 0) * 100);
+      return `<tr>
+        <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis" title="${esc(w.goal)}">${esc(w.goal)}</td>
+        <td style="font-family:monospace">${esc(w.session_id)}</td>
+        <td><span class="status-badge ${w.status === 'completed' ? 'online' : w.status === 'running' ? 'blue' : 'offline'}">${esc(w.status)}</span></td>
+        <td><div style="width:100%;height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="width:${pct}%;height:100%;background:var(--accent)"></div></div></td>
+        <td>${fmtDate(w.created_at)}</td><td>${fmtDate(w.completed_at)}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) { tb.innerHTML = `<tr><td colspan="6">Error: ${e.message}</td></tr>`; }
+}
+
+async function loadUsage() {
+  const tb = document.getElementById('tb-models');
+  if (!tb) return;
+  try {
+    const usage = await api('/api/usage');
+    const b = usage.byPeriod;
+    set('u-today-req', b.today.requests);
+    set('u-today-tok', b.today.tokens);
+    set('u-today-cost', b.today.cost != null ? `$${Number(b.today.cost).toFixed(4)}` : '—');
+    set('u-week-req', b.week.requests);
+    set('u-week-tok', b.week.tokens);
+    set('u-week-cost', b.week.cost != null ? `$${Number(b.week.cost).toFixed(4)}` : '—');
+    set('u-all-req', b.allTime.requests);
+    set('u-all-tok', b.allTime.tokens);
+    set('u-all-cost', b.allTime.cost != null ? `$${Number(b.allTime.cost).toFixed(4)}` : '—');
+
+    const entries = Object.entries(usage.models || {});
+    if (!entries.length) { tb.innerHTML = '<tr><td colspan="4">No data</td></tr>'; return; }
+    tb.innerHTML = entries.map(([model, s]) => `<tr>
+      <td style="font-family:monospace">${esc(model)}</td><td>${s.calls.toLocaleString()}</td>
+      <td>${s.tokens.toLocaleString()}</td><td>$${Number(s.cost).toFixed(4)}</td>
+    </tr>`).join('');
+  } catch (e) { tb.innerHTML = `<tr><td colspan="4">Error: ${e.message}</td></tr>`; }
+}
+
+async function loadAdmin() {
+  const container = document.getElementById('admin-groups-container');
+  if (!container) return;
+  try {
+    const groups = await callTool('listGroupsForUser', {});
+    if (groups?.success && groups.data?.groups) {
+      const list = groups.data.groups;
+      set('admin-groups-count', list.length);
+      if (list.length === 0) { container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">No groups found</div>'; return; }
+      container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));gap:20px">
+        ${list.map(g => `<div class="card" style="padding:20px">
+          <div style="font-weight:bold;margin-bottom:10px">📱 ${esc(g.platform)}</div>
+          <div style="font-family:monospace;font-size:12px;color:var(--muted)">ID: ${esc(g.groupId)}</div>
+          <div style="margin-top:15px;display:flex;justify-content:space-between">
+            <span>Tools: <strong style="color:var(--green)">${g.enabledToolCount}</strong> / <strong style="color:var(--red)">${g.disabledToolCount}</strong></span>
+          </div>
+        </div>`).join('')}
       </div>`;
-  }
-
-  el.innerHTML = `
-    <div class="sec-title" style="margin-top:20px">📊 Token Usage</div>
-    <div class="stat-grid">
-      <div class="stat blue">
-        <div class="stat-lbl">Today · Requests</div>
-        <div class="stat-val">${today.requests ?? 0}</div>
-        <div class="stat-sub">${(today.tokens || 0).toLocaleString()} tokens</div>
-      </div>
-      <div class="stat green">
-        <div class="stat-lbl">Today · Cost</div>
-        <div class="stat-val">$${(today.cost || 0).toFixed(4)}</div>
-      </div>
-      <div class="stat blue">
-        <div class="stat-lbl">This Week · Requests</div>
-        <div class="stat-val">${week.requests ?? 0}</div>
-        <div class="stat-sub">${(week.tokens || 0).toLocaleString()} tokens</div>
-      </div>
-      <div class="stat yellow">
-        <div class="stat-lbl">All Time · Cost</div>
-        <div class="stat-val">$${(all.cost || 0).toFixed(4)}</div>
-        <div class="stat-sub">${(all.requests || 0)} total calls</div>
-      </div>
-    </div>
-    ${modelsHtml}`;
+    }
+  } catch (e) { container.innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`; }
 }
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => toast('Copied to clipboard', 'ok'));
+}
+window.copyToClipboard = copyToClipboard;
 
 // ── Memory ───────────────────────────────────
 async function loadMemory() {
@@ -333,15 +559,15 @@ let canWs;
 
 function canConnect() {
   if (canWs) { canWs.close(); canWs = null; }
-  let sid = document.getElementById('can-sid').value.trim();
-  if (!sid) { sid = `web-${Date.now()}`; document.getElementById('can-sid').value = sid; }
+  let sid = document.getElementById('canvas-sid').value.trim();
+  if (!sid) { sid = `web-${Date.now()}`; document.getElementById('canvas-sid').value = sid; }
 
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   canWs = new WebSocket(`${proto}//${location.host}/canvas?session=${sid}`);
 
-  canWs.onopen = () => { setDot('can-dot', 'ok'); setText('can-status', 'Connected'); };
-  canWs.onclose = () => { setDot('can-dot', ''); setText('can-status', 'Disconnected'); };
-  canWs.onerror = () => { setDot('can-dot', 'warn'); setText('can-status', 'Error'); };
+  canWs.onopen = () => { updateStatus('canvas', 'ok', 'Connected'); };
+  canWs.onclose = () => { updateStatus('canvas', '', 'Disconnected'); };
+  canWs.onerror = () => { updateStatus('canvas', 'warn', 'Error'); };
   canWs.onmessage = ({ data }) => {
     try {
       const m = JSON.parse(data);
@@ -366,7 +592,7 @@ function renderCanvas(html, js) {
   frame.style.display = 'block';
 }
 
-document.getElementById('can-connect')?.addEventListener('click', canConnect);
+document.getElementById('canvas-connect-btn')?.addEventListener('click', canConnect);
 
 // ── Tools ────────────────────────────────────
 async function loadTools() {
@@ -439,7 +665,10 @@ function esc(s) {
 
 function set(id, val) {
   const el = document.getElementById(id);
-  if (el) el.textContent = val;
+  if (el) {
+    if (typeof val === 'number') el.textContent = val.toLocaleString();
+    else el.textContent = val ?? '—';
+  }
 }
 
 function setText(id, v) {
@@ -498,11 +727,11 @@ window.toast = toast;
 
 // ── Boot ─────────────────────────────────────
 wsConnect();
-navigate('chat');
+loadHealth();
+navigate('overview');
 
-// Auto-reload dashboard every 30 seconds
+// Global intervals
+setInterval(loadHealth, 30000);
 setInterval(() => {
-  if (currentPage === 'dashboard') {
-    loadDashboard().catch(e => console.log('Auto-refresh failed:', e));
-  }
-}, 30000);
+  if (currentPage === 'overview') loadOverview();
+}, 60000);

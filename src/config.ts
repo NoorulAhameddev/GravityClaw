@@ -96,7 +96,38 @@ const envSchema = z.object({
     MASTER_KEY: z
         .string()
         .optional()
-        .describe("Master encryption key for secrets.enc.json (64-char hex or any string) - generate with: node scripts/encrypt-secret.ts --generate-key"),
+        .describe("Master encryption key for secrets.enc.json (64-char hex or any string) - generate with: npm run secret:generate"),
+    
+    // Security Configuration
+    SECRET_ROTATION_DAYS: z
+        .string()
+        .optional()
+        .default("90")
+        .transform((val) => parseInt(val, 10))
+        .describe("Number of days before secrets are flagged for rotation (default: 90)"),
+    SECRET_CLEANUP_DAYS: z
+        .string()
+        .optional()
+        .default("90")
+        .transform((val) => parseInt(val, 10))
+        .describe("Number of days to keep deleted secrets before cleanup (default: 90)"),
+    SAFE_DIRECTORIES: z
+        .string()
+        .optional()
+        .default(".")
+        .describe("Comma-separated list of allowed directories for file operations (default: workspace only)"),
+    SECURITY_AUDIT_ENABLED: z
+        .string()
+        .optional()
+        .default("true")
+        .transform((val) => val === "true" || val === "1")
+        .describe("Enable security audit logging for secrets and file access (default: true)"),
+    FILE_ACCESS_LOG_RETENTION_DAYS: z
+        .string()
+        .optional()
+        .default("30")
+        .transform((val) => parseInt(val, 10))
+        .describe("Retain file access logs for N days before cleanup (default: 30)"),
     
     // File Operations Security
     PATH_ALLOWLIST: z
@@ -180,6 +211,103 @@ const envSchema = z.object({
         .optional()
         .default("0 9 * * *")
         .describe("Cron expression for the daily smart recommendations sweep. Default: 0 9 * * *"),
+
+    // Observability Configuration
+    LOG_FORMAT: z
+        .enum(["pretty", "json"])
+        .optional()
+        .default("pretty")
+        .describe("Log output format: 'pretty' for development, 'json' for production/parsing"),
+    ENABLE_CALLER_INFO: z
+        .string()
+        .optional()
+        .default("false")
+        .transform((val) => val === "true" || val === "1")
+        .describe("Include source file and line number in log output (slight performance cost)"),
+    ENABLE_METRICS: z
+        .string()
+        .optional()
+        .default("true")
+        .transform((val) => val === "true" || val === "1")
+        .describe("Enable metrics collection and recording"),
+    ENABLE_METRICS_PERSISTENCE: z
+        .string()
+        .optional()
+        .default("false")
+        .transform((val) => val === "true" || val === "1")
+        .describe("Persist metrics to SQLite (default: in-memory only)"),
+    METRICS_RETENTION_HOURS: z
+        .string()
+        .optional()
+        .default("24")
+        .transform((val) => {
+            const n = parseInt(val, 10);
+            return isNaN(n) || n < 1 ? 24 : n;
+        })
+        .describe("How long to retain metrics in memory (hours)"),
+    CORRELATION_ID_HEADER: z
+        .string()
+        .optional()
+        .default("X-Correlation-ID")
+        .describe("HTTP header name for correlation ID propagation"),
+    ENABLE_TRACING: z
+        .string()
+        .optional()
+        .default("true")
+        .transform((val) => val === "true" || val === "1")
+        .describe("Enable distributed tracing and span collection"),
+    OTEL_ENABLED: z
+        .string()
+        .optional()
+        .default("false")
+        .transform((val) => val === "true" || val === "1")
+        .describe("Enable OpenTelemetry export (requires OTEL_EXPORTER_OTLP_ENDPOINT)"),
+    OTEL_EXPORTER_OTLP_ENDPOINT: z
+        .string()
+        .optional()
+        .describe("OpenTelemetry collector endpoint (e.g., http://localhost:4318)"),
+
+    // Backup & Restore Configuration
+    BACKUP_ENABLED: z
+        .string()
+        .optional()
+        .default("true")
+        .transform((val) => val === "true" || val === "1")
+        .describe("Enable automatic backup scheduler (default: true)"),
+    BACKUP_CRON: z
+        .string()
+        .optional()
+        .default("0 2 * * *")
+        .describe("Cron expression for backup schedule (default: 0 2 * * * = daily at 2 AM)"),
+    BACKUP_RETENTION_DAYS: z
+        .string()
+        .optional()
+        .default("30")
+        .transform((val) => {
+            const n = parseInt(val, 10);
+            return isNaN(n) || n < 1 ? 30 : n;
+        })
+        .describe("Number of days to retain backups (default: 30)"),
+    BACKUP_ENCRYPT: z
+        .string()
+        .optional()
+        .default("true")
+        .transform((val) => val === "true" || val === "1")
+        .describe("Encrypt backups with AES-256-GCM (default: true)"),
+    BACKUP_COMPRESS: z
+        .string()
+        .optional()
+        .default("true")
+        .transform((val) => val === "true" || val === "1")
+        .describe("Compress backups with gzip (default: true)"),
+    BACKUP_DIR: z
+        .string()
+        .optional()
+        .describe("Directory to store backups (default: ./backups)"),
+    BACKUP_MASTER_KEY: z
+        .string()
+        .optional()
+        .describe("Master key for backup encryption (uses MASTER_KEY if not set)"),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -205,6 +333,8 @@ export const {
     OPENAI_API_KEY,
     AGENT_MAX_ITERATIONS,
     LOG_LEVEL,
+    LOG_FORMAT,
+    ENABLE_CALLER_INFO,
     PORT,
     WAKE_WORD_PHRASE,
     WAKE_WORD_THRESHOLD,
@@ -215,6 +345,18 @@ export const {
     BRAVE_SEARCH_KEY,
     SEARCH_CACHE_TTL_MINUTES,
     AIR_GAPPED,
+    ENABLE_METRICS,
+    ENABLE_METRICS_PERSISTENCE,
+    METRICS_RETENTION_HOURS,
+    CORRELATION_ID_HEADER,
+    ENABLE_TRACING,
+    OTEL_ENABLED,
+    OTEL_EXPORTER_OTLP_ENDPOINT,
+    SECRET_ROTATION_DAYS,
+    SECRET_CLEANUP_DAYS,
+    SAFE_DIRECTORIES,
+    SECURITY_AUDIT_ENABLED,
+    FILE_ACCESS_LOG_RETENTION_DAYS,
 } = config;
 
 // Helper: Get allowed paths as array
@@ -224,4 +366,13 @@ export function getAllowedPaths(): string[] {
         return [process.cwd()];
     }
     return PATH_ALLOWLIST.split(',').map(p => p.trim()).filter(p => p.length > 0);
+}
+
+// Helper: Get safe directories as array
+export function getSafeDirectories(): string[] {
+    if (!SAFE_DIRECTORIES || SAFE_DIRECTORIES.trim() === '') {
+        // Default to workspace directory only
+        return [process.cwd()];
+    }
+    return SAFE_DIRECTORIES.split(',').map(p => p.trim()).filter(p => p.length > 0);
 }

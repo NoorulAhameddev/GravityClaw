@@ -129,6 +129,41 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS idx_heartbeat_scheduled_task ON heartbeat_tasks(scheduled_task_id);
 `);
 
+// Initialize secret access audit log table
+db.exec(`
+    CREATE TABLE IF NOT EXISTS secret_access_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        secret_name TEXT NOT NULL,
+        action TEXT NOT NULL CHECK(action IN ('read', 'write', 'rotate', 'delete')),
+        user TEXT DEFAULT 'system',
+        status TEXT NOT NULL CHECK(status IN ('success', 'failed')),
+        error TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_secret_access_timestamp ON secret_access_log(timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_secret_access_name ON secret_access_log(secret_name);
+    CREATE INDEX IF NOT EXISTS idx_secret_access_action ON secret_access_log(action);
+`);
+
+// Initialize file access audit log table
+db.exec(`
+    CREATE TABLE IF NOT EXISTS file_access_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        path TEXT NOT NULL,
+        action TEXT NOT NULL CHECK(action IN ('read', 'write', 'delete', 'list')),
+        size_bytes INTEGER,
+        duration_ms INTEGER,
+        user TEXT DEFAULT 'system',
+        status TEXT NOT NULL CHECK(status IN ('success', 'denied', 'error')),
+        error TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_file_access_timestamp ON file_access_log(timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_file_access_path ON file_access_log(path);
+    CREATE INDEX IF NOT EXISTS idx_file_access_action ON file_access_log(action);
+    CREATE INDEX IF NOT EXISTS idx_file_access_user ON file_access_log(user);
+`);
+
 // Initialize permissions table for access control
 db.exec(`
     CREATE TABLE IF NOT EXISTS permissions (

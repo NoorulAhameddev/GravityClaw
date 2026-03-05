@@ -369,6 +369,94 @@ export const searchMemoryTool: Tool = {
     }
 };
 
+/**
+ * Update a fact
+ */
+export const updateFactTool: Tool = {
+    name: "updateFact",
+    description: "Update the content of an existing fact",
+    inputSchema: {
+        type: "object",
+        properties: {
+            factId: {
+                type: "number",
+                description: "Fact ID to update"
+            },
+            content: {
+                type: "string",
+                description: "New content for the fact"
+            }
+        },
+        required: ["factId", "content"]
+    },
+    async execute(input: Record<string, unknown>): Promise<string> {
+        try {
+            const { factId, content } = input as {
+                factId: number;
+                content: string;
+            };
+
+            db.prepare(`
+                UPDATE facts SET content = ? WHERE id = ?
+            `).run(content, factId);
+
+            return JSON.stringify({
+                success: true,
+                data: {
+                    factId,
+                    content,
+                    updated: true
+                }
+            });
+        } catch (err) {
+            log.error("Failed to update fact", err);
+            return JSON.stringify({
+                success: false,
+                error: "Failed to update fact"
+            });
+        }
+    }
+};
+
+/**
+ * Delete a fact
+ */
+export const deleteFactTool: Tool = {
+    name: "deleteFact",
+    description: "Delete a fact from memory",
+    inputSchema: {
+        type: "object",
+        properties: {
+            factId: {
+                type: "number",
+                description: "Fact ID to delete"
+            }
+        },
+        required: ["factId"]
+    },
+    async execute(input: Record<string, unknown>): Promise<string> {
+        try {
+            const { factId } = input as { factId: number };
+
+            db.prepare(`DELETE FROM facts WHERE id = ?`).run(factId);
+
+            return JSON.stringify({
+                success: true,
+                data: {
+                    factId,
+                    deleted: true
+                }
+            });
+        } catch (err) {
+            log.error("Failed to delete fact", err);
+            return JSON.stringify({
+                success: false,
+                error: "Failed to delete fact"
+            });
+        }
+    }
+};
+
 // Helper function to get relationship count for an entity
 function getEntityRelationshipCount(entityId: number): number {
     try {
@@ -385,5 +473,7 @@ export const memoryTools = [
     listFactsTool,
     listEntitiesTool,
     listRelationshipsTool,
-    searchMemoryTool
+    searchMemoryTool,
+    updateFactTool,
+    deleteFactTool
 ];

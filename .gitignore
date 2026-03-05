@@ -2,21 +2,22 @@
 # DEPENDENCIES & PACKAGE MANAGERS
 # ============================================================================
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 .npm/
 .yarn/cache/
 .yarn/unplugged/
 .yarn/build-state.yml
 .yarn/install-state.gz
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 .pnpm-debug.log*
-package-lock.json
-pnpm-lock.yaml
-yarn.lock
-lerna-debug.log
-poetry.lock
-requirements.txt.lock
+lerna-debug.log*
+
+# Lock files (optional - uncomment if you want to ignore them)
+# package-lock.json
+# pnpm-lock.yaml
+# yarn.lock
+# poetry.lock
 
 
 # ============================================================================
@@ -27,56 +28,55 @@ dist/
 build/
 .tsc/
 *.tsbuildinfo
+*.js.map
+*.d.ts.map
 
 # Next.js
 .next/
 next-env.d.ts
 out/
+
+# Cache directories
 .cache/
+.turbo/
+.turborun/
 
 # Vitest & Testing
 coverage/
 .vitest*/
 .coverage/
-
-# General build artifacts
-*.js.map
-*.d.ts.map
+test-results/
+blob-report/
+playwright-report/
 
 
 # ============================================================================
 # ENVIRONMENT & SECRETS (CRITICAL - NEVER COMMIT)
 # ============================================================================
+# Environment files
 .env
 .env.local
 .env.*.local
+.env.production
 .env.production.local
 .env.development.local
 .env.test.local
+.env.local.d.ts
+
+# Secret files
 .secrets/
 secrets.enc.json
 secrets.json
 secrets.*.json
 credentials.json
 .credentials
-private.key
-private.pem
+*.key
+*.pem
+private.*
 .api-keys/
 .tokens/
 
-
-gravity.db-shm
-gravity.db-wal
-*.db
-*.db-shm
-*.db-wal
-*.sqlite
-*.sqlite3
-*.sqlite-journal
-.database/
-.datbase/
-
-# Baileys WhatsApp Auth (SENSITIVE)
+# Baileys WhatsApp Authentication (SENSITIVE - Runtime generated)
 baileys_auth_info/
 app-state-sync-key-*
 creds.json
@@ -87,138 +87,177 @@ sender-key-*
 session-*
 app-state-sync-version-*
 
-# Application data
+
+# ============================================================================
+# DATABASES & BACKUPS
+# ============================================================================
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+gravity.db
+gravity.db-shm
+gravity.db-wal
+.database/
+
+# Automated backup system
+backups/
+*.gz.enc
+backup-*.db*
+backup-*.json
+
+
+# ============================================================================
+# APPLICATION RUNTIME DATA
+# ============================================================================
+# Memory and cache files
 memory-files/
 *.memo
-.cache/
-*.cache
 .datapping-*
 
-# Application data
-memory-files/
-*.memo
-.cache/
-
-
-# ============================================================================
-# LOGS & TEMPORARY FILES
-# ============================================================================
+# Logs
 logs/
 *.log
 *.log.*
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-.DS_Store
-Thumbs.db
+
+
+# ============================================================================
+# IDE & EDITOR CONFIGURATIONS
+# ============================================================================
+# VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.vscode-test
+
+# JetBrains IDEs
+.idea/
+.idea_modules/
+*.iml
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# Cloud9
+*.c9/
+
+# Vim
 *.swp
 *.swo
 *~
+
+# Emacs
 .~*
 
 
 # ============================================================================
-# IDE & EDITOR
+# OS-SPECIFIC FILES
 # ============================================================================
-.vscode/
-!.vscode/extensions.json
-.idea/
-.idea_modules/
-*.sublime-project
-*.sublime-workspace
-*.project
-.classpath
-*.c9/
-*.iml
-.settings/
-*.swp
-*.swo
-*~
-.vscode-test
-
-
-# ============================================================================
-# OS SPECIFIC
-# ============================================================================
+# macOS
 .DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
-ehthumbs.db
+
+# Windows
 Thumbs.db
-*.pem
+ehthumbs.db
+Desktop.ini
+
+# Linux
+.directory
 
 
 # ============================================================================
-# PLAYWRIGHT & TESTING
+# TESTING & PLAYWRIGHT
 # ============================================================================
 .playwright/
 .playwright-mcp/
-test-results/
-blob-report/
-playwright-report/
 *.trace
 
 
 # ============================================================================
-# LOCAL DEVELOPMENT
+# TEMPORARY & DEVELOPMENT FILES
 # ============================================================================
-.turbo/
-.turborun/
-.env.local.d.ts
-dist-ssr/
+# Temporary files
+*.tmp
+*.temp
+temp_*
+tmp/
+.tmp/
 
-
-# ============================================================================
-# SENSITIVE & PLUGIN DATA
-# ============================================================================
-plugins/external/
-public/canvas/build/
-verify-airgap.ts
-test-output*.txt
-*-LOCAL DEVELOPMENT SCRIPTS & TEMPORARY FILES
-# ============================================================================
+# Development scripts (ephemeral)
 scripts/debug/
 scripts/test/
 check_tools.ts
 debug_agent.ts
+verify-airgap.ts
+
+# Test artifacts
+test-output*.txt
+*-output.txt
+output*.json
+
+# Sample/test code files
 add_numbers.py
 factorial.c
 read_db.ts
-improved-ui-final.png
-temp_*.py
 delete_files.py
-dashboard_current.md
 
-# Working notes and progress reports (development phase only)
+# Images and binary test files
+*.png.temp
+improved-ui-final.png
+
+# Working notes (development phase)
+.fix-status.md
+dashboard_current.md
 BACKEND_INTEGRATION_REPORT.md
 DASHBOARD_PROGRESS.md
 UI_IMPROVEMENTS_SUMMARY.md
 WEBSOCKET_FIX_COMPLETION.md
 GITIGNORE_*.md
 
-# Output files
-*-output.txt
-test-output-*.txt
-output*.json
-debug_agent.ts
-add_numbers.py
-factorial.c
-read_db.ts
-improved-ui-final.png
 
-# Working notes and progress reports
-BACKEND_INTEGRATION_REPORT.md
-DASHBOARD_PROGRESS.md
-UI_IMPROVEMENTS_SUMMARY.md
-WEBSOCKET_FIX_COMPLETION.md
+# ============================================================================
+# PLUGINS & EXTERNAL DATA
+# ============================================================================
+plugins/external/
+public/canvas/build/
+
 
 # ============================================================================
 # ARCHIVE & WORKING DIRECTORIES
 # ============================================================================
-# Keep .archive structure but ignore generated files
+# Keep .archive structure but ignore contents
 .archive/*
 !.archive/
 !.archive/README.md
+
+# Docker volumes (if using docker-compose volumes)
+.docker-data/
+docker-volumes/
+
+
+# ============================================================================
+# MISCELLANEOUS
+# ============================================================================
+# Package manager patches
+.yarn/patches/
+.npm-cache/
+
+# Debug output
+dist-ssr/
+
+# Keep these files
+!.env.example
+!.gitkeep
