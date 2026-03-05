@@ -398,6 +398,55 @@ export const togglePluginTool: Tool = {
     }
 };
 
+/**
+ * Configure plugin with custom settings
+ */
+export const configurePluginTool: Tool = {
+    name: "configurePlugin",
+    description: "Configure a plugin with custom settings and options",
+    inputSchema: {
+        type: "object",
+        properties: {
+            pluginId: {
+                type: "string",
+                description: "Plugin ID or name"
+            },
+            config: {
+                type: "object",
+                description: "Configuration object for the plugin"
+            }
+        },
+        required: ["pluginId", "config"]
+    },
+    async execute(input: Record<string, unknown>): Promise<string> {
+        try {
+            const { pluginId, config } = input as {
+                pluginId: string;
+                config: Record<string, unknown>;
+            };
+
+            db.prepare(`
+                UPDATE plugins SET config = ? WHERE id = ? OR name = ?
+            `).run(JSON.stringify(config), pluginId, pluginId);
+
+            return JSON.stringify({
+                success: true,
+                data: {
+                    pluginId,
+                    config,
+                    updated: true
+                }
+            });
+        } catch (err) {
+            log.error("Failed to configure plugin", err);
+            return JSON.stringify({
+                success: false,
+                error: "Failed to configure plugin"
+            });
+        }
+    }
+};
+
 export const adminTools = [
     listGroupsForUserTool,
     getGroupSettingsTool,
@@ -405,5 +454,6 @@ export const adminTools = [
     getDangerousToolsTool,
     listPluginsTool,
     getPluginDetailsTool,
-    togglePluginTool
+    togglePluginTool,
+    configurePluginTool
 ];

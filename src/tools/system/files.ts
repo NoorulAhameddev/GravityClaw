@@ -1,22 +1,30 @@
 /**
  * File Operations Tools
  * 
- * Provides secure file system access with path allowlisting and size limits.
+ * Provides secure file system access with comprehensive path validation,
+ * symlink attack prevention, and file access audit logging.
  * 
  * Security features:
  * - Path allowlist (default: workspace directory only)
+ * - Symlink attack prevention (resolve and validate)
+ * - Path traversal detection (.. components, absolute paths)
  * - Blocks system directories (/etc, /sys, /proc, C:\Windows, etc.)
  * - Blocks sensitive files (.env, credentials, auth tokens)
  * - File size limits (10MB read, 5MB write)
+ * - File access audit logging (timestamp, path, action, user, status)
  * - Delete confirmation (requires explicit confirmation flag)
  */
 
 import type { Tool } from './index.js';
 import { createLogger } from '../../logger.js';
+import { getSafeDirectories, SECURITY_AUDIT_ENABLED } from '../../config.js';
+import { validatePathAccess } from '../../security/path-validator.js';
+import type { PathValidationConfig } from '../../security/path-validator.js';
 import { getAllowedPaths } from '../../config.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
+import { db } from '../../db.js';
 
 const logger = createLogger('file-tools');
 
@@ -29,6 +37,41 @@ const stat = promisify(fs.stat);
 // File size limits
 const MAX_READ_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_WRITE_SIZE = 5 * 1024 * 1024; // 5MB
+
+/**
+ * Log file access to audit table
+ */
+function logFileAccess(
+  filePath: string,
+  action: 'read' | 'write' | 'delete' | 'list',
+  user: string | undefined,
+  status: 'success' | 'denied' | 'error',
+  error?: string,
+  sizeBytes?: number,
+  durationMs?: number
+): void {
+  if (!SECURITY_AUDIT_ENABLED) {
+    return;
+  }
+  
+  try {
+    db.prepare(`
+      INSERT INTO file_access_log (timestamp, path, action, size_bytes, duration_ms, user, status, error)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      new Date().toISOString(),
+      filePath,
+      action,
+      sizeBytes || null,
+      durationMs || null,
+      user || 'system',
+      status,
+      error || null
+    );
+  } catch (err) {
+    logger.warn(`Failed to log file access: ${err}`);
+  }
+}
 
 /**
  * Check if user has permission to use file tools in group
@@ -57,81 +100,6 @@ async function checkFileToolPermission(
   }
 
   return { allowed: true };
-}
-
-// Blocked path patterns (case-insensitive)
-const BLOCKED_PATTERNS = [
-  /^\/etc\//i,
-  /^\/sys\//i,
-  /^\/proc\//i,
-  /^\/dev\//i,
-  /^\/root\//i,
-  /^C:\\Windows\\/i,
-  /^C:\\Program Files\\/i,
-  /^C:\\Program Files \(x86\)\\/i,
-  /^\/System\//i,  // macOS
-  /^\/Library\//i, // macOS
-];
-
-// Blocked file patterns (case-insensitive)
-const BLOCKED_FILES = [
-  /\.env$/i,
-  /\.env\./i,
-  /credentials/i,
-  /password/i,
-  /secret/i,
-  /private.*key/i,
-  /\.pem$/i,
-  /\.key$/i,
-  /auth.*token/i,
-  /api.*key/i,
-  /creds\.json$/i,
-  /\.npmrc$/i,
-  /id_rsa/i,
-  /id_dsa/i,
-  /id_ecdsa/i,
-  /id_ed25519/i,
-  /\.ssh[\/\\]/i,
-  /\.git[\/\\]config$/i,
-];
-
-/**
- * Check if a path is allowed based on allowlist
- */
-function isPathAllowed(filePath: string): boolean {
-  const absolutePath = path.resolve(filePath);
-  const allowedPaths = getAllowedPaths();
-  
-  // Check if path is within any allowed directory
-  const isAllowed = allowedPaths.some(allowedPath => {
-    const normalizedAllowed = path.resolve(allowedPath);
-    return absolutePath.startsWith(normalizedAllowed);
-  });
-  
-  if (!isAllowed) {
-    logger.warn(`Path not in allowlist: ${absolutePath}`);
-    logger.warn(`Allowed paths: ${allowedPaths.join(', ')}`);
-    return false;
-  }
-  
-  // Check blocked patterns
-  for (const pattern of BLOCKED_PATTERNS) {
-    if (pattern.test(absolutePath)) {
-      logger.warn(`Path matches blocked pattern: ${absolutePath}`);
-      return false;
-    }
-  }
-  
-  // Check blocked file patterns
-  const fileName = path.basename(absolutePath);
-  for (const pattern of BLOCKED_FILES) {
-    if (pattern.test(fileName) || pattern.test(absolutePath)) {
-      logger.warn(`File matches blocked pattern: ${absolutePath}`);
-      return false;
-    }
-  }
-  
-  return true;
 }
 
 /**
@@ -179,17 +147,28 @@ Example: read_file({ path: "README.md" })`,
 
       const filePath = args.path as string;
       const encoding = (args.encoding as 'utf8' | 'base64' | 'binary') || 'utf8';
+      const user = String(args.__userId || 'system');
+      const startTime = Date.now();
 
-      // Security check
-      if (!isPathAllowed(filePath)) {
+      // Validate path access
+      const validation = validatePathAccess(filePath, {
+        allowedPaths: getSafeDirectories(),
+        action: 'read',
+        checkSymlinks: true,
+        checkTraversal: true,
+        logFailures: true,
+      });
+      
+      if (!validation.allowed) {
+        logFileAccess(filePath, 'read', user, 'denied', validation.reason);
         return JSON.stringify({
           success: false,
-          error: 'Access denied: Path is not in allowlist or matches blocked pattern',
+          error: `Access denied: ${validation.reason}`,
           path: filePath,
         });
       }
 
-      const absolutePath = path.resolve(filePath);
+      const absolutePath = validation.resolvedPath || path.resolve(filePath);
 
       // Check file exists and get size
       let fileStats;
@@ -214,8 +193,10 @@ Example: read_file({ path: "README.md" })`,
 
       // Read file
       const content = await readFile(absolutePath, encoding as BufferEncoding);
+      const duration = Date.now() - startTime;
 
       logger.info(`Read file: ${absolutePath} (${fileStats.size} bytes)`);
+      logFileAccess(absolutePath, 'read', user, 'success', undefined, fileStats.size, duration);
 
       return JSON.stringify({
         success: true,
@@ -227,7 +208,9 @@ Example: read_file({ path: "README.md" })`,
 
     } catch (error) {
       const err = error as Error;
+      const user = String(args.__userId || 'system');
       logger.error('read_file failed:', err);
+      logFileAccess(String(args.path || 'unknown'), 'read', user, 'error', err.message);
       return JSON.stringify({
         success: false,
         error: err.message,
@@ -285,12 +268,23 @@ Example: write_file({ path: "output.txt", content: "Hello World" })`,
       const filePath = args.path as string;
       const content = args.content as string;
       const encoding = (args.encoding as 'utf8' | 'base64') || 'utf8';
+      const user = String(args.__userId || 'system');
+      const startTime = Date.now();
 
-      // Security check
-      if (!isPathAllowed(filePath)) {
+      // Validate path access
+      const validation = validatePathAccess(filePath, {
+        allowedPaths: getSafeDirectories(),
+        action: 'write',
+        checkSymlinks: true,
+        checkTraversal: true,
+        logFailures: true,
+      });
+      
+      if (!validation.allowed) {
+        logFileAccess(filePath, 'write', user, 'denied', validation.reason);
         return JSON.stringify({
           success: false,
-          error: 'Access denied: Path is not in allowlist or matches blocked pattern',
+          error: `Access denied: ${validation.reason}`,
           path: filePath,
         });
       }
@@ -298,6 +292,7 @@ Example: write_file({ path: "output.txt", content: "Hello World" })`,
       // Check content size
       const contentSize = Buffer.byteLength(content, encoding);
       if (contentSize > MAX_WRITE_SIZE) {
+        logFileAccess(filePath, 'write', user, 'denied', `Content too large: ${contentSize} bytes`);
         return JSON.stringify({
           success: false,
           error: `Content too large: ${contentSize} bytes (max: ${MAX_WRITE_SIZE} bytes)`,
@@ -306,7 +301,7 @@ Example: write_file({ path: "output.txt", content: "Hello World" })`,
         });
       }
 
-      const absolutePath = path.resolve(filePath);
+      const absolutePath = validation.resolvedPath || path.resolve(filePath);
 
       // Create parent directory if needed
       const dir = path.dirname(absolutePath);
@@ -317,8 +312,10 @@ Example: write_file({ path: "output.txt", content: "Hello World" })`,
 
       // Write file
       await writeFile(absolutePath, content, encoding as BufferEncoding);
+      const duration = Date.now() - startTime;
 
       logger.info(`Wrote file: ${absolutePath} (${contentSize} bytes)`);
+      logFileAccess(absolutePath, 'write', user, 'success', undefined, contentSize, duration);
 
       return JSON.stringify({
         success: true,
@@ -329,7 +326,9 @@ Example: write_file({ path: "output.txt", content: "Hello World" })`,
 
     } catch (error) {
       const err = error as Error;
+      const user = String(args.__userId || 'system');
       logger.error('write_file failed:', err);
+      logFileAccess(String(args.path || 'unknown'), 'write', user, 'error', err.message);
       return JSON.stringify({
         success: false,
         error: err.message,
@@ -381,17 +380,28 @@ Example: list_files({ directory: "src/tools" })`,
 
       const directory = args.directory as string;
       const recursive = (args.recursive as boolean) || false;
+      const user = String(args.__userId || 'system');
+      const startTime = Date.now();
 
-      // Security check
-      if (!isPathAllowed(directory)) {
+      // Validate path access
+      const validation = validatePathAccess(directory, {
+        allowedPaths: getSafeDirectories(),
+        action: 'read',
+        checkSymlinks: true,
+        checkTraversal: true,
+        logFailures: true,
+      });
+      
+      if (!validation.allowed) {
+        logFileAccess(directory, 'list', user, 'denied', validation.reason);
         return JSON.stringify({
           success: false,
-          error: 'Access denied: Path is not in allowlist or matches blocked pattern',
+          error: `Access denied: ${validation.reason}`,
           directory,
         });
       }
 
-      const absoluteDir = path.resolve(directory);
+      const absoluteDir = validation.resolvedPath || path.resolve(directory);
 
       // Check directory exists
       if (!fs.existsSync(absoluteDir)) {
@@ -432,7 +442,14 @@ Example: list_files({ directory: "src/tools" })`,
           // Recurse into subdirectories if requested
           if (recursive && entry.isDirectory()) {
             // Check if subdirectory is allowed
-            if (isPathAllowed(fullPath)) {
+            const subValidation = validatePathAccess(fullPath, {
+              allowedPaths: getSafeDirectories(),
+              action: 'read',
+              checkSymlinks: true,
+              checkTraversal: true,
+              logFailures: false,
+            });
+            if (subValidation.allowed) {
               const subFiles = await listRecursive(fullPath, baseDir);
               files.push(...subFiles);
             }
@@ -443,8 +460,10 @@ Example: list_files({ directory: "src/tools" })`,
       }
 
       const files = await listRecursive(absoluteDir);
+      const duration = Date.now() - startTime;
 
       logger.info(`Listed directory: ${absoluteDir} (${files.length} items, recursive: ${recursive})`);
+      logFileAccess(absoluteDir, 'list', user, 'success', undefined, undefined, duration);
 
       return JSON.stringify({
         success: true,
@@ -456,7 +475,9 @@ Example: list_files({ directory: "src/tools" })`,
 
     } catch (error) {
       const err = error as Error;
+      const user = String(args.__userId || 'system');
       logger.error('list_files failed:', err);
+      logFileAccess(String(args.directory || 'unknown'), 'list', user, 'error', err.message);
       return JSON.stringify({
         success: false,
         error: err.message,
@@ -512,9 +533,12 @@ Example: delete_file({ path: "temp.txt", confirm: true })`,
 
       const filePath = args.path as string;
       const confirm = args.confirm as boolean;
+      const user = String(args.__userId || 'system');
+      const startTime = Date.now();
 
       // Require explicit confirmation
       if (!confirm) {
+        logFileAccess(filePath, 'delete', user, 'denied', 'Deletion not confirmed');
         return JSON.stringify({
           success: false,
           error: 'Deletion requires explicit confirmation. Set confirm: true',
@@ -522,16 +546,25 @@ Example: delete_file({ path: "temp.txt", confirm: true })`,
         });
       }
 
-      // Security check
-      if (!isPathAllowed(filePath)) {
+      // Validate path access
+      const validation = validatePathAccess(filePath, {
+        allowedPaths: getSafeDirectories(),
+        action: 'delete',
+        checkSymlinks: true,
+        checkTraversal: true,
+        logFailures: true,
+      });
+      
+      if (!validation.allowed) {
+        logFileAccess(filePath, 'delete', user, 'denied', validation.reason);
         return JSON.stringify({
           success: false,
-          error: 'Access denied: Path is not in allowlist or matches blocked pattern',
+          error: `Access denied: ${validation.reason}`,
           path: filePath,
         });
       }
 
-      const absolutePath = path.resolve(filePath);
+      const absolutePath = validation.resolvedPath || path.resolve(filePath);
 
       // Check file exists
       if (!fs.existsSync(absolutePath)) {
@@ -553,8 +586,10 @@ Example: delete_file({ path: "temp.txt", confirm: true })`,
 
       // Delete file
       await unlink(absolutePath);
+      const duration = Date.now() - startTime;
 
       logger.info(`Deleted file: ${absolutePath} (${fileStats.size} bytes)`);
+      logFileAccess(absolutePath, 'delete', user, 'success', undefined, fileStats.size, duration);
 
       return JSON.stringify({
         success: true,
@@ -564,7 +599,9 @@ Example: delete_file({ path: "temp.txt", confirm: true })`,
 
     } catch (error) {
       const err = error as Error;
+      const user = String(args.__userId || 'system');
       logger.error('delete_file failed:', err);
+      logFileAccess(String(args.path || 'unknown'), 'delete', user, 'error', err.message);
       return JSON.stringify({
         success: false,
         error: err.message,
@@ -612,17 +649,27 @@ Example: search_files({ directory: "src", pattern: "*.ts" })`,
       const directory = args.directory as string;
       const pattern = args.pattern as string;
       const contentSearch = args.content_search as string | undefined;
+      const user = String(args.__userId || 'system');
 
-      // Security check
-      if (!isPathAllowed(directory)) {
+      // Validate path access
+      const validation = validatePathAccess(directory, {
+        allowedPaths: getSafeDirectories(),
+        action: 'read',
+        checkSymlinks: true,
+        checkTraversal: true,
+        logFailures: true,
+      });
+      
+      if (!validation.allowed) {
+        logFileAccess(directory, 'list', user, 'denied', validation.reason);
         return JSON.stringify({
           success: false,
-          error: 'Access denied: Path is not in allowlist or matches blocked pattern',
+          error: `Access denied: ${validation.reason}`,
           directory,
         });
       }
 
-      const absoluteDir = path.resolve(directory);
+      const absoluteDir = validation.resolvedPath || path.resolve(directory);
 
       // Check directory exists
       if (!fs.existsSync(absoluteDir)) {
@@ -648,8 +695,9 @@ Example: search_files({ directory: "src", pattern: "*.ts" })`,
         for (const entry of entries) {
           const fullPath = path.join(dir, entry.name);
 
-          // Check if path is allowed
-          if (!isPathAllowed(fullPath)) continue;
+          // Check if path is allowed - ensure it's under the search directory
+          const isPathAllowed = fullPath.startsWith(absoluteDir) || fullPath === absoluteDir;
+          if (!isPathAllowed) continue;
 
           if (entry.isDirectory()) {
             // Recurse

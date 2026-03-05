@@ -2,6 +2,7 @@ import { WebSocket } from "ws";
 import { createLogger } from "../logger.ts";
 import type { Channel, UnifiedMessage } from "../types/channels.js";
 import { wss, startServer } from "../server.ts";
+import { rateLimiter, createRateLimitErrorResponse } from "../middleware/rate-limit.ts";
 
 const log = createLogger("webchat");
 
@@ -48,10 +49,25 @@ export class WebChatChannel implements Channel {
 
                         await this.onMessageCb(unifiedMsg);
                     } else if ((parsed as any).type === "tool_call") {
-                        const { id, tool: toolName, args } = parsed as any;
+                        const { id, tool: toolName, args, sessionId } = parsed as any;
                         const { registry } = await import("../tools/index.ts");
 
                         log.info(`🔧 [WebChat] Tool call: ${toolName} (id: ${id})`);
+
+                        // Check rate limit
+                        const rateLimitStatus = rateLimiter.checkRateLimit(sessionId || "webchat-session", toolName);
+                        if (!rateLimitStatus.allowed) {
+                            log.warn(`⚠️ [WebChat] Rate limit exceeded for tool '${toolName}'`);
+                            const errorResponse = createRateLimitErrorResponse(rateLimitStatus);
+                            ws.send(JSON.stringify({
+                                type: "tool_response",
+                                id,
+                                error: errorResponse.error,
+                                retryAfter: errorResponse.retryAfter,
+                                message: errorResponse.message,
+                            }));
+                            return;
+                        }
 
                         const tool = registry.get(toolName);
                         if (!tool) {
@@ -65,7 +81,14 @@ export class WebChatChannel implements Channel {
                         }
 
                         try {
-                            const resultStr = await tool.execute(args || {});
+                            const effectiveSessionId = sessionId || "webchat-session";
+                            const toolArgs = {
+                                ...args,
+                                // Inject both session ID formats for compatibility
+                                sessionId: effectiveSessionId,
+                                __sessionId: effectiveSessionId
+                            };
+                            const resultStr = await tool.execute(toolArgs);
                             const result = JSON.parse(resultStr);
                             log.debug(`✅ [WebChat] Tool executed: ${toolName}`);
 

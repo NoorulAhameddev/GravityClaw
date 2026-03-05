@@ -1,18 +1,31 @@
 /**
- * Encrypted Secrets Management
+ * Encrypted Secrets Management with Rotation & Audit Logging
  * 
  * Uses AES-256-GCM encryption to securely store sensitive configuration values.
  * Secrets are stored in secrets.enc.json and decrypted at runtime using MASTER_KEY.
+ * Supports secret expiration, rotation, and comprehensive audit logging.
+ * 
+ * Features:
+ * - AES-256-GCM encryption
+ * - Secret expiration with optional expiresAt field
+ * - Automatic secret rotation scheduler
+ * - Audit log for all secret access (read/write/rotate/delete)
+ * - Secret validation before use
+ * - Automatic cleanup of expired secrets
  * 
  * Usage:
- * 1. Generate master key: node scripts/encrypt-secret.ts --generate-key
+ * 1. Generate master key: node scripts/secret-manager.ts generate-key
  * 2. Add master key to .env: MASTER_KEY=<generated-key>
- * 3. Encrypt a secret: node scripts/encrypt-secret.ts --encrypt "my-api-key"
- * 4. Store encrypted value in secrets.enc.json
- * 5. Decrypt at runtime: decryptSecret(encryptedValue, masterKey)
+ * 3. Add a secret: node scripts/secret-manager.ts add-secret --name MY_API_KEY --value "secret123"
+ * 4. View audit log: npm run secret:audit
+ * 5. Rotate secrets: npm run secret:rotate
  */
 
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from "crypto";
+import { createLogger } from "./logger.ts";
+import { db } from "./db.ts";
+
+const logger = createLogger("secrets");
 
 /**
  * Encryption algorithm and parameters
@@ -20,10 +33,10 @@ import { createCipheriv, createDecipheriv, randomBytes, createHash } from "crypt
 const ALGORITHM = "aes-256-gcm";
 const KEY_LENGTH = 32; // 256 bits
 const IV_LENGTH = 16; // 128 bits for GCM
-const AUTH_TAG_LENGTH = 16; // 128 bits
+const AUTH_TAG_LENGTH = 16; // 128 bits for GCM
 
 /**
- * Encrypted data structure
+ * Encrypted data structure with expiration support
  */
 export interface EncryptedData {
   /**
@@ -48,7 +61,22 @@ export interface EncryptedData {
     name?: string;
     description?: string;
     createdAt?: string;
+    expiresAt?: string;     // Optional expiration timestamp
+    rotatedAt?: string;     // Timestamp of last rotation
+    status?: 'active' | 'deprecated' | 'deleted'; // Secret status
   };
+}
+
+/**
+ * Secret access log entry
+ */
+export interface SecretAccessLog {
+  timestamp: string;
+  secret_name: string;
+  action: 'read' | 'write' | 'rotate' | 'delete';
+  user?: string;
+  status: 'success' | 'failed';
+  error?: string;
 }
 
 /**
@@ -271,4 +299,242 @@ export async function listSecrets(filePath: string): Promise<Array<{
     name,
     metadata: data.metadata,
   }));
+}
+/**
+ * Log secret access event to audit table
+ * @param secretName - Name of the secret
+ * @param action - Type of action (read, write, rotate, delete)
+ * @param user - Optional user identifier
+ * @param status - Success or failure
+ * @param error - Optional error message
+ */
+export function logSecretAccess(
+  secretName: string,
+  action: 'read' | 'write' | 'rotate' | 'delete',
+  user?: string,
+  status: 'success' | 'failed' = 'success',
+  error?: string
+): void {
+  try {
+    db.prepare(`
+      INSERT INTO secret_access_log (timestamp, secret_name, action, user, status, error)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      new Date().toISOString(),
+      secretName,
+      action,
+      user || 'system',
+      status,
+      error || null
+    );
+  } catch (err) {
+    logger.error(`Failed to log secret access: ${err}`);
+  }
+}
+
+/**
+ * Get secret access log entries
+ * @param filters - Optional filters (secret_name, action, days)
+ * @returns Array of log entries
+ */
+export function getSecretAccessLog(filters?: {
+  secret_name?: string | undefined;
+  action?: string | undefined;
+  days?: number | undefined;
+  limit?: number | undefined;
+}): SecretAccessLog[] {
+  try {
+    let query = 'SELECT * FROM secret_access_log WHERE 1=1';
+    const params: unknown[] = [];
+    
+    if (filters?.secret_name) {
+      query += ' AND secret_name = ?';
+      params.push(filters.secret_name);
+    }
+    
+    if (filters?.action) {
+      query += ' AND action = ?';
+      params.push(filters.action);
+    }
+    
+    if (filters?.days) {
+      query += ' AND timestamp > datetime(\'now\', ? || \' days\')';
+      params.push(-filters.days);
+    }
+    
+    query += ' ORDER BY timestamp DESC';
+    
+    if (filters?.limit) {
+      query += ` LIMIT ${filters.limit}`;
+    }
+    
+    return db.prepare(query).all(...params) as SecretAccessLog[];
+  } catch (err) {
+    logger.error(`Failed to get secret access log: ${err}`);
+    return [];
+  }
+}
+
+/**
+ * Check if a secret is expired
+ * @param secret - The encrypted secret data
+ * @returns true if secret has expired
+ */
+export function isSecretExpired(secret: EncryptedData): boolean {
+  if (!secret.metadata?.expiresAt) {
+    return false; // No expiration set
+  }
+  
+  const expiresAt = new Date(secret.metadata.expiresAt).getTime();
+  const now = Date.now();
+  
+  return now > expiresAt;
+}
+
+/**
+ * Check if a secret is expiring soon
+ * @param secret - The encrypted secret data
+ * @param daysThreshold - Number of days before expiration to flag
+ * @returns true if secret expires within threshold
+ */
+export function isSecretExpiringSoon(secret: EncryptedData, daysThreshold: number = 30): boolean {
+  if (!secret.metadata?.expiresAt) {
+    return false; // No expiration set
+  }
+  
+  const expiresAt = new Date(secret.metadata.expiresAt).getTime();
+  const now = Date.now();
+  const thresholdMs = daysThreshold * 24 * 60 * 60 * 1000;
+  
+  return expiresAt - now <= thresholdMs && expiresAt > now;
+}
+
+/**
+ * Validate a secret before use
+ * @param secret - The encrypted secret data
+ * @returns Object with validation result and any warnings
+ */
+export function validateSecret(secret: EncryptedData): {
+  valid: boolean;
+  warnings: string[];
+  errors: string[];
+} {
+  const warnings: string[] = [];
+  const errors: string[] = [];
+  
+  // Check if expired
+  if (isSecretExpired(secret)) {
+    errors.push('Secret has expired');
+  }
+  
+  // Check if expiring soon
+  if (isSecretExpiringSoon(secret, 30)) {
+    warnings.push('Secret will expire within 30 days');
+  }
+  
+  // Check if deprecated
+  if (secret.metadata?.status === 'deprecated') {
+    warnings.push('Secret is marked as deprecated');
+  }
+  
+  // Check if deleted
+  if (secret.metadata?.status === 'deleted') {
+    errors.push('Secret is marked as deleted');
+  }
+  
+  return {
+    valid: errors.length === 0,
+    warnings,
+    errors,
+  };
+}
+
+/**
+ * Cleanup expired secrets from a secrets file
+ * @param filePath - Path to secrets file
+ * @param graceperiodDays - Days to keep expired secrets before deletion
+ */
+export async function cleanupExpiredSecrets(
+  filePath: string,
+  gracePeriodDays: number = 90
+): Promise<{ cleaned: number; deleted: string[] }> {
+  const secrets = await loadSecretsFile(filePath);
+  const deleted: string[] = [];
+  let cleaned = 0;
+  
+  const gracePeriodMs = gracePeriodDays * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  
+  for (const [name, secret] of secrets.entries()) {
+    if (secret.metadata?.status === 'deleted' && secret.metadata?.expiresAt) {
+      const deletedAt = new Date(secret.metadata.expiresAt).getTime();
+      
+      if (now - deletedAt > gracePeriodMs) {
+        secrets.delete(name);
+        deleted.push(name);
+        cleaned++;
+        
+        logger.info(`Cleaned up deleted secret: ${name}`);
+      }
+    }
+  }
+  
+  if (cleaned > 0) {
+    await saveSecretsFile(filePath, secrets);
+  }
+  
+  return { cleaned, deleted };
+}
+
+/**
+ * Mark a secret for deletion (soft delete)
+ * @param filePath - Path to secrets file
+ * @param name - Secret name
+ */
+export async function deleteSecret(filePath: string, name: string): Promise<void> {
+  const secrets = await loadSecretsFile(filePath);
+  
+  if (!secrets.has(name)) {
+    throw new Error(`Secret '${name}' not found`);
+  }
+  
+  const secret = secrets.get(name)!;
+  if (!secret.metadata) {
+    secret.metadata = {};
+  }
+  
+  secret.metadata.status = 'deleted';
+  secret.metadata.expiresAt = new Date().toISOString(); // Mark deletion time
+  
+  secrets.set(name, secret);
+  await saveSecretsFile(filePath, secrets);
+  
+  logSecretAccess(name, 'delete', undefined, 'success');
+  logger.info(`Secret marked for deletion: ${name}`);
+}
+
+/**
+ * Get secrets expiring soon
+ * @param filePath - Path to secrets file
+ * @param daysThreshold - Number of days before expiration
+ */
+export async function getExpiringSecrets(
+  filePath: string,
+  daysThreshold: number = 30
+): Promise<Array<{ name: string; expiresAt: string }>> {
+  const secrets = await loadSecretsFile(filePath);
+  const expiring: Array<{ name: string; expiresAt: string }> = [];
+  
+  for (const [name, secret] of secrets.entries()) {
+    if (isSecretExpiringSoon(secret, daysThreshold) && !isSecretExpired(secret)) {
+      expiring.push({
+        name,
+        expiresAt: secret.metadata!.expiresAt!,
+      });
+    }
+  }
+  
+  return expiring.sort((a, b) => 
+    new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime()
+  );
 }

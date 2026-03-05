@@ -62,7 +62,7 @@ export interface SessionSettings {
   /**
    * Last recommendations sent date (YYYY-MM-DD)
    */
-  recommendationsLastSentDate?: string;
+  recommendationsLastSentDate?: string | undefined;
   
   /**
    * Custom system prompt override

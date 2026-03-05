@@ -26,7 +26,7 @@ import {
     searchMemorySemanticTool,
     searchTools,
 } from "./memory/index.ts";
-import { datetimeTool, shellTool, searchAttachmentsTool, fileOperationTools } from "./system/index.ts";
+import { datetimeTool, shellTool, searchAttachmentsTool, fileOperationTools, rateLimitingTools } from "./system/index.ts";
 import { dashboardTools } from "./ui/index.ts";
 import { browserTools } from "./automation/index.ts";
 
@@ -80,6 +80,7 @@ export function registerBuiltInTools(): void {
     dashboardTools.forEach(tool => registry.register(tool));
     memoryTools.forEach(tool => registry.register(tool));
     adminTools.forEach(tool => registry.register(tool));
+    rateLimitingTools.forEach(tool => registry.register(tool));
 
     registry.register(spawnAgentTool);
     registry.register(aggregateResultsTool);

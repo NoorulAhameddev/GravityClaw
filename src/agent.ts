@@ -1,12 +1,16 @@
 import { config } from "./config.ts";
 import { createLogger } from "./logger.ts";
 import { registry } from "./tools/index.ts";
+import { rateLimiter, createRateLimitErrorResponse } from "./middleware/rate-limit.ts";
 import {
     callClaude,
     addUserMessage,
     addAssistantMessage,
     addToolResult,
 } from "./llm/index.ts";
+import { trackIterationMetrics } from "./performance/agent-optimization.ts";
+import { trackToolExecution } from "./performance/tool-optimization.ts";
+import { performance } from "perf_hooks";
 
 const log = createLogger("agent");
 
@@ -40,6 +44,7 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
     const { message, sessionId, requestConfirmation, onProgress } = options;
     const maxIterations = config.AGENT_MAX_ITERATIONS;
     const toolDefs = registry.getOpenAIDefinitions();
+    const runStartTime = performance.now();
 
     log.info(`Agent run start — message length: ${message.length} chars (session: ${sessionId})`);
 
@@ -51,6 +56,7 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
 
     while (iteration < maxIterations) {
         iteration++;
+        const iterationStartTime = performance.now();
         log.debug(`Iteration ${iteration}/${maxIterations}`);
 
         const response = await callClaude(sessionId, toolDefs);
@@ -68,6 +74,16 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
 
         // No tool calls → we're done
         if (response.toolCalls.length === 0) {
+            const iterationDuration = performance.now() - iterationStartTime;
+            trackIterationMetrics({
+                sessionId,
+                iterationNumber: iteration,
+                duration: iterationDuration,
+                toolCallCount: 0,
+                messageLength: message.length,
+                timestamp: Date.now(),
+            });
+
             log.info(`Agent done — ${totalToolCalls} tool calls, ${iteration} iterations`);
             return {
                 text: collectedText.join("\n").trim() || "(no response)",
@@ -99,6 +115,23 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
                 continue;
             }
 
+            // Check rate limit before executing tool
+            const rateLimitStatus = rateLimiter.checkRateLimit(sessionId, name);
+            if (!rateLimitStatus.allowed) {
+                log.warn(`Rate limit exceeded for tool '${name}' in session ${sessionId}`);
+                const errorResponse = createRateLimitErrorResponse(rateLimitStatus);
+                addToolResult(
+                    sessionId,
+                    toolCall.id,
+                    JSON.stringify({
+                        error: errorResponse.error,
+                        retryAfter: errorResponse.retryAfter,
+                        message: errorResponse.message,
+                    })
+                );
+                continue;
+            }
+
             // Confirmation gate for dangerous shell commands
             if (name === "run_shell" && requestConfirmation) {
                 const command = String(input["command"] ?? "");
@@ -113,6 +146,7 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
                 }
             }
 
+            const toolStartTime = performance.now();
             try {
                 const result = await tool.execute({
                     ...input,
@@ -122,14 +156,30 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
                     __groupId: options.groupId,
                     __isGroup: options.isGroup,
                 });
+                const toolDuration = performance.now() - toolStartTime;
+                trackToolExecution(name, toolDuration, false);
+
                 log.debug(`Tool result (${name}): ${result.substring(0, 80)}…`);
                 addToolResult(sessionId, toolCall.id, result);
             } catch (err) {
+                const toolDuration = performance.now() - toolStartTime;
+                trackToolExecution(name, toolDuration, true);
                 const msg = err instanceof Error ? err.message : "unknown error";
                 log.error(`Tool error (${name})`, err);
                 addToolResult(sessionId, toolCall.id, `Error executing tool: ${msg}`);
             }
         }
+
+        // Track iteration metrics at the end of the iteration
+        const iterationDuration = performance.now() - iterationStartTime;
+        trackIterationMetrics({
+            sessionId,
+            iterationNumber: iteration,
+            duration: iterationDuration,
+            toolCallCount: response.toolCalls.length,
+            messageLength: message.length,
+            timestamp: Date.now(),
+        });
     }
 
     // Safety limit reached
