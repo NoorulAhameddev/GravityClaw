@@ -21,7 +21,7 @@ function getSafeDirectories(): string[] {
 }
 
 // Check if security audit logging is enabled
-const SECURITY_AUDIT_ENABLED = config ? true : false;
+const SECURITY_AUDIT_ENABLED = config.SECURITY_AUDIT_ENABLED;
 
 export function validateSecurityConfiguration(): void {
   logger.info('[security] Validating startup security configuration...');
@@ -31,6 +31,16 @@ export function validateSecurityConfiguration(): void {
     logger.warn('[security] ⚠️  MASTER_KEY not set - encrypted secrets will not work');
   } else {
     logger.info('[security] ✓ MASTER_KEY is configured');
+  }
+
+  // Check API_KEY configuration
+  if (!config.API_KEY) {
+    logger.warn('[security] ⚠️  API_KEY not set - API endpoints are UNPROTECTED');
+    logger.warn('[security]    Generate one: openssl rand -hex 32');
+  } else if (config.API_KEY.length < 32) {
+    logger.warn('[security] ⚠️  API_KEY is weak (< 32 chars) - use: openssl rand -hex 32');
+  } else {
+    logger.info('[security] ✓ API_KEY is configured');
   }
 
   // Check safe directories exist and are readable

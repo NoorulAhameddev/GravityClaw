@@ -41,7 +41,7 @@ export function setVoiceSettings(sessionId: string, settings: Partial<ReturnType
  * Modes: 'off' (no voice), 'transcribe-only' (transcribe input), 'full-voice' (both input and output)
  */
 export const setVoiceModeTool: Tool = {
-  name: 'setVoiceMode',
+  name: 'set_voice_mode',
   description:
     'Set voice mode for the current session. off: disable voice, transcribe-only: transcribe voice input only, full-voice: transcribe input and speak output.',
   inputSchema: {
@@ -94,7 +94,7 @@ export const setVoiceModeTool: Tool = {
  * Supports: 'openai' or 'elevenlabs'
  */
 export const setTTSProviderTool: Tool = {
-  name: 'setTTSProvider',
+  name: 'set_tts_provider',
   description: 'Set text-to-speech provider for voice responses. Choose between OpenAI and ElevenLabs.',
   inputSchema: {
     type: 'object',
@@ -157,7 +157,7 @@ export const setTTSProviderTool: Tool = {
  * Tool: Get current voice settings for a session
  */
 export const getVoiceSettingsTool: Tool = {
-  name: 'getVoiceSettings',
+  name: 'get_voice_settings',
   description: 'Get current voice settings and status for the session.',
   inputSchema: {
     type: 'object',

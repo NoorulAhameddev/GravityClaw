@@ -1,17 +1,19 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { isMeaningfulProgress } from '../agent.ts';
 import { db } from '../db.ts';
+import { config } from '../config.ts';
 import { getHistory } from '../llm/index.ts';
+
+const testDeps = { db, config };
 
 describe('Agent System', () => {
   const testSessionId = 'test:session:agent';
 
   beforeEach(() => {
-    // Clean up test data before each test
     db.prepare('DELETE FROM memory WHERE session_id = ?').run(testSessionId);
   });
 
   afterEach(() => {
-    // Clean up test data after each test
     db.prepare('DELETE FROM memory WHERE session_id = ?').run(testSessionId);
   });
 
@@ -22,6 +24,33 @@ describe('Agent System', () => {
       expect(config.AGENT_MAX_ITERATIONS).toBeDefined();
       expect(config.AGENT_MAX_ITERATIONS).toBeGreaterThan(0);
       expect(config.AGENT_MAX_ITERATIONS).toBeLessThanOrEqual(100);
+    });
+
+    it('should have tool limit configurations', async () => {
+      const { config } = await import('../config.ts');
+
+      expect(config.AGENT_MAX_TOOLS_PER_ITERATION).toBeDefined();
+      expect(config.AGENT_MAX_TOOLS_PER_ITERATION).toBeGreaterThan(0);
+      expect(config.AGENT_MAX_TOOLS_PER_ITERATION).toBeLessThanOrEqual(100);
+      
+      expect(config.AGENT_MAX_TOOLS_TOTAL).toBeDefined();
+      expect(config.AGENT_MAX_TOOLS_TOTAL).toBeGreaterThan(0);
+      expect(config.AGENT_MAX_TOOLS_TOTAL).toBeLessThanOrEqual(1000);
+      
+      // Total should be >= per iteration
+      expect(config.AGENT_MAX_TOOLS_TOTAL).toBeGreaterThanOrEqual(config.AGENT_MAX_TOOLS_PER_ITERATION);
+    });
+
+    it('should have reasonable default values for tool limits', async () => {
+      const { config } = await import('../config.ts');
+
+      // Default per-iteration limit should be reasonable (e.g., between 1 and 20)
+      expect(config.AGENT_MAX_TOOLS_PER_ITERATION).toBeGreaterThanOrEqual(1);
+      expect(config.AGENT_MAX_TOOLS_PER_ITERATION).toBeLessThanOrEqual(20);
+      
+      // Default total limit should be reasonable (e.g., between 10 and 200)
+      expect(config.AGENT_MAX_TOOLS_TOTAL).toBeGreaterThanOrEqual(10);
+      expect(config.AGENT_MAX_TOOLS_TOTAL).toBeLessThanOrEqual(200);
     });
   });
 
@@ -40,15 +69,14 @@ describe('Agent System', () => {
         JSON.stringify({ role: 'user', content: 'Message 2' })
       );
 
-      const history1 = getHistory(session1);
-      const history2 = getHistory(session2);
+      const history1 = getHistory(session1, testDeps);
+      const history2 = getHistory(session2, testDeps);
 
       expect(history1).toHaveLength(1);
       expect(history2).toHaveLength(1);
       expect(history1[0]?.content).toBe('Message 1');
       expect(history2[0]?.content).toBe('Message 2');
 
-      // Cleanup
       db.prepare('DELETE FROM memory WHERE session_id IN (?, ?)').run(session1, session2);
     });
   });
@@ -113,6 +141,18 @@ describe('Agent System', () => {
       expect(options.sessionId).toBe(testSessionId);
       expect(typeof options.requestConfirmation).toBe('function');
       expect(typeof options.onProgress).toBe('function');
+    });
+  });
+
+  describe('Agent Progress Detection', () => {
+    it('should mark meaningful progress for detailed text outputs', () => {
+      expect(isMeaningfulProgress('This is a concrete response with sufficient length and no errors.')).toBe(true);
+    });
+
+    it('should not mark progress for short or error texts', () => {
+      expect(isMeaningfulProgress('error')).toBe(false);
+      expect(isMeaningfulProgress('Too short')).toBe(false);
+      expect(isMeaningfulProgress('Exception occurred')).toBe(false);
     });
   });
 

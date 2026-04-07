@@ -4,11 +4,17 @@ services:
   gravyclaw:
     build: .
     container_name: gravyclaw
-    restart: always
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     volumes:
-      - ./.env:/app/.env
+      - ./.env:/app/.env:ro
       - ./gravity.db:/app/gravity.db
-      - ./secrets.enc.json:/app/secrets.enc.json
+      - ./secrets.enc.json:/app/secrets.enc.json:ro
       - ./memory-files:/app/memory-files
       - ./logs:/app/logs
       - ./baileys_auth_info:/app/baileys_auth_info
@@ -16,8 +22,21 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - PORT=3000
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    networks:
+      - gravyclaw-net
+
+networks:
+  gravyclaw-net:
+    driver: bridge

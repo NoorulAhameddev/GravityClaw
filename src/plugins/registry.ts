@@ -10,7 +10,9 @@
 
 import { readdir, readFile, access } from "fs/promises";
 import { join, resolve } from "path";
+import { pathToFileURL } from "url";
 import { createLogger } from "../logger.ts";
+import { safeJsonParse } from "../utils/json.ts";
 import type { Plugin, PluginTrait, PluginMetadata } from "./base.ts";
 
 const log = createLogger("plugins");
@@ -42,7 +44,7 @@ export interface PluginManifest {
   /**
    * Traits implemented by this plugin
    */
-  traits: Array<"provider" | "channel" | "tool" | "memory">;
+  traits: Array<"provider" | "channel" | "tool" | "memory" | "workflow">;
   
   /**
    * Plugin description
@@ -85,6 +87,10 @@ interface RegisteredPlugin {
 class PluginRegistry {
   private plugins = new Map<string, RegisteredPlugin>();
   private pluginDirectories: string[] = [];
+  private watchers: Map<string, AsyncIterator<any>> = new Map();
+  private hotReloadEnabled = false;
+  private watchDebounceTimers: Map<string, NodeJS.Timeout> = new Map();
+  private readonly DEBOUNCE_MS = 500;
   
   /**
    * Add a plugin directory to scan for plugins
@@ -108,11 +114,15 @@ class PluginRegistry {
         await access(directory);
         await this.scanDirectory(directory);
       } catch (err) {
-        log.warn(`Plugin directory not accessible: ${directory}`);
+        log.debug(`Plugin directory not accessible or does not exist: ${directory}`);
       }
     }
     
-    log.info(`Discovered ${this.plugins.size} plugins`);
+    if (this.plugins.size === 0) {
+      log.info("No plugins discovered (no plugin directories with plugin.json found)");
+    } else {
+      log.info(`Discovered ${this.plugins.size} plugins`);
+    }
   }
   
   /**
@@ -150,7 +160,12 @@ class PluginRegistry {
       
       // Read and parse manifest
       const manifestContent = await readFile(manifestPath, "utf-8");
-      const manifest = JSON.parse(manifestContent) as PluginManifest;
+      const parseResult = safeJsonParse<PluginManifest | null>(manifestContent, null, "plugin manifest");
+      if (!parseResult.success || parseResult.data === null) {
+        log.warn(`Failed to parse plugin manifest in ${directory}`);
+        return;
+      }
+      const manifest = parseResult.data;
       
       // Validate manifest
       if (!manifest.id || !manifest.name || !manifest.version || !manifest.main || !manifest.traits) {
@@ -167,9 +182,29 @@ class PluginRegistry {
       log.info(`Found plugin: ${manifest.name} v${manifest.version} (${manifest.id})`);
       
       // Load plugin module (not initialized yet)
-      const mainPath = join(directory, manifest.main);
-      const pluginModule = await import(mainPath);
-      
+      let mainPath = join(directory, manifest.main);
+
+      // If the main path lacks an extension, try known defaults
+      if (!mainPath.endsWith(".ts") && !mainPath.endsWith(".js")) {
+        const tsPath = `${mainPath}.ts`;
+        const jsPath = `${mainPath}.js`;
+
+        try {
+          await access(tsPath);
+          mainPath = tsPath;
+        } catch {
+          try {
+            await access(jsPath);
+            mainPath = jsPath;
+          } catch {
+            // keep original mainPath and let import fail
+          }
+        }
+      }
+
+      const mainUrl = pathToFileURL(mainPath).href;
+      const pluginModule = await import(mainUrl);
+
       // Get default export (should be a Plugin instance or factory)
       const plugin: Plugin = pluginModule.default;
       
@@ -369,6 +404,133 @@ class PluginRegistry {
     this.plugins.clear();
     this.pluginDirectories = [];
     log.info("Plugin registry cleared");
+  }
+  
+  /**
+   * Enable hot-reload for plugins
+   * Uses file system watching to detect changes and reload plugins automatically
+   */
+  async enableHotReload(): Promise<void> {
+    if (this.hotReloadEnabled) {
+      log.warn("Hot reload already enabled");
+      return;
+    }
+    
+    this.hotReloadEnabled = true;
+    log.info("Hot reload enabled");
+    
+    for (const [pluginId, entry] of this.plugins.entries()) {
+      if (entry.loaded) {
+        await this.setupFileWatcher(pluginId, entry);
+      }
+    }
+  }
+  
+  /**
+   * Disable hot-reload
+   */
+  disableHotReload(): void {
+    this.hotReloadEnabled = false;
+    for (const timer of this.watchDebounceTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.watchDebounceTimers.clear();
+    log.info("Hot reload disabled");
+  }
+  
+  /**
+   * Setup file watcher for a plugin
+   */
+  private async setupFileWatcher(pluginId: string, entry: RegisteredPlugin): Promise<void> {
+    if (entry.manifest.main === "<programmatic>") {
+      return;
+    }
+    
+    const directory = resolve(
+      this.pluginDirectories.find(d => {
+        const pluginPath = join(d, pluginId);
+        try {
+          return require("fs").existsSync(pluginPath);
+        } catch {
+          return false;
+        }
+      }) || ".",
+      pluginId
+    );
+    
+    try {
+      const { watch } = await import("fs");
+      
+      watch(directory, { recursive: true }, (eventType, filename) => {
+        if (!filename) return;
+        
+        const ext = filename.split(".").pop();
+        if (!["ts", "js", "json"].includes(ext || "")) return;
+        
+        const existingTimer = this.watchDebounceTimers.get(pluginId);
+        if (existingTimer) {
+          clearTimeout(existingTimer);
+        }
+        
+        const timer = setTimeout(async () => {
+          this.watchDebounceTimers.delete(pluginId);
+          log.info(`Detected change in plugin ${pluginId}: ${eventType} - ${filename}`);
+          await this.reloadPlugin(pluginId);
+        }, this.DEBOUNCE_MS);
+        
+        this.watchDebounceTimers.set(pluginId, timer);
+      });
+      
+      log.debug(`Setup file watcher for plugin: ${pluginId}`);
+    } catch (err) {
+      log.error(`Failed to setup file watcher for plugin ${pluginId}`, err);
+    }
+  }
+  
+  /**
+   * Reload a specific plugin (hot-reload)
+   */
+  async reloadPlugin(pluginId: string): Promise<void> {
+    const entry = this.plugins.get(pluginId);
+    
+    if (!entry) {
+      throw new Error(`Plugin not found: ${pluginId}`);
+    }
+    
+    log.info(`Reloading plugin: ${pluginId}`);
+    
+    if (entry.loaded) {
+      if (entry.plugin.onUnload) {
+        await entry.plugin.onUnload();
+      }
+      
+      if (entry.plugin.onReload) {
+        await entry.plugin.onReload();
+      } else {
+        const mainPath = join(
+          this.pluginDirectories.find(d => {
+            const pluginPath = join(d, pluginId);
+            try {
+              return require("fs").existsSync(pluginPath);
+            } catch {
+              return false;
+            }
+          }) || ".",
+          pluginId,
+          entry.manifest.main
+        );
+        
+        delete require.cache[require.resolve(mainPath)];
+        const newModule = await import(mainPath + "?t=" + Date.now());
+        entry.plugin = newModule.default;
+        
+        if (entry.plugin.onLoad) {
+          await entry.plugin.onLoad();
+        }
+      }
+      
+      log.info(`Reloaded plugin: ${pluginId}`);
+    }
   }
 }
 

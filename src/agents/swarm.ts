@@ -3,9 +3,13 @@ import { createLogger } from "../logger.ts";
 import { getProvider } from "../llm/index.ts";
 import { addUserMessage, addAssistantMessage, getHistory } from "../llm/index.ts";
 import { config } from "../config.ts";
+import type { OrchestratorDependencies } from "../llm/orchestrator.ts";
 import crypto from "crypto";
+import { createSessionDB } from "../db/session-isolation.ts";
 
 const log = createLogger("swarm");
+
+// Removed global orchestratorDeps; use session-scoped DB per agent
 
 /**
  * Configuration for an agent swarm
@@ -81,10 +85,19 @@ interface SwarmResult {
 export class AgentSwarm {
   private parentSessionId: string;
   private config: SwarmConfig;
+  private parentDB: ReturnType<typeof createSessionDB>;
 
   constructor(parentSessionId: string, config: SwarmConfig) {
     this.parentSessionId = parentSessionId;
     this.config = config;
+    this.parentDB = createSessionDB(parentSessionId);
+  }
+
+  private get parentOrchestratorDeps(): OrchestratorDependencies {
+    return {
+      db: this.parentDB as any,
+      config,
+    };
   }
 
   /**
@@ -94,30 +107,39 @@ export class AgentSwarm {
    * @returns Session ID of the spawned agent
    */
   async spawnAgent(role: string, task: string): Promise<string> {
-    const sessionId = `${this.parentSessionId}-${role}-${crypto.randomBytes(4).toString("hex")}`;
+    const childSessionId = `${this.parentSessionId}-${role}-${crypto.randomBytes(4).toString("hex")}`;
     const timestamp = new Date().toISOString();
+    
+    // Create session-scoped DB for child
+    const childDB = createSessionDB(childSessionId, this.parentSessionId);
 
     try {
-      // Create database entry for swarm tracking
-      db.prepare(
+      // Use child's session-scoped DB
+      childDB.prepare(
         `INSERT INTO agent_swarms (id, parent_session_id, child_session_id, role, status, created_at)
          VALUES (?, ?, ?, ?, ?, ?)`
       ).run(
         crypto.randomUUID(),
         this.parentSessionId,
-        sessionId,
+        childSessionId,
         role,
         "spawned",
         timestamp
       );
 
-      log.info(`Spawned ${role} agent: ${sessionId} for task: "${task}"`);
+      log.info(`Spawned ${role} agent: ${childSessionId} for task: "${task}"`);
 
       // Get system prompt for this role
       const systemPrompt = ROLE_PROMPTS[role] || ROLE_PROMPTS.researcher;
 
+      // Create session-scoped orchestrator deps
+      const childOrchestratorDeps: OrchestratorDependencies = {
+        db: childDB as any,
+        config,
+      };
+
       // Initialize the agent's conversation
-      addUserMessage(sessionId, task);
+      addUserMessage(childSessionId, task, childOrchestratorDeps);
 
       // Get the provider and call LLM with role-specific system prompt
       const provider = getProvider();
@@ -133,21 +155,21 @@ export class AgentSwarm {
       );
 
       if (response.text) {
-        addAssistantMessage(sessionId, response.text);
+        addAssistantMessage(childSessionId, response.text, childOrchestratorDeps);
 
         // Update status to completed
-        db.prepare(`UPDATE agent_swarms SET status = ? WHERE child_session_id = ?`).run(
+        childDB.prepare(`UPDATE agent_swarms SET status = ? WHERE child_session_id = ?`).run(
           "completed",
-          sessionId
+          childSessionId
         );
       }
 
-      return sessionId;
+      return childSessionId;
     } catch (error) {
       log.error(`Error spawning ${role} agent:`, error);
-      db.prepare(`UPDATE agent_swarms SET status = ? WHERE child_session_id = ?`).run(
+      childDB.prepare(`UPDATE agent_swarms SET status = ? WHERE child_session_id = ?`).run(
         "failed",
-        sessionId
+        childSessionId
       );
       throw error;
     }
@@ -170,7 +192,7 @@ export class AgentSwarm {
     log.info(`Orchestrating swarm for main task: "${mainTask}" with ${subTasks.length} subtasks`);
 
     // Record the swarm orchestration task
-    addUserMessage(this.parentSessionId, `Main task: ${mainTask}\n\nSubtasks: ${subTasks.join(", ")}`);
+    addUserMessage(this.parentSessionId, `Main task: ${mainTask}\n\nSubtasks: ${subTasks.join(", ")}`, this.parentOrchestratorDeps);
 
     const agentResults: SwarmResult[] = [];
     const roles = this.config.roles;
@@ -193,7 +215,7 @@ export class AgentSwarm {
       const promise = (async () => {
         try {
           const sessionId = await this.spawnAgent(role, subtask);
-          const history = getHistory(sessionId);
+          const history = getHistory(sessionId, this.parentOrchestratorDeps);
           const lastMessage = history[history.length - 1];
           const content = lastMessage?.content || "";
 
@@ -257,7 +279,7 @@ export class AgentSwarm {
 
     for (const sessionId of sessionIds) {
       try {
-        const history = getHistory(sessionId);
+        const history = getHistory(sessionId, this.parentOrchestratorDeps);
         const messages = history
           .filter((msg) => msg.role === "assistant")
           .map((msg) => {
@@ -308,7 +330,7 @@ Provide a comprehensive synthesis that:
       );
 
       if (response.text) {
-        addAssistantMessage(this.parentSessionId, response.text);
+        addAssistantMessage(this.parentSessionId, response.text, this.parentOrchestratorDeps);
         return response.text;
       }
 

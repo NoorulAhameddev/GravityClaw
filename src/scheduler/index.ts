@@ -161,10 +161,10 @@ export function parseNaturalLanguageToCron(input: string): string | null {
 function calculateNextRun(cronExpression: string): Date | null {
   try {
     const schedule = cron.schedule(cronExpression, () => {});
-    // @ts-ignore - accessing internal property
-    const nextDate = schedule.nextDate?.();
+    // Access nextDate via type assertion since it's an internal property
+    const cronDate = (schedule as unknown as { nextDate: () => { toDate: () => Date } }).nextDate?.();
     schedule.stop();
-    return nextDate ? new Date(nextDate) : null;
+    return cronDate ? cronDate.toDate() : null;
   } catch (error) {
     log.error(`Error calculating next run - cronExpression: ${cronExpression}, error: ${error}`);
     return null;

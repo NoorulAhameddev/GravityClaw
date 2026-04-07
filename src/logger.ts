@@ -16,6 +16,33 @@ const ICONS: Record<LogLevel, string> = {
     error: "❌",
 };
 
+export function sanitizeForLogs(input: unknown): unknown {
+    try {
+        const str = typeof input === "string" ? input : JSON.stringify(input);
+
+        const sanitized = str
+            .replace(/api[_-]?key["']?\s*[:=]\s*["'][^"']+["']/gi, 'api_key:"***"')
+            .replace(/api[_-]?key\s*[:=]\s*[^\s,}]+/gi, 'api_key:***')
+            .replace(/api[_-]?secret["']?\s*[:=]\s*["'][^"']+["']/gi, 'api_secret:"***"')
+            .replace(/api[_-]?secret\s*[:=]\s*[^\s,}]+/gi, 'api_secret:***')
+            .replace(/token["']?\s*[:=]\s*["'][^"']+["']/gi, 'token:"***"')
+            .replace(/token\s*[:=]\s*[^\s,}]+/gi, 'token:***')
+            .replace(/password["']?\s*[:=]\s*["'][^"']+["']/gi, 'password:"***"')
+            .replace(/password\s*[:=]\s*[^\s,}]+/gi, 'password:***')
+            .replace(/Bearer\s+[A-Za-z0-9\-\._~\+\/]+=*/gi, "Bearer ***")
+            .replace(/sk-[A-Za-z0-9]{20,}/g, "sk-***")
+            .replace(/[A-Za-z0-9_\-]{32,}/g, "***");
+
+        try {
+            return JSON.parse(sanitized);
+        } catch {
+            return sanitized;
+        }
+    } catch {
+        return "***";
+    }
+}
+
 export interface LogContext {
     requestId?: string;
     correlationId?: string;
@@ -40,7 +67,7 @@ export interface LogEntry {
 }
 
 function shouldLog(level: LogLevel): boolean {
-    return LEVELS[level] >= LEVELS[config.LOG_LEVEL];
+    return LEVELS[level] >= LEVELS[config.LOG_LEVEL as LogLevel];
 }
 
 function timestamp(): string {

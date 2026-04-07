@@ -1,0 +1,10 @@
+{
+  "id": "example-hello",
+  "name": "Hello World Plugin",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "traits": ["tool"],
+  "description": "Example plugin demonstrating the plugin system with greeting tools",
+  "author": "Gravity Claw Team",
+  "license": "MIT"
+}

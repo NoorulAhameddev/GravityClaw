@@ -69,6 +69,7 @@ export function cleanupTestSession(sessionId: string): void {
       sessionId,
       sessionId
     );
+    db.prepare(`DELETE FROM usage WHERE session_id = ?`).run(sessionId);
   } catch (err) {
     log.warn(`Failed to cleanup test session ${sessionId}: ${err}`);
   }
@@ -131,10 +132,12 @@ export function getSessionSettingsFromDb(sessionId: string): SessionSettings | n
       )
       .get(sessionId) as { settings: string } | undefined;
 
-    if (row?.settings) {
-      return JSON.parse(row.settings);
+    if (!row?.settings) {
+      return null;
     }
-    return null;
+    
+    const parsed = JSON.parse(row.settings);
+    return parsed || null;
   } catch (err) {
     log.error(`Failed to get session settings: ${err}`);
     return null;
@@ -153,7 +156,7 @@ export function updateSessionSettingsInDb(
     const updated = { ...current, ...settings };
 
     db.prepare(
-      `UPDATE memory SET settings = ? WHERE session_id = ? LIMIT 1`
+      `UPDATE memory SET settings = ?, timestamp = CURRENT_TIMESTAMP WHERE session_id = ? ORDER BY timestamp DESC LIMIT 1`
     ).run(JSON.stringify(updated), sessionId);
   } catch (err) {
     log.error(`Failed to update session settings: ${err}`);

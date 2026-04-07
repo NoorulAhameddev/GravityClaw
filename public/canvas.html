@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -79,11 +80,11 @@
         .canvas-container {
             width: 100%;
             max-width: 1200px;
-            height: 80vh;
+            min-height: 80vh;
             background: white;
             border-radius: 12px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            overflow: hidden;
+            overflow: visible;
             display: flex;
             flex-direction: column;
         }
@@ -99,7 +100,7 @@
         .canvas-content {
             flex: 1;
             position: relative;
-            overflow: hidden;
+            overflow: auto;
         }
 
         #canvas-frame {
@@ -181,11 +182,17 @@
         }
 
         @keyframes spin {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
+            0% {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
         }
     </style>
 </head>
+
 <body>
     <header>
         <h1>🦾 Gravity Claw - Live Canvas</h1>
@@ -208,13 +215,10 @@
                 <div class="placeholder" id="placeholder">
                     <div class="placeholder-icon">🎨</div>
                     <h2>Waiting for Canvas Push</h2>
-                    <p>The agent will push interactive widgets here when ready. Connect your agent to this session to see live updates.</p>
+                    <p>The agent will push interactive widgets here when ready. Connect your agent to this session to
+                        see live updates.</p>
                 </div>
-                <iframe 
-                    id="canvas-frame" 
-                    sandbox="allow-scripts"
-                    style="display: none;"
-                ></iframe>
+                <iframe id="canvas-frame" sandbox="allow-scripts" style="display: none;"></iframe>
                 <div class="loading" id="loading">
                     <div class="spinner"></div>
                 </div>
@@ -234,7 +238,7 @@
         // WebSocket connection
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${wsProtocol}//${window.location.host}/canvas?session=${sessionId}`;
-        
+
         let ws;
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 5;
@@ -267,7 +271,7 @@
             ws.onclose = () => {
                 console.log('Canvas WebSocket disconnected');
                 updateStatus('disconnected', 'Disconnected');
-                
+
                 // Attempt to reconnect
                 if (reconnectAttempts < maxReconnectAttempts) {
                     reconnectAttempts++;
@@ -311,7 +315,7 @@
 
             // Create a sandboxed document
             const doc = frame.contentDocument || frame.contentWindow.document;
-            
+
             // Write the HTML with inline styles and scripts
             const fullHtml = `
                 <!DOCTYPE html>
@@ -334,59 +338,61 @@
                 <body>
                     ${html}
                     ${js ? `<script>${js}</script>` : ''}
-                </body>
-                </html>
-            `;
-
-            doc.open();
-            doc.write(fullHtml);
-            doc.close();
-
-            // Hide placeholder and show canvas
-            placeholder.style.display = 'none';
-            frame.style.display = 'block';
-            loading.classList.remove('show');
-
-            console.log('Canvas rendered');
-        }
-
-        function updateStatus(status, text) {
-            const indicator = document.getElementById('status-indicator');
-            const statusText = document.getElementById('status-text');
-            
-            indicator.className = 'status-indicator ' + status;
-            statusText.textContent = text;
-        }
-
-        function showError(message) {
-            const banner = document.getElementById('error-banner');
-            const messageEl = document.getElementById('error-message');
-            
-            messageEl.textContent = message;
-            banner.classList.add('show');
-        }
-
-        function hideError() {
-            const banner = document.getElementById('error-banner');
-            banner.classList.remove('show');
-        }
-
-        // Send heartbeat every 30 seconds
-        setInterval(() => {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'ping' }));
-            }
-        }, 30000);
-
-        // Start connection
-        connect();
-
-        // Handle page unload
-        window.addEventListener('beforeunload', () => {
-            if (ws) {
-                ws.close();
-            }
-        });
-    </script>
 </body>
+
+</html>
+`;
+
+doc.open();
+doc.write(fullHtml);
+doc.close();
+
+// Hide placeholder and show canvas
+placeholder.style.display = 'none';
+frame.style.display = 'block';
+loading.classList.remove('show');
+
+console.log('Canvas rendered');
+}
+
+function updateStatus(status, text) {
+const indicator = document.getElementById('status-indicator');
+const statusText = document.getElementById('status-text');
+
+indicator.className = 'status-indicator ' + status;
+statusText.textContent = text;
+}
+
+function showError(message) {
+const banner = document.getElementById('error-banner');
+const messageEl = document.getElementById('error-message');
+
+messageEl.textContent = message;
+banner.classList.add('show');
+}
+
+function hideError() {
+const banner = document.getElementById('error-banner');
+banner.classList.remove('show');
+}
+
+// Send heartbeat every 30 seconds
+setInterval(() => {
+if (ws && ws.readyState === WebSocket.OPEN) {
+ws.send(JSON.stringify({ type: 'ping' }));
+}
+}, 30000);
+
+// Start connection
+connect();
+
+// Handle page unload
+window.addEventListener('beforeunload', () => {
+if (ws) {
+ws.close();
+}
+});
+</script>
+</body>
+
 </html>

@@ -2,18 +2,22 @@ import type { Tool } from './index.js';
 import { config } from '../../config.js';
 import { createElevenLabsService, type ElevenLabsVoiceId, type ElevenLabsModel } from '../../voice/elevenlabs.js';
 import { createLogger } from '../../logger.js';
+import { getSecret } from '../../secrets-runtime.ts';
 
 const logger = createLogger('elevenlabs-tools');
 
 let elevenLabsService: ReturnType<typeof createElevenLabsService> | null = null;
 
-function getElevenLabsService() {
-  if (!elevenLabsService && config.ELEVENLABS_API_KEY) {
-    const voiceId = (config.ELEVENLABS_VOICE_ID || 'bella') as ElevenLabsVoiceId;
-    elevenLabsService = createElevenLabsService(config.ELEVENLABS_API_KEY, voiceId);
+async function getElevenLabsService() {
+  if (!elevenLabsService) {
+    const apiKey = config.ELEVENLABS_API_KEY || await getSecret("ELEVENLABS_API_KEY");
+    if (apiKey) {
+      const voiceId = (config.ELEVENLABS_VOICE_ID || 'bella') as ElevenLabsVoiceId;
+      elevenLabsService = createElevenLabsService(apiKey, voiceId);
+    }
   }
   if (!elevenLabsService) {
-    throw new Error('ElevenLabs API key not configured. Cannot initialize service.');
+    throw new Error('ElevenLabs API key not configured. Set ELEVENLABS_API_KEY in environment or add to secrets store.');
   }
   return elevenLabsService;
 }
@@ -72,7 +76,7 @@ export const elevenLabsTextToSpeechTool: Tool = {
         return JSON.stringify({ error: 'text is required' });
       }
 
-      const service = getElevenLabsService();
+      const service = await getElevenLabsService();
 
       if (voice) {
         service.setVoice(voice as ElevenLabsVoiceId);
@@ -130,12 +134,12 @@ export const elevenLabsTextToSpeechStreamingTool: Tool = {
         return JSON.stringify({ error: 'text is required' });
       }
 
-      const service = getElevenLabsService();
+      const service = await getElevenLabsService();
       const chunkSize = typeof chunk_size === 'number' ? chunk_size : 1500;
 
       const audioBuffers = await service.textToSpeechStreaming(text as string, chunkSize);
 
-      const totalSize = audioBuffers.reduce((sum, buf) => sum + buf.length, 0);
+      const totalSize = audioBuffers.reduce((sum: number, buf: Buffer) => sum + buf.length, 0);
 
       return JSON.stringify({
         success: true,

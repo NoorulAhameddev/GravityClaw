@@ -7,6 +7,7 @@ import makeWASocket, {
 import { Boom } from "@hapi/boom";
 // @ts-expect-error - no types available
 import qrcode from "qrcode-terminal";
+import * as QRCode from "qrcode";
 import { createLogger } from "../logger.ts";
 import type { Channel, UnifiedMessage } from "../types/channels.js";
 import { config } from "../config.ts";
@@ -24,6 +25,34 @@ export class WhatsAppChannel implements Channel {
     public preferredFormat: "whatsapp" = "whatsapp";
     private sock: ReturnType<typeof makeWASocket> | null = null;
     private onMessageCb?: (msg: UnifiedMessage) => Promise<void>;
+    private currentQr: string | null = null;
+    private connectionStatus: "disconnected" | "connecting" | "connected" = "disconnected";
+
+    public getQrCode(): string | null {
+        return this.currentQr;
+    }
+
+    public async getQrCodeDataUrl(): Promise<string | null> {
+        if (!this.currentQr) return null;
+        try {
+            return await QRCode.toDataURL(this.currentQr, { margin: 2, width: 256 });
+        } catch (err) {
+            log.error("Failed to generate QR code data URL", err);
+            return null;
+        }
+    }
+
+    public getConnectionStatus(): "disconnected" | "connecting" | "connected" {
+        return this.connectionStatus;
+    }
+
+    public async triggerReconnect(): Promise<void> {
+        this.connectionStatus = "connecting";
+        if (this.sock) {
+            this.sock.end(undefined);
+        }
+        await this.connect();
+    }
 
     private getSelfJid(): string | null {
         const userId = this.sock?.user?.id;
@@ -156,22 +185,27 @@ export class WhatsAppChannel implements Channel {
             const { connection, lastDisconnect, qr } = update;
 
             if (qr) {
-                log.info("Scan this QR code with your WhatsApp app to login.");
-                // qrcode relies on terminal output so it doesn't use the logger
+                this.currentQr = qr;
+                log.info("QR code generated for WhatsApp login.");
                 qrcode.generate(qr, { small: true });
             }
 
             if (connection === "close") {
+                this.connectionStatus = "disconnected";
                 const shouldReconnect =
                     (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
                 log.warn(
                     `WhatsApp connection closed due to ${lastDisconnect?.error}, reconnecting: ${shouldReconnect}`
                 );
                 if (shouldReconnect) {
+                    this.connectionStatus = "connecting";
                     this.connect().catch((err) => log.error("Reconnect failed", err));
                 }
             } else if (connection === "open") {
+                this.connectionStatus = "connected";
                 log.info("✅ WhatsApp channel connected!");
+            } else if (connection === "connecting") {
+                this.connectionStatus = "connecting";
             }
         });
 

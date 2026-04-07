@@ -30,6 +30,10 @@ export const spawnAgentTool: Tool = {
         type: "string",
         description: "Parent session ID for tracking swarm membership",
       },
+      depth: {
+        type: "number",
+        description: "Current agent depth (internal use only)",
+      },
     },
     required: ["role", "task", "parentSessionId"],
   },
@@ -37,6 +41,14 @@ export const spawnAgentTool: Tool = {
     const role = String(input.role || "researcher");
     const task = String(input.task || "");
     const parentSessionId = String(input.parentSessionId || "");
+    const depth = typeof input.depth === "number" ? input.depth : 0;
+
+    if (depth > 2) {
+      return JSON.stringify({
+        success: false,
+        error: "Max agent depth exceeded (max: 2)",
+      });
+    }
 
     if (!task || !parentSessionId) {
       return JSON.stringify({

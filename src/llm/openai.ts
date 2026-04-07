@@ -14,7 +14,7 @@ export class OpenAIProvider implements LLMProvider {
   private client: OpenAI;
   private defaultModel: string;
 
-  constructor(apiKey: string, defaultModel: string = "gpt-4o-mini") {
+  constructor(apiKey: string, defaultModel: string = "gpt-4o") {
     this.client = new OpenAI({ apiKey });
     this.defaultModel = defaultModel;
     log.info(`OpenAI provider initialized with model: ${defaultModel}`);

@@ -1,13 +1,25 @@
 {
   "$schema": "../mcp-servers.schema.json",
   "mcpServers": {
-    "example-server": {
-      "command": "node",
-      "args": ["path/to/mcp-server.js"],
+    "notion": {
+      "command": "npx.cmd",
+      "args": [
+        "-y",
+        "@notionhq/notion-mcp-server"
+      ],
       "env": {
-        "API_KEY": "your-api-key-here"
+        "NOTION_ACCESS_TOKEN": "${NOTION_ACCESS_TOKEN}"
       },
-      "disabled": true
+      "disabled": false
+    },
+    "playwright": {
+      "command": "npx.cmd",
+      "args": [
+        "-y",
+        "@playwright/mcp"
+      ],
+      "env": {},
+      "disabled": false
     }
   }
 }

@@ -16,12 +16,16 @@ import type { LLMMessage } from "../llm/index.ts";
 import { getModelPricing, isApproachingContextLimit } from "../llm/pricing.ts";
 import { getProvider } from "../llm/index.ts";
 import { db } from "../db.ts";
+import { config } from "../config.ts";
 import { createLogger } from "../logger.ts";
 import type { PruningConfig } from "../types/memory.js";
+import type { OrchestratorDependencies } from "../llm/orchestrator.ts";
 
 export type { PruningConfig } from "../types/memory.js";
 
 const log = createLogger("pruning");
+
+const orchestratorDeps: OrchestratorDependencies = { db, config };
 
 /**
  * Default pruning configuration
@@ -41,7 +45,7 @@ export const DEFAULT_PRUNING_CONFIG: PruningConfig = {
  */
 export function calculateContextUsage(sessionId: string, modelName: string): number {
   try {
-    const history = getHistory(sessionId);
+    const history = getHistory(sessionId, orchestratorDeps);
     if (history.length === 0) {
       return 0;
     }
@@ -195,7 +199,7 @@ export async function pruneContext(
   const finalConfig = { ...DEFAULT_PRUNING_CONFIG, ...config };
 
   try {
-    const history = getHistory(sessionId);
+    const history = getHistory(sessionId, orchestratorDeps);
     const contextUsageBefore = calculateContextUsage(sessionId, modelName);
 
     log.info(
@@ -280,10 +284,10 @@ export async function pruneContext(
         .run(sessionId, JSON.stringify(msg), settingsJson);
     }
 
-    addAssistantMessage(sessionId, `Acknowledged context update. ${summary.length} characters summarized.`);
+    addAssistantMessage(sessionId, `Acknowledged context update. ${summary.length} characters summarized.`, orchestratorDeps);
 
     // Calculate new context usage (approximate)
-    const newHistory = getHistory(sessionId);
+    const newHistory = getHistory(sessionId, orchestratorDeps);
     const contextUsageAfter = calculateContextUsage(sessionId, modelName);
 
     log.info(
@@ -331,7 +335,7 @@ export function formatPruningResult(result: Awaited<ReturnType<typeof pruneConte
  * @returns {object} Status object
  */
 export function getPruningStatus(sessionId: string, modelName: string) {
-  const history = getHistory(sessionId);
+  const history = getHistory(sessionId, orchestratorDeps);
   const contextUsage = calculateContextUsage(sessionId, modelName);
   const nearLimit = isContextNearLimit(sessionId, modelName);
   const pricing = getModelPricing(modelName);

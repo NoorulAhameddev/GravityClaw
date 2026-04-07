@@ -175,9 +175,9 @@ function isSymlinkAllowed(filePath: string, allowedPaths: string[]): boolean {
     logger.warn(`Symlink escapes allowlist: ${filePath} -> ${realPath}`);
     return false;
   } catch (err) {
-    // File doesn't exist or can't be resolved
-    // Let normal file check handle it
-    return true;
+    // CRITICAL: Fail closed - reject on any error to prevent symlink attacks
+    logger.warn(`Symlink validation failed (rejecting): ${filePath}. Error: ${err instanceof Error ? err.message : String(err)}`);
+    return false;
   }
 }
 

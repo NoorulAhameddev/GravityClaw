@@ -9,8 +9,13 @@ import {
   loadSecretsFile,
   saveSecretsFile,
   decryptAllSecrets,
+  getSecretAccessLog,
+  logSecretAccess,
+  resetRateLimitForTesting,
   type EncryptedData,
+  type SecretAccessLog,
 } from "../secrets.ts";
+import { db } from "../db.ts";
 import { writeFile, unlink, access } from "fs/promises";
 import { resolve } from "path";
 
@@ -290,6 +295,132 @@ describe("Encrypted Secrets", () => {
       const mixed = { ...enc1, authTag: enc2.authTag };
       
       expect(() => decryptSecret(mixed, testMasterKey)).toThrow();
+    });
+  });
+  
+  describe("Secret Access Log", () => {
+    beforeEach(() => {
+      resetRateLimitForTesting();
+    });
+    
+    // Clean up test data after each test
+    afterEach(() => {
+      // Delete any test log entries we inserted
+      db.prepare(`DELETE FROM secret_access_log WHERE secret_name LIKE 'test%'`).run();
+    });
+    
+    it("should log and retrieve access entries", () => {
+      logSecretAccess("test_secret", "read", "test_user");
+      logSecretAccess("test_secret", "write", "test_user");
+      
+      const logs = getSecretAccessLog({ secret_name: "test_secret" });
+      expect(logs.length).toBe(2);
+      expect(logs[0]?.action).toBe("write");
+      expect(logs[1]?.action).toBe("read");
+    });
+    
+    it("should filter by action", () => {
+      logSecretAccess("test_secret", "read", "test_user");
+      logSecretAccess("test_secret", "write", "test_user");
+      logSecretAccess("test_secret", "rotate", "test_user");
+      
+      const readLogs = getSecretAccessLog({ action: "read" });
+      expect(readLogs.every(log => log.action === "read")).toBe(true);
+      expect(readLogs.length).toBeGreaterThanOrEqual(1);
+    });
+    
+    it("should filter by days", () => {
+      // Insert a log entry (timestamp is current time)
+      logSecretAccess("test_secret", "read", "test_user");
+      
+      // Query with days = 1 should include the entry
+      const logs = getSecretAccessLog({ days: 1 });
+      expect(logs.length).toBeGreaterThanOrEqual(1);
+      
+      // Query with days = 0 should throw error (validation)
+      // The function returns empty array on error
+      const logsZero = getSecretAccessLog({ days: 0 });
+      expect(logsZero).toEqual([]);
+    });
+    
+    it("should enforce limit parameter", () => {
+      // Insert multiple entries
+      for (let i = 0; i < 5; i++) {
+        logSecretAccess(`test_secret_${i}`, "read", "test_user");
+      }
+      
+      const logs = getSecretAccessLog({ limit: 3 });
+      expect(logs.length).toBe(3);
+    });
+    
+    it("should apply default limit when not specified", () => {
+      // Insert many entries (more than default 100)
+      // We'll insert 10 entries for speed
+      for (let i = 0; i < 10; i++) {
+        logSecretAccess(`test_secret_${i}`, "read", "test_user");
+      }
+      
+      const logs = getSecretAccessLog();
+      // Should be limited to 100 (default), but we have only 10
+      expect(logs.length).toBeLessThanOrEqual(100);
+    });
+    
+    it("should prevent SQL injection via limit parameter", () => {
+      // This should not cause SQL injection; the function should validate and treat as integer
+      const maliciousFilters = { limit: "10; DROP TABLE secret_access_log; --" } as any;
+      const logs = getSecretAccessLog(maliciousFilters);
+      // Should return empty array due to validation error (NaN)
+      expect(logs).toEqual([]);
+      
+      // Verify table still exists by inserting a log
+      logSecretAccess("test_injection_check", "read", "test_user");
+      const verifyLogs = getSecretAccessLog({ secret_name: "test_injection_check" });
+      expect(verifyLogs.length).toBe(1);
+    });
+    
+    it("should prevent SQL injection via action parameter", () => {
+      const maliciousFilters = { action: "' OR '1'='1" } as any;
+      const logs = getSecretAccessLog(maliciousFilters);
+      // Should return empty array due to invalid action
+      expect(logs).toEqual([]);
+    });
+    
+    it("should prevent SQL injection via secret_name parameter", () => {
+      // The secret_name is parameterized, so injection should not work
+      const maliciousFilters = { secret_name: "test' OR '1'='1" };
+      const logs = getSecretAccessLog(maliciousFilters);
+      // Should return empty array (no matching secret_name)
+      expect(logs).toEqual([]);
+    });
+    
+    it("should validate filter types", () => {
+      // Invalid filter object
+      const logs = getSecretAccessLog("invalid" as any);
+      expect(logs).toEqual([]);
+      
+      // Invalid days type
+      const logs2 = getSecretAccessLog({ days: "invalid" } as any);
+      expect(logs2).toEqual([]);
+      
+      // Invalid limit type
+      const logs3 = getSecretAccessLog({ limit: -5 } as any);
+      expect(logs3).toEqual([]);
+    });
+    
+    it("should enforce rate limiting", () => {
+      // First 10 queries should succeed
+      for (let i = 0; i < 10; i++) {
+        const logs = getSecretAccessLog();
+        expect(Array.isArray(logs)).toBe(true);
+      }
+      
+      // 11th query should be rate limited (returns empty array due to error)
+      const logs = getSecretAccessLog();
+      expect(logs).toEqual([]);
+      
+      // Wait for rate limit to reset (60 seconds) - we can't wait in tests
+      // Instead we can test that the rate limit map is populated
+      // This is a simple check that the function doesn't throw
     });
   });
 });

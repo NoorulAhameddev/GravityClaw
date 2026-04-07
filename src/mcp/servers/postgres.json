@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../mcp-servers.schema.json",
+  "mcpServers": {
+    "postgres": {
+      "command": "npx.cmd",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DATABASE}"
+      ],
+      "disabled": false
+    }
+  }
+}

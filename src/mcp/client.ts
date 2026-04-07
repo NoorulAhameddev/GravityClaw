@@ -1,5 +1,6 @@
 import { spawn, ChildProcess } from "child_process";
 import { createLogger } from "../logger.ts";
+import { safeJsonParse } from "../utils/json.ts";
 import type {
   JSONRPCRequest,
   JSONRPCResponse,
@@ -71,13 +72,13 @@ export class MCPClient {
       return null;
     }
 
-    try {
-      const content = fs.readFileSync(configPath, "utf-8");
-      return JSON.parse(content) as MCPServersConfig;
-    } catch (error) {
-      log.error(`Error loading config/mcp-servers.json: ${error}`);
+    const content = fs.readFileSync(configPath, "utf-8");
+    const result = safeJsonParse<MCPServersConfig | null>(content, null, "MCP config");
+    if (!result.success || result.data === null) {
+      log.error(`Error loading config/mcp-servers.json: ${result.error}`);
       return null;
     }
+    return result.data;
   }
 
   /**
@@ -93,6 +94,7 @@ export class MCPClient {
     const serverProcess = spawn(config.command, config.args, {
       env: { ...process.env, ...config.env },
       stdio: ["pipe", "pipe", "pipe"],
+      shell: process.platform === "win32",
     });
 
     const server: MCPServer = {

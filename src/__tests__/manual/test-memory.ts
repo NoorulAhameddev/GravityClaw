@@ -1,4 +1,5 @@
 import { runAgent } from "../../agent.ts";
+import { container } from "../../bootstrap.ts";
 import { db } from "../../db.ts";
 
 async function main() {
@@ -8,6 +9,11 @@ async function main() {
     const result1 = await runAgent({
         message: "My favorite color is neon green. Please remember this.",
         sessionId,
+        dependencies: {
+            db,
+            config: container.config,
+            toolRegistry: container.toolRegistry,
+        },
     });
     console.log("Agent Reply 1:", result1.text);
 
@@ -15,6 +21,11 @@ async function main() {
     const result2 = await runAgent({
         message: "What is my favorite color?",
         sessionId,
+        dependencies: {
+            db,
+            config: container.config,
+            toolRegistry: container.toolRegistry,
+        },
     });
     console.log("Agent Reply 2:", result2.text);
 

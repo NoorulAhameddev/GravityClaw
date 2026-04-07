@@ -46,6 +46,7 @@ export class OpenRouterProvider implements LLMProvider {
   readonly name = "openrouter";
   private client: OpenAI;
   private defaultModel: string;
+  private blacklistedModels: Map<string, number> = new Map(); // modelId -> expiryTimestamp
 
   constructor(apiKey: string, defaultModel: string = "openrouter/free") {
     this.client = new OpenAI({
@@ -60,72 +61,271 @@ export class OpenRouterProvider implements LLMProvider {
     log.info(`OpenRouter provider initialized with model: ${defaultModel}`);
   }
 
+  /**
+   * Resolves a generic model name like 'openrouter/free' to a specific available model ID.
+   * Prioritizes known reliable free models.
+   */
+  private async resolveModelName(modelName: string, exclude: string[] = []): Promise<string> {
+    if (modelName !== "openrouter/free") {
+      return modelName;
+    }
+
+    const now = Date.now();
+    // Clean up expired blacklisted models
+    for (const [id, expiry] of this.blacklistedModels.entries()) {
+      if (now > expiry) this.blacklistedModels.delete(id);
+    }
+
+    const models = await this.getModelsWithDetails();
+    if (models.length === 0) {
+      log.warn("No models available to resolve 'openrouter/free', falling back to hardcoded default.");
+      return "google/gemini-2.0-flash-exp:free";
+    }
+
+    // Filter out blacklisted and explicitly excluded models
+    const isAvailable = (id: string) => {
+      const isCached = models.some(m => m.id === id);
+      const isBlacklisted = this.blacklistedModels.has(id);
+      const isExcluded = exclude.includes(id);
+      return isCached && !isBlacklisted && !isExcluded;
+    };
+
+    // Known high-quality free models in preference order (March 2026)
+    // Prioritizing models that support tools/function calling
+    const preferredFreeModels = [
+      // NVIDIA models (good for reasoning)
+      "nvidia/llama-3.1-nemotron-70b-instruct:free",
+      "nvidia/llama-3.1-nemotron-51b-instruct:free", 
+      "nvidia/llama-3.1-nemotron-8b-instruct:free",
+      // Google Gemma models
+      "google/gemma-3-12b-it:free",
+      "google/gemma-3-27b-it:free",
+      "google/gemma-3-4b-it:free",
+      "google/gemma-3n-4b-it:free",
+      "google/gemma-3n-2b-it:free",
+      // MiniMax
+      "minimax/minimax-m2.5:free",
+      // Meta Llama
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "meta-llama/llama-3.2-3b-instruct:free",
+      // Mistral
+      "mistralai/mistral-small-3.1-24b-instruct:free",
+      "mistralai/mistral-7b-instruct:free",
+      // Others
+      "qwen/qwen-2-7b-instruct:free",
+      "deepseek/deepseek-chat:free",
+      "cohere/command-r:free"
+    ];
+
+    // 1. Try to find a preferred model that is currently available and not blacklisted
+    for (const id of preferredFreeModels) {
+      if (isAvailable(id)) {
+        log.debug(`Resolved 'openrouter/free' to preferred model: ${id}`);
+        return id;
+      }
+    }
+
+    log.warn(`All preferred free models are blacklisted or unavailable. Excluded count: ${exclude.length}`);
+
+    // 2. Fallback: Find ANY model with 0 pricing that isn't blacklisted or excluded
+    // Get all available free models from the API that aren't excluded
+    const availableFreeModels = models
+      .filter(m => m.pricing.prompt === 0)
+      .filter(m => !this.blacklistedModels.has(m.id) && !exclude.includes(m.id))
+      .map(m => m.id);
+    
+    // Shuffle or try different ones to avoid always picking the same one
+    if (availableFreeModels.length > 0) {
+      // Pick a random one from available free models to distribute load
+      const randomIndex = Math.floor(Math.random() * availableFreeModels.length);
+      const randomModel = availableFreeModels[randomIndex];
+      const selectedModel = randomModel ?? availableFreeModels[0] ?? "google/gemini-2.0-flash-exp:free";
+      log.debug(`Resolved 'openrouter/free' to random free model: ${selectedModel} (from ${availableFreeModels.length} available)`);
+      return selectedModel;
+    }
+
+    // 3. Last resort: If there's ANY free model (even if previously tried), pick one that will eventually expire from blacklist
+    const allFreeModels = models.filter(m => m.pricing.prompt === 0).map(m => m.id);
+    if (allFreeModels.length > 0) {
+      // Pick the first one - it might work if blacklist expires
+      const fallback = allFreeModels[0] ?? "google/gemini-2.0-flash-exp:free";
+      log.warn(`All free models are excluded/blacklisted. Trying first free model anyway: ${fallback}`);
+      return fallback;
+    }
+
+    // 4. Ultimate fallback
+    return "google/gemini-2.0-flash-exp:free";
+  }
+
   async chat(
     messages: ChatCompletionMessageParam[],
     toolDefinitions: ChatCompletionTool[],
     options?: LLMChatOptions
   ): Promise<LLMResponse> {
-    const model = options?.model ?? this.defaultModel;
+    const rawModel = options?.model ?? this.defaultModel;
+    const isFreeAlias = rawModel === "openrouter/free";
     const maxTokens = options?.maxTokens ?? 2000;
     const hasTools = toolDefinitions.length > 0;
+    const excludedModels: string[] = [];
 
-    log.debug(`Calling OpenRouter — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`);
+    // Global retry loop for model rotation (free tier failover)
+    for (let modelAttempt = 1; modelAttempt <= (isFreeAlias ? 15 : 1); modelAttempt++) {
+      const model = await this.resolveModelName(rawModel, excludedModels);
+      log.debug(`Calling OpenRouter — model: ${model} (attempt ${modelAttempt})${excludedModels.length > 0 ? `, skipped: ${excludedModels.join(', ')}` : ""}`);
 
-    const params = hasTools
-      ? { model, max_tokens: maxTokens, tools: toolDefinitions, tool_choice: "auto" as const, messages }
-      : { model, max_tokens: maxTokens, messages };
+      const params = hasTools
+        ? { model, max_tokens: maxTokens, tools: toolDefinitions, tool_choice: "auto" as const, messages }
+        : { model, max_tokens: maxTokens, messages };
 
-    // Retry up to 3 times on 429 rate-limit with 3s backoff
-    let lastError: unknown;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        const response = await this.client.chat.completions.create(params);
-        const choice = response.choices[0];
-        if (!choice) throw new Error("OpenRouter returned no choices");
+      // Inner retry loop for the SAME model (rate limits)
+      let lastError: unknown;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const response = await this.client.chat.completions.create(params);
+          const choice = response.choices[0];
+          if (!choice) throw new Error("OpenRouter returned no choices");
 
-        const msg = choice.message;
-        const text = msg.content ?? "";
-        const toolCalls = msg.tool_calls ?? [];
+          const msg = choice.message;
+          const text = msg.content ?? "";
+          const toolCalls = msg.tool_calls ?? [];
 
-        log.debug(
-          `OpenRouter response — stop: ${choice.finish_reason}, text: ${text.length} chars, tools: ${toolCalls.length}`
-        );
+          log.debug(
+            `OpenRouter response — stop: ${choice.finish_reason}, text: ${text.length} chars, tools: ${toolCalls.length}`
+          );
 
-        const result: LLMResponse = {
-          stopReason: choice.finish_reason ?? "stop",
-          text,
-          toolCalls,
-        };
-
-        if (response.usage) {
-          result.usage = {
-            promptTokens: response.usage.prompt_tokens,
-            completionTokens: response.usage.completion_tokens,
-            totalTokens: response.usage.total_tokens,
+          const result: LLMResponse = {
+            stopReason: choice.finish_reason ?? "stop",
+            text,
+            toolCalls,
           };
-        }
 
-        return result;
-      } catch (err: unknown) {
-        lastError = err;
-        const status = (err as { status?: number })?.status;
-        if (status === 429 && attempt < 3) {
-          log.warn(`Rate limited (429) — retrying in 3s (attempt ${attempt}/3)`);
-          await new Promise((r) => setTimeout(r, 3000));
-          continue;
+          if (response.usage) {
+            result.usage = {
+              promptTokens: response.usage.prompt_tokens,
+              completionTokens: response.usage.completion_tokens,
+              totalTokens: response.usage.total_tokens,
+            };
+          }
+
+          return result;
+        } catch (err: unknown) {
+          lastError = err;
+          const errorObj = (err as any)?.error || (err as any);
+          const status = (err as any)?.status || errorObj?.code || errorObj?.status;
+          const message = errorObj?.message || String(err);
+
+          log.warn(`OpenRouter API error — Model: ${model}, Status/Code: ${status}, Message: ${message.substring(0, 100)}`);
+
+          // 1. Handle Tool Support Errors specifically
+          if (hasTools && (message.toLowerCase().includes("tool use") || message.toLowerCase().includes("tools"))) {
+            log.warn(`Model ${model} does not support tools. Retrying without tools.`);
+            const noToolsParams = { model, max_tokens: maxTokens, messages };
+            try {
+              const retryResponse = await this.client.chat.completions.create(noToolsParams);
+              const choice = retryResponse.choices[0];
+              if (choice) {
+                log.info(`Successful fallback for ${model} without tools.`);
+                // Process response as normal...
+                const msg = choice.message;
+                const result: LLMResponse = {
+                  stopReason: choice.finish_reason ?? "stop",
+                  text: msg.content ?? "",
+                  toolCalls: [],
+                };
+                if (retryResponse.usage) {
+                  result.usage = {
+                    promptTokens: retryResponse.usage.prompt_tokens,
+                    completionTokens: retryResponse.usage.completion_tokens,
+                    totalTokens: retryResponse.usage.total_tokens,
+                  };
+                }
+                return result;
+              }
+            } catch (retryErr) {
+              log.error(`Fallback without tools also failed for ${model}:`, retryErr);
+              // Fall through to normal failover
+            }
+          }
+
+          // 2. Handle Rate Limits (429), Quota Limits (402), or Policy Errors (not tool support errors)
+          const isPolicyError = message.toLowerCase().includes("data policy") || message.toLowerCase().includes("privacy");
+          const isToolSupportError = message.toLowerCase().includes("tool use");
+          
+          // Only blacklist for actual errors, not for tool support issues
+          // Tool support errors are already handled above with retry without tools
+          const shouldBlacklist = (status === 429 || status === 402 || isPolicyError) && !isToolSupportError;
+          const failoverCodes = [429, 402, "429", "402"];
+
+          if (shouldBlacklist && isFreeAlias) {
+            log.warn(`Model ${model} hit failover condition (${status}/policy). Blacklisting for 15 mins and rotating.`);
+            this.blacklistedModels.set(model, Date.now() + 15 * 60 * 1000); // 15 mins for policy/status errors
+            excludedModels.push(model);
+
+            // If it's specifically a policy error, we wrap it in a more helpful message for the final throw
+            if (isPolicyError) {
+              lastError = new Error(`OpenRouter Data Policy Error: Please enable "Free model publication" in your OpenRouter Privacy Settings (https://openrouter.ai/settings/privacy) to use free models.`);
+            }
+
+            break; // Exit inner loop and try next model
+          }
+
+          // For tool support errors that failed the retry, rotate to next model without blacklisting
+          if (isToolSupportError && isFreeAlias) {
+            log.warn(`Model ${model} does not support tools (even without tools param). Rotating to next model.`);
+            excludedModels.push(model);
+            break; // Exit inner loop and try next model
+          }
+
+          if (status === 429 && attempt < 3) {
+            log.warn(`Rate limited (429) — retrying in 3s (attempt ${attempt}/3)`);
+            await new Promise((r) => setTimeout(r, 3000));
+            continue;
+          }
+
+          // 3. Handle Image/Vision Support Errors
+          const isVisionError = message.toLowerCase().includes("image input") || 
+                                message.toLowerCase().includes("does not support image") ||
+                                message.toLowerCase().includes("vision") ||
+                                message.toLowerCase().includes("image_url");
+          
+          if (isVisionError && isFreeAlias) {
+            log.warn(`Model ${model} does not support images/vision. Rotating to next model.`);
+            excludedModels.push(model);
+            break;
+          }
+
+          if (status === 400) {
+            log.error("OpenRouter 400 Error details:", JSON.stringify(errorObj, null, 2));
+          }
+          throw err;
         }
-        if (status === 400) {
-          log.error("OpenRouter 400 Error details:", JSON.stringify((err as any).error || err, null, 2));
-        }
-        throw err;
       }
+
+      // Add delay between model attempts to avoid overwhelming the API
+      if (isFreeAlias && modelAttempt < 15) {
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+
+      if (!isFreeAlias) throw lastError;
+      if (modelAttempt >= 15) throw lastError; // Try up to 15 different models
     }
-    throw lastError;
+
+    throw new Error("Failed to get response after model rotation");
   }
 
   async listModels(): Promise<string[]> {
     const models = await this.getModelsWithDetails();
-    return models.map((model) => model.id);
+    let result = models.map((model) => model.id);
+
+    // If configured for free models, filter the list to show free ones if any exist
+    if (this.defaultModel === "openrouter/free") {
+      const freeModels = result.filter(id => id.endsWith(":free") || models.find(m => m.id === id)?.pricing.prompt === 0);
+      if (freeModels.length > 0) {
+        return freeModels;
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -177,15 +377,24 @@ export class OpenRouterProvider implements LLMProvider {
     }
 
     // Sort by prompt price (cheapest first), then by name
-    const sortedModels = models
+    let sortedModels = models
       .sort((a, b) => {
         const priceDiff = a.pricing.prompt - b.pricing.prompt;
         if (priceDiff !== 0) return priceDiff;
         return a.id.localeCompare(b.id);
-      })
-      .slice(0, limit);
+      });
 
-    let result = `**OpenRouter Models** (${models.length} total, showing ${sortedModels.length}):\n\n`;
+    // If in free mode, prioritize showing ONLY free models in the display hint
+    if (this.defaultModel === "openrouter/free") {
+      const freeModels = sortedModels.filter(m => m.pricing.prompt === 0 || m.id.endsWith(":free"));
+      if (freeModels.length > 0) {
+        sortedModels = freeModels;
+      }
+    }
+
+    sortedModels = sortedModels.slice(0, limit);
+
+    let result = `**OpenRouter Models** (${models.length} total, showing ${sortedModels.length}${this.defaultModel === "openrouter/free" ? " free" : ""}):\n\n`;
 
     for (const model of sortedModels) {
       const promptPrice = (model.pricing.prompt * 1).toFixed(2);

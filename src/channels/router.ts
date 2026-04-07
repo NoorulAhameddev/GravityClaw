@@ -1,5 +1,6 @@
 import type { Channel, UnifiedMessage } from "../types/channels.js";
 import { runAgent } from "../agent.ts";
+import { runWithConcurrencyLimit } from "../concurrency.ts";
 import { createLogger } from "../logger.ts";
 import { db } from "../db.ts";
 import { getProvider, FailoverProvider, OpenRouterProvider } from "../llm/index.ts";
@@ -11,13 +12,21 @@ import { queryGraph, formatGraphAsMermaid } from "../memory/graph.ts";
 import { getHeartbeatStatus, setHeartbeatEnabled } from "../heartbeat/index.ts";
 import { ensureEveningRecapTask, buildEveningRecap } from "../recap/index.ts";
 import { getRecommendationsStatus, setRecommendationsEnabled } from "../recommendations/index.ts";
+import { container } from "../bootstrap.ts";
 import * as fs from "fs";
 import * as os from "os";
 
 const log = createLogger("router");
 
+export interface ChannelStatus {
+    id: string;
+    started: boolean;
+    error?: string;
+}
+
 export class ChannelRouter {
     private channels = new Map<string, Channel>();
+    private channelStatuses = new Map<string, ChannelStatus>();
 
     /** Pending dangerous-command confirmations */
     private pendingConfirmations = new Map<
@@ -33,22 +42,48 @@ export class ChannelRouter {
         log.info(`Registered channel: ${channel.id}`);
     }
 
-    async startAll() {
+    async startAll(): Promise<ChannelStatus[]> {
+        const statuses: ChannelStatus[] = [];
+        
         for (const channel of this.channels.values()) {
+            const status: ChannelStatus = { id: channel.id, started: false };
             try {
                 log.info(`Starting channel: ${channel.id}...`);
                 await channel.start(this.handleMessage.bind(this));
+                status.started = true;
                 log.info(`✅ Channel started: ${channel.id}`);
             } catch (err) {
-                log.error(`Failed to start channel ${channel.id}`, err);
-                throw err;
+                const errMsg = err instanceof Error ? err.message : String(err);
+                status.error = errMsg;
+                log.error(`Failed to start channel ${channel.id}: ${errMsg}`);
+                // Continue with other channels - graceful degradation
             }
+            this.channelStatuses.set(channel.id, status);
+            statuses.push(status);
         }
+        
+        const startedCount = statuses.filter(s => s.started).length;
+        log.info(`Channel startup complete: ${startedCount}/${statuses.length} started`);
+        
+        return statuses;
+    }
+
+    getChannelStatuses(): ChannelStatus[] {
+        return [...this.channelStatuses.values()];
+    }
+
+    isChannelAvailable(channelId: string): boolean {
+        const status = this.channelStatuses.get(channelId);
+        return status?.started ?? false;
     }
 
     async stopAll() {
         for (const channel of this.channels.values()) {
-            await channel.stop();
+            try {
+                await channel.stop();
+            } catch (err) {
+                log.error(`Error stopping channel ${channel.id}:`, err);
+            }
         }
     }
 
@@ -857,7 +892,7 @@ export class ChannelRouter {
         }
 
         try {
-            const result = await runAgent({
+            const result = await runWithConcurrencyLimit(key, () => runAgent({
                 message: msg.text,
                 sessionId: key,
                 userId: msg.userId,
@@ -872,8 +907,13 @@ export class ChannelRouter {
                             `⚠️ *Dangerous command detected*\n\`\`\`\n${command}\n\`\`\`\n\nReply *y* to confirm or *n* to cancel.`
                         ).catch((err) => log.error("Failed to send confirmation prompt", err));
                     });
-                }
-            });
+                },
+                dependencies: {
+                    config: container.config,
+                    toolRegistry: container.toolRegistry,
+                    db: container.db,
+                },
+            }));
 
             if (typingInterval) clearInterval(typingInterval);
 

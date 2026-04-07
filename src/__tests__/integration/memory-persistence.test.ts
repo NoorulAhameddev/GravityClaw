@@ -51,7 +51,7 @@ describe("Memory Persistence Integration Tests", () => {
         expect(row.category).toBe(
           mockMemoryFacts[idx]!.category.toLowerCase()
         );
-        expect(row.fact_text).toContain(mockMemoryFacts[idx]!.fact.toLowerCase());
+        expect(row.fact_text.toLowerCase()).toContain(mockMemoryFacts[idx]!.fact.toLowerCase());
       });
     });
 

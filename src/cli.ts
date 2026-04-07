@@ -1,6 +1,6 @@
 import { createLogger } from "./logger.ts";
-import { parseArgs } from "./cli/utils.ts";
-import { colors, title, section, error, dim, info } from "./cli/utils.ts";
+import { parseArgs, printWelcome, title, section, error, info, printBox, printKeyValue, printRule, c, theme } from "./cli/rich-utils.ts";
+import { emitCliBanner, formatCliBannerArt } from "./cli/banner.js";
 import {
     chatCommand,
     doctorCommand,
@@ -11,73 +11,85 @@ import {
 
 const log = createLogger("cli");
 
-function printBanner(): void {
-    console.log(`
-${colors.bright}${colors.cyan}   ╔═══════════════════════════════════════╗
-   ║                                       ║
-   ║       🦾  GRAVITY CLAW  🦾            ║
-   ║   Personal AI Agent Ecosystem         ║
-   ║                                       ║
-   ╚═══════════════════════════════════════╝${colors.reset}
-`);
-}
-
 function printHelp(): void {
-    printBanner();
+    printWelcome();
     
-    console.log(`${colors.bright}Usage:${colors.reset}`);
-    console.log(`  gravityclaw ${dim("[command]")} ${dim("[options]")}\n`);
+    console.log();
+    section("Usage:");
+    console.log(`  gravityclaw ${c.dim("[command]")} ${c.dim("[options]")}\n`);
 
     section("Commands:");
-    console.log(`  ${colors.cyan}start${colors.reset}              Start Gravity Claw services ${dim("(default)")}`);
-    console.log(`  ${colors.cyan}chat${colors.reset}               Interactive chat mode (REPL)`);
-    console.log(`  ${colors.cyan}doctor${colors.reset}             Run health checks and diagnostics`);
-    console.log(`  ${colors.cyan}config${colors.reset}             View current configuration`);
-    console.log(`  ${colors.cyan}tools${colors.reset}              List available tools`);
-    console.log(`  ${colors.cyan}sessions${colors.reset}           Manage conversation sessions`);
-    console.log(`  ${colors.cyan}version${colors.reset}            Show version information`);
-    console.log(`  ${colors.cyan}help${colors.reset}               Show this help\n`);
+    printBox(
+        `${c.cyan("start")}              Start Gravity Claw services ${c.dim("(default)")}
+${c.cyan("chat")}               Interactive chat mode (REPL)
+${c.cyan("doctor")}             Run health checks and diagnostics
+${c.cyan("config")}             View current configuration
+${c.cyan("tools")}              List available tools
+${c.cyan("sessions")}           Manage conversation sessions
+${c.cyan("version")}            Show version information
+${c.cyan("help")}               Show this help`,
+        { title: "Commands", borderColor: "cyan" }
+    );
+    console.log();
 
     section("Session Commands:");
-    console.log(`  ${colors.cyan}sessions list${colors.reset}      List all sessions`);
-    console.log(`  ${colors.cyan}sessions clear${colors.reset} ${dim("<id>")}  Clear a session`);
-    console.log(`  ${colors.cyan}sessions export${colors.reset} ${dim("<id>")} Export session to JSON\n`);
+    printBox(
+        `${c.cyan("sessions list")}      List all sessions
+${c.cyan("sessions clear")} ${c.dim("<id>")}  Clear a session
+${c.cyan("sessions export")} ${c.dim("<id>")} Export session to JSON`,
+        { title: "Sessions", borderColor: "cyan" }
+    );
+    console.log();
 
     section("Options:");
-    console.log(`  ${colors.cyan}--help, -h${colors.reset}         Show help for a command`);
-    console.log(`  ${colors.cyan}--version, -v${colors.reset}      Show version`);
-    console.log(`  ${colors.cyan}--verbose${colors.reset}          Enable verbose output`);
-    console.log(`  ${colors.cyan}--session${colors.reset} ${dim("<id>")}     Use specific session ID\n`);
+    printBox(
+        `${c.cyan("--help, -h")}         Show help for a command
+${c.cyan("--version, -v")}      Show version
+${c.cyan("--verbose")}          Enable verbose output
+${c.cyan("--session")} ${c.dim("<id>")}     Use specific session ID`,
+        { title: "Options", borderColor: "cyan" }
+    );
+    console.log();
 
     section("Examples:");
-    console.log(`  ${dim("$")} gravityclaw                    ${dim("# Start services")}`);
-    console.log(`  ${dim("$")} gravityclaw chat               ${dim("# Interactive chat")}`);
-    console.log(`  ${dim("$")} gravityclaw chat --session my-session`);
-    console.log(`  ${dim("$")} gravityclaw doctor             ${dim("# Run diagnostics")}`);
-    console.log(`  ${dim("$")} gravityclaw tools              ${dim("# List all tools")}`);
-    console.log(`  ${dim("$")} gravityclaw sessions list      ${dim("# View sessions")}`);
-    console.log(`  ${dim("$")} gravityclaw sessions export abc123 > backup.json\n`);
+    printBox(
+        `${c.dim("$")} gravityclaw                    ${c.dim("# Start services")}
+${c.dim("$")} gravityclaw chat               ${c.dim("# Interactive chat")}
+${c.dim("$")} gravityclaw chat --session my-session
+${c.dim("$")} gravityclaw doctor             ${c.dim("# Run diagnostics")}
+${c.dim("$")} gravityclaw tools              ${c.dim("# List all tools")}
+${c.dim("$")} gravityclaw sessions list      ${c.dim("# View sessions")}
+${c.dim("$")} gravityclaw sessions export abc123 > backup.json`,
+        { title: "Examples", borderColor: "cyan" }
+    );
+    console.log();
 
     section("Documentation:");
-    console.log(`  ${colors.cyan}GitHub:${colors.reset}  https://github.com/noorulahamed/gravityclaw`);
-    console.log(`  ${colors.cyan}Issues:${colors.reset}  https://github.com/noorulahamed/gravityclaw/issues\n`);
+    printKeyValue({
+        "GitHub": "https://github.com/noorulahamed/gravityclaw",
+        "Issues": "https://github.com/noorulahamed/gravityclaw/issues",
+    });
+    console.log();
 }
 
 async function printVersion(): Promise<void> {
     const pkg = await import("../package.json", { with: { type: "json" } });
     
-    printBanner();
+    printWelcome();
     
-    console.log(`${colors.bright}Version:${colors.reset} ${pkg.default.version}`);
-    console.log(`${colors.bright}Node:${colors.reset}    ${process.version}`);
-    console.log(`${colors.bright}Platform:${colors.reset} ${process.platform} ${process.arch}\n`);
+    printBox(
+        `${c.bright("Version:")} ${pkg.default.version}
+${c.bright("Node:")}    ${process.version}
+${c.bright("Platform:")} ${process.platform} ${process.arch}`,
+        { title: "Version Info", borderColor: "cyan" }
+    );
+    console.log();
 }
 
 async function run(): Promise<void> {
     const args = parseArgs(process.argv);
     const command = args.command.toLowerCase();
 
-    // Handle global flags
     if (args.flags.h || args.flags.help) {
         printHelp();
         return;
@@ -91,7 +103,6 @@ async function run(): Promise<void> {
     try {
         switch (command) {
             case "start":
-                // Import and run main application
                 info("Starting Gravity Claw...\n");
                 await import("./index.ts");
                 break;
@@ -146,7 +157,6 @@ async function run(): Promise<void> {
     }
 }
 
-// Make stdin readable for interactive commands
 if (process.stdin.isTTY) {
     process.stdin.setRawMode(false);
 }

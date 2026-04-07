@@ -3,6 +3,7 @@ import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/reso
 import type OpenAI from "openai";
 import type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
 import { createLogger } from "../logger.ts";
+import { safeJsonParse } from "../utils/json.ts";
 
 const log = createLogger("llm:anthropic");
 
@@ -15,7 +16,7 @@ export class AnthropicProvider implements LLMProvider {
   private client: Anthropic;
   private defaultModel: string;
 
-  constructor(apiKey: string, defaultModel: string = "claude-3-5-sonnet-20241022") {
+  constructor(apiKey: string, defaultModel: string = "claude-sonnet-4-20250514") {
     this.client = new Anthropic({ apiKey });
     this.defaultModel = defaultModel;
     log.info(`Anthropic provider initialized with model: ${defaultModel}`);
@@ -118,11 +119,12 @@ export class AnthropicProvider implements LLMProvider {
 
         if ("tool_calls" in msg && msg.tool_calls) {
           for (const toolCall of msg.tool_calls) {
+            const inputResult = safeJsonParse<Record<string, unknown>>(toolCall.function.arguments, {} as Record<string, unknown>, "Anthropic tool call input");
             content.push({
               type: "tool_use",
               id: toolCall.id,
               name: toolCall.function.name,
-              input: JSON.parse(toolCall.function.arguments),
+              input: inputResult.success && inputResult.data ? inputResult.data : {},
               caller: {
                 type: "internal" as const,
                 tool_id: toolCall.id,

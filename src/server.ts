@@ -5,11 +5,31 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { config } from "./config.ts";
 import { createLogger } from "./logger.ts";
+import { safeJsonParse } from "./utils/json.ts";
 import cors from "cors";
 import { getWebhookByName, verifySignature } from "./webhooks/index.ts";
 import { registerCanvasClient } from "./canvas/index.ts";
-import { parse } from "url";
+import { URL } from "url";
 import { db } from "./db.ts";
+import multer from "multer";
+import { writeFile, unlink } from "fs/promises";
+import { tmpdir } from "os";
+import {
+    validateBody,
+    validateQuery,
+    validateParams,
+    toolsExecuteSchema,
+    voiceSpeakSchema,
+    approvalCreateSchema,
+    approvalActionSchema,
+    memoryQuerySchema,
+    traceIdParamSchema,
+    exportDownloadQuerySchema,
+    webhookParamsSchema,
+    approvalIdParamSchema,
+    approvalsListQuerySchema,
+} from "./middleware/validation.ts";
+import { validateWebSocketAuth, createSessionToken } from './middleware/websocket-auth.ts';
 import {
     getMetricsSnapshot,
     exportPrometheusFormat,
@@ -17,6 +37,16 @@ import {
 import { getActiveCorrelations } from "./observability/correlation.ts";
 import { exportSpans, getTraceSpans } from "./observability/tracing.ts";
 import metricsRouter from "./performance/metrics-api.ts";
+import { authMiddleware } from "./middleware/auth.ts";
+import { WhatsAppChannel } from "./channels/whatsapp.ts";
+import { mobileGateway } from "./gateway/mobile.ts";
+import { createTelemetryMiddleware } from "./lib/telemetry/middleware.ts";
+
+let whatsappChannelInstance: WhatsAppChannel | null = null;
+
+export function setWhatsAppChannel(channel: WhatsAppChannel) {
+    whatsappChannelInstance = channel;
+}
 
 const log = createLogger("server");
 
@@ -27,23 +57,76 @@ export const app = express();
 app.use(cors());
 app.use(express.json({ limit: "10mb" })); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true, limit: "10mb" })); // Parse form data
+app.use(createTelemetryMiddleware());
 export const server = createServer(app);
-export const wss = new WebSocketServer({ server });
+export const wss = new WebSocketServer({ noServer: true });
 
-// Keep-alive mechanism for WebSocket connections
-// Sends a ping every 30 seconds, closes connection if no pong received
+// Add mobile gateway routes
+app.use(mobileGateway.getExpressApp());
+
+// Handle WebSocket upgrades manually to support multiple paths
+server.on("upgrade", (request, socket, head) => {
+    const url = new URL(request.url || "", `http://${request.headers.host}`);
+    const pathname = url.pathname;
+
+    // Validate authentication
+    const auth = validateWebSocketAuth(request, pathname);
+    
+    if (!auth.isAuthenticated) {
+        log.warn(`WebSocket authentication failed for ${pathname}`);
+        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+        socket.destroy();
+        return;
+    }
+
+    if (pathname === "/canvas") {
+        const sessionId = auth.sessionId || url.searchParams.get("session") || "default";
+
+        // Handle canvas connections with authentication
+        wss.handleUpgrade(request, socket, head, (ws) => {
+            // Add authentication info to socket
+            (ws as any).auth = auth;
+            log.info(`Authenticated Canvas connection for session: ${sessionId}`, {
+                userId: auth.userId || '',
+                platform: auth.platform || ''
+            });
+            registerCanvasClient(sessionId, ws);
+        });
+    } else {
+        // Default to main chat websocket with authentication
+        wss.handleUpgrade(request, socket, head, (ws) => {
+            // Add authentication info to socket
+            (ws as any).auth = auth;
+            log.info(`Authenticated WebSocket connection`, {
+                sessionId: auth.sessionId,
+                userId: auth.userId || ''
+            });
+            wss.emit("connection", ws, request);
+        });
+    }
+});
+
 setInterval(() => {
-    wss.clients.forEach((client: any) => {
-        if (client.isAlive === false) {
+    wss.clients.forEach((client: WebSocket) => {
+        const ext = client as unknown as { isAlive?: boolean };
+        if (ext.isAlive === false) {
             return client.terminate();
         }
-        client.isAlive = false;
+        ext.isAlive = false;
         client.ping();
     });
 }, 30000);
 
-// Serve static files from the 'public' directory
-app.use(express.static(path.join(__dirname, "../public")));
+// Serve static files from the 'dashboard/dist' directory (modernized frontend)
+const distPath = path.join(process.cwd(), "dashboard", "dist");
+app.use(express.static(distPath));
+// Fallback to legacy 'public' directory for other assets
+app.use(express.static(path.join(process.cwd(), "public")));
+
+// SPA fallback for the modern dashboard
+app.get(/^(?!\/(api|webhook|metrics)).*$/, (req, res) => {
+    res.sendFile(path.join(distPath, "index.html"));
+});
 
 // Mount performance metrics API
 app.use("/api/metrics", metricsRouter);
@@ -57,7 +140,7 @@ app.get("/api/health", (req, res) => {
 
     try {
         // Get WebSocket client count
-        const wsClients = (wss as any).clients?.size || 0;
+        const wsClients = wss.clients.size;
 
         // Get memory statistics
         const memoryUsage = process.memoryUsage();
@@ -68,7 +151,7 @@ app.get("/api/health", (req, res) => {
         // Check database connectivity
         let dbStatus = "ok";
         try {
-            const result = db.prepare("SELECT 1 as ping").get() as any;
+            const result = db.prepare("SELECT 1 as ping").get() as { ping: number } | undefined;
             dbStatus = result?.ping === 1 ? "ok" : "error";
         } catch (err) {
             dbStatus = "error";
@@ -78,7 +161,7 @@ app.get("/api/health", (req, res) => {
         // Get memory facts count
         let factCount = 0;
         try {
-            const result = db.prepare("SELECT COUNT(*) as count FROM memory WHERE type = 'fact'").get() as any;
+            const result = db.prepare("SELECT COUNT(*) as count FROM memory WHERE type = 'fact'").get() as { count: number } | undefined;
             factCount = result?.count || 0;
         } catch {
             // Table might not exist yet
@@ -130,6 +213,38 @@ app.get("/api/health", (req, res) => {
 });
 
 /**
+ * Token generation endpoint for WebSocket authentication
+ * POST /api/auth/token
+ */
+app.post('/api/auth/token', authMiddleware, (req, res) => {
+    try {
+        const { sessionId, userId, platform } = req.body;
+        
+        if (!sessionId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'sessionId is required' 
+            });
+        }
+        
+        const token = createSessionToken(sessionId, userId, platform);
+        
+        res.json({
+            success: true,
+            token,
+            expiresIn: 86400, // 24 hours
+            usage: `ws://localhost:${config.PORT}?token=${token}&session=${sessionId}`
+        });
+    } catch (error: any) {
+        log.error('Token generation error', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
+/**
  * Metrics endpoint - returns metrics in Prometheus text format
  */
 app.get("/metrics", (req, res) => {
@@ -149,7 +264,7 @@ app.get("/metrics", (req, res) => {
 /**
  * Metrics JSON endpoint - returns metrics as structured JSON
  */
-app.get("/api/metrics", (req, res) => {
+app.get("/api/metrics", authMiddleware, (req, res) => {
     try {
         const metrics = getMetricsSnapshot();
         const correlations = getActiveCorrelations();
@@ -174,7 +289,7 @@ app.get("/api/metrics", (req, res) => {
 /**
  * Tracing endpoint - returns traces for debugging
  */
-app.get("/api/traces", (req, res) => {
+app.get("/api/traces", authMiddleware, (req, res) => {
     try {
         res.json({
             message: "Provide traceId as parameter",
@@ -186,9 +301,9 @@ app.get("/api/traces", (req, res) => {
     }
 });
 
-app.get("/api/traces/:traceId", (req, res) => {
+app.get("/api/traces/:traceId", authMiddleware, validateParams(traceIdParamSchema), (req, res) => {
     try {
-        const { traceId } = req.params;
+        const traceId = req.params.traceId as string;
 
         const spans = getTraceSpans(traceId);
 
@@ -218,8 +333,9 @@ app.get("/api/traces/:traceId", (req, res) => {
 /**
  * WebSocket diagnostic endpoint - returns WebSocket info
  */
-app.get("/api/ws-info", (req, res) => {
-    const handlers = (wss as any)._events?.connection;
+app.get("/api/ws-info", authMiddleware, (req, res) => {
+    const ext = wss as unknown as { _events?: { connection?: unknown } };
+    const handlers = ext._events?.connection;
     const isHandlerRegistered = !!handlers;
 
     res.json({
@@ -227,7 +343,7 @@ app.get("/api/ws-info", (req, res) => {
         websocket: {
             server_exists: !!wss,
             handlers_registered: isHandlerRegistered,
-            connected_clients: (wss as any).clients?.size || 0,
+            connected_clients: wss.clients.size,
             ready_for_connections: wss && isHandlerRegistered
         }
     });
@@ -297,7 +413,8 @@ app.post("/webhook/:session_id/:hook_name", async (req, res) => {
             },
             payload: req.body,
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
         log.error(`Error processing webhook: ${error}`);
         res.status(500).json({
             success: false,
@@ -309,7 +426,7 @@ app.post("/webhook/:session_id/:hook_name", async (req, res) => {
 /**
  * Memory API - list sessions or messages for a specific session
  */
-app.get("/api/memory", (req, res) => {
+app.get("/api/memory", authMiddleware, validateQuery(memoryQuerySchema), (req, res) => {
     try {
         const limit = Math.min(parseInt((req.query.limit as string) || "50"), 200);
         const sessionId = req.query.session as string | undefined;
@@ -329,15 +446,16 @@ app.get("/api/memory", (req, res) => {
             ).all(limit);
             res.json({ success: true, data: rows });
         }
-    } catch (error: any) {
-        res.status(500).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ success: false, error: message });
     }
 });
 
 /**
  * Tools API - list all registered tools with name and description
  */
-app.get("/api/tools", async (req, res) => {
+app.get("/api/tools", authMiddleware, async (req, res) => {
     try {
         const { registry } = await import("./tools/index.ts");
         const defs = registry.getOpenAIDefinitions();
@@ -346,15 +464,16 @@ app.get("/api/tools", async (req, res) => {
             description: d.function.description,
         }));
         res.json({ success: true, data: tools, count: tools.length });
-    } catch (error: any) {
-        res.status(500).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ success: false, error: message });
     }
 });
 
 /**
  * Usage API - aggregate token usage statistics
  */
-app.get("/api/usage", async (req, res) => {
+app.get("/api/usage", authMiddleware, async (req, res) => {
     try {
         const { getUsageStats } = await import("./usage.ts");
         const allTime = getUsageStats();
@@ -379,15 +498,16 @@ app.get("/api/usage", async (req, res) => {
                 avgLatency: allTime.avgLatency,
             }
         });
-    } catch (error: any) {
-        res.status(500).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ success: false, error: message });
     }
 });
 
 /**
  * Dashboard stats - combined counts for the overview page
  */
-app.get("/api/stats", (req, res) => {
+app.get("/api/stats", authMiddleware, (req, res) => {
     try {
         const getCount = (sql: string) => (db.prepare(sql).get() as { count: number }).count;
         res.json({
@@ -402,41 +522,44 @@ app.get("/api/stats", (req, res) => {
                 heartbeats: getCount("SELECT COUNT(*) as count FROM heartbeat_tasks WHERE enabled = 1"),
             }
         });
-    } catch (error: any) {
-        res.status(500).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ success: false, error: message });
     }
 });
 
 /**
  * Scheduler tasks API
  */
-app.get("/api/scheduler/tasks", (req, res) => {
+app.get("/api/scheduler/tasks", authMiddleware, (req, res) => {
     try {
         const tasks = db.prepare("SELECT * FROM scheduled_tasks ORDER BY created_at DESC LIMIT 100").all();
         res.json({ success: true, data: tasks });
-    } catch (error: any) {
-        res.status(500).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ success: false, error: message });
     }
 });
 
 /**
  * Webhooks list API (secrets masked)
  */
-app.get("/api/webhooks", (req, res) => {
+app.get("/api/webhooks", authMiddleware, (req, res) => {
     try {
         const webhooks = db.prepare(
             "SELECT id, name, session_id, created_at, created_by FROM webhooks ORDER BY created_at DESC LIMIT 100"
         ).all();
         res.json({ success: true, data: webhooks });
-    } catch (error: any) {
-        res.status(500).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ success: false, error: message });
     }
 });
 
 /**
  * Sessions list API with message count
  */
-app.get("/api/sessions", (req, res) => {
+app.get("/api/sessions", authMiddleware, (req, res) => {
     try {
         const sessions = db.prepare(`
             SELECT s.id, s.allow_messages, s.created_at, s.updated_at,
@@ -447,50 +570,54 @@ app.get("/api/sessions", (req, res) => {
             ORDER BY s.updated_at DESC LIMIT 100
         `).all();
         res.json({ success: true, data: sessions });
-    } catch (error: any) {
-        res.status(500).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ success: false, error: message });
     }
 });
 
 /**
  * Agent swarms API
  */
-app.get("/api/swarms", (req, res) => {
+app.get("/api/swarms", authMiddleware, (req, res) => {
     try {
         const swarms = db.prepare(
             "SELECT * FROM agent_swarms ORDER BY created_at DESC LIMIT 100"
         ).all();
         res.json({ success: true, data: swarms });
-    } catch (error: any) {
-        res.status(500).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ success: false, error: message });
     }
 });
 
 /**
  * Workflows API
  */
-app.get("/api/workflows", (req, res) => {
+app.get("/api/workflows", authMiddleware, (req, res) => {
     try {
         const workflows = db.prepare(
             "SELECT id, session_id, goal, status, progress, created_at, completed_at FROM workflows ORDER BY created_at DESC LIMIT 100"
         ).all();
         res.json({ success: true, data: workflows });
-    } catch (error: any) {
-        res.status(500).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ success: false, error: message });
     }
 });
 
 /**
  * Heartbeat tasks API
  */
-app.get("/api/heartbeats", (req, res) => {
+app.get("/api/heartbeats", authMiddleware, (req, res) => {
     try {
         const heartbeats = db.prepare(
             "SELECT * FROM heartbeat_tasks ORDER BY created_at DESC LIMIT 100"
         ).all();
         res.json({ success: true, data: heartbeats });
-    } catch (error: any) {
-        res.status(500).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ success: false, error: message });
     }
 });
 
@@ -502,16 +629,9 @@ app.get("/api/heartbeats", (req, res) => {
  * Download exported data file
  * GET /api/export/download?filename=...
  */
-app.get("/api/export/download", (req, res) => {
+app.get("/api/export/download", authMiddleware, validateQuery(exportDownloadQuerySchema), (req, res) => {
     try {
         const { filename, data, format } = req.query;
-
-        if (!data || typeof data !== "string") {
-            return res.status(400).json({
-                success: false,
-                error: "Missing or invalid 'data' parameter",
-            });
-        }
 
         const filename_str = typeof filename === "string" ? filename : "export.bin";
 
@@ -530,7 +650,7 @@ app.get("/api/export/download", (req, res) => {
         }
 
         // Decode base64 data
-        const buffer = Buffer.from(data, "base64");
+        const buffer = Buffer.from(data as string, "base64");
 
         res.setHeader("Content-Type", contentType);
         res.setHeader(
@@ -541,11 +661,12 @@ app.get("/api/export/download", (req, res) => {
         res.send(buffer);
 
         log.info(`Downloaded export: ${filename_str}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
         log.error("Export download error", error);
         res.status(500).json({
             success: false,
-            error: error.message,
+            error: message,
         });
     }
 });
@@ -555,16 +676,9 @@ app.get("/api/export/download", (req, res) => {
  * POST /api/tools/execute
  * Body: { tool: string, input: Record<string, unknown> }
  */
-app.post("/api/tools/execute", async (req, res) => {
+app.post("/api/tools/execute", authMiddleware, validateBody(toolsExecuteSchema), async (req, res) => {
     try {
         const { tool: toolName, input } = req.body;
-
-        if (!toolName || typeof toolName !== "string") {
-            return res.status(400).json({
-                success: false,
-                error: "Missing or invalid 'tool' parameter",
-            });
-        }
 
         // Get the tool from registry
         const { registry } = await import("./tools/index.ts");
@@ -579,15 +693,224 @@ app.post("/api/tools/execute", async (req, res) => {
 
         // Execute the tool
         const result = await tool.execute(input || {});
-        const parsed = JSON.parse(result);
+        const parsedResult = safeJsonParse<unknown>(result, null, "tool execution result");
+        
+        if (!parsedResult.success || parsedResult.data === null) {
+            log.warn(`Failed to parse tool result: ${parsedResult.error}`);
+            return res.status(500).json({
+                success: false,
+                error: "Tool returned invalid result",
+            });
+        }
 
-        res.json(parsed);
+        res.json(parsedResult.data);
     } catch (error: any) {
         log.error(`Tool execution error (${req.body?.tool})`, error);
         res.status(500).json({
             success: false,
             error: error.message || "Tool execution failed",
         });
+    }
+});
+
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
+
+/**
+ * Voice: Transcribe audio blob to text (Whisper STT)
+ * POST /api/voice/transcribe
+ * Body: multipart/form-data with 'audio' file
+ */
+app.post("/api/voice/transcribe", authMiddleware, upload.single("audio"), async (req: any, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: "No audio file uploaded" });
+        }
+
+        const openaiKey = (config as any).OPENAI_API_KEY ?? (config as any).OPENROUTER_API_KEY;
+        if (!openaiKey) {
+            return res.status(503).json({ success: false, error: "No OpenAI API key configured" });
+        }
+
+        // Write buffer to temp file
+        const tmpPath = `${tmpdir()}/gc_audio_${Date.now()}.webm`;
+        await writeFile(tmpPath, req.file.buffer);
+
+        const { transcribeAudio } = await import("./voice/transcription.ts");
+        const text = await transcribeAudio(tmpPath, openaiKey);
+        await unlink(tmpPath).catch(() => { });
+
+        log.info(`Voice transcribed: "${text.substring(0, 60)}..."`);
+        res.json({ success: true, text });
+    } catch (error: any) {
+        log.error("Voice transcription error", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Voice: Convert text to speech audio blob (TTS)
+ * POST /api/voice/speak
+ * Body: { text: string, voice?: string }
+ */
+app.post("/api/voice/speak", authMiddleware, validateBody(voiceSpeakSchema), async (req, res) => {
+    try {
+        const { text, voice = "alloy" } = req.body;
+
+        const openaiKey = (config as any).OPENAI_API_KEY ?? (config as any).OPENROUTER_API_KEY;
+        if (!openaiKey) {
+            return res.status(503).json({ success: false, error: "No OpenAI API key configured" });
+        }
+
+        const { TTSService } = await import("./voice/tts.ts");
+        const tts = new TTSService(openaiKey, "tts-1", voice as any);
+        const audioBuffer = await tts.textToSpeech(text.substring(0, 4096));
+
+        res.setHeader("Content-Type", "audio/mpeg");
+        res.setHeader("Content-Length", audioBuffer.length);
+        res.send(audioBuffer);
+
+        log.info(`Voice TTS: ${text.length} chars → ${audioBuffer.length} bytes`);
+    } catch (error: any) {
+        log.error("Voice TTS error", error);
+        // If TTS fails, just send an em,pty response - client will handle gracefully
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Approval API Endpoints
+ */
+import { approvalGate, type ApprovalRequest } from "./middleware/approval.ts";
+
+app.post("/api/approvals", authMiddleware, validateBody(approvalCreateSchema), async (req, res) => {
+    try {
+        const { toolName, parameters, userId, sessionId, channel } = req.body;
+
+        const request = await approvalGate.createApprovalRequest(
+            toolName,
+            parameters || {},
+            { userId, sessionId, channel: channel || "api" }
+        );
+
+        res.json({ success: true, request });
+    } catch (error: any) {
+        log.error("Create approval error", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.get("/api/approvals", authMiddleware, validateQuery(approvalsListQuerySchema), async (req, res) => {
+    try {
+        const { sessionId } = req.query;
+        
+        let approvals: ApprovalRequest[];
+        if (sessionId && typeof sessionId === "string") {
+            approvals = approvalGate.getBySession(sessionId);
+        } else {
+            approvals = approvalGate.getPending();
+        }
+
+        res.json({ success: true, approvals });
+    } catch (error: any) {
+        log.error("List approvals error", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.post("/api/approvals/:id/approve", authMiddleware, validateParams(approvalIdParamSchema), validateBody(approvalActionSchema), async (req, res) => {
+    try {
+        const id = req.params.id as string;
+        const approver = req.body.approver as string;
+
+        const result = await approvalGate.approve(id, approver);
+
+        if (!result.success) {
+            return res.status(400).json(result);
+        }
+
+        res.json({ success: true, request: result.request });
+    } catch (error: any) {
+        log.error("Approve error", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.post("/api/approvals/:id/deny", authMiddleware, validateParams(approvalIdParamSchema), validateBody(approvalActionSchema), async (req, res) => {
+    try {
+        const id = req.params.id as string;
+        const approver = req.body.approver as string;
+
+        const result = await approvalGate.deny(id, approver);
+
+        if (!result.success) {
+            return res.status(400).json(result);
+        }
+
+        res.json({ success: true, request: result.request });
+    } catch (error: any) {
+        log.error("Deny error", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.get("/api/approvals/:id", authMiddleware, validateParams(approvalIdParamSchema), async (req, res) => {
+    try {
+        const id = req.params.id as string;
+        const request = approvalGate.getById(id);
+
+        if (!request) {
+            return res.status(404).json({ success: false, error: "Approval request not found" });
+        }
+
+        res.json({ success: true, request });
+    } catch (error: any) {
+        log.error("Get approval error", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.get("/api/whatsapp/qr", authMiddleware, async (req, res) => {
+    try {
+        if (!whatsappChannelInstance) {
+            return res.status(503).json({ success: false, error: "WhatsApp channel not initialized" });
+        }
+
+        const qr = whatsappChannelInstance.getQrCode();
+        const status = whatsappChannelInstance.getConnectionStatus();
+        const qrDataUrl = await whatsappChannelInstance.getQrCodeDataUrl();
+
+        res.json({
+            success: true,
+            data: {
+                qr: qr,
+                qrDataUrl: qrDataUrl,
+                status: status,
+            }
+        });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error("WhatsApp QR error", error);
+        res.status(500).json({ success: false, error: message });
+    }
+});
+
+app.post("/api/whatsapp/reconnect", authMiddleware, async (req, res) => {
+    try {
+        if (!whatsappChannelInstance) {
+            return res.status(503).json({ success: false, error: "WhatsApp channel not initialized" });
+        }
+
+        await whatsappChannelInstance.triggerReconnect();
+
+        res.json({
+            success: true,
+            message: "Reconnection triggered"
+        });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error("WhatsApp reconnect error", error);
+        res.status(500).json({ success: false, error: message });
     }
 });
 

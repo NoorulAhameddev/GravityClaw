@@ -1,4 +1,5 @@
 import type { Tool } from "./index.ts";
+import { vectorSemanticSearch, isVectorStoreAvailable } from "../../memory/vector.ts";
 import { searchMemorySemantic } from "../../memory/supabase.ts";
 
 function getSessionIdFromInput(input: Record<string, unknown>): string {
@@ -8,7 +9,7 @@ function getSessionIdFromInput(input: Record<string, unknown>): string {
 export const searchMemorySemanticTool: Tool = {
   name: "search_memory_semantic",
   description:
-    "Performs semantic memory search over session messages using Supabase pgvector when configured, with local fallback when unavailable.",
+    "Performs semantic (meaning-based) memory search over past conversation messages. Uses a local ChromaDB vector database for accurate results, with automatic fallback to SQLite when ChromaDB is unavailable.",
   inputSchema: {
     type: "object",
     properties: {
@@ -18,7 +19,7 @@ export const searchMemorySemanticTool: Tool = {
       },
       limit: {
         type: "number",
-        description: "Maximum number of matches (default 5)",
+        description: "Maximum number of matches (default 5, max 50)",
       },
     },
     required: ["query"],
@@ -33,11 +34,23 @@ export const searchMemorySemanticTool: Tool = {
     const limitRaw = Number(input["limit"] ?? 5);
     const limit = Number.isFinite(limitRaw) ? limitRaw : 5;
 
-    const matches = await searchMemorySemantic(sessionId, query, limit);
+    // Prefer local ChromaDB vector store (True RAG)
+    if (isVectorStoreAvailable()) {
+      const matches = await vectorSemanticSearch(sessionId, query, limit);
+      return JSON.stringify({
+        engine: "chromadb",
+        count: matches.length,
+        matches,
+      });
+    }
 
+    // Fall back to Supabase pgvector or local SQLite
+    const matches = await searchMemorySemantic(sessionId, query, limit);
     return JSON.stringify({
+      engine: isVectorStoreAvailable() ? "supabase" : "sqlite-fallback",
       count: matches.length,
       matches,
     });
   },
 };
+

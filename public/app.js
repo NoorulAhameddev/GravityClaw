@@ -2,9 +2,31 @@
 //  Gravity Claw  — Web UI App — Enhanced
 // ─────────────────────────────────────────────
 
+window.onerror = function (msg, url, line, col, error) {
+  console.error("GLOBAL ERROR:", msg, "at", url, ":", line, ":", col, error);
+  return false;
+};
+
+function fmtUptime(seconds) {
+  if (!seconds || isNaN(seconds)) return '0s';
+  const d = Math.floor(seconds / (3600 * 24));
+  const h = Math.floor((seconds % (3600 * 24)) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const parts = [];
+  if (d > 0) parts.push(`${d}d`);
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0) parts.push(`${m}m`);
+  if (s > 0 || parts.length === 0) parts.push(`${s}s`);
+  return parts.join(' ');
+}
+window.fmtUptime = fmtUptime;
+
 // ── Router ──────────────────────────────────
 const PAGES = ['overview', 'chat', 'canvas', 'scheduler', 'webhooks', 'heartbeats', 'sessions', 'memory', 'analytics', 'swarms', 'workflows', 'tools', 'usage', 'admin', 'plugins'];
 let currentPage = 'overview';
+
+// already moved to top
 
 function navigate(page) {
   if (!PAGES.includes(page)) return;
@@ -34,7 +56,8 @@ function navigate(page) {
   if (page === 'admin') loadAdmin();
 
   document.title = `Gravity Claw — ${page.charAt(0).toUpperCase() + page.slice(1)}`;
-  if (pageTitle) pageTitle.textContent = page.charAt(0).toUpperCase() + page.slice(1);
+  const titleEl = document.querySelector('.page-header .page-title') || document.getElementById('page-title') || document.querySelector('.page-title');
+  if (titleEl) titleEl.textContent = page.charAt(0).toUpperCase() + page.slice(1);
   window.location.hash = page;
 }
 
@@ -685,6 +708,9 @@ function fmtDate(ts) {
   return new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+// moved to top
+window.fmtUptime = fmtUptime;
+
 async function api(url) {
   try {
     const r = await fetch(url, {
@@ -732,6 +758,205 @@ navigate('overview');
 
 // Global intervals
 setInterval(loadHealth, 30000);
+
+// Auto-refresh the currently active page data
 setInterval(() => {
   if (currentPage === 'overview') loadOverview();
-}, 60000);
+  else if (currentPage === 'memory') loadMemory();
+  else if (currentPage === 'scheduler') loadScheduler();
+  else if (currentPage === 'webhooks') loadWebhooks();
+  else if (currentPage === 'heartbeats') loadHeartbeats();
+  else if (currentPage === 'sessions') loadSessions();
+  else if (currentPage === 'swarms') loadSwarms();
+  else if (currentPage === 'workflows') loadWorkflows();
+  else if (currentPage === 'usage') loadUsage();
+  // tools and admin usually don't need rapid background polling
+}, 10000); // 10 seconds for snappy UI updates
+
+// ── Voice Mode ───────────────────────────────
+// Injects a microphone button into the chat footer and handles:
+//  1. Web Audio MediaRecorder → webm blob
+//  2. POST /api/voice/transcribe → text
+//  3. Send text to AI via WebSocket
+//  4. Receive AI text reply → POST /api/voice/speak → play audio
+
+(function initVoiceMode() {
+  const chatForm = document.getElementById('chat-form');
+  if (!chatForm) return;
+
+  // Add microphone button next to the send button
+  const micBtn = document.createElement('button');
+  micBtn.type = 'button';
+  micBtn.id = 'voice-mic-btn';
+  micBtn.title = 'Click to speak';
+  micBtn.innerHTML = '🎙️';
+  micBtn.style.cssText = `
+    background: var(--card, #1e293b);
+    border: 1.5px solid var(--border, #334155);
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  `;
+
+  // Insert before the send button
+  const sendBtn = document.getElementById('chat-send');
+  if (sendBtn) {
+    chatForm.insertBefore(micBtn, sendBtn);
+  } else {
+    chatForm.appendChild(micBtn);
+  }
+
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let isRecording = false;
+  let voiceTTSEnabled = true; // Can be toggled
+
+  // Add a CSS pulse animation for the recording state
+  const styleEl = document.createElement('style');
+  styleEl.textContent = `
+    #voice-mic-btn.recording {
+      background: #ef4444 !important;
+      border-color: #ef4444 !important;
+      animation: micPulse 1s ease-in-out infinite;
+    }
+    @keyframes micPulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+      50% { transform: scale(1.08); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+    }
+    #voice-tts-indicator {
+      font-size: 11px;
+      color: var(--muted, #94a3b8);
+      text-align: center;
+      padding: 2px 0;
+    }
+  `;
+  document.head.appendChild(styleEl);
+
+  micBtn.addEventListener('mouseenter', () => {
+    if (!isRecording) micBtn.style.background = 'var(--accent, #6366f1)';
+  });
+  micBtn.addEventListener('mouseleave', () => {
+    if (!isRecording) micBtn.style.background = 'var(--card, #1e293b)';
+  });
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      isRecording = true;
+      audioChunks = [];
+      micBtn.classList.add('recording');
+      micBtn.title = 'Recording… click to stop';
+      toast('🎙️ Recording…', 'info');
+
+      mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        await processAudio();
+      };
+      mediaRecorder.start(250);
+    } catch (err) {
+      toast('Microphone access denied', 'err');
+      console.error('Voice: could not get microphone', err);
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+    isRecording = false;
+    micBtn.classList.remove('recording');
+    micBtn.style.background = 'var(--card, #1e293b)';
+    micBtn.title = 'Click to speak';
+    toast('⏳ Transcribing…', 'info');
+  }
+
+  async function processAudio() {
+    try {
+      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+      if (blob.size < 1000) {
+        toast('Recording too short', 'err');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('audio', blob, 'voice.webm');
+
+      const resp = await fetch('/api/voice/transcribe', { method: 'POST', body: formData });
+      const data = await resp.json();
+
+      if (!data.success || !data.text) {
+        toast('Transcription failed: ' + (data.error || 'unknown'), 'err');
+        return;
+      }
+
+      const transcript = data.text.trim();
+      toast(`📝 "${transcript.substring(0, 50)}${transcript.length > 50 ? '…' : ''}"`, 'ok');
+
+      // Set in chat box and submit
+      const chatTa = document.getElementById('chat-ta');
+      if (chatTa) {
+        chatTa.value = transcript;
+        chatForm.requestSubmit();
+      }
+    } catch (err) {
+      toast('Voice error: ' + err.message, 'err');
+      console.error('Voice process error:', err);
+    }
+  }
+
+  micBtn.addEventListener('click', () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  });
+
+  // Auto-speak AI replies via TTS
+  const originalAppendMsg = window.appendMsg || appendMsg;
+  window.appendMsg = function voiceAppendMsg(role, text) {
+    originalAppendMsg(role, text);
+    if (role === 'bot' && voiceTTSEnabled && text.length > 0) {
+      speakText(text);
+    }
+  };
+
+  async function speakText(text) {
+    try {
+      const resp = await fetch('/api/voice/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text.substring(0, 1000), voice: 'nova' }),
+      });
+      if (!resp.ok) return; // Gracefully skip TTS if not configured
+      const audioBlob = await resp.blob();
+      const url = URL.createObjectURL(audioBlob);
+      const audio = new Audio(url);
+      audio.onended = () => URL.revokeObjectURL(url);
+      audio.play().catch(() => { }); // Ignore autoplay policy errors
+    } catch {
+      // TTS is best-effort, never block the UI
+    }
+  }
+
+  // Long-press on mic button toggles TTS on/off
+  let holdTimer;
+  micBtn.addEventListener('mousedown', () => {
+    holdTimer = setTimeout(() => {
+      voiceTTSEnabled = !voiceTTSEnabled;
+      toast(voiceTTSEnabled ? '🔊 Voice replies ON' : '🔇 Voice replies OFF', 'info');
+    }, 800);
+  });
+  micBtn.addEventListener('mouseup', () => clearTimeout(holdTimer));
+  micBtn.addEventListener('mouseleave', () => clearTimeout(holdTimer));
+})();
+
