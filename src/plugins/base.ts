@@ -199,9 +199,65 @@ export interface MemoryTrait {
 }
 
 /**
+ * Workflow Trait - Implements automation/workflow plugins
+ */
+export interface WorkflowTrait {
+  /**
+   * Workflow trait marker
+   */
+  readonly traitType: "workflow";
+  
+  /**
+   * Workflow identifier (e.g., "automation", "cron", "pipeline")
+   */
+  readonly workflowId: string;
+  
+  /**
+   * Human-readable workflow name
+   */
+  readonly workflowName: string;
+  
+  /**
+   * Initialize the workflow plugin with configuration
+   */
+  initialize(config: Record<string, unknown>): Promise<void>;
+  
+  /**
+   * Execute a workflow with given parameters
+   * @param params - Workflow-specific parameters
+   * @returns Workflow execution result
+   */
+  executeWorkflow(params: Record<string, unknown>): Promise<Record<string, unknown>>;
+  
+  /**
+   * Get the current status of a running or completed workflow
+   * @param executionId - The execution identifier
+   * @returns Status information
+   */
+  getWorkflowStatus(executionId: string): Promise<{
+    status: "pending" | "running" | "completed" | "failed" | "stopped";
+    progress?: number;
+    result?: Record<string, unknown>;
+    error?: string;
+  }>;
+  
+  /**
+   * Stop a running workflow
+   * @param executionId - The execution identifier to stop
+   * @returns Whether the stop was successful
+   */
+  stopWorkflow(executionId: string): Promise<boolean>;
+  
+  /**
+   * Get workflow configuration schema
+   */
+  getConfigSchema(): Record<string, unknown>;
+}
+
+/**
  * Union type for all plugin traits
  */
-export type PluginTrait = ProviderTrait | ChannelTrait | ToolTrait | MemoryTrait;
+export type PluginTrait = ProviderTrait | ChannelTrait | ToolTrait | MemoryTrait | WorkflowTrait;
 
 /**
  * Plugin metadata
@@ -240,7 +296,7 @@ export interface PluginMetadata {
   /**
    * Traits implemented by this plugin
    */
-  traits: Array<"provider" | "channel" | "tool" | "memory">;
+  traits: Array<"provider" | "channel" | "tool" | "memory" | "workflow">;
   
   /**
    * Dependencies (other plugin IDs)
@@ -271,4 +327,9 @@ export interface Plugin {
    * Plugin lifecycle: Clean up before unloading
    */
   onUnload?(): Promise<void>;
+  
+  /**
+   * Plugin lifecycle: Called when plugin is reloaded (hot-reload)
+   */
+  onReload?(): Promise<void>;
 }

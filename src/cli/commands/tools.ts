@@ -3,7 +3,7 @@
  */
 
 import { registry } from "../../tools/index.ts";
-import { title, section, printTable, info, dim } from "../utils.ts";
+import { title, section, printTable, info, dim, printBox, c } from "../rich-utils.ts";
 
 export async function toolsCommand(): Promise<void> {
     title("🛠️  Available Tools");
@@ -15,7 +15,6 @@ export async function toolsCommand(): Promise<void> {
         return;
     }
 
-    // Group tools by category (inferred from name prefix)
     const categories = new Map<string, typeof tools>();
 
     for (const tool of tools) {
@@ -28,19 +27,24 @@ export async function toolsCommand(): Promise<void> {
         categories.get(category)!.push(tool);
     }
 
-    // Print each category
     for (const [category, categoryTools] of Array.from(categories.entries()).sort()) {
-        section(category.charAt(0).toUpperCase() + category.slice(1));
-
+        const categoryName = category.charAt(0).toUpperCase() + category.slice(1);
+        
         const rows = categoryTools.map((tool) => [
             tool.function.name,
             tool.function.description || dim("(no description)"),
         ]);
 
-        printTable(rows, [
-            { header: "Tool", width: 30 },
-            { header: "Description", width: 80 },
-        ]);
+        const tableContent = rows.map(row => {
+            const cell0 = row[0] || "";
+            const cell1 = row[1] || "";
+            return `${c.cyan(cell0.padEnd(30))}  ${cell1}`;
+        }).join("\n");
+
+        printBox(tableContent, {
+            title: categoryName,
+            borderColor: "cyan"
+        });
 
         console.log();
     }

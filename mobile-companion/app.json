@@ -1,0 +1,64 @@
+{
+  "expo": {
+    "name": "Gravity Claw Companion",
+    "slug": "gravity-claw-companion",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#1a1a2e"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gravityclaw.companion",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Gravity Claw needs camera access to capture photos",
+        "NSLocationWhenInUseUsageDescription": "Gravity Claw needs location access to share GPS coordinates",
+        "NSMicrophoneUsageDescription": "Gravity Claw needs microphone for screen recording audio"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1a1a2e"
+      },
+      "package": "com.gravityclaw.companion",
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Gravity Claw to access your camera"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Gravity Claw to access your location"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Gravity Claw to access your photos",
+          "savePhotosPermission": "Allow Gravity Claw to save photos"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#4CAF50"
+        }
+      ]
+    ]
+  }
+}

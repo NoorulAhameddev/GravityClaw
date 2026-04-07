@@ -4,6 +4,7 @@ import path from "path";
 import { createHash, randomBytes, createCipheriv, createDecipheriv, type CipherGCM, type DecipherGCM } from "crypto";
 import { gzipSync, gunzipSync } from "zlib";
 import { createLogger } from "../logger.ts";
+import { safeJsonParse } from "../utils/json.ts";
 
 const log = createLogger("backup");
 
@@ -398,9 +399,10 @@ export class BackupManager {
         let index: Record<string, BackupMetadata> = {};
 
         if (fs.existsSync(indexPath)) {
-            try {
-                index = JSON.parse(fs.readFileSync(indexPath, "utf-8"));
-            } catch (err) {
+            const result = safeJsonParse<Record<string, BackupMetadata>>(fs.readFileSync(indexPath, "utf-8"), {}, "backup index");
+            if (result.success && result.data) {
+                index = result.data;
+            } else {
                 log.warn("Failed to read backup index, creating new one");
             }
         }
@@ -418,9 +420,12 @@ export class BackupManager {
         }
 
         try {
-            const index: Record<string, BackupMetadata> = JSON.parse(
-                fs.readFileSync(indexPath, "utf-8")
-            );
+            const result = safeJsonParse<Record<string, BackupMetadata>>(fs.readFileSync(indexPath, "utf-8"), {}, "backup index");
+            if (!result.success || !result.data) {
+                log.warn("Failed to parse backup index for removal");
+                return;
+            }
+            const index = result.data;
             delete index[filename];
             fs.writeFileSync(indexPath, JSON.stringify(index, null, 2));
         } catch (err) {
@@ -438,11 +443,9 @@ export class BackupManager {
         }
 
         try {
-            const index: Record<string, BackupMetadata> = JSON.parse(
-                fs.readFileSync(indexPath, "utf-8")
-            );
-            if (index[filename]) {
-                return index[filename];
+            const result = safeJsonParse<Record<string, BackupMetadata>>(fs.readFileSync(indexPath, "utf-8"), {}, "backup metadata");
+            if (result.success && result.data && result.data[filename]) {
+                return result.data[filename];
             }
         } catch (err) {
             log.warn("Failed to read backup index");

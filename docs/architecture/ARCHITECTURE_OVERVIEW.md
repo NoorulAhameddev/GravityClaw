@@ -1004,14 +1004,14 @@ docker-compose up -d
 
 ### Known Issues and Stubs
 
-⚠️ **Not yet implemented or partially working:**
+⚠️ **Partially working or future work:**
 
-- **Streaming responses**: Not implemented (blocks until completion)
-- **Voice input (STT)**: Whisper integration stubbed, not fully tested
-- **MCP server management**: Server auto-restart on failure not working
+- **LLM streaming responses**: Not implemented (blocks until completion) - SSE/WebSocket support planned
+- **Voice input (STT)**: Available via Whisper API, tested with /api/voice/transcribe
+- **MCP server management**: Basic integration works, auto-restart on failure needs enhancement
 - **Plugin hot-reload**: Requires app restart
-- **Group chat permissions**: Admin controls partially implemented
-- **Cross-session memory**: Global facts not yet implemented
+- **Group chat permissions**: Admin controls implemented
+- **Cross-session memory**: Session-scoped facts implemented, global cross-session planned
 
 ### Next Active Work
 

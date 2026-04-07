@@ -55,10 +55,11 @@ export const shellTool: Tool = {
         },
         required: ["command"],
     },
+    requiresApproval: true,
     async execute(input) {
         const command = String(input["command"] ?? "").trim();
         const timeoutMs = Math.min(Number(input["timeout_ms"] ?? 30_000), 120_000);
-        
+
         // Check group permissions
         const isGroup = Boolean(input["__isGroup"]);
         const platform = String(input["__platform"] || "");
@@ -68,7 +69,7 @@ export const shellTool: Tool = {
         if (isGroup && platform && groupId && userId) {
             const { isToolAllowedForUser } = await import("../../groups/index.ts");
             const allowed = isToolAllowedForUser(platform, groupId, userId, "run_shell");
-            
+
             if (!allowed) {
                 return "Error: The run_shell tool requires administrator privileges in this group.";
             }
@@ -80,10 +81,19 @@ export const shellTool: Tool = {
 
         log.info(`Executing: ${command.substring(0, 80)}${command.length > 80 ? "…" : ""}`);
 
+        // Shell Intelligence: Correct the AI if it tries to use deprecated 'wmic'
+        if (process.platform === "win32" && /\bwmic\b/i.test(command)) {
+            return `Error: 'wmic' is deprecated and NOT available on this system. 
+RECOVERY HINT: Use modern PowerShell 'Get-CimInstance' instead. 
+- For Motherboard: 'Get-CimInstance Win32_BaseBoard | Select-Object Manufacturer, Product'
+- For Disk: 'Get-CimInstance Win32_LogicalDisk | Select-Object DeviceID, Size, FreeSpace'
+- For CPU: 'Get-CimInstance Win32_Processor | Select-Object Name, LoadPercentage'`;
+        }
+
         try {
             const { stdout, stderr } = await execAsync(command, {
                 timeout: timeoutMs,
-                shell: process.platform === "win32" ? "cmd.exe" : "/bin/sh",
+                shell: process.platform === "win32" ? "powershell.exe" : "/bin/sh",
             });
 
             const output = [

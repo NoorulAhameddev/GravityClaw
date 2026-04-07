@@ -13,6 +13,7 @@
 import { createLogger } from "../logger.ts";
 import { Router } from "express";
 import type { Request, Response } from "express";
+import { authMiddleware } from "../middleware/auth.ts";
 import {
   getMemoryStats,
   getMemoryTrend,
@@ -40,6 +41,8 @@ import { db } from "../db.ts";
 
 const log = createLogger("metrics-api");
 const router = Router();
+
+router.use(authMiddleware);
 
 /**
  * GET /api/metrics/performance

@@ -17,12 +17,15 @@ import {
   type PruningConfig,
 } from "../memory/pruning.ts";
 import { addUserMessage, addAssistantMessage, getHistory, clearHistory } from "../llm/index.ts";
+import { db } from "../db.ts";
+import { config } from "../config.ts";
 import type { LLMMessage } from "../llm/index.ts";
 
 const TEST_SESSION = "pruning-test-session";
+const testDeps = { db, config };
 
 beforeEach(() => {
-  clearHistory(TEST_SESSION);
+  clearHistory(TEST_SESSION, testDeps);
 });
 
 describe("Context Pruning", () => {
@@ -33,34 +36,29 @@ describe("Context Pruning", () => {
     });
 
     it("should calculate usage percentage based on message length", () => {
-      // Add messages totaling ~4000 characters
-      addUserMessage(TEST_SESSION, "x".repeat(1000));
-      addAssistantMessage(TEST_SESSION, "y".repeat(1000));
-      addUserMessage(TEST_SESSION, "z".repeat(1000));
-      addAssistantMessage(TEST_SESSION, "a".repeat(1000));
+      addUserMessage(TEST_SESSION, "x".repeat(1000), testDeps);
+      addAssistantMessage(TEST_SESSION, "y".repeat(1000), testDeps);
+      addUserMessage(TEST_SESSION, "z".repeat(1000), testDeps);
+      addAssistantMessage(TEST_SESSION, "a".repeat(1000), testDeps);
 
       const usage = calculateContextUsage(TEST_SESSION, "gpt-4o");
-      // gpt-4o has 128k context window, ~4000 chars = ~1000 tokens
-      // 1000 / 128000 = 0.78% usage
       expect(usage).toBeGreaterThan(0);
-      expect(usage).toBeLessThan(2); // Should be very small percentage
+      expect(usage).toBeLessThan(2);
     });
 
     it("should scale with model context window", () => {
       const message = "x".repeat(20000);
-      addUserMessage(TEST_SESSION, message);
+      addUserMessage(TEST_SESSION, message, testDeps);
 
       const gpt4Usage = calculateContextUsage(TEST_SESSION, "gpt-4o"); // 128k context
       const haikuUsage = calculateContextUsage(TEST_SESSION, "claude-3-haiku"); // 200k context
 
-      // gpt-4o has smaller context, so same message = higher percentage
       expect(gpt4Usage).toBeGreaterThan(haikuUsage);
     });
 
     it("should handle invalid model gracefully", () => {
-      addUserMessage(TEST_SESSION, "test message");
+      addUserMessage(TEST_SESSION, "test message", testDeps);
       const usage = calculateContextUsage(TEST_SESSION, "nonexistent-model");
-      // Should return default pricing (free model with high context)
       expect(usage).toBeGreaterThanOrEqual(0);
       expect(usage).toBeLessThanOrEqual(100);
     });
@@ -68,15 +66,14 @@ describe("Context Pruning", () => {
 
   describe("isContextNearLimit", () => {
     it("should return false when below threshold", () => {
-      addUserMessage(TEST_SESSION, "Short message");
+      addUserMessage(TEST_SESSION, "Short message", testDeps);
       const nearLimit = isContextNearLimit(TEST_SESSION, "gpt-4o", 80);
       expect(nearLimit).toBe(false);
     });
 
     it("should respect custom threshold", () => {
-      // Add enough messages to cross 10% context on gpt-4o
       for (let i = 0; i < 30; i++) {
-        addUserMessage(TEST_SESSION, "x".repeat(2000));
+        addUserMessage(TEST_SESSION, "x".repeat(2000), testDeps);
       }
 
       // Should be below 80% threshold
@@ -163,7 +160,7 @@ describe("Context Pruning", () => {
 
   describe("pruneContext", () => {
     it("should skip pruning for small conversations", async () => {
-      addUserMessage(TEST_SESSION, "Small message");
+      addUserMessage(TEST_SESSION, "Small message", testDeps);
 
       const result = await pruneContext(TEST_SESSION, "gpt-4o");
       expect(result.wasPruned).toBe(false);
@@ -171,9 +168,8 @@ describe("Context Pruning", () => {
     });
 
     it("should skip pruning when below threshold", async () => {
-      // Add messages but stay below 80% threshold
       for (let i = 0; i < 5; i++) {
-        addUserMessage(TEST_SESSION, `Message ${i}`);
+        addUserMessage(TEST_SESSION, `Message ${i}`, testDeps);
       }
 
       const result = await pruneContext(TEST_SESSION, "gpt-4o", {
@@ -185,26 +181,24 @@ describe("Context Pruning", () => {
     });
 
     it("should prune when conditions met", async () => {
-      // Add more messages to reach threshold
       for (let i = 0; i < 25; i++) {
-        addUserMessage(TEST_SESSION, "x".repeat(200));
-        addAssistantMessage(TEST_SESSION, "y".repeat(200));
+        addUserMessage(TEST_SESSION, "x".repeat(200), testDeps);
+        addAssistantMessage(TEST_SESSION, "y".repeat(200), testDeps);
       }
 
       const result = await pruneContext(TEST_SESSION, "gpt-4o", {
-        contextThreshold: 1, // Very low threshold to trigger pruning
+        contextThreshold: 1,
         keepRecentExchanges: 3,
         minMessageCount: 10,
       });
 
-      // Result should indicate pruning attempt
       expect(result.contextUsageBefore).toBeGreaterThanOrEqual(1);
-      expect(result.messagesPruned).toBeGreaterThanOrEqual(0); // May be 0 if kept messages exceed prunable
+      expect(result.messagesPruned).toBeGreaterThanOrEqual(0);
     }, 30000);
 
     it("should respect minMessageCount config", async () => {
       for (let i = 0; i < 15; i++) {
-        addUserMessage(TEST_SESSION, "x".repeat(500));
+        addUserMessage(TEST_SESSION, "x".repeat(500), testDeps);
       }
 
       const result = await pruneContext(TEST_SESSION, "gpt-4o", {
@@ -252,7 +246,7 @@ describe("Context Pruning", () => {
 
   describe("getPruningStatus", () => {
     it("should return status object with all required fields", () => {
-      addUserMessage(TEST_SESSION, "test message");
+      addUserMessage(TEST_SESSION, "test message", testDeps);
 
       const status = getPruningStatus(TEST_SESSION, "gpt-4o");
       expect(status).toHaveProperty("sessionId", TEST_SESSION);
@@ -267,7 +261,7 @@ describe("Context Pruning", () => {
 
     it("should indicate recommendation when near limit", () => {
       for (let i = 0; i < 25; i++) {
-        addUserMessage(TEST_SESSION, "x".repeat(500));
+        addUserMessage(TEST_SESSION, "x".repeat(500), testDeps);
       }
 
       const status = getPruningStatus(TEST_SESSION, "gpt-4o");
@@ -277,7 +271,7 @@ describe("Context Pruning", () => {
     });
 
     it("should report healthy status for small conversations", () => {
-      addUserMessage(TEST_SESSION, "Hello");
+      addUserMessage(TEST_SESSION, "Hello", testDeps);
 
       const status = getPruningStatus(TEST_SESSION, "gpt-4o");
       expect(status.isNearLimit).toBe(false);

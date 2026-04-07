@@ -4,6 +4,8 @@
 
 import { createInterface } from "readline";
 import { runAgent } from "../../agent.ts";
+import { runWithConcurrencyLimit } from "../../concurrency.ts";
+import { container } from "../../bootstrap.ts";
 import { colors, success, error, info, dim } from "../utils.ts";
 
 export interface ChatOptions {
@@ -53,7 +55,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             // Show thinking indicator
             process.stdout.write(`${colors.yellow}⏳${colors.reset} Thinking...\n`);
 
-            const result = await runAgent({
+            const result = await runWithConcurrencyLimit(sessionId, () => runAgent({
                 message,
                 sessionId,
                 userId: "cli-user",
@@ -63,7 +65,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                         console.log(`${colors.dim}[partial]${colors.reset} ${text}`);
                     }
                 },
-            });
+                dependencies: {
+                    config: container.config,
+                    toolRegistry: container.toolRegistry,
+                    db: container.db,
+                },
+            }));
 
             console.log(`${colors.blue}Assistant${colors.reset} > ${result.text}\n`);
 

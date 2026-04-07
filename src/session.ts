@@ -7,6 +7,7 @@
 
 import { db } from "./db.ts";
 import { createLogger } from "./logger.ts";
+import { safeJsonParse } from "./utils/json.ts";
 
 const log = createLogger("session");
 
@@ -105,7 +106,8 @@ export function getSessionSettings(sessionId: string): SessionSettings {
       return {};
     }
     
-    const settings = JSON.parse(row.settings) as SessionSettings;
+    const parseResult = safeJsonParse<SessionSettings>(row.settings, {} as SessionSettings, "session settings");
+    const settings = parseResult.success && parseResult.data ? parseResult.data : {};
     log.debug(`Loaded settings for session ${sessionId}: ${JSON.stringify(settings)}`);
     return settings;
   } catch (err) {
@@ -287,7 +289,7 @@ export function getSessionStats(sessionId: string): {
       assistantMessages: roleCounts?.assistant_count || 0,
       firstMessage: row.first_msg ? new Date(row.first_msg) : null,
       lastMessage: row.last_msg ? new Date(row.last_msg) : null,
-      settings: row.settings ? JSON.parse(row.settings) as SessionSettings : {},
+      settings: row.settings ? (() => { const r = safeJsonParse<SessionSettings>(row.settings, {} as SessionSettings, "session stats"); return r.success && r.data ? r.data : {}; })() : {},
     };
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);

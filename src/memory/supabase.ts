@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { config } from "../config.ts";
 import { createLogger } from "../logger.ts";
 import { db } from "../db.ts";
+export { db };
 import type { SemanticSearchResult } from "../types/memory.js";
 
 export type { SemanticSearchResult } from "../types/memory.js";
@@ -295,7 +296,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return denom === 0 ? 0 : dot / denom;
 }
 
-function fallbackLocalSemanticSearch(sessionId: string, query: string, limit: number): SemanticSearchResult[] {
+export function fallbackLocalSemanticSearch(sessionId: string, query: string, limit: number): SemanticSearchResult[] {
   const rows = db
     .prepare(
       `
@@ -307,11 +308,11 @@ function fallbackLocalSemanticSearch(sessionId: string, query: string, limit: nu
       `
     )
     .all(sessionId) as Array<{
-    id: number;
-    session_id: string;
-    timestamp: string;
-    message_json: string;
-  }>;
+      id: number;
+      session_id: string;
+      timestamp: string;
+      message_json: string;
+    }>;
 
   const queryEmbedding = fallbackEmbedding(query);
 

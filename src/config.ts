@@ -16,7 +16,7 @@ const envSchema = z.object({
     
     // LLM Provider Configuration
     LLM_PROVIDER: z
-        .enum(["openrouter", "anthropic", "openai", "google", "groq", "deepseek", "ollama", "failover"])
+        .enum(["openrouter", "anthropic", "openai", "google", "groq", "deepseek", "ollama", "cohere", "mistral", "nvidia", "failover", "mock"])
         .default("openrouter"),
     LLM_MODEL: z
         .string()
@@ -46,6 +46,16 @@ const envSchema = z.object({
     DEEPSEEK_API_KEY: z
         .string()
         .optional(),
+    COHERE_API_KEY: z
+        .string()
+        .optional(),
+    MISTRAL_API_KEY: z
+        .string()
+        .optional(),
+    NVIDIA_API_KEY: z
+        .string()
+        .optional()
+        .describe("NVIDIA API key for direct NVIDIA NGC access (get from https://org.ngc.nvidia.com)"),
     SUPABASE_URL: z
         .string()
         .optional(),
@@ -121,193 +131,402 @@ const envSchema = z.object({
         .optional()
         .default("true")
         .transform((val) => val === "true" || val === "1")
-        .describe("Enable security audit logging for secrets and file access (default: true)"),
-    FILE_ACCESS_LOG_RETENTION_DAYS: z
-        .string()
-        .optional()
-        .default("30")
-        .transform((val) => parseInt(val, 10))
-        .describe("Retain file access logs for N days before cleanup (default: 30)"),
+        .describe("Enable security audit logging for file access"),
     
-    // File Operations Security
-    PATH_ALLOWLIST: z
+    // API Authentication
+    API_KEY: z
         .string()
         .optional()
-        .default("")
-        .describe("Comma-separated list of allowed directories for file operations. Empty = workspace directory only. Example: '/home/user/docs,/tmp'"),
-    
-    // Web Search Configuration
-    SEARCH_PROVIDER: z
-        .enum(["duckduckgo", "serpapi", "brave"])
-        .optional()
-        .default("duckduckgo")
-        .describe("Search provider: 'duckduckgo' (free), 'serpapi' (requires SERPAPI_API_KEY), or 'brave' (requires BRAVE_SEARCH_KEY and free tier: 2k/month)"),
-    SERPAPI_API_KEY: z
-        .string()
-        .optional()
-        .describe("SerpAPI key (for SEARCH_PROVIDER=serpapi). Get from https://serpapi.com"),
-    BRAVE_SEARCH_KEY: z
-        .string()
-        .optional()
-        .describe("Brave Search API key (for SEARCH_PROVIDER=brave). Get from https://api.search.brave.com"),
-    SEARCH_CACHE_TTL_MINUTES: z
-        .string()
-        .optional()
-        .default("60")
-        .transform((val) => {
-            const n = parseInt(val, 10);
-            if (isNaN(n) || n < 1) return 60;
-            return n;
-        })
-        .describe("Cache TTL in minutes for search results (default: 60)"),
-    
-    AGENT_MAX_ITERATIONS: z
-        .string()
-        .default("10")
-        .transform((val) => {
-            const n = parseInt(val, 10);
-            if (isNaN(n) || n < 1) throw new Error("AGENT_MAX_ITERATIONS must be a positive integer");
-            return n;
+        .describe("API key for securing API endpoints (required for production)")
+        .refine((val) => {
+            if (process.env.NODE_ENV === 'production' && (!val || val.length < 32)) {
+                return false;
+            }
+            return true;
+        }, {
+            message: "API_KEY must be at least 32 characters in production"
         }),
-    LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
-    WHATSAPP_ENABLED: z
-        .string()
-        .optional()
-        .default("false")
-        .transform((val) => val === "true" || val === "1"),
-    PORT: z
-        .string()
-        .optional()
-        .default("3000")
-        .transform((val) => parseInt(val, 10)),
     
-    // Webhook Configuration
-    WEBHOOK_BASE_URL: z
+    // External Services
+    DISCORD_BOT_TOKEN: z
         .string()
         .optional()
-        .describe("Base URL for webhook endpoints (e.g., 'https://yourdomain.com'). Defaults to http://localhost:PORT"),
+        .describe("Discord bot token for the Discord channel (get from Discord Developer Portal)"),
+    DISCORD_GUILD_ID: z
+        .string()
+        .optional()
+        .describe("Discord guild ID for registering slash commands (optional)"),
+    
+    // Slack Configuration
+    SLACK_BOT_TOKEN: z
+        .string()
+        .optional()
+        .describe("Slack bot token for the Slack channel (get from Slack Developer Portal)"),
+    SLACK_SIGNING_SECRET: z
+        .string()
+        .optional()
+        .describe("Slack signing secret for request verification (get from Slack Developer Portal)"),
+    SLACK_APP_ID: z
+        .string()
+        .optional()
+        .describe("Slack app ID for identifying the app (optional)"),
 
-    // Air-Gapped Mode (local-only, no external APIs)
-    AIR_GAPPED: z
+    // Google Calendar Configuration
+    GOOGLE_CALENDAR_API_KEY: z
+        .string()
+        .optional()
+        .describe("Google Calendar API key for simple API access (get from Google Cloud Console)"),
+    GOOGLE_CREDENTIALS_PATH: z
+        .string()
+        .optional()
+        .describe("Path to Google service account credentials.json or OAuth2 client credentials.json"),
+    
+    // Notion Configuration
+    NOTION_API_KEY: z
+        .string()
+        .optional()
+        .describe("Notion API key for workspace integration (get from https://www.notion.so/my-integrations)"),
+    NOTION_DATABASE_ID: z
+        .string()
+        .optional()
+        .describe("Notion database ID for database queries (optional)"),
+
+    // Signal Configuration
+    SIGNAL_PHONE_NUMBER: z
+        .string()
+        .optional()
+        .describe("Signal phone number for the bot (e.g., +1234567890)"),
+    SIGNAL_GROUP_IDS: z
+        .string()
+        .optional()
+        .describe("Comma-separated list of allowed Signal group IDs (leave empty for all groups)"),
+    SIGNAL_RECIPIENTS: z
+        .string()
+        .optional()
+        .describe("Comma-separated list of allowed Signal phone numbers (for private messages)"),
+
+    // Approval Middleware Configuration
+    APPROVAL_ENABLED: z
+        .string()
+        .optional()
+        .default("true")
+        .transform((val) => val === "true" || val === "1")
+        .describe("Enable human-in-the-loop approval for dangerous tools (default: true)"),
+    APPROVAL_TIMEOUT_MINUTES: z
+        .string()
+        .optional()
+        .default("5")
+        .transform((val) => parseInt(val, 10))
+        .describe("Timeout in minutes for approval requests (default: 5)"),
+    APPROVAL_REQUIRED_TOOLS: z
+        .string()
+        .optional()
+        .default("run_shell,file_delete,http_request,execute_code")
+        .describe("Comma-separated list of tools requiring approval"),
+
+    // Email Channel Configuration
+    EMAIL_SMTP_HOST: z
+        .string()
+        .optional()
+        .describe("SMTP server host for sending emails (e.g., smtp.gmail.com)"),
+    EMAIL_SMTP_PORT: z
+        .string()
+        .optional()
+        .default("587")
+        .transform((val) => parseInt(val, 10))
+        .describe("SMTP server port (default: 587)"),
+    EMAIL_SMTP_USER: z
+        .string()
+        .optional()
+        .describe("SMTP username (usually your email address)"),
+    EMAIL_SMTP_PASS: z
+        .string()
+        .optional()
+        .describe("SMTP password or app-specific password"),
+    EMAIL_IMAP_HOST: z
+        .string()
+        .optional()
+        .describe("IMAP server host for receiving emails (e.g., imap.gmail.com)"),
+    EMAIL_IMAP_PORT: z
+        .string()
+        .optional()
+        .default("993")
+        .transform((val) => parseInt(val, 10))
+        .describe("IMAP server port (default: 993)"),
+    EMAIL_IMAP_USER: z
+        .string()
+        .optional()
+        .describe("IMAP username (usually your email address)"),
+    EMAIL_IMAP_PASS: z
+        .string()
+        .optional()
+        .describe("IMAP password or app-specific password"),
+    EMAIL_FROM_ADDRESS: z
+        .string()
+        .optional()
+        .describe("Email address to send from (your email)"),
+    EMAIL_ALLOWED_SENDERS: z
+        .string()
+        .optional()
+        .describe("Comma-separated list of allowed email addresses (only these senders will be processed)"),
+
+    MOBILE_CHANNEL_ENABLED: z
+        .string()
+        .optional()
+        .default("true")
+        .transform((val) => val === "true" || val === "1")
+        .describe("Enable mobile companion channel (iOS/Android)"),
+    MOBILE_WS_PORT: z
+        .string()
+        .optional()
+        .default("3001")
+        .transform((val) => parseInt(val, 10))
+        .describe("WebSocket port for mobile companion connections"),
+    MOBILE_UPLOAD_DIR: z
+        .string()
+        .optional()
+        .default("data/mobile-uploads")
+        .describe("Directory for storing mobile camera/screen recordings"),
+    MOBILE_FCM_ENABLED: z
         .string()
         .optional()
         .default("false")
         .transform((val) => val === "true" || val === "1")
-        .describe("Enable air-gapped mode — disables all external APIs and forces local models only (requires Ollama running)"),
-
-    // Phase 6 Proactive Behaviors
-    RECAP_HOUR_LOCAL: z
+        .describe("Enable Firebase Cloud Messaging for push notifications"),
+    MOBILE_FCM_CREDENTIALS: z
         .string()
         .optional()
-        .default("20")
-        .transform((val) => {
-            const hour = parseInt(val, 10);
-            if (isNaN(hour) || hour < 0 || hour > 23) return 20;
-            return hour;
-        })
-        .describe("Local hour (0-23) for the daily evening recap. Default: 20 (8 PM)"),
-    RECOMMENDATIONS_DAILY_CRON: z
+        .describe("Path to FCM service account JSON file"),
+    MOBILE_APNS_ENABLED: z
         .string()
         .optional()
-        .default("0 9 * * *")
-        .describe("Cron expression for the daily smart recommendations sweep. Default: 0 9 * * *"),
+        .default("false")
+        .transform((val) => val === "true" || val === "1")
+        .describe("Enable Apple Push Notification service"),
+    MOBILE_APNS_KEY_ID: z
+        .string()
+        .optional()
+        .describe("Apple Push Notification Key ID"),
+    MOBILE_APNS_TEAM_ID: z
+        .string()
+        .optional()
+        .describe("Apple Developer Team ID"),
+    MOBILE_APNS_PRIVATE_KEY: z
+        .string()
+        .optional()
+        .describe("Apple Push Notification private key (base64 encoded)"),
 
-    // Observability Configuration
+    AGENT_MAX_ITERATIONS: z
+        .string()
+        .optional()
+        .default("10")
+        .transform(val => parseInt(val, 10))
+        .describe("Maximum number of agent iterations per request"),
+    
+    AGENT_MAX_TOOLS_PER_ITERATION: z
+        .string()
+        .optional()
+        .default("5")
+        .transform(val => parseInt(val, 10))
+        .describe("Maximum number of tool calls per agent iteration"),
+    
+    AGENT_MAX_TOOLS_TOTAL: z
+        .string()
+        .optional()
+        .default("50")
+        .transform(val => parseInt(val, 10))
+        .describe("Maximum total tool calls per agent run"),
+
+    LOG_LEVEL: z
+        .string()
+        .optional()
+        .default("info")
+        .describe("Log level: debug | info | warn | error"),
+
     LOG_FORMAT: z
-        .enum(["pretty", "json"])
+        .string()
         .optional()
-        .default("pretty")
-        .describe("Log output format: 'pretty' for development, 'json' for production/parsing"),
+        .default("text")
+        .describe("Log format: text | json"),
+
     ENABLE_CALLER_INFO: z
         .string()
         .optional()
         .default("false")
-        .transform((val) => val === "true" || val === "1")
-        .describe("Include source file and line number in log output (slight performance cost)"),
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable caller info in logs"),
+
+    PORT: z
+        .string()
+        .optional()
+        .default("3000")
+        .transform(val => parseInt(val, 10))
+        .describe("Port for the server"),
+
+    PATH_ALLOWLIST: z
+        .string()
+        .optional()
+        .describe("Comma-separated list of allowed directories"),
+
+    SEARCH_PROVIDER: z
+        .string()
+        .optional()
+        .default("duckduckgo")
+        .describe("Search provider: duckduckgo | serpapi | brave"),
+
+    SERPAPI_API_KEY: z
+        .string()
+        .optional()
+        .describe("SerpAPI key for search"),
+
+    BRAVE_SEARCH_KEY: z
+        .string()
+        .optional()
+        .describe("Brave Search API key"),
+
+    SEARCH_CACHE_TTL_MINUTES: z
+        .string()
+        .optional()
+        .default("60")
+        .transform(val => parseInt(val, 10))
+        .describe("Search cache TTL in minutes"),
+
+    AIR_GAPPED: z
+        .string()
+        .optional()
+        .default("false")
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable air-gapped mode (requires Ollama)"),
+
     ENABLE_METRICS: z
         .string()
         .optional()
-        .default("true")
-        .transform((val) => val === "true" || val === "1")
-        .describe("Enable metrics collection and recording"),
+        .default("false")
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable performance metrics"),
+
     ENABLE_METRICS_PERSISTENCE: z
         .string()
         .optional()
         .default("false")
-        .transform((val) => val === "true" || val === "1")
-        .describe("Persist metrics to SQLite (default: in-memory only)"),
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable metrics persistence"),
+
     METRICS_RETENTION_HOURS: z
         .string()
         .optional()
         .default("24")
-        .transform((val) => {
-            const n = parseInt(val, 10);
-            return isNaN(n) || n < 1 ? 24 : n;
-        })
-        .describe("How long to retain metrics in memory (hours)"),
+        .transform(val => parseInt(val, 10))
+        .describe("Metrics retention period in hours"),
+
     CORRELATION_ID_HEADER: z
         .string()
         .optional()
-        .default("X-Correlation-ID")
-        .describe("HTTP header name for correlation ID propagation"),
+        .default("x-correlation-id")
+        .describe("Header name for correlation ID"),
+
     ENABLE_TRACING: z
         .string()
         .optional()
-        .default("true")
-        .transform((val) => val === "true" || val === "1")
-        .describe("Enable distributed tracing and span collection"),
+        .default("false")
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable distributed tracing"),
+
     OTEL_ENABLED: z
         .string()
         .optional()
         .default("false")
-        .transform((val) => val === "true" || val === "1")
-        .describe("Enable OpenTelemetry export (requires OTEL_EXPORTER_OTLP_ENDPOINT)"),
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable OpenTelemetry"),
+
     OTEL_EXPORTER_OTLP_ENDPOINT: z
         .string()
         .optional()
-        .describe("OpenTelemetry collector endpoint (e.g., http://localhost:4318)"),
+        .describe("OpenTelemetry OTLP exporter endpoint"),
 
-    // Backup & Restore Configuration
-    BACKUP_ENABLED: z
+    FILE_ACCESS_LOG_RETENTION_DAYS: z
         .string()
         .optional()
-        .default("true")
-        .transform((val) => val === "true" || val === "1")
-        .describe("Enable automatic backup scheduler (default: true)"),
-    BACKUP_CRON: z
+        .default("90")
+        .transform(val => parseInt(val, 10))
+        .describe("File access log retention in days"),
+
+    PLANNING_MODE: z
         .string()
         .optional()
-        .default("0 2 * * *")
-        .describe("Cron expression for backup schedule (default: 0 2 * * * = daily at 2 AM)"),
-    BACKUP_RETENTION_DAYS: z
+        .default("auto")
+        .describe("Planning mode: off | auto | force"),
+
+    PLANNING_MESSAGE_LENGTH_THRESHOLD: z
         .string()
         .optional()
-        .default("30")
-        .transform((val) => {
-            const n = parseInt(val, 10);
-            return isNaN(n) || n < 1 ? 30 : n;
-        })
-        .describe("Number of days to retain backups (default: 30)"),
-    BACKUP_ENCRYPT: z
+        .default("200")
+        .transform(val => parseInt(val, 10))
+        .describe("Message length threshold to trigger planning"),
+
+    RETRIEVAL_MEMORY_LIMIT: z
         .string()
         .optional()
-        .default("true")
-        .transform((val) => val === "true" || val === "1")
-        .describe("Encrypt backups with AES-256-GCM (default: true)"),
-    BACKUP_COMPRESS: z
+        .default("8")
+        .transform(val => parseInt(val, 10))
+        .describe("Maximum number of memories to retrieve"),
+
+    RETRIEVAL_MEMORY_MAX_CHARS: z
         .string()
         .optional()
-        .default("true")
-        .transform((val) => val === "true" || val === "1")
-        .describe("Compress backups with gzip (default: true)"),
-    BACKUP_DIR: z
+        .default("1800")
+        .transform(val => parseInt(val, 10))
+        .describe("Maximum characters for retrieved memories"),
+
+    QUEUE_ENABLED: z
         .string()
         .optional()
-        .describe("Directory to store backups (default: ./backups)"),
-    BACKUP_MASTER_KEY: z
+        .default("false")
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable background task queue"),
+
+    REDIS_URL: z
         .string()
         .optional()
-        .describe("Master key for backup encryption (uses MASTER_KEY if not set)"),
+        .describe("Redis URL for queue backend"),
+
+    QUEUE_CONCURRENCY: z
+        .string()
+        .optional()
+        .default("5")
+        .transform(val => parseInt(val, 10))
+        .describe("Queue worker concurrency"),
+
+    WHATSAPP_ENABLED: z
+        .string()
+        .optional()
+        .default("false")
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable WhatsApp channel"),
+
+    RECAP_HOUR_LOCAL: z
+        .string()
+        .optional()
+        .default("20")
+        .transform(val => parseInt(val, 10))
+        .describe("Hour of day for daily recap (0-23)"),
+
+    RECOMMENDATIONS_DAILY_CRON: z
+        .string()
+        .optional()
+        .default("0 9 * * *")
+        .describe("Cron for daily recommendations"),
+
+    CHROMA_URL: z
+        .string()
+        .optional()
+        .default("http://localhost:8000")
+        .describe("ChromaDB server URL for vector memory (optional)"),
+
+    WEBHOOK_BASE_URL: z
+        .string()
+        .optional()
+        .describe("Base URL for webhooks"),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -331,7 +550,10 @@ export const {
     LLM_PROVIDER,
     LLM_MODEL,
     OPENAI_API_KEY,
+    NVIDIA_API_KEY,
     AGENT_MAX_ITERATIONS,
+    AGENT_MAX_TOOLS_PER_ITERATION,
+    AGENT_MAX_TOOLS_TOTAL,
     LOG_LEVEL,
     LOG_FORMAT,
     ENABLE_CALLER_INFO,
@@ -357,6 +579,44 @@ export const {
     SAFE_DIRECTORIES,
     SECURITY_AUDIT_ENABLED,
     FILE_ACCESS_LOG_RETENTION_DAYS,
+    API_KEY,
+    DISCORD_BOT_TOKEN,
+    DISCORD_GUILD_ID,
+    SLACK_BOT_TOKEN,
+    SLACK_SIGNING_SECRET,
+    SLACK_APP_ID,
+    GOOGLE_CALENDAR_API_KEY,
+    GOOGLE_CREDENTIALS_PATH,
+    NOTION_API_KEY,
+    NOTION_DATABASE_ID,
+    SIGNAL_PHONE_NUMBER,
+    SIGNAL_GROUP_IDS,
+    SIGNAL_RECIPIENTS,
+    APPROVAL_ENABLED,
+    APPROVAL_TIMEOUT_MINUTES,
+    APPROVAL_REQUIRED_TOOLS,
+    EMAIL_SMTP_HOST,
+    EMAIL_SMTP_PORT,
+    EMAIL_SMTP_USER,
+    EMAIL_SMTP_PASS,
+    EMAIL_IMAP_HOST,
+    EMAIL_IMAP_PORT,
+    EMAIL_IMAP_USER,
+    EMAIL_IMAP_PASS,
+    EMAIL_FROM_ADDRESS,
+    EMAIL_ALLOWED_SENDERS,
+    PLANNING_MODE,
+    PLANNING_MESSAGE_LENGTH_THRESHOLD,
+    RETRIEVAL_MEMORY_LIMIT,
+    RETRIEVAL_MEMORY_MAX_CHARS,
+    QUEUE_ENABLED,
+    REDIS_URL,
+    QUEUE_CONCURRENCY,
+    WHATSAPP_ENABLED,
+    RECAP_HOUR_LOCAL,
+    RECOMMENDATIONS_DAILY_CRON,
+    CHROMA_URL,
+    WEBHOOK_BASE_URL,
 } = config;
 
 // Helper: Get allowed paths as array

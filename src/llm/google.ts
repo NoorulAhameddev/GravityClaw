@@ -4,6 +4,7 @@ import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/reso
 import type OpenAI from "openai";
 import type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
 import { createLogger } from "../logger.ts";
+import { safeJsonParse } from "../utils/json.ts";
 
 const log = createLogger("llm:google");
 
@@ -16,7 +17,7 @@ export class GoogleProvider implements LLMProvider {
   private client: GoogleGenerativeAI;
   private defaultModel: string;
 
-  constructor(apiKey: string, defaultModel: string = "gemini-1.5-flash") {
+  constructor(apiKey: string, defaultModel: string = "gemini-2.0-flash-exp") {
     this.client = new GoogleGenerativeAI(apiKey);
     this.defaultModel = defaultModel;
     log.info(`Google provider initialized with model: ${defaultModel}`);
@@ -133,10 +134,11 @@ export class GoogleProvider implements LLMProvider {
 
         if ("tool_calls" in msg && msg.tool_calls) {
           for (const toolCall of msg.tool_calls) {
+            const argsResult = safeJsonParse<Record<string, unknown>>(toolCall.function.arguments, {} as Record<string, unknown>, "Google tool call args");
             parts.push({
               functionCall: {
                 name: toolCall.function.name,
-                args: JSON.parse(toolCall.function.arguments),
+                args: argsResult.success && argsResult.data ? argsResult.data : {},
               },
             });
           }

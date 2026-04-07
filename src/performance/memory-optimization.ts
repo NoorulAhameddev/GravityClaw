@@ -18,6 +18,9 @@ const MAX_HEAP_SIZE_MB = 512;
 const MAX_CACHE_SIZE = 10000;
 const GC_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const MEMORY_WARN_THRESHOLD = 0.8; // 80% of max heap
+const MEMORY_WARN_COOLDOWN = 5 * 60 * 1000; // 5 minutes between warnings
+
+let lastMemoryWarning = 0;
 
 interface MemorySnapshot {
   timestamp: number;
@@ -27,8 +30,135 @@ interface MemorySnapshot {
   rss: number;
 }
 
-let memorySnapshots: MemorySnapshot[] = [];
+interface CacheEntry<T> {
+  value: T;
+  expiresAt: number;
+}
+
+class CircularBuffer<T> {
+  private buffer: T[] = [];
+  private index = 0;
+  private full = false;
+
+  constructor(private capacity: number) {}
+
+  push(item: T): void {
+    if (this.capacity === 0) return;
+    
+    if (this.full) {
+      this.buffer[this.index] = item;
+    } else {
+      this.buffer.push(item);
+      if (this.buffer.length === this.capacity) {
+        this.full = true;
+      }
+    }
+    this.index = (this.index + 1) % this.capacity;
+  }
+
+  toArray(): T[] {
+    if (!this.full) return [...this.buffer];
+    return [
+      ...this.buffer.slice(this.index),
+      ...this.buffer.slice(0, this.index)
+    ];
+  }
+
+  clear(): void {
+    this.buffer = [];
+    this.index = 0;
+    this.full = false;
+  }
+
+  get length(): number {
+    return this.full ? this.capacity : this.buffer.length;
+  }
+}
+
+class MemoryEfficientCache<K, V> {
+  private cache = new Map<K, CacheEntry<V>>();
+  private accessOrder: K[] = [];
+
+  constructor(
+    private maxSize: number,
+    private ttlMs: number = 30 * 60 * 1000
+  ) {}
+
+  set(key: K, value: V, customTTL?: number): void {
+    const now = Date.now();
+    
+    while (this.cache.size >= this.maxSize && this.accessOrder.length > 0) {
+      const oldestKey = this.accessOrder.shift()!;
+      this.cache.delete(oldestKey);
+    }
+
+    this.cache.set(key, {
+      value,
+      expiresAt: now + (customTTL ?? this.ttlMs)
+    });
+    
+    this.accessOrder.push(key);
+  }
+
+  get(key: K): V | undefined {
+    const entry = this.cache.get(key);
+    if (!entry) return undefined;
+    
+    if (Date.now() > entry.expiresAt) {
+      this.cache.delete(key);
+      const idx = this.accessOrder.indexOf(key);
+      if (idx > -1) this.accessOrder.splice(idx, 1);
+      return undefined;
+    }
+
+    const idx = this.accessOrder.indexOf(key);
+    if (idx > -1) {
+      this.accessOrder.splice(idx, 1);
+      this.accessOrder.push(key);
+    }
+    
+    return entry.value;
+  }
+
+  has(key: K): boolean {
+    return this.get(key) !== undefined;
+  }
+
+  delete(key: K): boolean {
+    const idx = this.accessOrder.indexOf(key);
+    if (idx > -1) this.accessOrder.splice(idx, 1);
+    return this.cache.delete(key);
+  }
+
+  clear(): void {
+    this.cache.clear();
+    this.accessOrder = [];
+  }
+
+  get size(): number {
+    return this.cache.size;
+  }
+
+  cleanup(): number {
+    const now = Date.now();
+    let cleaned = 0;
+    
+    for (const [key, entry] of this.cache.entries()) {
+      if (now > entry.expiresAt) {
+        this.cache.delete(key);
+        const idx = this.accessOrder.indexOf(key);
+        if (idx > -1) this.accessOrder.splice(idx, 1);
+        cleaned++;
+      }
+    }
+    
+    return cleaned;
+  }
+}
+
+let memorySnapshots: CircularBuffer<MemorySnapshot>;
 let maxHeapObserved = 0;
+let globalCache: MemoryEfficientCache<string, unknown>;
 
 /**
  * Initialize memory optimizations
@@ -36,10 +166,10 @@ let maxHeapObserved = 0;
 export function initializeMemoryOptimizations(): void {
   log.info("Initializing memory optimizations");
 
-  // Start memory monitoring
-  startMemoryMonitoring();
+  memorySnapshots = new CircularBuffer<MemorySnapshot>(60);
+  globalCache = new MemoryEfficientCache<string, unknown>(MAX_CACHE_SIZE);
 
-  // Periodic garbage collection hint
+  startMemoryMonitoring();
   startGCHints();
 }
 
@@ -61,23 +191,25 @@ function startMemoryMonitoring(): void {
       rss: mem.rss,
     });
 
-    // Keep only last 60 snapshots (1 hour at 1-minute intervals)
-    if (memorySnapshots.length > 60) {
-      memorySnapshots = memorySnapshots.slice(-60);
-    }
-
     if (heapPercent > MEMORY_WARN_THRESHOLD) {
-      log.warn(
-        `⚠️  High memory usage: ${(mem.heapUsed / 1024 / 1024).toFixed(2)}MB / ${(mem.heapTotal / 1024 / 1024).toFixed(2)}MB (${(heapPercent * 100).toFixed(1)}%)`
-      );
+      const now = Date.now();
+      if (now - lastMemoryWarning > MEMORY_WARN_COOLDOWN) {
+        lastMemoryWarning = now;
+        log.warn(
+          `⚠️  High memory usage: ${(mem.heapUsed / 1024 / 1024).toFixed(2)}MB / ${(mem.heapTotal / 1024 / 1024).toFixed(2)}MB (${(heapPercent * 100).toFixed(1)}%)`
+        );
 
-      // Trigger cleanup
-      if (global.gc) {
-        log.debug("Triggering garbage collection");
-        global.gc();
+        if (globalCache) {
+          globalCache.cleanup();
+        }
+
+        if (global.gc) {
+          log.debug("Triggering garbage collection");
+          global.gc();
+        }
       }
     }
-  }, 60000); // Every minute
+  }, 60000);
 }
 
 /**
@@ -85,7 +217,6 @@ function startMemoryMonitoring(): void {
  */
 function startGCHints(): void {
   if (!global.gc) {
-    log.warn("Garbage collection not available (run with --expose-gc flag)");
     return;
   }
 
@@ -130,12 +261,13 @@ export function getMemoryStats(): Record<string, unknown> {
  * Get memory trend analysis
  */
 export function getMemoryTrend(): Record<string, unknown> {
-  if (memorySnapshots.length < 2) {
+  const snapshots = memorySnapshots.toArray();
+  if (snapshots.length < 2) {
     return { status: "insufficient data" };
   }
 
-  const first = memorySnapshots[0];
-  const last = memorySnapshots[memorySnapshots.length - 1];
+  const first = snapshots[0];
+  const last = snapshots[snapshots.length - 1];
   if (!first || !last) return { heapGrowth: 0, heapGrowthRate: 0 };
   
   const heapDelta = last.heapUsed - first.heapUsed;
@@ -150,7 +282,7 @@ export function getMemoryTrend(): Record<string, unknown> {
     heapDeltaMB: heapDeltaMB.toFixed(2),
     ratePerMinute: rate.toFixed(3),
     period: `${timeDeltaMins.toFixed(0)} minutes`,
-    snapshotsCount: memorySnapshots.length,
+    snapshotsCount: snapshots.length,
   };
 }
 
@@ -161,12 +293,12 @@ export function detectMemoryLeaks(): {
   hasLeak: boolean;
   reason: string;
 } {
-  if (memorySnapshots.length < 10) {
+  const snapshots = memorySnapshots.toArray();
+  if (snapshots.length < 10) {
     return { hasLeak: false, reason: "Insufficient data" };
   }
 
-  // Check if memory is consistently increasing
-  const recent = memorySnapshots.slice(-10);
+  const recent = snapshots.slice(-10);
   let increasing = 0;
 
   for (let i = 1; i < recent.length; i++) {
@@ -175,14 +307,12 @@ export function detectMemoryLeaks(): {
     }
   }
 
-  // If 8+ out of 10 are increasing, possible leak
   if (increasing >= 8) {
     const firstHeap = recent[0]!.heapUsed / 1024 / 1024;
     const lastHeap = recent[recent.length - 1]!.heapUsed / 1024 / 1024;
     const delta = lastHeap - firstHeap;
 
     if (delta > 10) {
-      // More than 10MB increase
       return {
         hasLeak: true,
         reason: `Memory increased ${delta.toFixed(2)}MB over 10 minutes`,
@@ -197,7 +327,7 @@ export function detectMemoryLeaks(): {
  * Get array of memory snapshots for graphing
  */
 export function getMemorySeries(): unknown[] {
-  return memorySnapshots.map((snap) => ({
+  return memorySnapshots.toArray().map((snap) => ({
     timestamp: snap.timestamp,
     heapUsedMB: (snap.heapUsed / 1024 / 1024).toFixed(2),
     heapTotalMB: (snap.heapTotal / 1024 / 1024).toFixed(2),
@@ -209,7 +339,10 @@ export function getMemorySeries(): unknown[] {
  * Force cleanup (should be used sparingly)
  */
 export function forceCleanup(): void {
-  memorySnapshots = [];
+  memorySnapshots.clear();
+  if (globalCache) {
+    globalCache.clear();
+  }
   maxHeapObserved = 0;
 
   if (global.gc) {

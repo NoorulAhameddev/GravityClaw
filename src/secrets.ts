@@ -23,6 +23,7 @@
 
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from "crypto";
 import { createLogger } from "./logger.ts";
+import { safeJsonParse } from "./utils/json.ts";
 import { db } from "./db.ts";
 
 const logger = createLogger("secrets");
@@ -77,6 +78,69 @@ export interface SecretAccessLog {
   user?: string;
   status: 'success' | 'failed';
   error?: string;
+}
+
+/**
+ * Filters for secret access log queries
+ */
+export type SecretAccessLogFilters = {
+  secret_name?: string | undefined;
+  action?: string | undefined;
+  days?: number | undefined;
+  limit?: number | undefined;
+};
+
+/**
+ * Validate secret access log filters
+ * @param filters - The filters to validate
+ * @returns true if filters are valid
+ */
+function validateSecretAccessLogFilters(filters: unknown): filters is SecretAccessLogFilters {
+  if (typeof filters !== 'object' || filters === null) return false;
+  
+  const f = filters as Record<string, unknown>;
+  
+  if (f.secret_name !== undefined && typeof f.secret_name !== 'string') return false;
+  if (f.action !== undefined && typeof f.action !== 'string') return false;
+  if (f.days !== undefined && (typeof f.days !== 'number' || !Number.isInteger(f.days) || f.days < 1 || f.days > 365)) return false;
+  if (f.limit !== undefined && (typeof f.limit !== 'number' || !Number.isInteger(f.limit) || f.limit < 1 || f.limit > 1000)) return false;
+  
+  return true;
+}
+
+/**
+ * Rate limiting for audit log queries
+ */
+const QUERY_RATE_LIMIT = 10; // Max queries per minute
+const queryRateLimit = new Map<string, { count: number; resetTime: number }>();
+
+/**
+ * Check if a query is allowed under rate limiting
+ * @param key - Rate limit key (e.g., 'global')
+ * @returns true if query is allowed
+ */
+function checkQueryRateLimit(key: string = 'global'): boolean {
+  const now = Date.now();
+  const record = queryRateLimit.get(key);
+  
+  if (!record || now > record.resetTime) {
+    queryRateLimit.set(key, { count: 1, resetTime: now + 60000 });
+    return true;
+  }
+  
+  if (record.count >= QUERY_RATE_LIMIT) {
+    return false;
+  }
+  
+  record.count++;
+  return true;
+}
+
+/**
+ * Reset rate limit map (for testing)
+ */
+export function resetRateLimitForTesting(): void {
+  queryRateLimit.clear();
 }
 
 /**
@@ -181,20 +245,25 @@ export async function loadSecretsFile(filePath: string): Promise<Map<string, Enc
   try {
     const fs = await import("fs/promises");
     const content = await fs.readFile(filePath, "utf-8");
-    const json = JSON.parse(content) as Record<string, EncryptedData>;
+    const result = safeJsonParse<Record<string, EncryptedData>>(content, {}, "secrets file");
+    
+    if (!result.success) {
+      logger.warn(`Failed to parse secrets file: ${result.error}`);
+      return new Map();
+    }
     
     const secrets = new Map<string, EncryptedData>();
-    for (const [key, value] of Object.entries(json)) {
+    for (const [key, value] of Object.entries(result.data || {})) {
       secrets.set(key, value);
     }
     
     return secrets;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      // File doesn't exist yet
       return new Map();
     }
-    throw err;
+    logger.error(`Failed to load secrets file: ${err}`);
+    return new Map();
   }
 }
 
@@ -334,16 +403,21 @@ export function logSecretAccess(
 
 /**
  * Get secret access log entries
- * @param filters - Optional filters (secret_name, action, days)
+ * @param filters - Optional filters (secret_name, action, days, limit)
  * @returns Array of log entries
  */
-export function getSecretAccessLog(filters?: {
-  secret_name?: string | undefined;
-  action?: string | undefined;
-  days?: number | undefined;
-  limit?: number | undefined;
-}): SecretAccessLog[] {
+export function getSecretAccessLog(filters?: SecretAccessLogFilters): SecretAccessLog[] {
   try {
+    // Validate filters
+    if (filters && !validateSecretAccessLogFilters(filters)) {
+      throw new Error('Invalid filter parameters');
+    }
+    
+    // Rate limiting check
+    if (!checkQueryRateLimit('global')) {
+      throw new Error('Rate limit exceeded for audit log queries');
+    }
+    
     let query = 'SELECT * FROM secret_access_log WHERE 1=1';
     const params: unknown[] = [];
     
@@ -353,19 +427,40 @@ export function getSecretAccessLog(filters?: {
     }
     
     if (filters?.action) {
+      // Validate action is one of allowed values
+      const allowedActions = ['read', 'write', 'rotate', 'delete'];
+      if (!allowedActions.includes(filters.action)) {
+        throw new Error(`Invalid action: ${filters.action}`);
+      }
       query += ' AND action = ?';
       params.push(filters.action);
     }
     
     if (filters?.days) {
+      // Validate days is a positive integer within range
+      const days = parseInt(String(filters.days), 10);
+      if (isNaN(days) || days < 1 || days > 365) {
+        throw new Error(`Invalid days value: ${filters.days}`);
+      }
       query += ' AND timestamp > datetime(\'now\', ? || \' days\')';
-      params.push(-filters.days);
+      params.push(-days);
     }
     
     query += ' ORDER BY timestamp DESC';
     
     if (filters?.limit) {
-      query += ` LIMIT ${filters.limit}`;
+      // Validate limit is a positive integer within range
+      const limit = parseInt(String(filters.limit), 10);
+      if (isNaN(limit) || limit < 1 || limit > 1000) {
+        throw new Error(`Invalid limit value: ${filters.limit}`);
+      }
+      // Use parameterized query
+      query += ' LIMIT ?';
+      params.push(limit);
+    } else {
+      // Default limit to prevent unbounded queries
+      query += ' LIMIT ?';
+      params.push(100);
     }
     
     return db.prepare(query).all(...params) as SecretAccessLog[];

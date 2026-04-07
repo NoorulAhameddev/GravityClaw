@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../mcp-servers.schema.json",
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx.cmd",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "."
+      ],
+      "disabled": false
+    }
+  }
+}

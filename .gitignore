@@ -13,8 +13,10 @@ yarn-error.log*
 .pnpm-debug.log*
 lerna-debug.log*
 
-# Lock files (optional - uncomment if you want to ignore them)
-# package-lock.json
+# Lock files (except package-lock.json which should be committed)
+# pnpm-lock.yaml
+# yarn.lock
+# poetry.lock
 # pnpm-lock.yaml
 # yarn.lock
 # poetry.lock
@@ -173,6 +175,7 @@ logs/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+nul
 
 # Linux
 .directory
@@ -261,3 +264,17 @@ dist-ssr/
 # Keep these files
 !.env.example
 !.gitkeep
+
+# ============================================================================
+# PROJECT SPECIFIC
+# ============================================================================
+# Screenshot artifacts
+screenshots/*.png
+screenshots/*.ps1
+
+# Test artifacts in scripts
+scripts/check-chat*.ts
+scripts/check-errors.ts
+scripts/check-web.ts
+scripts/screenshot*.ts
+scripts/capture-screenshots.ts

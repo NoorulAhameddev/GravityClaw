@@ -4,16 +4,36 @@
  * Implements task decomposition and workflow execution with dependency management.
  * Generates DAGs (Directed Acyclic Graphs) from goals, validates them for cycles,
  * and executes tasks in topological order with isolated sessions per task.
+ * Supports parallel execution of independent tasks.
  */
 
 import { createLogger } from "../logger.ts";
 import { db } from "../db.ts";
 import { getProvider } from "../llm/index.ts";
 import { addUserMessage, getHistory } from "../llm/index.ts";
+import type { OrchestratorDependencies } from "../llm/orchestrator.ts";
 import { runAgent } from "../agent.ts";
+import { runWithConcurrencyLimit } from "../concurrency.ts";
+import { container } from "../bootstrap.ts";
 import { randomBytes } from "crypto";
 
+const orchestratorDeps: OrchestratorDependencies = {
+    db,
+    config: container.config,
+};
+
 const log = createLogger("mesh");
+
+/**
+ * Configuration options for MeshWorkflow
+ */
+export interface MeshConfig {
+  maxParallelTasks: number;
+}
+
+const DEFAULT_CONFIG: MeshConfig = {
+  maxParallelTasks: 5,
+};
 
 /**
  * Generate a simple UUID-like string using crypto
@@ -59,6 +79,19 @@ export interface WorkflowExecutionResult {
   totalTasks: number;
   results: Map<string, string>;
   errors: Map<string, string>;
+  executionStats: ExecutionStats;
+}
+
+/**
+ * Execution statistics for parallel vs sequential tasks
+ */
+export interface ExecutionStats {
+  parallelTasks: number;
+  sequentialTasks: number;
+  parallelTaskIds: string[];
+  sequentialTaskIds: string[];
+  maxParallelism: number;
+  duration: number;
 }
 
 /**
@@ -80,6 +113,26 @@ export interface WorkflowProgress {
  * MeshWorkflow class - Main implementation of task decomposition and execution
  */
 export class MeshWorkflow {
+  private config: MeshConfig;
+  
+  constructor(config: Partial<MeshConfig> = {}) {
+    this.config = { ...DEFAULT_CONFIG, ...config };
+  }
+  
+  /**
+   * Update configuration
+   */
+  setConfig(config: Partial<MeshConfig>): void {
+    this.config = { ...this.config, ...config };
+  }
+  
+  /**
+   * Get current configuration
+   */
+  getConfig(): MeshConfig {
+    return { ...this.config };
+  }
+
   /**
    * Decompose a goal into a task DAG using LLM
    * @param goal - The high-level goal to decompose
@@ -120,11 +173,11 @@ Requirements:
     try {
       // Create a temporary session for decomposition
       const decompositionSessionId = `mesh:decompose:${generateId()}`;
-      addUserMessage(decompositionSessionId, prompt);
+      addUserMessage(decompositionSessionId, prompt, orchestratorDeps);
 
       // Call LLM to generate DAG
       const provider = getProvider();
-      const history = getHistory(decompositionSessionId);
+      const history = getHistory(decompositionSessionId, orchestratorDeps);
 
       const response = await provider.chat(
         [
@@ -263,7 +316,145 @@ Requirements:
   }
 
   /**
-   * Execute a workflow DAG with progress updates
+   * Identify tasks that can run in parallel (no pending dependencies)
+   * @param completedTaskIds - Set of task IDs that have completed
+   * @param remainingTasks - Tasks still pending execution
+   * @returns Array of tasks that can run in parallel
+   */
+  private getRunnableTasks(
+    completedTaskIds: Set<string>,
+    remainingTasks: WorkflowTask[]
+  ): WorkflowTask[] {
+    return remainingTasks.filter(task => 
+      task.dependsOn.every(depId => completedTaskIds.has(depId))
+    );
+  }
+
+  /**
+   * Execute a single task
+   */
+  private async executeTask(
+    task: WorkflowTask,
+    workflowId: string,
+    results: Map<string, string>,
+    completedTaskIds: Set<string>,
+    sortedTasks: WorkflowTask[],
+    onProgress?: WorkflowProgressCallback
+  ): Promise<{ success: boolean; error?: string }> {
+    const taskNum = completedTaskIds.size + 1;
+
+    try {
+      if (onProgress) {
+        await onProgress({
+          workflowId,
+          currentTask: taskNum,
+          totalTasks: sortedTasks.length,
+          taskId: task.id,
+          taskDescription: task.description,
+          status: "running",
+          message: `Task ${taskNum}/${sortedTasks.length}: ${task.description}`,
+        });
+      }
+
+      log.info(`Executing task ${task.id}: ${task.description}`);
+
+      const taskSessionId = `${workflowId}:task:${task.id}`;
+
+      let context = "";
+      for (const depId of task.dependsOn) {
+        const depResult = results.get(depId) || "";
+        context += `\nResult from Task ${depId}:\n${depResult}\n`;
+      }
+
+      const prompt = `${context}\n\nNow complete this task:\n${task.description}`;
+      
+      log.info("DAG task execution (bounded)", {
+        sessionId: taskSessionId,
+        maxIterations: 3
+      });
+      
+      const result = await runWithConcurrencyLimit(taskSessionId, () => runAgent({
+        message: prompt,
+        sessionId: taskSessionId,
+        maxIterations: 3,
+        onProgress: async (_text: string) => {},
+        dependencies: {
+          config: container.config,
+          toolRegistry: container.toolRegistry,
+          db: container.db,
+        },
+      }));
+
+      results.set(task.id, result.text);
+      completedTaskIds.add(task.id);
+
+      db.prepare(
+        `INSERT INTO workflow_tasks (id, workflow_id, task_id, description, depends_on, status, result, created_session_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        generateId(),
+        workflowId,
+        task.id,
+        task.description,
+        JSON.stringify(task.dependsOn),
+        "completed",
+        result.text,
+        taskSessionId
+      );
+
+      const progress = Math.round((completedTaskIds.size / sortedTasks.length) * 100);
+      db.prepare(`UPDATE workflows SET progress = ? WHERE id = ?`).run(progress, workflowId);
+
+      if (onProgress) {
+        await onProgress({
+          workflowId,
+          currentTask: taskNum,
+          totalTasks: sortedTasks.length,
+          taskId: task.id,
+          taskDescription: task.description,
+          status: "completed",
+          message: `Task ${taskNum}/${sortedTasks.length}: ${task.description} ✓`,
+        });
+      }
+
+      return { success: true };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      log.error(`Task ${task.id} failed: ${errorMsg}`);
+      completedTaskIds.add(task.id);
+
+      if (onProgress) {
+        await onProgress({
+          workflowId,
+          currentTask: taskNum,
+          totalTasks: sortedTasks.length,
+          taskId: task.id,
+          taskDescription: task.description,
+          status: "failed",
+          message: `Task ${taskNum}/${sortedTasks.length}: Failed - ${errorMsg}`,
+        });
+      }
+
+      db.prepare(
+        `INSERT INTO workflow_tasks (id, workflow_id, task_id, description, depends_on, status, result, created_session_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        generateId(),
+        workflowId,
+        task.id,
+        task.description,
+        JSON.stringify(task.dependsOn),
+        "failed",
+        errorMsg,
+        ""
+      );
+
+      return { success: false, error: errorMsg };
+    }
+  }
+
+  /**
+   * Execute a workflow DAG with progress updates and parallel execution
    * @param dag - The DAG to execute
    * @param onProgress - Callback for progress updates
    * @returns Execution result with completed tasks and results
@@ -275,9 +466,8 @@ Requirements:
     const workflowId = generateId();
     const startTime = Date.now();
 
-    log.info(`Starting workflow execution: ${workflowId}`);
+    log.info(`Starting workflow execution: ${workflowId} with maxParallelTasks=${this.config.maxParallelTasks}`);
 
-    // Store workflow in database
     const tasksJson = JSON.stringify(dag.tasks);
     db.prepare(
       `INSERT INTO workflows (id, session_id, goal, tasks_json, status, progress, created_at)
@@ -292,127 +482,77 @@ Requirements:
       new Date().toISOString()
     );
 
-    // Sort tasks for execution
     const sortedTasks = this.topologicalSort(dag);
     const results = new Map<string, string>();
     const errors = new Map<string, string>();
-    const taskDependencies = new Map(dag.tasks.map(t => [t.id, t.dependsOn]));
+    const completedTaskIds = new Set<string>();
+    const remainingTasks = [...sortedTasks];
+    
+    const parallelTaskIds: string[] = [];
+    const sequentialTaskIds: string[] = [];
+    let maxParallelism = 0;
+    let currentParallelism = 0;
 
-    let completedCount = 0;
-
-    for (let i = 0; i < sortedTasks.length; i++) {
-      const task = sortedTasks[i]!;
-      const taskNum = i + 1;
-
-      try {
-        // Send progress update
-        if (onProgress) {
-          await onProgress({
-            workflowId,
-            currentTask: taskNum,
-            totalTasks: sortedTasks.length,
-            taskId: task.id,
-            taskDescription: task.description,
-            status: "running",
-            message: `Task ${taskNum}/${sortedTasks.length}: ${task.description}`,
-          });
+    while (remainingTasks.length > 0) {
+      const runnableTasks = this.getRunnableTasks(completedTaskIds, remainingTasks);
+      
+      if (runnableTasks.length === 0 && remainingTasks.length > 0) {
+        log.error("Deadlock detected: no runnable tasks but remaining tasks exist");
+        for (const task of remainingTasks) {
+          errors.set(task.id, "Deadlock: dependencies not satisfiable");
         }
+        break;
+      }
 
-        log.info(`Executing task ${task.id}: ${task.description}`);
+      const tasksToRun = runnableTasks.slice(0, this.config.maxParallelTasks);
+      currentParallelism = Math.max(currentParallelism, tasksToRun.length);
+      maxParallelism = Math.max(maxParallelism, currentParallelism);
 
-        // Create isolated session for this task
-        const taskSessionId = `${workflowId}:task:${task.id}`;
-
-        // Build task context from dependencies
-        let context = "";
-        for (const depId of task.dependsOn) {
-          const depResult = results.get(depId) || "";
-          context += `\nResult from Task ${depId}:\n${depResult}\n`;
+      if (tasksToRun.length === 1) {
+        sequentialTaskIds.push(tasksToRun[0]!.id);
+        const result = await this.executeTask(
+          tasksToRun[0]!,
+          workflowId,
+          results,
+          completedTaskIds,
+          sortedTasks,
+          onProgress
+        );
+        if (!result.success && result.error) {
+          errors.set(tasksToRun[0]!.id, result.error);
         }
-
-        // Execute task with agent
-        const prompt = `${context}\n\nNow complete this task:\n${task.description}`;
+      } else {
+        for (const task of tasksToRun) {
+          parallelTaskIds.push(task.id);
+        }
         
-        const result = await runAgent({
-          message: prompt,
-          sessionId: taskSessionId,
-          onProgress: async (text: string) => {
-            // Task progress updates
-          },
-        });
-
-        results.set(task.id, result.text);
-        completedCount++;
-
-        // Store task result in database
-        db.prepare(
-          `INSERT INTO workflow_tasks (id, workflow_id, task_id, description, depends_on, status, result, created_session_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        ).run(
-          generateId(),
-          workflowId,
-          task.id,
-          task.description,
-          JSON.stringify(task.dependsOn),
-          "completed",
-          result.text,
-          taskSessionId
+        const taskPromises = tasksToRun.map(task => 
+          this.executeTask(task, workflowId, results, completedTaskIds, sortedTasks, onProgress)
         );
-
-        // Update progress
-        const progress = Math.round((completedCount / sortedTasks.length) * 100);
-        db.prepare(
-          `UPDATE workflows SET progress = ? WHERE id = ?`
-        ).run(progress, workflowId);
-
-        // Send completion update
-        if (onProgress) {
-          await onProgress({
-            workflowId,
-            currentTask: taskNum,
-            totalTasks: sortedTasks.length,
-            taskId: task.id,
-            taskDescription: task.description,
-            status: "completed",
-            message: `Task ${taskNum}/${sortedTasks.length}: ${task.description} ✓`,
-          });
+        
+        const taskResults = await Promise.allSettled(taskPromises);
+        
+        for (let i = 0; i < tasksToRun.length; i++) {
+          const taskResult = taskResults[i];
+          const task = tasksToRun[i]!;
+          
+          if (taskResult?.status === "rejected") {
+            errors.set(task.id, taskResult.reason?.message || "Unknown error");
+          } else if (taskResult?.value && !taskResult.value.success && taskResult.value.error) {
+            errors.set(task.id, taskResult.value.error);
+          }
         }
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        errors.set(task.id, errorMsg);
-        log.error(`Task ${task.id} failed: ${errorMsg}`);
+      }
 
-        // Send error update
-        if (onProgress) {
-          await onProgress({
-            workflowId,
-            currentTask: taskNum,
-            totalTasks: sortedTasks.length,
-            taskId: task.id,
-            taskDescription: task.description,
-            status: "failed",
-            message: `Task ${taskNum}/${sortedTasks.length}: Failed - ${errorMsg}`,
-          });
+      currentParallelism = 0;
+      for (const task of runnableTasks) {
+        const idx = remainingTasks.indexOf(task);
+        if (idx !== -1) {
+          remainingTasks.splice(idx, 1);
         }
-
-        // Store failure in database
-        db.prepare(
-          `INSERT INTO workflow_tasks (id, workflow_id, task_id, description, depends_on, status, result, created_session_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        ).run(
-          generateId(),
-          workflowId,
-          task.id,
-          task.description,
-          JSON.stringify(task.dependsOn),
-          "failed",
-          errorMsg,
-          ""
-        );
       }
     }
 
-    // Mark workflow as completed
     const duration = Date.now() - startTime;
     const success = errors.size === 0;
     db.prepare(
@@ -420,16 +560,26 @@ Requirements:
     ).run(success ? "completed" : "partial", new Date().toISOString(), workflowId);
 
     log.info(
-      `Workflow ${workflowId} completed: ${completedCount}/${sortedTasks.length} tasks, ${duration}ms`
+      `Workflow ${workflowId} completed: ${completedTaskIds.size}/${sortedTasks.length} tasks, ` +
+      `${duration}ms, parallel=${parallelTaskIds.length}, sequential=${sequentialTaskIds.length}, ` +
+      `maxParallelism=${maxParallelism}`
     );
 
     return {
       workflowId,
       success,
-      tasksCompleted: completedCount,
+      tasksCompleted: completedTaskIds.size,
       totalTasks: sortedTasks.length,
       results,
       errors,
+      executionStats: {
+        parallelTasks: parallelTaskIds.length,
+        sequentialTasks: sequentialTaskIds.length,
+        parallelTaskIds,
+        sequentialTaskIds,
+        maxParallelism,
+        duration,
+      },
     };
   }
 }

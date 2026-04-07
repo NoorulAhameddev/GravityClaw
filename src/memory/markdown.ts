@@ -1,10 +1,40 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
+import Fuse from "fuse.js";
 import { db } from "../db.ts";
 import type { MarkdownFact, FactAccessStat } from "../types/memory.js";
 
 export type { MarkdownFact, FactAccessStat } from "../types/memory.js";
+
+export interface FuzzySearchResult<T> {
+    item: T;
+    score: number;
+}
+
+export function fuzzySearchFacts<T>(
+    items: T[],
+    query: string,
+    keys: (keyof T)[],
+    options?: { threshold?: number; limit?: number }
+): FuzzySearchResult<T>[] {
+    const threshold = options?.threshold ?? 0.4;
+    const limit = options?.limit ?? 10;
+
+    const fuse = new Fuse(items, {
+        keys: keys as string[],
+        threshold,
+        includeScore: true,
+        ignoreLocation: true,
+        minMatchCharLength: 2,
+    });
+
+    const results = fuse.search(query);
+    return results.slice(0, limit).map((r) => ({
+        item: r.item,
+        score: 1 - (r.score ?? 0),
+    }));
+}
 
 const DEFAULT_MEMORY_ROOT = path.resolve(process.cwd(), "memory-files");
 let memoryRoot = DEFAULT_MEMORY_ROOT;
@@ -255,12 +285,29 @@ export function recallFacts(sessionId: string, query: string, limit = 10): Markd
     }
 
     const allFacts = readAllFacts(sessionId);
-    const matched = allFacts.filter((item) => {
-        return (
-            item.fact.toLowerCase().includes(trimmedQuery) ||
-            item.category.toLowerCase().includes(trimmedQuery)
-        );
-    });
+    if (allFacts.length === 0) {
+        return [];
+    }
+
+    let matched: MarkdownFact[];
+
+    const fuzzyResults = fuzzySearchFacts(
+        allFacts,
+        trimmedQuery,
+        ["fact", "category"],
+        { threshold: 0.4, limit }
+    );
+
+    if (fuzzyResults.length > 0) {
+        matched = fuzzyResults.map((r) => r.item);
+    } else {
+        matched = allFacts.filter((item) => {
+            return (
+                item.fact.toLowerCase().includes(trimmedQuery) ||
+                item.category.toLowerCase().includes(trimmedQuery)
+            );
+        });
+    }
 
     const limited = matched.slice(0, Math.max(1, limit));
     for (const item of limited) {

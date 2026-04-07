@@ -5,8 +5,12 @@ import { AnthropicProvider } from "./anthropic.ts";
 import { GoogleProvider } from "./google.ts";
 import { GroqProvider } from "./groq.ts";
 import { DeepSeekProvider } from "./deepseek.ts";
+import { CohereProvider } from "./cohere.ts";
+import { MistralProvider } from "./mistral.ts";
 import { OllamaProvider } from "./ollama.ts";
+import { NvidiaProvider } from "./nvidia.ts";
 import { FailoverProvider } from "./failover.ts";
+import { MockProvider } from "./mock.ts";
 import { config } from "../config.ts";
 import { createLogger } from "../logger.ts";
 
@@ -16,6 +20,10 @@ export { SYSTEM_PROMPT } from "./base.ts";
 export type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
 export { FailoverProvider } from "./failover.ts";
 export { OpenRouterProvider } from "./openrouter.ts";
+export { CohereProvider } from "./cohere.ts";
+export { MistralProvider } from "./mistral.ts";
+export { NvidiaProvider } from "./nvidia.ts";
+export { MockProvider } from "./mock.ts";
 export type { OpenRouterModel } from "./openrouter.ts";
 export * from "./orchestrator.ts";
 
@@ -69,9 +77,30 @@ function createSingleProvider(providerName: string, model?: string): LLMProvider
       const ollamaURL = config.OLLAMA_BASE_URL || "http://localhost:11434";
       return new OllamaProvider(providerModel, ollamaURL);
 
+    case "cohere":
+      if (!config.COHERE_API_KEY) {
+        throw new Error("COHERE_API_KEY is required for Cohere provider");
+      }
+      return new CohereProvider(config.COHERE_API_KEY, providerModel);
+
+    case "mistral":
+      if (!config.MISTRAL_API_KEY) {
+        throw new Error("MISTRAL_API_KEY is required for Mistral provider");
+      }
+      return new MistralProvider(config.MISTRAL_API_KEY, providerModel);
+
+    case "nvidia":
+      if (!config.NVIDIA_API_KEY) {
+        throw new Error("NVIDIA_API_KEY is required for NVIDIA provider");
+      }
+      return new NvidiaProvider(config.NVIDIA_API_KEY, providerModel);
+
+    case "mock":
+      return new MockProvider();
+
     default:
       throw new Error(
-        `Unknown LLM provider: ${providerName}. Available: openrouter, openai, anthropic, google, groq, deepseek, ollama`
+        `Unknown LLM provider: ${providerName}. Available: openrouter, openai, anthropic, google, groq, deepseek, ollama, cohere, mistral, nvidia, mock`
       );
   }
 }

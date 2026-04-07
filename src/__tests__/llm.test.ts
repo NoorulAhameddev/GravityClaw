@@ -6,32 +6,33 @@ import {
   addToolResult
 } from '../llm/index.ts';
 import { db } from '../db.ts';
+import { config } from '../config.ts';
+
+const testDeps = { db, config };
 
 describe('LLM History Management', () => {
   const testSessionId = 'test:session:llm';
 
   beforeEach(() => {
-    // Clean up test data before each test
     db.prepare('DELETE FROM memory WHERE session_id = ?').run(testSessionId);
   });
 
   afterEach(() => {
-    // Clean up test data after each test
     db.prepare('DELETE FROM memory WHERE session_id = ?').run(testSessionId);
   });
 
   describe('getHistory', () => {
     it('should return empty array for new session', () => {
-      const history = getHistory(testSessionId);
+      const history = getHistory(testSessionId, testDeps);
       expect(history).toEqual([]);
     });
 
     it('should return messages in chronological order', () => {
-      addUserMessage(testSessionId, 'Hello');
-      addAssistantMessage(testSessionId, 'Hi there!');
-      addUserMessage(testSessionId, 'How are you?');
+      addUserMessage(testSessionId, 'Hello', testDeps);
+      addAssistantMessage(testSessionId, 'Hi there!', testDeps);
+      addUserMessage(testSessionId, 'How are you?', testDeps);
 
-      const history = getHistory(testSessionId);
+      const history = getHistory(testSessionId, testDeps);
       expect(history).toHaveLength(3);
       expect(history[0]).toMatchObject({ role: 'user', content: 'Hello' });
       expect(history[1]).toMatchObject({ role: 'assistant', content: 'Hi there!' });
@@ -41,9 +42,9 @@ describe('LLM History Management', () => {
 
   describe('addUserMessage', () => {
     it('should add user message to history', () => {
-      addUserMessage(testSessionId, 'Test message');
+      addUserMessage(testSessionId, 'Test message', testDeps);
 
-      const history = getHistory(testSessionId);
+      const history = getHistory(testSessionId, testDeps);
       expect(history).toHaveLength(1);
       expect(history[0]).toMatchObject({
         role: 'user',
@@ -52,20 +53,20 @@ describe('LLM History Management', () => {
     });
 
     it('should handle multiple messages', () => {
-      addUserMessage(testSessionId, 'First');
-      addUserMessage(testSessionId, 'Second');
-      addUserMessage(testSessionId, 'Third');
+      addUserMessage(testSessionId, 'First', testDeps);
+      addUserMessage(testSessionId, 'Second', testDeps);
+      addUserMessage(testSessionId, 'Third', testDeps);
 
-      const history = getHistory(testSessionId);
+      const history = getHistory(testSessionId, testDeps);
       expect(history).toHaveLength(3);
     });
   });
 
   describe('addAssistantMessage', () => {
     it('should add assistant message without tool calls', () => {
-      addAssistantMessage(testSessionId, 'Response text');
+      addAssistantMessage(testSessionId, 'Response text', testDeps);
 
-      const history = getHistory(testSessionId);
+      const history = getHistory(testSessionId, testDeps);
       expect(history).toHaveLength(1);
       expect(history[0]).toMatchObject({
         role: 'assistant',
@@ -83,9 +84,9 @@ describe('LLM History Management', () => {
         }
       }];
 
-      addAssistantMessage(testSessionId, 'Let me check...', toolCalls);
+      addAssistantMessage(testSessionId, 'Let me check...', testDeps, toolCalls);
 
-      const history = getHistory(testSessionId);
+      const history = getHistory(testSessionId, testDeps);
       expect(history).toHaveLength(1);
       expect(history[0]).toMatchObject({
         role: 'assistant',
@@ -98,24 +99,22 @@ describe('LLM History Management', () => {
 
   describe('addToolResult', () => {
     it('should add tool result message', () => {
-      addToolResult(testSessionId, 'call_123', 'Tool execution result');
+      addToolResult(testSessionId, 'call_123', 'Tool completed successfully', testDeps);
 
-      const history = getHistory(testSessionId);
+      const history = getHistory(testSessionId, testDeps);
       expect(history).toHaveLength(1);
       expect(history[0]).toMatchObject({
         role: 'tool',
         tool_call_id: 'call_123',
-        content: 'Tool execution result'
+        content: 'Tool completed successfully'
       });
     });
   });
 
   describe('Conversation flow', () => {
     it('should handle complete conversation with tool use', () => {
-      // User asks question
-      addUserMessage(testSessionId, 'What time is it?');
+      addUserMessage(testSessionId, 'What time is it?', testDeps);
 
-      // Assistant decides to use tool
       const toolCalls = [{
         id: 'call_datetime_1',
         type: 'function' as const,
@@ -124,15 +123,13 @@ describe('LLM History Management', () => {
           arguments: '{}'
         }
       }];
-      addAssistantMessage(testSessionId, 'Let me check the time for you.', toolCalls);
+      addAssistantMessage(testSessionId, 'Let me check the time for you.', testDeps, toolCalls);
 
-      // Tool result comes back
-      addToolResult(testSessionId, 'call_datetime_1', '2026-03-01T10:30:00Z');
+      addToolResult(testSessionId, 'call_datetime_1', '2026-03-01T10:30:00Z', testDeps);
 
-      // Assistant provides final response
-      addAssistantMessage(testSessionId, 'It is 10:30 AM UTC.');
+      addAssistantMessage(testSessionId, 'It is 10:30 AM UTC.', testDeps);
 
-      const history = getHistory(testSessionId);
+      const history = getHistory(testSessionId, testDeps);
       expect(history).toHaveLength(4);
       expect(history.map(m => m.role)).toEqual(['user', 'assistant', 'tool', 'assistant']);
     });

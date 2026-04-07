@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { db } from "../db.ts";
+import { config } from "../config.ts";
 import { addUserMessage, addAssistantMessage } from "../llm/index.ts";
 import {
   searchMemorySemantic,
@@ -9,6 +10,7 @@ import {
 } from "../memory/supabase.ts";
 
 const SESSION_ID = "supabase:test";
+const testDeps = { db, config };
 
 describe("Supabase + pgvector Memory", () => {
   beforeEach(() => {
@@ -22,9 +24,9 @@ describe("Supabase + pgvector Memory", () => {
   });
 
   it("falls back to local semantic search when Supabase is not configured", async () => {
-    addUserMessage(SESSION_ID, "I prefer concise TypeScript responses with examples");
-    addAssistantMessage(SESSION_ID, "Understood, I will keep responses concise.");
-    addUserMessage(SESSION_ID, "Use pgvector semantic search for memory recall");
+    addUserMessage(SESSION_ID, "I prefer concise TypeScript responses with examples", testDeps);
+    addAssistantMessage(SESSION_ID, "Understood, I will keep responses concise.", testDeps);
+    addUserMessage(SESSION_ID, "Use pgvector semantic search for memory recall", testDeps);
 
     const matches = await searchMemorySemantic(SESSION_ID, "semantic memory search", 3);
 

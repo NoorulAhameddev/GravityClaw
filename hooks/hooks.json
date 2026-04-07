@@ -1,0 +1,101 @@
+{
+  "PreToolUse": [
+    {
+      "matcher": "Bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node scripts/hooks/pre-bash.js",
+          "description": "Block dev server outside tmux/screen, warn about long-running commands"
+        }
+      ]
+    },
+    {
+      "matcher": "Write",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node scripts/hooks/pre-write.js",
+          "description": "Warn about non-standard file types"
+        }
+      ]
+    },
+    {
+      "matcher": "Edit|Write",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node scripts/hooks/pre-compact.js",
+          "description": "Suggest manual compaction at logical intervals"
+        }
+      ]
+    }
+  ],
+  "PostToolUse": [
+    {
+      "matcher": "Bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node scripts/hooks/post-bash.js",
+          "description": "Analyze build output after build commands",
+          "async": true
+        }
+      ]
+    },
+    {
+      "matcher": "Edit|Write",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node scripts/hooks/post-edit.js",
+          "description": "Run quality checks after edits"
+        }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node scripts/hooks/stop-session-summary.js",
+          "description": "Session summary and console.log audit"
+        }
+      ]
+    }
+  ],
+  "SessionStart": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node scripts/hooks/session-start.js",
+          "description": "Load previous session context"
+        }
+      ]
+    }
+  ],
+  "SessionEnd": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node scripts/hooks/session-end.js",
+          "description": "Save session state and cleanup"
+        }
+      ]
+    }
+  ],
+  "PreCompact": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node scripts/hooks/pre-compact.js",
+          "description": "Save state before context compaction"
+        }
+      ]
+    }
+  ]
+}

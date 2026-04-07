@@ -520,6 +520,8 @@ Example: delete_file({ path: "temp.txt", confirm: true })`,
     required: ['path', 'confirm'],
   },
 
+  requiresApproval: true,
+
   async execute(args: Record<string, unknown>): Promise<string> {
     try {
       // Check group permissions

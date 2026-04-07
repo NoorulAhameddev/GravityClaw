@@ -8,13 +8,14 @@ const log = createLogger("llm:ollama");
 /**
  * Ollama Provider
  * Local LLMs (Llama, Mistral, etc.) running via Ollama
+ * Note: Ollama now supports function calling via the /api/chat tools parameter
  */
 export class OllamaProvider implements LLMProvider {
   readonly name = "ollama";
   private baseURL: string;
   private defaultModel: string;
 
-  constructor(defaultModel: string = "llama3.2", baseURL: string = "http://localhost:11434") {
+  constructor(defaultModel: string = "llama3.3:70b", baseURL: string = "http://localhost:11434") {
     this.baseURL = baseURL;
     this.defaultModel = defaultModel;
     log.info(`Ollama provider initialized with model: ${defaultModel} at ${baseURL}`);

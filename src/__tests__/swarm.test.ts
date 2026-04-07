@@ -1,8 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { db } from "../db.ts";
+import { config } from "../config.ts";
 import { AgentSwarm, type SwarmConfig } from "../agents/swarm.ts";
 import { addUserMessage, addAssistantMessage, getHistory, clearHistory } from "../llm/index.ts";
 import { spawnAgentTool, aggregateResultsTool } from "../tools/core/swarm.ts";
+
+const testDeps = { db, config };
 
 describe("Agent Swarm System", () => {
   const testSessionId = "test:swarm:parent";
@@ -13,7 +16,6 @@ describe("Agent Swarm System", () => {
   };
 
   beforeEach(() => {
-    // Clean up test data before each test
     db.prepare("DELETE FROM memory WHERE session_id LIKE ?").run("test:swarm:%");
     db.prepare("DELETE FROM agent_swarms WHERE parent_session_id LIKE ?").run(
       "test:swarm:%"
@@ -348,9 +350,8 @@ describe("Agent Swarm System", () => {
       expect(researcherId).toBeDefined();
       expect(coderId).toBeDefined();
 
-      // Both should have messages in their histories
-      const researchHistory = getHistory(researcherId);
-      const codeHistory = getHistory(coderId);
+      const researchHistory = getHistory(researcherId, testDeps);
+      const codeHistory = getHistory(coderId, testDeps);
 
       expect(researchHistory.length).toBeGreaterThan(0);
       expect(codeHistory.length).toBeGreaterThan(0);
@@ -461,12 +462,11 @@ describe("Agent Swarm System", () => {
       const sessionId1 = await swarm.spawnAgent("researcher", "Research task");
       const sessionId2 = await swarm.spawnAgent("coder", "Coding task");
 
-      const history1 = getHistory(sessionId1);
-      const history2 = getHistory(sessionId2);
+      const history1 = getHistory(sessionId1, testDeps);
+      const history2 = getHistory(sessionId2, testDeps);
 
       expect(history1).toBeDefined();
       expect(history2).toBeDefined();
-      // Each should have at least user and assistant messages
       expect(history1.length).toBeGreaterThan(0);
       expect(history2.length).toBeGreaterThan(0);
     });
@@ -474,7 +474,7 @@ describe("Agent Swarm System", () => {
     it("should add messages to parent session during orchestration", async () => {
       const swarm = new AgentSwarm(testSessionId, defaultConfig);
 
-      const parentHistoryBefore = getHistory(testSessionId);
+      const parentHistoryBefore = getHistory(testSessionId, testDeps);
       const beforeCount = parentHistoryBefore.length;
 
       const mainTask = "Test orchestration";
@@ -482,10 +482,9 @@ describe("Agent Swarm System", () => {
 
       await swarm.orchestrate(mainTask, subTasks);
 
-      const parentHistoryAfter = getHistory(testSessionId);
+      const parentHistoryAfter = getHistory(testSessionId, testDeps);
       const afterCount = parentHistoryAfter.length;
 
-      // Should have added messages to parent
       expect(afterCount).toBeGreaterThanOrEqual(beforeCount);
     });
   });

@@ -59,6 +59,24 @@ npm run cli -- help
 npm run cli -- chat
 ```
 
+## 🖥️ Dashboard
+
+Access the web dashboard at **http://localhost:3000** when running the server. The dashboard provides:
+
+- **Overview** — System status, stats, and quick actions
+- **Chat** — WebChat interface (built-in web channel for direct messaging)
+- **Admin** — Plugin management, settings, and configuration
+- **Analytics** — Usage metrics and performance insights
+- **Memory** — View and manage knowledge graph and stored facts
+- **Tools** — Browse available tools and their schemas
+- **Workflows & Swarms** — Visualize multi-agent workflows
+- **Sessions** — Manage conversation history
+- **Heartbeats** — Configure proactive check-ins
+- **Scheduler** — Set up recurring tasks
+- **Webhooks** — Configure incoming webhook endpoints
+
+WebChat is the built-in web interface that works alongside Telegram and WhatsApp channels.
+
 ## 🖥️ CLI Commands
 
 | Command | Purpose |
