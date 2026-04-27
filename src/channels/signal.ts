@@ -41,7 +41,6 @@ export class SignalChannel implements Channel {
 
     static create(): SignalChannel | null {
         if (!SIGNAL_PHONE_NUMBER) {
-            log.warn("SIGNAL_PHONE_NUMBER not set, skipping Signal channel");
             return null;
         }
         return new SignalChannel();

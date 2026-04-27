@@ -1,87 +1,80 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import * as fs from 'fs';
 
-// Mock the fs and path modules before importing the module under test
+// Mock config FIRST to override UNRESTRICTED_ACCESS before the path-validator loads it
+vi.mock('../../config.ts', () => ({
+  UNRESTRICTED_ACCESS: false,
+  config: { UNRESTRICTED_ACCESS: false },
+}));
+
+// Mock the fs module
 vi.mock('fs', () => ({
   lstatSync: vi.fn(),
   realpathSync: vi.fn(),
 }));
-const fs = require("fs");
 
+// Mock path with simple implementations for testing
 vi.mock('path', () => ({
-  resolve: (...args: string[]) => {
-    // Simple mock that just joins paths with forward slash
-    return args.filter(arg => arg).join('/');
-  },
-  normalize: (path: string) => path,
+  resolve: (...args: string[]) => args.filter(arg => arg).join('/'),
+  normalize: (p: string) => p,
   relative: (from: string, to: string) => {
-    // Simple relative path mock
     if (to.startsWith(from)) {
-      return to.substring(from.length + (from.endsWith('/') ? 1 : 0));
+      return to.substring(from.length + (from.endsWith('/') ? 0 : 1));
     }
-    return '../' + to; // Simplified for testing
+    return '../' + to;
   },
-  basename: (path: string) => {
-    const parts = path.split(/[\\/]/);
-    return parts[parts.length - 1];
+  basename: (p: string) => {
+    const parts = p.split(/[/\\]/);
+    return parts[parts.length - 1] ?? '';
   },
 }));
 
 // Now import the module under test
-import { validatePathAccess } from '../../security/path-validator';
+import { validatePathAccess, clearValidationCache } from '../../security/path-validator';
 
 describe('Path Validation Security', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearValidationCache();
   });
 
   describe('Symlink Validation', () => {
     it('should reject symlinks pointing outside allowed directories', () => {
-      // Mock fs.lstatSync to return symlink
-      vi.mocked(fs.lstatSync).mockReturnValue({
-        isSymbolicLink: () => true,
-      } as any);
-      
-      // Mock fs.realpathSync to return path outside allowed
-      vi.mocked(fs.realpathSync).mockReturnValue('/etc/passwd');
-      
-      const result = validatePathAccess('./test_symlink', {
+      vi.mocked(fs.lstatSync).mockReturnValue({ isSymbolicLink: () => true } as any);
+      vi.mocked(fs.realpathSync).mockReturnValue('/etc/passwd' as any);
+
+      const result = validatePathAccess('/workspace/test_symlink', {
         allowedPaths: ['/workspace'],
         action: 'read',
       });
-      
+
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain('Symlink');
     });
 
     it('should accept symlinks pointing inside allowed directories', () => {
-      vi.mocked(fs.lstatSync).mockReturnValue({
-        isSymbolicLink: () => true,
-      } as any);
-      
-      vi.mocked(fs.realpathSync).mockReturnValue('/workspace/file.txt');
-      
-      const result = validatePathAccess('./test_symlink', {
+      vi.mocked(fs.lstatSync).mockReturnValue({ isSymbolicLink: () => true } as any);
+      vi.mocked(fs.realpathSync).mockReturnValue('/workspace/file.txt' as any);
+
+      const result = validatePathAccess('/workspace/test_symlink', {
         allowedPaths: ['/workspace'],
         action: 'read',
       });
-      
+
       expect(result.allowed).toBe(true);
     });
 
     it('should reject broken symlinks', () => {
-      vi.mocked(fs.lstatSync).mockReturnValue({
-        isSymbolicLink: () => true,
-      } as any);
-      
-      vi.mocked(fs).realpathSync.mockImplementation(() => {
+      vi.mocked(fs.lstatSync).mockReturnValue({ isSymbolicLink: () => true } as any);
+      vi.mocked(fs.realpathSync).mockImplementation(() => {
         throw new Error('ENOENT: no such file or directory');
       });
-      
-      const result = validatePathAccess('./broken_link', {
+
+      const result = validatePathAccess('/workspace/broken_link', {
         allowedPaths: ['/workspace'],
         action: 'read',
       });
-      
+
       expect(result.allowed).toBe(false);
     });
   });
@@ -92,7 +85,7 @@ describe('Path Validation Security', () => {
         allowedPaths: ['/workspace'],
         action: 'read',
       });
-      
+
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain('traversal');
     });
@@ -102,7 +95,7 @@ describe('Path Validation Security', () => {
         allowedPaths: ['/workspace'],
         action: 'read',
       });
-      
+
       expect(result.allowed).toBe(false);
     });
   });
@@ -113,20 +106,18 @@ describe('Path Validation Security', () => {
         allowedPaths: ['/workspace'],
         action: 'read',
       });
-      
+
       expect(result.allowed).toBe(false);
     });
 
     it('should allow paths within allowed directories', () => {
-      vi.mocked(fs.lstatSync).mockReturnValue({
-        isSymbolicLink: () => false,
-      } as any);
-      
+      vi.mocked(fs.lstatSync).mockReturnValue({ isSymbolicLink: () => false } as any);
+
       const result = validatePathAccess('/workspace/file.txt', {
         allowedPaths: ['/workspace'],
         action: 'read',
       });
-      
+
       expect(result.allowed).toBe(true);
     });
   });
@@ -176,10 +167,8 @@ describe('Path Validation Security', () => {
     });
 
     it('should handle multiple allowed paths', () => {
-      vi.mocked(fs.lstatSync).mockReturnValue({
-        isSymbolicLink: () => false,
-      } as any);
-      
+      vi.mocked(fs.lstatSync).mockReturnValue({ isSymbolicLink: () => false } as any);
+
       const result = validatePathAccess('/home/user/project/file.txt', {
         allowedPaths: ['/workspace', '/home/user/project'],
         action: 'read',
@@ -198,25 +187,20 @@ describe('Path Validation Security', () => {
 
   describe('Caching', () => {
     it('should cache validation results', () => {
-      vi.mocked(fs.lstatSync).mockReturnValue({
-        isSymbolicLink: () => false,
-      } as any);
-      
-      // First call
+      vi.mocked(fs.lstatSync).mockReturnValue({ isSymbolicLink: () => false } as any);
+
       const result1 = validatePathAccess('/workspace/file.txt', {
         allowedPaths: ['/workspace'],
         action: 'read',
       });
-      
-      // Second call should use cache
+
       const result2 = validatePathAccess('/workspace/file.txt', {
         allowedPaths: ['/workspace'],
         action: 'read',
       });
-      
+
       expect(result1).toEqual(result2);
-      // lstatSync should only be called once due to caching
-      expect(require('fs').lstatSync).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(fs.lstatSync)).toHaveBeenCalledTimes(1);
     });
   });
 });

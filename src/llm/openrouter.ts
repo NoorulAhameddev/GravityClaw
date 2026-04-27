@@ -66,7 +66,9 @@ export class OpenRouterProvider implements LLMProvider {
    * Prioritizes known reliable free models.
    */
   private async resolveModelName(modelName: string, exclude: string[] = []): Promise<string> {
-    if (modelName !== "openrouter/free") {
+    const isFreeModel = modelName === "openrouter/free" || modelName.endsWith(":free");
+    
+    if (!isFreeModel || (modelName !== "openrouter/free" && !exclude.includes(modelName))) {
       return modelName;
     }
 
@@ -93,28 +95,31 @@ export class OpenRouterProvider implements LLMProvider {
     // Known high-quality free models in preference order (March 2026)
     // Prioritizing models that support tools/function calling
     const preferredFreeModels = [
-      // NVIDIA models (good for reasoning)
+      // Google Gemini models (Very reliable for tools)
+      "google/gemini-2.0-flash-exp:free",
+      "google/gemini-2.0-flash-lite-preview-02-05:free",
+      "google/gemini-2.0-pro-exp-02-05:free",
+      
+      // NVIDIA models
       "nvidia/llama-3.1-nemotron-70b-instruct:free",
       "nvidia/llama-3.1-nemotron-51b-instruct:free", 
       "nvidia/llama-3.1-nemotron-8b-instruct:free",
-      // Google Gemma models
-      "google/gemma-3-12b-it:free",
-      "google/gemma-3-27b-it:free",
-      "google/gemma-3-4b-it:free",
-      "google/gemma-3n-4b-it:free",
-      "google/gemma-3n-2b-it:free",
-      // MiniMax
-      "minimax/minimax-m2.5:free",
+
       // Meta Llama
       "meta-llama/llama-3.3-70b-instruct:free",
       "meta-llama/llama-3.2-3b-instruct:free",
+      
+      // DeepSeek
+      "deepseek/deepseek-chat:free",
+      "deepseek/deepseek-r1:free",
+      
+      // Qwen
+      "qwen/qwen-2.5-72b-instruct:free",
+      "qwen/qwen-2.5-7b-instruct:free",
+
       // Mistral
       "mistralai/mistral-small-3.1-24b-instruct:free",
       "mistralai/mistral-7b-instruct:free",
-      // Others
-      "qwen/qwen-2-7b-instruct:free",
-      "deepseek/deepseek-chat:free",
-      "cohere/command-r:free"
     ];
 
     // 1. Try to find a preferred model that is currently available and not blacklisted
@@ -163,7 +168,7 @@ export class OpenRouterProvider implements LLMProvider {
     options?: LLMChatOptions
   ): Promise<LLMResponse> {
     const rawModel = options?.model ?? this.defaultModel;
-    const isFreeAlias = rawModel === "openrouter/free";
+    const isFreeAlias = rawModel === "openrouter/free" || rawModel.endsWith(":free");
     const maxTokens = options?.maxTokens ?? 2000;
     const hasTools = toolDefinitions.length > 0;
     const excludedModels: string[] = [];
@@ -211,10 +216,10 @@ export class OpenRouterProvider implements LLMProvider {
         } catch (err: unknown) {
           lastError = err;
           const errorObj = (err as any)?.error || (err as any);
-          const status = (err as any)?.status || errorObj?.code || errorObj?.status;
-          const message = errorObj?.message || String(err);
+          const status = (err as any)?.status || (err as any)?.code || errorObj?.code || errorObj?.status;
+          const message = errorObj?.message || (err as Error)?.message || String(err);
 
-          log.warn(`OpenRouter API error — Model: ${model}, Status/Code: ${status}, Message: ${message.substring(0, 100)}`);
+          log.warn(`OpenRouter API error — Model: ${model}, Status: ${status}, Message: ${message.substring(0, 100)}`);
 
           // 1. Handle Tool Support Errors specifically
           if (hasTools && (message.toLowerCase().includes("tool use") || message.toLowerCase().includes("tools"))) {
@@ -247,14 +252,15 @@ export class OpenRouterProvider implements LLMProvider {
             }
           }
 
-          // 2. Handle Rate Limits (429), Quota Limits (402), or Policy Errors (not tool support errors)
+          // 2. Handle Rate Limits (429), Quota Limits (402), Policy Errors, or Tool Support Issues
           const isPolicyError = message.toLowerCase().includes("data policy") || message.toLowerCase().includes("privacy");
-          const isToolSupportError = message.toLowerCase().includes("tool use");
+          const isToolSupportError = message.toLowerCase().includes("tool use") || message.toLowerCase().includes("tools");
+          const statusCode = Number(status);
+          const isFailoverStatus = [429, 402, 404, 500, 502, 503, 504].includes(statusCode) || 
+                                   (typeof status === 'string' && (status === '429' || status === '402' || status === '404' || status === '503'));
           
-          // Only blacklist for actual errors, not for tool support issues
-          // Tool support errors are already handled above with retry without tools
-          const shouldBlacklist = (status === 429 || status === 402 || isPolicyError) && !isToolSupportError;
-          const failoverCodes = [429, 402, "429", "402"];
+          // Rotate if it's a failover status, policy error, or if we explicitly hit a tool support error
+          const shouldBlacklist = isFailoverStatus || isPolicyError || isToolSupportError;
 
           if (shouldBlacklist && isFreeAlias) {
             log.warn(`Model ${model} hit failover condition (${status}/policy). Blacklisting for 15 mins and rotating.`);
@@ -296,6 +302,11 @@ export class OpenRouterProvider implements LLMProvider {
 
           if (status === 400) {
             log.error("OpenRouter 400 Error details:", JSON.stringify(errorObj, null, 2));
+            if (isFreeAlias) {
+              log.warn(`Model ${model} returned 400 (${message.substring(0, 80)}). Rotating to next model.`);
+              excludedModels.push(model);
+              break;
+            }
           }
           throw err;
         }

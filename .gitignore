@@ -182,6 +182,41 @@ nul
 
 
 # ============================================================================
+# AI AGENT & TOOL METADATA (AUTO-GENERATED)
+# ============================================================================
+.adal/
+.agents/
+.augment/
+.bob/
+.claude/
+.codebuddy/
+.commandcode/
+.continue/
+.cortex/
+.crush/
+.factory/
+.goose/
+.iflow/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openhands/
+.pi/
+.pochi/
+.qoder/
+.qwen/
+.roo/
+.trae/
+.vibe/
+.windsurf/
+.zencoder/
+
+
+# ============================================================================
 # TESTING & PLAYWRIGHT
 # ============================================================================
 .playwright/
@@ -210,6 +245,17 @@ verify-airgap.ts
 test-output*.txt
 *-output.txt
 output*.json
+test_output.txt
+test_results.json
+typecheck_output.txt
+audit_output.txt
+audit_results.json
+backend.log
+backend_*.log
+
+# Scratch & Artifacts
+scratch/
+artifacts/
 
 # Sample/test code files
 add_numbers.py

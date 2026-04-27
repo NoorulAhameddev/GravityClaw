@@ -32,7 +32,7 @@ const openaiEmbeddingFunction = {
  */
 async function ensureChroma(): Promise<Collection | null> {
     if (!CHROMA_URL || CHROMA_URL.trim() === "") {
-        log.info("ChromaDB disabled (CHROMA_URL is not set)");
+        log.info("ChromaDB disabled (CHROMA_URL not configured)");
         return null;
     }
 
@@ -55,7 +55,7 @@ async function ensureChroma(): Promise<Collection | null> {
         return collection;
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        log.warn(`ChromaDB unavailable (${msg}). Falling back to SQLite search.`);
+        log.info(`ChromaDB unavailable at ${CHROMA_URL} (${msg}). Using SQLite fallback.`);
         chromaAvailable = false;
         return null;
     }

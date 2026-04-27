@@ -38,12 +38,24 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
     const clientIp = req.ip || "unknown";
 
     if (!config.API_KEY) {
-        log.debug(`No API_KEY configured - allowing request: ${method} ${path}`);
-        next();
+        log.warn(`SECURITY: No API_KEY configured - rejecting request: ${method} ${path}`);
+        res.status(503).json({
+            success: false,
+            error: "Service Unavailable",
+            message: "API key not configured. Server is not accepting requests.",
+        });
         return;
     }
 
     if (!apiKey) {
+        // Allow localhost without API key for easier development/testing
+        const isLocalhost = clientIp === "127.0.0.1" || clientIp === "::1" || clientIp === "::ffff:127.0.0.1";
+        if (isLocalhost) {
+            log.debug(`Allowing local request without API key: ${method} ${path}`);
+            next();
+            return;
+        }
+
         if (!isRateLimited(clientIp)) {
             log.warn(`Unauthorized access attempt: ${method} ${path} - No API key provided`, {
                 ip: clientIp,
@@ -59,7 +71,7 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
         return;
     }
 
-    if (apiKey !== config.API_KEY) {
+    if (!constantTimeEquals(apiKey, config.API_KEY)) {
         if (!isRateLimited(clientIp)) {
             log.warn(`Unauthorized access attempt: ${method} ${path} - Invalid API key`, {
                 ip: clientIp,
@@ -78,6 +90,17 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
     req.apiKey = apiKey;
     log.debug(`Authenticated request: ${method} ${path}`);
     next();
+}
+
+function constantTimeEquals(a: string, b: string): boolean {
+    if (a.length !== b.length) {
+        return false;
+    }
+    let result = 0;
+    for (let i = 0; i < a.length; i++) {
+        result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return result === 0;
 }
 
 export function optionalAuthMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction): void {

@@ -5,6 +5,18 @@ import { AgentSwarm, type SwarmConfig } from "../agents/swarm.ts";
 import { addUserMessage, addAssistantMessage, getHistory, clearHistory } from "../llm/index.ts";
 import { spawnAgentTool, aggregateResultsTool } from "../tools/core/swarm.ts";
 
+vi.mock("../llm/index.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../llm/index.ts")>();
+  return {
+    ...actual,
+    getProvider: () => ({
+      chat: vi.fn().mockResolvedValue({
+        text: "Mocked LLM execution result for swarm task"
+      })
+    })
+  };
+});
+
 const testDeps = { db, config };
 
 describe("Agent Swarm System", () => {
@@ -79,7 +91,8 @@ describe("Agent Swarm System", () => {
       const task = "Analyze the concept of machine learning";
 
       // Mock the LLM provider to avoid API calls
-      const mockSessionId = await swarm.spawnAgent("researcher", task);
+      const result = await swarm.spawnAgent("researcher", task);
+      const mockSessionId = typeof result === 'string' ? result : result.sessionId;
 
       expect(mockSessionId).toBeDefined();
       expect(mockSessionId).toContain(testSessionId);
@@ -90,7 +103,8 @@ describe("Agent Swarm System", () => {
       const swarm = new AgentSwarm(testSessionId, defaultConfig);
       const task = "Research AI safety concepts";
 
-      const sessionId = await swarm.spawnAgent("researcher", task);
+      const result = await swarm.spawnAgent("researcher", task);
+      const sessionId = typeof result === 'string' ? result : result.sessionId;
 
       // Check if database entry was created
       const entry = db
@@ -109,7 +123,8 @@ describe("Agent Swarm System", () => {
       const spawnedIds: string[] = [];
 
       for (const role of roles) {
-        const sessionId = await swarm.spawnAgent(role, `Task for ${role}`);
+        const result = await swarm.spawnAgent(role, `Task for ${role}`);
+        const sessionId = typeof result === 'string' ? result : result.sessionId;
         spawnedIds.push(sessionId);
       }
 
@@ -122,7 +137,8 @@ describe("Agent Swarm System", () => {
 
     it("should have correct session ID format for agents", async () => {
       const swarm = new AgentSwarm(testSessionId, defaultConfig);
-      const sessionId = await swarm.spawnAgent("coder", "Write a function");
+      const result = await swarm.spawnAgent("coder", "Write a function");
+      const sessionId = typeof result === 'string' ? result : result.sessionId;
 
       expect(sessionId).toMatch(new RegExp(`^${testSessionId}-coder-[a-f0-9]{8}$`));
     });
@@ -203,8 +219,10 @@ describe("Agent Swarm System", () => {
       const swarm = new AgentSwarm(testSessionId, defaultConfig);
 
       // Spawn multiple agents
-      const sessionId1 = await swarm.spawnAgent("researcher", "Research topic 1");
-      const sessionId2 = await swarm.spawnAgent("coder", "Code task 1");
+      const result1 = await swarm.spawnAgent("researcher", "Research topic 1");
+      const result2 = await swarm.spawnAgent("coder", "Code task 1");
+      const sessionId1 = typeof result1 === 'string' ? result1 : result1.sessionId;
+      const sessionId2 = typeof result2 === 'string' ? result2 : result2.sessionId;
 
       // Aggregate their results
       const aggregatedResult = await swarm.aggregateResults([sessionId1, sessionId2]);
@@ -227,8 +245,10 @@ describe("Agent Swarm System", () => {
     it("should aggregate results with synthesized summary", async () => {
       const swarm = new AgentSwarm(testSessionId, defaultConfig);
 
-      const sessionId1 = await swarm.spawnAgent("researcher", "Analyze trends");
-      const sessionId2 = await swarm.spawnAgent("coder", "Implement solution");
+      const result1 = await swarm.spawnAgent("researcher", "Analyze trends");
+      const result2 = await swarm.spawnAgent("coder", "Implement solution");
+      const sessionId1 = typeof result1 === 'string' ? result1 : result1.sessionId;
+      const sessionId2 = typeof result2 === 'string' ? result2 : result2.sessionId;
 
       const aggregatedResult = await swarm.aggregateResults([sessionId1, sessionId2]);
 
@@ -242,7 +262,8 @@ describe("Agent Swarm System", () => {
     it("should create agent_swarms table entries on spawn", async () => {
       const swarm = new AgentSwarm(testSessionId, defaultConfig);
 
-      const sessionId = await swarm.spawnAgent("researcher", "Test task");
+      const result = await swarm.spawnAgent("researcher", "Test task");
+      const sessionId = typeof result === 'string' ? result : result.sessionId;
 
       const entry = db
         .prepare("SELECT * FROM agent_swarms WHERE child_session_id = ?")
@@ -259,8 +280,10 @@ describe("Agent Swarm System", () => {
     it("should track multiple agents in parent session", async () => {
       const swarm = new AgentSwarm(testSessionId, defaultConfig);
 
-      const sessionId1 = await swarm.spawnAgent("researcher", "Task 1");
-      const sessionId2 = await swarm.spawnAgent("coder", "Task 2");
+      const result1 = await swarm.spawnAgent("researcher", "Task 1");
+      const result2 = await swarm.spawnAgent("coder", "Task 2");
+      const sessionId1 = typeof result1 === 'string' ? result1 : result1.sessionId;
+      const sessionId2 = typeof result2 === 'string' ? result2 : result2.sessionId;
 
       const entries = db
         .prepare("SELECT * FROM agent_swarms WHERE parent_session_id = ? ORDER BY created_at")
@@ -272,7 +295,8 @@ describe("Agent Swarm System", () => {
     it("should maintain parent-child relationship in database", async () => {
       const swarm = new AgentSwarm(testSessionId, defaultConfig);
 
-      const sessionId = await swarm.spawnAgent("reviewer", "Code review task");
+      const result = await swarm.spawnAgent("reviewer", "Code review task");
+      const sessionId = typeof result === 'string' ? result : result.sessionId;
 
       const entry = db
         .prepare(
@@ -344,8 +368,10 @@ describe("Agent Swarm System", () => {
     it("should spawn agents with role-specific behavior", async () => {
       const swarm = new AgentSwarm(testSessionId, defaultConfig);
 
-      const researcherId = await swarm.spawnAgent("researcher", "Research AI trends");
-      const coderId = await swarm.spawnAgent("coder", "Write sorting algorithm");
+      const result1 = await swarm.spawnAgent("researcher", "Research AI trends");
+      const result2 = await swarm.spawnAgent("coder", "Write sorting algorithm");
+      const researcherId = typeof result1 === 'string' ? result1 : result1.sessionId;
+      const coderId = typeof result2 === 'string' ? result2 : result2.sessionId;
 
       expect(researcherId).toBeDefined();
       expect(coderId).toBeDefined();
@@ -364,7 +390,8 @@ describe("Agent Swarm System", () => {
       const sessionIds: Record<string, string> = {};
 
       for (const role of roles) {
-        sessionIds[role] = await swarm.spawnAgent(role, "Test task");
+        const result = await swarm.spawnAgent(role, "Test task");
+        sessionIds[role] = typeof result === 'string' ? result : result.sessionId;
       }
 
       for (const role of roles) {
@@ -459,8 +486,10 @@ describe("Agent Swarm System", () => {
     it("should maintain separate history for each agent", async () => {
       const swarm = new AgentSwarm(testSessionId, defaultConfig);
 
-      const sessionId1 = await swarm.spawnAgent("researcher", "Research task");
-      const sessionId2 = await swarm.spawnAgent("coder", "Coding task");
+      const result1 = await swarm.spawnAgent("researcher", "Research task");
+      const result2 = await swarm.spawnAgent("coder", "Coding task");
+      const sessionId1 = typeof result1 === 'string' ? result1 : result1.sessionId;
+      const sessionId2 = typeof result2 === 'string' ? result2 : result2.sessionId;
 
       const history1 = getHistory(sessionId1, testDeps);
       const history2 = getHistory(sessionId2, testDeps);

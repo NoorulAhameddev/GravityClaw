@@ -97,6 +97,7 @@ const envSchema = z.object({
         .transform((val) => parseFloat(val))
         .describe("Confidence threshold for wake word detection (0-1, default: 0.75)"),
     
+    // OLLAMA Configuration
     OLLAMA_BASE_URL: z
         .string()
         .optional()
@@ -132,6 +133,12 @@ const envSchema = z.object({
         .default("true")
         .transform((val) => val === "true" || val === "1")
         .describe("Enable security audit logging for file access"),
+    UNRESTRICTED_ACCESS: z
+        .string()
+        .optional()
+        .default("false")
+        .transform((val) => val === "true" || val === "1")
+        .describe("Enable unrestricted access to all files and shell commands anywhere on the system"),
     
     // API Authentication
     API_KEY: z
@@ -337,6 +344,123 @@ const envSchema = z.object({
         .transform(val => parseInt(val, 10))
         .describe("Maximum total tool calls per agent run"),
 
+    AGENT_TOOL_TIMEOUT_MS: z
+        .string()
+        .optional()
+        .default("60000")
+        .transform(val => parseInt(val, 10))
+        .describe("Tool execution timeout in milliseconds (default: 60000)"),
+
+    TOKEN_BUDGET_ENABLED: z
+        .string()
+        .optional()
+        .default("false")
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable token budget tracking with diminishing returns detection"),
+
+    TOKEN_BUDGET_MAX: z
+        .string()
+        .optional()
+        .default("200000")
+        .transform(val => parseInt(val, 10))
+        .describe("Maximum tokens per agent run (0 = unlimited)"),
+
+    TOKEN_BUDGET_DIMINISHING_THRESHOLD: z
+        .string()
+        .optional()
+        .default("500")
+        .transform(val => parseInt(val, 10))
+        .describe("Tokens below which returns are considered diminishing"),
+
+    AUTO_DREAM_ENABLED: z
+        .string()
+        .optional()
+        .default("false")
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable automatic memory consolidation when away"),
+
+    AUTO_DREAM_MIN_HOURS: z
+        .string()
+        .optional()
+        .default("24")
+        .transform(val => parseInt(val, 10))
+        .describe("Minimum hours since last consolidation before auto-dream can fire"),
+
+    AUTO_DREAM_MIN_SESSIONS: z
+        .string()
+        .optional()
+        .default("5")
+        .transform(val => parseInt(val, 10))
+        .describe("Minimum sessions required before auto-dream can fire"),
+
+    ENABLE_MICROCOMPACT: z
+        .string()
+        .optional()
+        .default("true")
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable microcompact (lightweight context pruning)"),
+
+    MICROCOMPACT_MAX_TOOL_RESULT_CHARS: z
+        .string()
+        .optional()
+        .default("10000")
+        .transform(val => parseInt(val, 10))
+        .describe("Maximum chars per tool result in microcompact"),
+
+    MICROCOMPACT_MAX_TOOLS: z
+        .string()
+        .optional()
+        .default("3")
+        .transform(val => parseInt(val, 10))
+        .describe("Maximum tools to compact per turn"),
+
+    RETRY_MAX_RETRIES: z
+        .string()
+        .optional()
+        .default("3")
+        .transform(val => parseInt(val, 10))
+        .describe("Maximum retry attempts for API calls"),
+
+    RETRY_MAX_DELAY_MS: z
+        .string()
+        .optional()
+        .default("32000")
+        .transform(val => parseInt(val, 10))
+        .describe("Maximum delay between retries in milliseconds"),
+
+    RETRY_ENABLE_EXPONENTIAL_BACKOFF: z
+        .string()
+        .optional()
+        .default("true")
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable exponential backoff for retries"),
+
+    ENABLE_MEMORY_EXTRACTION: z
+        .string()
+        .optional()
+        .default("true")
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable automatic memory extraction after each turn"),
+
+    MEMORY_EXTRACTION_MIN_TURNS: z
+        .string()
+        .optional()
+        .default("3")
+        .transform(val => parseInt(val, 10))
+        .describe("Minimum turns before extracting memories"),
+
+    MEMORY_DIRECTORY_ENABLED: z
+        .string()
+        .optional()
+        .default("true")
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable memory directory system"),
+
+    MEMORY_DIRECTORY_PATH: z
+        .string()
+        .optional()
+        .describe("Custom memory directory path (default: ./memory)"),
+
     LOG_LEVEL: z
         .string()
         .optional()
@@ -520,8 +644,7 @@ const envSchema = z.object({
     CHROMA_URL: z
         .string()
         .optional()
-        .default("http://localhost:8000")
-        .describe("ChromaDB server URL for vector memory (optional)"),
+        .describe("ChromaDB server URL for vector memory (e.g., http://localhost:8000)"),
 
     WEBHOOK_BASE_URL: z
         .string()
@@ -554,6 +677,23 @@ export const {
     AGENT_MAX_ITERATIONS,
     AGENT_MAX_TOOLS_PER_ITERATION,
     AGENT_MAX_TOOLS_TOTAL,
+    AGENT_TOOL_TIMEOUT_MS,
+    TOKEN_BUDGET_ENABLED,
+    TOKEN_BUDGET_MAX,
+    TOKEN_BUDGET_DIMINISHING_THRESHOLD,
+    AUTO_DREAM_ENABLED,
+    AUTO_DREAM_MIN_HOURS,
+    AUTO_DREAM_MIN_SESSIONS,
+    ENABLE_MICROCOMPACT,
+    MICROCOMPACT_MAX_TOOL_RESULT_CHARS,
+    MICROCOMPACT_MAX_TOOLS,
+    RETRY_MAX_RETRIES,
+    RETRY_MAX_DELAY_MS,
+    RETRY_ENABLE_EXPONENTIAL_BACKOFF,
+    ENABLE_MEMORY_EXTRACTION,
+    MEMORY_EXTRACTION_MIN_TURNS,
+    MEMORY_DIRECTORY_ENABLED,
+    MEMORY_DIRECTORY_PATH,
     LOG_LEVEL,
     LOG_FORMAT,
     ENABLE_CALLER_INFO,
@@ -578,6 +718,7 @@ export const {
     SECRET_CLEANUP_DAYS,
     SAFE_DIRECTORIES,
     SECURITY_AUDIT_ENABLED,
+    UNRESTRICTED_ACCESS,
     FILE_ACCESS_LOG_RETENTION_DAYS,
     API_KEY,
     DISCORD_BOT_TOKEN,

@@ -38,8 +38,8 @@ export function trackIterationMetrics(metrics: IterationMetrics): void {
 
   // Log slow iterations
   if (metrics.duration > 5000) {
-    log.warn(
-      `Slow agent iteration: ${metrics.duration.toFixed(0)}ms (${metrics.toolCallCount} tools, session: ${metrics.sessionId})`
+    log.debug(
+      `Agent iteration: ${metrics.duration.toFixed(0)}ms (${metrics.toolCallCount} tools, session: ${metrics.sessionId})`
     );
   }
 }

@@ -195,8 +195,8 @@ function startMemoryMonitoring(): void {
       const now = Date.now();
       if (now - lastMemoryWarning > MEMORY_WARN_COOLDOWN) {
         lastMemoryWarning = now;
-        log.warn(
-          `⚠️  High memory usage: ${(mem.heapUsed / 1024 / 1024).toFixed(2)}MB / ${(mem.heapTotal / 1024 / 1024).toFixed(2)}MB (${(heapPercent * 100).toFixed(1)}%)`
+        log.debug(
+          `Memory usage: ${(mem.heapUsed / 1024 / 1024).toFixed(2)}MB / ${(mem.heapTotal / 1024 / 1024).toFixed(2)}MB (${(heapPercent * 100).toFixed(1)}%)`
         );
 
         if (globalCache) {

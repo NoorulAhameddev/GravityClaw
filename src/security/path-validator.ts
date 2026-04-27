@@ -12,6 +12,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { createLogger } from '../logger.ts';
+import { UNRESTRICTED_ACCESS } from '../config.ts';
 
 const logger = createLogger('path-validator');
 
@@ -60,6 +61,12 @@ const BLOCKED_ABSOLUTE_PATHS = [
 const BLOCKED_FILE_PATTERNS = [
   /\.env$/i,
   /\.env\./i,
+  /\.bash_history$/i,
+  /\.zsh_history$/i,
+  /\.aws[\/\\]/i,
+  /id_rsa$/i,
+  /id_ed25519$/i,
+  /id_dsa$/i,
   /credentials/i,
   /password/i,
   /secret/i,
@@ -228,6 +235,16 @@ export function validatePathAccess(
     logFailures = true,
   } = config;
 
+  // GLOBAL BYPASS: If unrestricted access is enabled, allow ALL paths immediately
+  if (UNRESTRICTED_ACCESS) {
+    const resolvedPath = path.resolve(filePath);
+    return {
+      allowed: true,
+      resolvedPath,
+      isSymlink: false,
+    };
+  }
+
   // Validate empty path
   if (!filePath || filePath.trim().length === 0) {
     const result: PathValidationResult = {
@@ -271,14 +288,40 @@ export function validatePathAccess(
     return result;
   }
 
-  // Check symlinks
-  if (checkSymlinks && !isSymlinkAllowed(filePath, config.allowedPaths)) {
-    const result: PathValidationResult = {
-      allowed: false,
-      reason: 'Symlink resolves outside of allowlist',
-    };
-    if (logFailures) logger.warn(`Symlink escapes allowlist: ${filePath}`);
-    return result;
+  // Check symlinks — capture result to avoid a second lstatSync call
+  let isSymlink = false;
+  if (checkSymlinks) {
+    try {
+      const stats = fs.lstatSync(filePath);
+      isSymlink = stats.isSymbolicLink();
+      if (isSymlink) {
+        const realPath = fs.realpathSync(filePath);
+        const inAllowlist = config.allowedPaths.some(allowed => {
+          const normalizedAllowed = path.resolve(allowed);
+          return realPath.startsWith(normalizedAllowed);
+        });
+        if (!inAllowlist) {
+          const result: PathValidationResult = {
+            allowed: false,
+            reason: 'Symlink resolves outside of allowlist',
+          };
+          if (logFailures) logger.warn(`Symlink escapes allowlist: ${filePath}`);
+          return result;
+        }
+      }
+    } catch (err: any) {
+      // If file doesn't exist, it's not a symlink (yet)
+      if (err.code === 'ENOENT') {
+        isSymlink = false;
+      } else {
+        logger.warn(`Symlink validation failed (rejecting): ${filePath}. Error: ${err instanceof Error ? err.message : String(err)}`);
+        const result: PathValidationResult = {
+          allowed: false,
+          reason: 'Symlink validation failed',
+        };
+        return result;
+      }
+    }
   }
 
   // All checks passed
@@ -286,17 +329,8 @@ export function validatePathAccess(
   const result: PathValidationResult = {
     allowed: true,
     resolvedPath,
-    isSymlink: false,
+    isSymlink,
   };
-  
-  // Check if it's actually a symlink
-  try {
-    const stats = fs.lstatSync(filePath);
-    result.isSymlink = stats.isSymbolicLink();
-  } catch (err) {
-    // File might not exist yet (for write operations)
-    // That's okay, we've validated the path itself
-  }
 
   // Cache successful result
   validationCache.set(cacheKey, {

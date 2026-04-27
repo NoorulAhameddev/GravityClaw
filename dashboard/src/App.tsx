@@ -19,17 +19,19 @@ import Usage from './views/Usage';
 import Admin from './views/Admin';
 import WhatsApp from './views/WhatsApp';
 
+import { getWsUrl } from './lib/utils';
+
 function AppContent() {
   const [currentPage, setCurrentPage] = useState('overview');
   const [apiKey, setApiKey] = useState('');
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
-  const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
-  const { status } = useWebSocket(wsUrl);
-
+  
   useEffect(() => {
     const stored = localStorage.getItem('apiKey');
     if (stored) setApiKey(stored);
   }, []);
+
+  const { status } = useWebSocket(getWsUrl(apiKey));
 
   const handleApiKeySave = () => {
     if (apiKey.trim()) {

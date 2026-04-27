@@ -7,6 +7,12 @@ import {
     configCommand,
     toolsCommand,
     sessionsCommand,
+    skillsCommand,
+    costCommand,
+    insightsCommand,
+    pluginCommand,
+    thinkbackCommand,
+    vimCommand,
 } from "./cli/commands/index.ts";
 
 const log = createLogger("cli");
@@ -26,6 +32,14 @@ ${c.cyan("doctor")}             Run health checks and diagnostics
 ${c.cyan("config")}             View current configuration
 ${c.cyan("tools")}              List available tools
 ${c.cyan("sessions")}           Manage conversation sessions
+${c.cyan("bridge")}             Manage remote bridge connections
+${c.cyan("stats")}              Display usage statistics
+${c.cyan("cost")}               Display usage costs
+${c.cyan("skills")}            Manage custom skills
+${c.cyan("insights")}           Usage analytics & trends
+${c.cyan("plugin")}            Manage plugins
+${c.cyan("thinkback")}          Year in review
+${c.cyan("vim")}               Toggle vim mode
 ${c.cyan("version")}            Show version information
 ${c.cyan("help")}               Show this help`,
         { title: "Commands", borderColor: "cyan" }
@@ -38,6 +52,17 @@ ${c.cyan("help")}               Show this help`,
 ${c.cyan("sessions clear")} ${c.dim("<id>")}  Clear a session
 ${c.cyan("sessions export")} ${c.dim("<id>")} Export session to JSON`,
         { title: "Sessions", borderColor: "cyan" }
+    );
+    console.log();
+
+    section("Skills Commands:");
+    printBox(
+        `${c.cyan("skills list")}        List all skills
+${c.cyan("skills add")} ${c.dim("<name>")}     Create new skill
+${c.cyan("skills remove")} ${c.dim("<name>")}   Delete skill
+${c.cyan("skills enable")} ${c.dim("<name>")}   Enable skill
+${c.cyan("skills disable")} ${c.dim("<name>")}  Disable skill`,
+        { title: "Skills", borderColor: "cyan" }
     );
     console.log();
 
@@ -59,7 +84,13 @@ ${c.dim("$")} gravityclaw chat --session my-session
 ${c.dim("$")} gravityclaw doctor             ${c.dim("# Run diagnostics")}
 ${c.dim("$")} gravityclaw tools              ${c.dim("# List all tools")}
 ${c.dim("$")} gravityclaw sessions list      ${c.dim("# View sessions")}
-${c.dim("$")} gravityclaw sessions export abc123 > backup.json`,
+${c.dim("$")} gravityclaw sessions export abc123 > backup.json
+${c.dim("$")} gravityclaw skills            ${c.dim("# List all skills")}
+${c.dim("$")} gravityclaw skills add my-skill ${c.dim("# Create new skill")}
+${c.dim("$")} gravityclaw cost               ${c.dim("# Show usage costs")}
+${c.dim("$")} gravityclaw cost --period week   ${c.dim("# Weekly costs")}
+${c.dim("$")} gravityclaw insights          ${c.dim("# Usage analytics")}
+${c.dim("$")} gravityclaw plugin             ${c.dim("# List plugins")}`,
         { title: "Examples", borderColor: "cyan" }
     );
     console.log();
@@ -131,6 +162,62 @@ async function run(): Promise<void> {
                     args.subcommand,
                     args.positional[0]
                 );
+                break;
+
+            case "bridge":
+                const { bridgeCommand } = await import("./cli/commands/bridge.ts");
+                await bridgeCommand(args.subcommand ? [args.subcommand, ...args.positional] : args.positional);
+                break;
+
+            case "stats":
+                const { statsCommand } = await import("./cli/commands/stats.ts");
+                await statsCommand({
+                    period: args.flags.period as string,
+                    verbose: Boolean(args.flags.verbose)
+                });
+                break;
+
+            case "skills":
+                await skillsCommand(
+                    args.subcommand,
+                    args.positional
+                );
+                break;
+
+            case "cost":
+                const { costCommand } = await import("./cli/commands/cost.ts");
+                await costCommand({
+                    period: args.flags.period as string,
+                    detailed: Boolean(args.flags.detailed),
+                    model: args.flags.model as string
+                });
+                break;
+
+            case "insights":
+                const { insightsCommand } = await import("./cli/commands/insights.ts");
+                await insightsCommand({
+                    period: args.flags.period as string,
+                    html: Boolean(args.flags.html)
+                });
+                break;
+
+            case "plugin":
+                await pluginCommand(
+                    args.subcommand,
+                    args.positional
+                );
+                break;
+
+            case "thinkback":
+            case "year-in-review":
+                await thinkbackCommand({
+                    year: args.flags.year ? parseInt(String(args.flags.year)) : new Date().getFullYear(),
+                    play: Boolean(args.flags.play)
+                });
+                break;
+
+            case "vim":
+                await vimCommand(args.subcommand);
                 break;
 
             case "version":

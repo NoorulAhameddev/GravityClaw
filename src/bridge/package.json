@@ -1,0 +1,10 @@
+{
+  "name": "gravity-bridge",
+  "version": "1.0.0",
+  "description": "Remote bridge for GravityClaw - allows remote connections",
+  "main": "src/bridge/index.ts",
+  "type": "module",
+  "scripts": {
+    "bridge": "tsx src/bridge/index.ts"
+  }
+}

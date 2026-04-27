@@ -12,6 +12,8 @@ import { getRecentAttachmentContext } from "../memory/multimodal.ts";
 import { enqueueMessageSync } from "../memory/supabase.ts";
 import { upsertVectorMemory } from "../memory/vector.ts";
 import type { RetrievedMemory } from "../memory/retrieval.ts";
+import { applyMicrocompact } from "../compact/microCompact.js";
+import type { Message } from "../types/llm.js";
 import { pruneContext } from "../memory/pruning.ts";
 import { trace } from "@opentelemetry/api";
 import { recordLlmCall } from "../lib/telemetry/metrics.js";
@@ -27,11 +29,14 @@ export interface OrchestratorDependencies {
     config: typeof configModule;
 }
 
+import type { MicrocompactResult } from "../compact/microCompact.js";
+
 export interface PromptContext {
     relevantMemories?: RetrievedMemory[];
     sessionFacts?: string;
     attachmentContext?: string;
     executionPlan?: string;
+    mcResult?: MicrocompactResult;
 }
 
 function sanitizeMemoryContent(content: string): string {
@@ -106,23 +111,11 @@ export function getHistory(sessionId: string, deps: OrchestratorDependencies): C
     return messages;
 }
 
-/** Filter to prevent low-quality memory storage */
+/** Filter to prevent low-quality memory storage for user/assistant messages */
 function shouldStoreMemory(content: string): boolean {
     const text = content.toLowerCase().trim();
 
-    if (text.includes("error") || text.includes("failed") || text.includes("exception")) {
-        return false;
-    }
-
-    if (text.length < 20) {
-        return false;
-    }
-
-    if (
-        text.includes("tool execution") ||
-        text.includes("command output") ||
-        text.includes("exit code")
-    ) {
+    if (text.length < 5) {
         return false;
     }
 
@@ -218,17 +211,15 @@ export function addToolResult(
     deps: OrchestratorDependencies
 ): void {
     validateSessionId(sessionId);
-    if (!shouldStoreMemory(result)) {
-        return;
-    }
 
+    const content = result || "(empty result)";
     const msg: ChatCompletionMessageParam = {
         role: "tool",
         tool_call_id: toolCallId,
-        content: result,
+        content,
     };
     deps.db.prepare("INSERT INTO memory (session_id, message_json) VALUES (?, ?)").run(sessionId, JSON.stringify(msg));
-    enqueueMessageSync({ sessionId, role: "tool", content: result });
+    enqueueMessageSync({ sessionId, role: "tool", content });
 }
 
 /** Clear entire conversation history for session */
@@ -256,6 +247,23 @@ export async function callClaude(
     const history = getHistory(sessionId, deps);
     log.debug(`Calling LLM — history length: ${history.length}`);
 
+    const shouldCompact = configModule.ENABLE_MICROCOMPACT && history.length >= 10;
+    let mcResult: MicrocompactResult | undefined;
+    let compactedHistory = history;
+    
+    if (shouldCompact) {
+        try {
+            mcResult = await applyMicrocompact(history as Message[]);
+            if (mcResult && mcResult.messages.length > 0) {
+                compactedHistory = mcResult.messages as ChatCompletionMessageParam[];
+                log.debug(`Applied microcompact: ${mcResult.compactedCount} tools compacted, ~${mcResult.tokensFreed} tokens freed`);
+            }
+        } catch (e) {
+            log.debug(`Microcompact failed: ${e}`);
+            compactedHistory = history;
+        }
+    }
+
     // Check for session-specific settings (provider/model/thinking level)
     const sessionSettings = getSessionSettings(sessionId);
 
@@ -265,7 +273,7 @@ export async function callClaude(
     log.debug(`Thinking level: ${thinkingLevel}`);
 
     // Apply thinking level to user messages in history
-    const enhancedHistory = history.map(msg => {
+    const enhancedHistory = compactedHistory.map(msg => {
         if (msg.role === "user" && typeof msg.content === "string") {
             return {
                 ...msg,
@@ -277,9 +285,20 @@ export async function callClaude(
 
     const sessionFacts = promptContext?.sessionFacts ?? loadFactsForPrompt(sessionId);
     const attachmentContext = promptContext?.attachmentContext ?? getRecentAttachmentContext(sessionId);
-
-    // Combine all system-level context into a single system message
-    let combinedSystemContent = enhancedSystemPrompt;
+    
+    let systemPromptContent = enhancedSystemPrompt;
+    
+    if (configModule.MEMORY_DIRECTORY_ENABLED) {
+        try {
+            const { loadMemoryPrompt } = await import("../memory/memdir.js");
+            const memoryPrompt = await loadMemoryPrompt();
+            if (memoryPrompt) {
+                systemPromptContent += `\n\n${memoryPrompt}`;
+            }
+        } catch (e) {
+            log.debug(`Memory directory not available: ${e}`);
+        }
+    }
 
     if (promptContext?.relevantMemories && promptContext.relevantMemories.length > 0) {
         const filtered = promptContext.relevantMemories.filter(m => m.role !== "tool");
@@ -289,7 +308,7 @@ export async function callClaude(
 
         if (facts.length > 0) {
             const factsContent = facts.map(m => `- ${m.content}`).join("\n");
-            combinedSystemContent += `
+            systemPromptContent += `
 Relevant Facts (verified knowledge):
 ${factsContent}
 `;
@@ -303,7 +322,7 @@ ${factsContent}
                     return `[${roleLabel} - ${date}]\n${m.content}`;
                 })
                 .join("\n\n");
-            combinedSystemContent += `
+            systemPromptContent += `
 Relevant Conversation (contextual):
 These are past conversation snippets. Use them only if clearly relevant to the current task.
 
@@ -313,25 +332,23 @@ ${convContent}
     }
 
     if (sessionFacts) {
-        combinedSystemContent += `\n\nSession memory facts:\n${sessionFacts}`;
+        systemPromptContent += `\n\nSession memory facts:\n${sessionFacts}`;
     }
     if (attachmentContext) {
-        combinedSystemContent += `\n\nRecent attachment memory:\n${attachmentContext}`;
+        systemPromptContent += `\n\nRecent attachment memory:\n${attachmentContext}`;
     }
     if (promptContext?.executionPlan) {
-        combinedSystemContent += `\n\nExecution Plan:\n${promptContext.executionPlan}`;
+        systemPromptContent += `\n\nExecution Plan:\n${promptContext.executionPlan}`;
+    }
+    const MAX_SYSTEM_LENGTH = 50000;
+    if (systemPromptContent.length > MAX_SYSTEM_LENGTH) {
+        log.warn(`System prompt exceeded ${MAX_SYSTEM_LENGTH} chars, trimming from ${systemPromptContent.length}`);
+        systemPromptContent = systemPromptContent.slice(-MAX_SYSTEM_LENGTH);
     }
 
-    // STEP 4 — TOKEN/CONTEXT PROTECTION: Prevent context overflow
-    const MAX_SYSTEM_LENGTH = 8000;
-    if (combinedSystemContent.length > MAX_SYSTEM_LENGTH) {
-        log.warn(`System prompt exceeded ${MAX_SYSTEM_LENGTH} chars, trimming from ${combinedSystemContent.length}`);
-        combinedSystemContent = combinedSystemContent.slice(-MAX_SYSTEM_LENGTH);
-    }
-
-    const messages: ChatCompletionMessageParam[] = [
-        { role: "system", content: combinedSystemContent },
-        ...enhancedHistory,
+const messagesWithSystem: ChatCompletionMessageParam[] = [
+        { role: "system", content: systemPromptContent },
+        ...compactedHistory,
     ];
 
     // Check for session-specific provider/model overrides
@@ -358,13 +375,19 @@ ${convContent}
         attributes: {
             "llm.provider": sessionSettings.provider || deps.config.LLM_PROVIDER,
             "llm.model": sessionSettings.model || deps.config.LLM_MODEL,
-            "llm.history_length": messages.length,
+            "llm.history_length": messagesWithSystem.length,
         },
     });
 
     try {
-        // Call the provider
-        const response = await provider.chat(messages, toolDefinitions);
+        let response: LLMResponse;
+        
+        if (deps.config.RETRY_MAX_RETRIES && deps.config.RETRY_MAX_RETRIES > 0) {
+            const { withRetrySimple } = await import("./retry.js");
+            response = await withRetrySimple(async () => provider.chat(messagesWithSystem, toolDefinitions));
+        } else {
+            response = await provider.chat(messagesWithSystem, toolDefinitions);
+        }
         
         const latency = Date.now() - startTime;
 

@@ -447,6 +447,43 @@ export const configurePluginTool: Tool = {
     }
 };
 
+/**
+ * Shutdown or restart the system
+ */
+export const shutdownSystemTool: Tool = {
+    name: "shutdownSystem",
+    description: "Shutdown or restart the Gravity Claw process (Admin only)",
+    inputSchema: {
+        type: "object",
+        properties: {
+            reason: {
+                type: "string",
+                description: "Reason for shutdown"
+            },
+            restart: {
+                type: "boolean",
+                description: "Whether to restart (if managed by process manager)"
+            }
+        },
+        required: ["reason"]
+    },
+    async execute(input: Record<string, unknown>): Promise<string> {
+        const { reason, restart } = input as { reason: string; restart?: boolean };
+        log.warn(`SYSTEM SHUTDOWN REQUESTED: ${reason} (restart: ${restart})`);
+        
+        // Trigger shutdown in next tick to allow response to be sent
+        setTimeout(() => {
+            log.info("Process exiting...");
+            process.exit(restart ? 0 : 0); // Both exit, process manager should handle restart
+        }, 1000);
+
+        return JSON.stringify({
+            success: true,
+            message: `Shutdown initiated. Reason: ${reason}`
+        });
+    }
+};
+
 export const adminTools = [
     listGroupsForUserTool,
     getGroupSettingsTool,
@@ -455,5 +492,7 @@ export const adminTools = [
     listPluginsTool,
     getPluginDetailsTool,
     togglePluginTool,
-    configurePluginTool
+    configurePluginTool,
+    shutdownSystemTool
 ];
+

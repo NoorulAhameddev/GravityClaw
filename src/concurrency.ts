@@ -2,7 +2,27 @@ import { createLogger } from "./logger.ts";
 
 const log = createLogger("concurrency");
 
-const MAX_CONCURRENT = 5;
+const MAX_CONCURRENT = 10;
+
+/**
+ * Clear all active and pending sessions
+ * Used for system reset and emergency shutdown
+ */
+export function clearSessions(): void {
+    const count = activeAgents.size + pendingQueue.length;
+    log.info(`Clearing ${count} sessions (${activeAgents.size} active, ${pendingQueue.length} queued)`);
+    
+    // Reject all pending
+    for (const item of pendingQueue) {
+        item.reject(new Error("System shutdown or reset requested"));
+    }
+    pendingQueue.length = 0;
+    
+    // Active agents can't be easily stopped if they are already running, 
+    // but we can clear the map so new ones can start or we can exit.
+    activeAgents.clear();
+}
+
 
 interface ActiveAgent {
     sessionId: string;

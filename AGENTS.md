@@ -150,6 +150,27 @@ Register in `src/index.ts` and export from category's `index.ts`.
 - `src/memory/markdown.ts`: persistent facts injected into system prompt
 - `src/memory/supabase.ts`: optional cloud sync (async, non-blocking)
 
+## Token Efficiency & Tool Usage Guidelines
+
+To prevent resource exhaustion and excessive token consumption (especially when using expensive tools like `browser_subagent`), agents MUST follow these rules:
+
+### 1. Avoid Redundant Verification
+- Once a fix is verified (e.g., via logs, terminal output, or a clear screenshot), do NOT run additional verification steps "just to be sure."
+- Trust the evidence obtained. If a screenshot shows a "Live" status, do not launch another browser subagent to click a button unless explicitly requested by the USER for interaction testing.
+
+### 2. Browser Usage (High Cost)
+- **The browser consumes a massive amount of tokens.** Use it only when necessary.
+- Prefer `curl`, `fetch`, or internal health check APIs for verifying connectivity rather than launching a full browser session.
+- If a browser subagent task fails, analyze the error deeply before retrying. Do NOT repeat the exact same task if the failure reason is obvious (e.g., process not running).
+
+### 3. Trust the Logs
+- If the terminal/server logs confirm a process is listening on a port, assume it is accessible locally unless there is evidence of firewall/binding issues.
+- Use `netstat` or `ps` to verify process state instead of visual verification when possible.
+
+### 4. Sequential Execution
+- Avoid launching multiple subagents or parallel tasks that overlap in purpose.
+- If a task requires visual confirmation, take a single screenshot and analyze it thoroughly rather than taking multiple shots in a loop.
+
 ## Commit Messages
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `refactor:`, etc.

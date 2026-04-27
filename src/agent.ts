@@ -18,6 +18,9 @@ import { recordAgentRun, recordToolCall } from "./lib/telemetry/metrics.js";
 import { telemetryLogger } from "./lib/telemetry/logger.js";
 import Ajv from "ajv";
 import crypto from "crypto";
+import { createBudgetTracker, checkTokenBudget } from "./query/tokenBudget.ts";
+import { withRetrySimple } from "./llm/retry.ts";
+import { executeExtractMemories, incrementTurnCount } from "./memory/extractMemories.ts";
 
 const log = createLogger("agent");
 const ajv = new Ajv();
@@ -32,11 +35,14 @@ export function isMeaningfulProgress(result: string): boolean {
         return true;
     }
 
-    if (/\b(error|failed|exception|timeout)\b/.test(normalized)) {
+    // Only treat as non-progress if the ENTIRE result is an error message
+    // (not if it just contains the word "error" somewhere in legitimate content)
+    if (normalized.startsWith("error:") || normalized.startsWith("failed:")) {
         return false;
     }
 
-    if (normalized.length < 20) return false;
+    // Any non-empty result of reasonable length is progress
+    if (normalized.length < 5) return false;
 
     return true;
 }
@@ -55,6 +61,32 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
             setTimeout(() => reject(new Error(`Tool timeout exceeded (${ms}ms)`)), ms)
         )
     ]);
+}
+
+function isToolSafe(toolName: string, toolInput: Record<string, unknown>, validateCommand: (cmd: string) => { allowed: boolean; reason?: string; parsed: { baseCommand: string; args: string[]; hasChaining: boolean; hasRedirection: boolean; hasInjection: boolean } }): boolean {
+    if (toolName === "run_shell") {
+        const cmd = String(toolInput["command"] || "");
+        const validation = validateCommand(cmd);
+        if (!validation.allowed) {
+            telemetryLogger.warn("Blocked command", {
+                command: cmd,
+                reason: validation.reason || "unknown",
+                baseCommand: validation.parsed.baseCommand,
+                args: validation.parsed.args.join(" "),
+                hasChaining: validation.parsed.hasChaining,
+                hasRedirection: validation.parsed.hasRedirection,
+                hasInjection: validation.parsed.hasInjection
+            });
+            return false;
+        }
+        telemetryLogger.info("Allowed command", {
+            command: cmd,
+            baseCommand: validation.parsed.baseCommand,
+            args: validation.parsed.args.join(" ")
+        });
+        return true;
+    }
+    return true;
 }
 
 /**
@@ -148,13 +180,16 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
 
             let iteration = 0;
             let totalToolCalls = 0;
+            let totalTokens = 0;
             const collectedText: string[] = [];
             const previousCalls = new Set<string>();
             let progressMade = false;
             let lastResultHash = "";
+            let consecutiveNoProgress = 0;
             const maxToolsPerIteration = config.AGENT_MAX_TOOLS_PER_ITERATION;
             const maxToolsTotal = config.AGENT_MAX_TOOLS_TOTAL;
             let hitToolLimit = false;
+            let budgetTracker = config.TOKEN_BUDGET_ENABLED ? createBudgetTracker() : null;
 
             while (iteration < maxIterations) {
                 iteration++;
@@ -170,6 +205,24 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
                     { session_id: sessionId, iteration: iteration },
                     SpanKind.INTERNAL
                 );
+
+                if (response.usage) {
+                    totalTokens += response.usage.promptTokens + response.usage.completionTokens;
+                }
+
+                if (config.TOKEN_BUDGET_ENABLED && budgetTracker) {
+                    const budgetDecision = checkTokenBudget(budgetTracker, config.TOKEN_BUDGET_MAX, totalTokens);
+                    if (budgetDecision.action === "continue") {
+                        log.debug(budgetDecision.nudgeMessage);
+                    } else if (budgetDecision.action === "stop" && budgetDecision.completionEvent) {
+                        telemetryLogger.info("agent stopped by token budget", {
+                            session_id: sessionId,
+                            diminishing_returns: budgetDecision.completionEvent.diminishingReturns,
+                            duration_ms: budgetDecision.completionEvent.durationMs,
+                        });
+                        break;
+                    }
+                }
 
                 if (response.text) {
                     collectedText.push(response.text);
@@ -409,37 +462,7 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
                                 }
                             }
 
-                            function isToolSafe(toolName: string, toolInput: Record<string, unknown>): boolean {
-                                if (toolName === "run_shell") {
-                                    const cmd = String(toolInput["command"] || "");
-                                    
-                                    // Use new command validator
-                                    const validation = validateCommand(cmd);
-                                    
-                                    if (!validation.allowed) {
-                                        telemetryLogger.warn("Blocked command", { 
-                                            command: cmd, 
-                                            reason: validation.reason || "unknown",
-                                            baseCommand: validation.parsed.baseCommand,
-                                            args: validation.parsed.args.join(" "),
-                                            hasChaining: validation.parsed.hasChaining,
-                                            hasRedirection: validation.parsed.hasRedirection,
-                                            hasInjection: validation.parsed.hasInjection
-                                        });
-                                        return false;
-                                    }
-                                    
-                                    telemetryLogger.info("Allowed command", { 
-                                        command: cmd,
-                                        baseCommand: validation.parsed.baseCommand,
-                                        args: validation.parsed.args.join(" ")
-                                    });
-                                    return true;
-                                }
-                                return true;
-                            }
-
-                            if (!isToolSafe(name, input)) {
+                            if (!isToolSafe(name, input, validateCommand)) {
                                 addToolResult(
                                     sessionId,
                                     toolCall.id,
@@ -462,7 +485,7 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
                                     `tool.${name}`,
                                     async () => {
                                         const controller = new AbortController();
-                                        const timeoutMs = 10000;
+                                        const timeoutMs = config.AGENT_TOOL_TIMEOUT_MS;
                                         return await withTimeout(
                                             tool.execute({
                                                 ...input,
@@ -518,8 +541,8 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
 
                                 // STEP 6.3 — Error logging standard: tool name, input, stack trace
                                 if (isTimeout) {
-                                    log.warn("Tool timeout", { tool: name, input: sanitizeForLogs(input), iteration, timeoutMs: 10000 });
-                                    telemetryLogger.warn("tool_timeout", { tool: name, input: String(sanitizeForLogs(input)), timeoutMs: 10000 });
+                                    log.debug("Tool timeout", { tool: name, input: sanitizeForLogs(input), iteration, timeoutMs: config.AGENT_TOOL_TIMEOUT_MS });
+                                    telemetryLogger.warn("tool_timeout", { tool: name, input: String(sanitizeForLogs(input)), timeoutMs: config.AGENT_TOOL_TIMEOUT_MS });
                                     addToolResult(
                                         sessionId,
                                         toolCall.id,
@@ -574,13 +597,17 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
                     break;
                 }
 
+                // Track consecutive iterations without progress
                 if (!iterationProgressMade && response.toolCalls.length > 0) {
-                    log.info("No progress made in iteration, breaking loop early");
-                    break;
+                    consecutiveNoProgress++;
+                } else {
+                    consecutiveNoProgress = 0;
                 }
 
-                if (iteration >= 3 && !iterationProgressMade) {
-                    log.info("No progress after 3 iterations, breaking loop early");
+                // Only break early after 2+ consecutive no-progress iterations
+                // This gives the LLM a chance to use tool results before giving up
+                if (consecutiveNoProgress >= 2) {
+                    log.info(`No progress for ${consecutiveNoProgress} consecutive iterations, breaking loop early`);
                     break;
                 }
 
@@ -595,6 +622,19 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
                     messageLength: message.length,
                     timestamp: Date.now(),
                 });
+            }
+
+            // Run memory extraction after each turn if enabled
+            if (config.ENABLE_MEMORY_EXTRACTION) {
+                incrementTurnCount();
+                const extractionMinTurns = config.MEMORY_EXTRACTION_MIN_TURNS ?? 10;
+                const { getTurnCountSinceExtraction } = await import("./memory/extractMemories.js");
+                if (getTurnCountSinceExtraction() >= extractionMinTurns) {
+                    log.debug(`Running memory extraction after ${getTurnCountSinceExtraction()} turns`);
+                    executeExtractMemories({ sessionId }).catch(e => 
+                        log.debug(`Memory extraction failed: ${e}`)
+                    );
+                }
             }
 
             span.setAttribute("agent.success", false);
@@ -612,13 +652,22 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
                             toolCallCount: totalToolCalls,
                             hitLimit: true,
                         };
+                    } else if (consecutiveNoProgress >= 2) {
+                        telemetryLogger.warn("agent no progress", { session_id: sessionId, consecutive: consecutiveNoProgress });
+                        recordAgentRun(false, "no_progress");
+                        const collected = collectedText.join("\n").trim();
+                        return {
+                            text: collected || "I wasn't able to make progress on that request. Could you try rephrasing?",
+                            toolCallCount: totalToolCalls,
+                            hitLimit: true,
+                        };
                     } else {
                         telemetryLogger.warn("agent max iterations", { session_id: sessionId });
                         recordAgentRun(false, "max_iterations");
+                        const collected = collectedText.join("\n").trim();
                         return {
-                            text:
-                                `⚠️ Stopped due to iteration limit. The task may be incomplete.\n\n` +
-                                `Here's what I had so far:\n\n${collectedText.join("\n").trim()}`,
+                            text: collected ||
+                                `⚠️ Stopped due to iteration limit. The task may be incomplete.`,
                             toolCallCount: totalToolCalls,
                             hitLimit: true,
                         };

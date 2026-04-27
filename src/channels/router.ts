@@ -832,7 +832,6 @@ export class ChannelRouter {
 
                 const result = await swarm.orchestrate(goal, subTasks);
 
-                // Send individual agent results
                 let resultsMsg = `✅ **Swarm Execution Complete**\n\n`;
                 resultsMsg += `**Agents engaged**: ${result.agentResults.length}\n\n`;
 
@@ -876,6 +875,59 @@ export class ChannelRouter {
                 pending.resolve(false);
                 this.pendingConfirmations.delete(key);
                 await channel.sendMessage(msg.chatId, "🚫 Cancelled.");
+            }
+            return;
+        }
+
+
+        // Command: /shutdown - Emergency process termination
+        if (msg.text.trim() === "/shutdown") {
+            // Only allow from TELEGRAM_ALLOWED_USER_ID if on Telegram
+            if (msg.channelId === "telegram" && msg.userId !== config.TELEGRAM_ALLOWED_USER_ID) {
+                await channel.sendMessage(msg.chatId, "❌ Unauthorized: You do not have permission to shutdown the system.");
+                return;
+            }
+
+            await channel.sendMessage(msg.chatId, "⚠️ **System Shutdown Initiated**\n\nClearing sessions and exiting process...");
+            
+            const { clearSessions } = await import("../concurrency.ts");
+            clearSessions();
+
+            // Delay exit to allow message delivery
+            setTimeout(() => {
+                log.warn(`Emergency shutdown triggered by user ${msg.userId}`);
+                process.exit(0);
+            }, 1500);
+            return;
+        }
+
+        // Command: /reset - Clear state and sessions
+        if (msg.text.trim() === "/reset") {
+            if (msg.channelId === "telegram" && msg.userId !== config.TELEGRAM_ALLOWED_USER_ID) {
+                await channel.sendMessage(msg.chatId, "❌ Unauthorized: You do not have permission to reset the system.");
+                return;
+            }
+
+            await channel.sendMessage(msg.chatId, "🔄 **System Reset Initiated**\n\nPurging abandoned workflows and clearing active sessions...");
+
+            try {
+                const { clearSessions } = await import("../concurrency.ts");
+                clearSessions();
+
+                // Clear DB tables
+                const tables = ["workflows", "workflow_tasks", "agent_swarms", "execution_plans", "background_tasks"];
+                for (const table of tables) {
+                    try {
+                        db.prepare(`DELETE FROM ${table}`).run();
+                    } catch (e) {
+                        log.error(`Failed to clear table ${table}:`, e);
+                    }
+                }
+
+                await channel.sendMessage(msg.chatId, "✅ **System Reset Complete**\n\nAll stalled workflows cleared. You can now start new tasks.");
+            } catch (err) {
+                log.error("Reset failed:", err);
+                await channel.sendMessage(msg.chatId, `❌ **Reset Failed**: ${err instanceof Error ? err.message : String(err)}`);
             }
             return;
         }

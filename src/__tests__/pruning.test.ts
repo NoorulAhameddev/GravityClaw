@@ -20,6 +20,19 @@ import { addUserMessage, addAssistantMessage, getHistory, clearHistory } from ".
 import { db } from "../db.ts";
 import { config } from "../config.ts";
 import type { LLMMessage } from "../llm/index.ts";
+import { vi } from "vitest";
+
+vi.mock("../llm/index.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../llm/index.ts")>();
+  return {
+    ...actual,
+    getProvider: () => ({
+      chat: vi.fn().mockResolvedValue({
+        text: "<context_summary>\nMocked context summary for test.\n</context_summary>"
+      })
+    })
+  };
+});
 
 const TEST_SESSION = "pruning-test-session";
 const testDeps = { db, config };
@@ -73,7 +86,7 @@ describe("Context Pruning", () => {
 
     it("should respect custom threshold", () => {
       for (let i = 0; i < 30; i++) {
-        addUserMessage(TEST_SESSION, "x".repeat(2000), testDeps);
+        addUserMessage(TEST_SESSION, "x".repeat(5000), testDeps);
       }
 
       // Should be below 80% threshold

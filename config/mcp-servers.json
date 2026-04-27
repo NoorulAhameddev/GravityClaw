@@ -10,7 +10,7 @@
       "env": {
         "NOTION_ACCESS_TOKEN": "${NOTION_ACCESS_TOKEN}"
       },
-      "disabled": false
+      "disabled": true
     },
     "playwright": {
       "command": "npx.cmd",
@@ -20,6 +20,35 @@
       ],
       "env": {},
       "disabled": false
+    },
+    "browser-use": {
+      "command": "npx.cmd",
+      "args": [
+        "-y",
+        "browser-use-mcp-server"
+      ],
+      "env": {},
+      "disabled": true
+    },
+    "puppeteer": {
+      "command": "npx.cmd",
+      "args": [
+        "-y",
+        "puppeteer-mcp"
+      ],
+      "env": {},
+      "disabled": true
+    },
+    "firecrawl": {
+      "command": "npx.cmd",
+      "args": [
+        "-y",
+        "@mendable/firecrawl-mcp-server"
+      ],
+      "env": {
+        "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}"
+      },
+      "disabled": true
     }
   }
 }

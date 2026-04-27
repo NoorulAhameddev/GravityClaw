@@ -17,11 +17,16 @@ export class WebChatChannel implements Channel {
     private clients: Set<WebSocket> = new Set();
     private onMessageCb?: (msg: UnifiedMessage) => Promise<void>;
 
+    private isStarted = false;
+
     async start(onMessage: (msg: UnifiedMessage) => Promise<void>): Promise<void> {
         this.onMessageCb = onMessage;
 
         // Ensure the HTTP/WS server is started
         await startServer();
+
+        if (this.isStarted) return;
+        this.isStarted = true;
 
         wss.on("connection", (ws) => {
             log.info(`📡 [WebChat] New WebSocket client connected (total: ${this.clients.size + 1})`);

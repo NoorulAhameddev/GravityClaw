@@ -128,7 +128,7 @@ export function getSessionSettingsFromDb(sessionId: string): SessionSettings | n
   try {
     const row = db
       .prepare(
-        `SELECT settings FROM memory WHERE session_id = ? AND settings != '{}' LIMIT 1`
+        `SELECT settings FROM memory WHERE session_id = ? AND settings != '{}' AND settings IS NOT NULL ORDER BY timestamp DESC LIMIT 1`
       )
       .get(sessionId) as { settings: string } | undefined;
 
@@ -156,7 +156,7 @@ export function updateSessionSettingsInDb(
     const updated = { ...current, ...settings };
 
     db.prepare(
-      `UPDATE memory SET settings = ?, timestamp = CURRENT_TIMESTAMP WHERE session_id = ? ORDER BY timestamp DESC LIMIT 1`
+      `UPDATE memory SET settings = ? WHERE session_id = ?`
     ).run(JSON.stringify(updated), sessionId);
   } catch (err) {
     log.error(`Failed to update session settings: ${err}`);
@@ -257,9 +257,9 @@ export function insertUsageRecord(
 ): void {
   try {
     db.prepare(
-      `INSERT INTO usage (session_id, model, input_tokens, output_tokens, cost_usd)
-       VALUES (?, ?, ?, ?, ?)`
-    ).run(sessionId, model, inputTokens, outputTokens, costUsd);
+      `INSERT INTO usage (session_id, model, prompt_tokens, completion_tokens, total_tokens, cost)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ).run(sessionId, model, inputTokens, outputTokens, inputTokens + outputTokens, costUsd);
   } catch (err) {
     log.warn(`Failed to insert usage record: ${err}`);
   }

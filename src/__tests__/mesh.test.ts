@@ -7,6 +7,32 @@ import {
   type DAGValidationResult,
 } from "../agents/mesh.ts";
 
+vi.mock("../llm/index.ts", () => ({
+  getProvider: () => ({
+    chat: vi.fn().mockResolvedValue({
+      text: JSON.stringify({
+        goalDescription: "Mocked Goal Description",
+        tasks: [
+          {
+            id: "1",
+            description: "Mocked task",
+            dependsOn: []
+          }
+        ]
+      })
+    })
+  }),
+  addUserMessage: vi.fn(),
+  getHistory: vi.fn().mockReturnValue([])
+}));
+
+vi.mock("../agent.ts", () => ({
+  runAgent: vi.fn().mockResolvedValue({
+    success: true,
+    text: "Mocked task execution result"
+  })
+}));
+
 describe("Mesh Workflow System", () => {
   const testSessionId = "test:mesh";
   let mesh: MeshWorkflow;

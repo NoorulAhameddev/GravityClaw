@@ -36,9 +36,9 @@
     "gravityclaw": "./bin/gravityclaw.mjs"
   },
   "scripts": {
-    "dev": "npx tsx watch src/index.ts",
-    "start": "node --max-old-space-size=512 node_modules/tsx src/index.ts",
-    "cli": "tsx src/cli.ts",
+    "dev": "npx tsx watch --exclude gravity.db* --exclude logs/**/* src/index.ts",
+    "start": "node --max-old-space-size=512 node_modules/tsx/dist/cli.mjs src/index.ts",
+    "cli": "npx tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest --config config/vitest.config.ts",
     "test:ui": "vitest --ui --config config/vitest.config.ts",
@@ -57,7 +57,12 @@
     "secret:rotate": "npx tsx scripts/secret-manager.ts rotate",
     "secret:cleanup": "npx tsx scripts/secret-manager.ts cleanup",
     "secret:export": "npx tsx scripts/secret-manager.ts export",
-    "secret:import": "npx tsx scripts/secret-manager.ts import"
+    "secret:import": "npx tsx scripts/secret-manager.ts import",
+    "test:e2e": "npx playwright test",
+    "test:e2e:ui": "npx playwright test --ui",
+    "test:e2e:headed": "npx playwright test --headed",
+    "test:e2e:debug": "npx playwright test --debug",
+    "test:e2e:report": "npx playwright show-report"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -106,7 +111,9 @@
     "grammy": "^1.31.0",
     "groq-sdk": "^0.37.0",
     "imap": "^0.8.19",
+    "lodash": "^4.18.1",
     "multer": "^2.1.1",
+    "music-metadata": "^11.12.3",
     "node-cron": "^4.2.1",
     "node-record-lpcm16": "^1.0.1",
     "nodemailer": "^8.0.2",
@@ -120,8 +127,13 @@
     "yaml": "^2.8.2",
     "zod": "^3.23.8"
   },
+  "overrides": {
+    "fast-xml-parser": "^4.4.1",
+    "brace-expansion": "^2.0.2"
+  },
   "devDependencies": {
     "@playwright/mcp": "^0.0.68",
+    "@playwright/test": "^1.59.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

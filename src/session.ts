@@ -97,7 +97,7 @@ export function getSessionSettings(sessionId: string): SessionSettings {
     const row = db.prepare(`
       SELECT settings 
       FROM memory 
-      WHERE session_id = ? 
+      WHERE session_id = ? AND settings != '{}' AND settings IS NOT NULL
       ORDER BY timestamp DESC 
       LIMIT 1
     `).get(sessionId) as { settings: string } | undefined;
@@ -121,37 +121,39 @@ export function getSessionSettings(sessionId: string): SessionSettings {
  * Set session settings in database
  * Updates the settings for all existing rows in this session
  * If no rows exist, creates an initial system message with the settings
+ * Uses a transaction to prevent race conditions
  * @param sessionId - Session identifier
  * @param settings - Settings to save
  */
 export function setSessionSettings(sessionId: string, settings: SessionSettings): void {
+  const settingsJson = JSON.stringify(settings);
+  
   try {
-    const settingsJson = JSON.stringify(settings);
-    
-    // Update all rows for this session with new settings
-    const result = db.prepare(`
-      UPDATE memory 
-      SET settings = ? 
-      WHERE session_id = ?
-    `).run(settingsJson, sessionId);
-    
-    log.info(`Updated settings for session ${sessionId} (${result.changes} rows affected)`);
-    
-    // If no rows were updated, create an initial placeholder message with settings
-    if (result.changes === 0) {
-      log.debug(`Creating initial placeholder for session ${sessionId} with settings`);
+    // Use transaction to prevent race conditions
+    const transaction = db.transaction(() => {
+      // Update settings for all rows in this session to ensure the latest row has them
+      const result = db.prepare(`
+        UPDATE memory 
+        SET settings = ? 
+        WHERE session_id = ?
+      `).run(settingsJson, sessionId);
       
-      // Create a system-level metadata message (not visible in conversation)
-      const metadataMessage = {
-        role: "system",
-        content: "", // Empty content - this is just for storing settings
-      };
-      
-      db.prepare(`
-        INSERT INTO memory (session_id, message_json, settings) 
-        VALUES (?, ?, ?)
-      `).run(sessionId, JSON.stringify(metadataMessage), settingsJson);
-    }
+      // If no rows were updated, create a new placeholder
+      if (result.changes === 0) {
+        const metadataMessage = {
+          role: "system",
+          content: "",
+        };
+        
+        db.prepare(`
+          INSERT INTO memory (session_id, message_json, settings) 
+          VALUES (?, ?, ?)
+        `).run(sessionId, JSON.stringify(metadataMessage), settingsJson);
+      }
+    });
+    
+    transaction();
+    log.info(`Saved settings for session ${sessionId}`);
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     log.error(`Error saving session settings for ${sessionId}: ${errMsg}`);
@@ -271,7 +273,7 @@ export function getSessionStats(sessionId: string): {
       };
     }
     
-    // Count user and assistant messages separately
+    // Count user and assistant messages separately using json_extract
     const roleCounts = db.prepare(`
       SELECT 
         SUM(CASE WHEN json_extract(message_json, '$.role') = 'user' THEN 1 ELSE 0 END) as user_count,

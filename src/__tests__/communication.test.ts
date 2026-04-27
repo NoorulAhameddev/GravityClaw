@@ -9,31 +9,33 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { db } from "../db.ts";
 import { AgentMessaging, type Message } from "../agents/communication.ts";
 
-// Test session IDs
-const parentSessionId = "test:parent:session";
-const childSessionId = "test:child:session";
-const otherSessionId = "test:other:session";
+// Test session IDs with unique prefix to avoid interference
+const parentSessionId = "test:comm:parent:session";
+const childSessionId = "test:comm:child:session";
+const otherSessionId = "test:comm:other:session";
 
 describe("Agent-to-Agent Communication", () => {
   beforeEach(() => {
-    // Clean up test data before each test
-    db.prepare("DELETE FROM messages WHERE from_session_id LIKE 'test:%' OR to_session_id LIKE 'test:%'").run();
-    db.prepare("DELETE FROM permissions WHERE session_id LIKE 'test:%' OR target_session_id LIKE 'test:%'").run();
-    db.prepare("DELETE FROM sessions WHERE id LIKE 'test:%'").run();
-    db.prepare("DELETE FROM agent_swarms WHERE parent_session_id LIKE 'test:%' OR child_session_id LIKE 'test:%'").run();
+    // Clean up only our specific test data
+    db.prepare("DELETE FROM messages WHERE from_session_id LIKE 'test:comm:%' OR to_session_id LIKE 'test:comm:%'").run();
+    db.prepare("DELETE FROM permissions WHERE session_id LIKE 'test:comm:%' OR target_session_id LIKE 'test:comm:%'").run();
+    db.prepare("DELETE FROM sessions WHERE id LIKE 'test:comm:%'").run();
+    db.prepare("DELETE FROM agent_swarms WHERE parent_session_id LIKE 'test:comm:%' OR child_session_id LIKE 'test:comm:%'").run();
+    db.prepare("DELETE FROM memory WHERE session_id LIKE 'test:comm:%'").run();
   });
 
   afterEach(() => {
-    // Clean up test data after each test
-    db.prepare("DELETE FROM messages WHERE from_session_id LIKE 'test:%' OR to_session_id LIKE 'test:%'").run();
-    db.prepare("DELETE FROM permissions WHERE session_id LIKE 'test:%' OR target_session_id LIKE 'test:%'").run();
-    db.prepare("DELETE FROM sessions WHERE id LIKE 'test:%'").run();
-    db.prepare("DELETE FROM agent_swarms WHERE parent_session_id LIKE 'test:%' OR child_session_id LIKE 'test:%'").run();
+    // Clean up only our specific test data
+    db.prepare("DELETE FROM messages WHERE from_session_id LIKE 'test:comm:%' OR to_session_id LIKE 'test:comm:%'").run();
+    db.prepare("DELETE FROM permissions WHERE session_id LIKE 'test:comm:%' OR target_session_id LIKE 'test:comm:%'").run();
+    db.prepare("DELETE FROM sessions WHERE id LIKE 'test:comm:%'").run();
+    db.prepare("DELETE FROM agent_swarms WHERE parent_session_id LIKE 'test:comm:%' OR child_session_id LIKE 'test:comm:%'").run();
+    db.prepare("DELETE FROM memory WHERE session_id LIKE 'test:comm:%'").run();
   });
 
   describe("sessions_list", () => {
-    it("should return empty list when no sessions exist", () => {
-      const sessions = AgentMessaging.listSessions();
+    it("should return empty list when no sessions with our prefix exist", () => {
+      const sessions = AgentMessaging.listSessions().filter(s => s.id.startsWith("test:comm:"));
       expect(sessions).toHaveLength(0);
     });
 
@@ -48,7 +50,7 @@ describe("Agent-to-Agent Communication", () => {
         JSON.stringify({ role: "user", content: "test" })
       );
 
-      const sessions = AgentMessaging.listSessions();
+      const sessions = AgentMessaging.listSessions().filter(s => s.id.startsWith("test:comm:"));
 
       expect(sessions.length).toBeGreaterThanOrEqual(2);
       const parentFound = sessions.find((s) => s.id === parentSessionId);
@@ -68,14 +70,14 @@ describe("Agent-to-Agent Communication", () => {
       );
 
       // Initially messaging disabled
-      let sessions = AgentMessaging.listSessions();
+      let sessions = AgentMessaging.listSessions().filter(s => s.id.startsWith("test:comm:"));
       const session1 = sessions.find((s) => s.id === parentSessionId);
       expect(session1?.allowMessages).toBe(false);
 
       // Enable messaging
       AgentMessaging.setAllowMessages(parentSessionId, true);
 
-      sessions = AgentMessaging.listSessions();
+      sessions = AgentMessaging.listSessions().filter(s => s.id.startsWith("test:comm:"));
       const session2 = sessions.find((s) => s.id === parentSessionId);
       expect(session2?.allowMessages).toBe(true);
     });
@@ -131,6 +133,7 @@ describe("Agent-to-Agent Communication", () => {
 
     it("should allow multiple messages between same sessions", () => {
       AgentMessaging.setAllowMessages(childSessionId, true);
+      AgentMessaging.setAllowMessages(parentSessionId, true);
 
       AgentMessaging.sendMessage(parentSessionId, childSessionId, "message 1");
       AgentMessaging.sendMessage(parentSessionId, childSessionId, "message 2");
@@ -425,8 +428,8 @@ describe("Agent-to-Agent Communication", () => {
 
   describe("integration scenarios", () => {
     it("should support research → writer agent flow", () => {
-      const researchSessionId = "session:research-agent";
-      const writerSessionId = "session:writer-agent";
+      const researchSessionId = "test:comm:research-agent";
+      const writerSessionId = "test:comm:writer-agent";
 
       // Researcher publishes findings
       AgentMessaging.setAllowMessages(researchSessionId, true);

@@ -137,7 +137,7 @@ export class MCPClient {
 
     // Handle process exit
     serverProcess.on("exit", (code: number | null) => {
-      log.warn(`MCP server "${name}" exited with code ${code}`);
+      log.info(`MCP server "${name}" stopped (code: ${code})`);
       server.connected = false;
       this.servers.delete(name);
     });

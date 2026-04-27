@@ -73,7 +73,7 @@ const DEFAULT_CONFIGS: Record<string, RateLimitConfig> = {
   // Session-wide limit
   "session": {
     requestsPerMinute: 100,
-    burstSize: 10,
+    burstSize: 100,
     refillInterval: 60000, // 60 seconds
   },
   // Tool categories
@@ -140,6 +140,7 @@ const TOOL_CATEGORIES: Record<string, string> = {
 export class RateLimiter {
   private buckets: Map<string, TokenBucket> = new Map();
   private history: RateLimitHistoryEntry[] = [];
+  private customLimitsMap: Map<string, number> = new Map();
   private maxHistorySize: number = 10000;
   private cleanupIntervalMs: number = 5 * 60 * 1000; // 5 minutes
   private isEnvironmentDev: boolean = (process.env.NODE_ENV || "development") === "development";
@@ -218,8 +219,12 @@ export class RateLimiter {
     let bucket = this.buckets.get(identifier);
     
     if (!bucket) {
+      // Extract config category from compound keys like 'session:xyz', 'tool:xyz:voice'
+      const configKey = identifier.startsWith("session:") ? "session"
+        : identifier.startsWith("tool:") ? identifier.split(":").slice(2).join(":") || "tool"
+        : identifier;
       bucket = {
-        tokens: this.getConfig(identifier).burstSize,
+        tokens: this.getConfig(configKey).burstSize,
         lastRefillTime: Date.now(),
         requestCount: 0,
         hitCount: 0,
@@ -290,48 +295,56 @@ export class RateLimiter {
     const toolConfig = this.getConfig(toolCategory);
     this.refillTokens(toolBucket, toolConfig);
 
-    // Check specific tool limit
-    const specificToolKey = `tool:${sessionId}:${toolName}`;
-    const specificToolBucket = this.getBucket(specificToolKey);
-    const specificToolConfig = this.getConfig("tool");
-    this.refillTokens(specificToolBucket, specificToolConfig);
-
     const tokensRequired = 1;
-    
+
+    // Only apply specific-tool limit for uncategorized tools
+    let specificToolAllowed = true;
+    let specificToolBucket: TokenBucket | undefined;
+    if (toolCategory === "tool") {
+      const specificToolKey = `tool:${sessionId}:${toolName}`;
+      specificToolBucket = this.getBucket(specificToolKey);
+      const specificToolConfig = this.getConfig("tool");
+      this.refillTokens(specificToolBucket, specificToolConfig);
+      specificToolAllowed = specificToolBucket.tokens >= tokensRequired;
+    }
+
+
     // Determine if allowed
     const sessionAllowed = sessionBucket.tokens >= tokensRequired;
     const toolAllowed = toolBucket.tokens >= tokensRequired;
-    const specificToolAllowed = specificToolBucket.tokens >= tokensRequired;
     
     const allowed = sessionAllowed && toolAllowed && specificToolAllowed;
 
     // Update history
+    const minTokens = specificToolBucket
+      ? Math.min(sessionBucket.tokens, toolBucket.tokens, specificToolBucket.tokens)
+      : Math.min(sessionBucket.tokens, toolBucket.tokens);
     this.recordHistory({
       timestamp: now,
       sessionId,
       toolName,
       allowed,
-      tokensAvailable: Math.min(sessionBucket.tokens, toolBucket.tokens, specificToolBucket.tokens),
+      tokensAvailable: minTokens,
     });
 
     if (allowed) {
       // Consume tokens
       sessionBucket.tokens -= tokensRequired;
       toolBucket.tokens -= tokensRequired;
-      specificToolBucket.tokens -= tokensRequired;
+      if (specificToolBucket) specificToolBucket.tokens -= tokensRequired;
       
       sessionBucket.requestCount++;
       toolBucket.requestCount++;
-      specificToolBucket.requestCount++;
+      if (specificToolBucket) specificToolBucket.requestCount++;
     } else {
       // Record hit
       sessionBucket.hitCount++;
       toolBucket.hitCount++;
-      specificToolBucket.hitCount++;
+      if (specificToolBucket) specificToolBucket.hitCount++;
       
       sessionBucket.lastHitTime = now;
       toolBucket.lastHitTime = now;
-      specificToolBucket.lastHitTime = now;
+      if (specificToolBucket) specificToolBucket.lastHitTime = now;
 
       // Log if too many hits
       if (sessionBucket.hitCount > 5 && (now - (sessionBucket.lastHitTime || 0)) < 60000) {
@@ -344,10 +357,13 @@ export class RateLimiter {
     // Calculate reset time
     const resetTime = now + this.getTimeUntilRefill(sessionBucket, effectiveSessionConfig) * 1000;
     const retryAfter = this.getTimeUntilRefill(sessionBucket, effectiveSessionConfig);
+    const tokensAvailable = specificToolBucket
+      ? Math.min(sessionBucket.tokens, toolBucket.tokens, specificToolBucket.tokens)
+      : Math.min(sessionBucket.tokens, toolBucket.tokens);
 
     return {
       allowed,
-      tokensAvailable: Math.min(sessionBucket.tokens, toolBucket.tokens, specificToolBucket.tokens),
+      tokensAvailable,
       tokensRequired,
       requestsThisMinute: sessionBucket.requestCount,
       resetTime,
@@ -362,11 +378,13 @@ export class RateLimiter {
   /**
    * Get the current rate limit status for a session
    */
-  getStatus(sessionId: string, toolName?: string): RateLimitStatus {
+  getStatus(sessionId: string, _toolName?: string): RateLimitStatus {
     const now = Date.now();
     const sessionKey = `session:${sessionId}`;
     const sessionBucket = this.getBucket(sessionKey);
     const sessionConfig = this.getConfig("session");
+    const customRpm = this.customLimitsMap.get(sessionId);
+    const effectiveRpm = customRpm ?? sessionConfig.requestsPerMinute;
 
     this.refillTokens(sessionBucket, sessionConfig);
 
@@ -381,7 +399,7 @@ export class RateLimiter {
       resetTime,
       retryAfter,
       limit: {
-        requestsPerMinute: sessionConfig.requestsPerMinute,
+        requestsPerMinute: effectiveRpm,
         burstSize: sessionConfig.burstSize,
       },
     };
@@ -401,6 +419,8 @@ export class RateLimiter {
       );
       return false;
     }
+
+    this.customLimitsMap.set(sessionId, newLimitRpm);
 
     try {
       db.prepare(`
@@ -538,6 +558,7 @@ export class RateLimiter {
           this.buckets.delete(key);
         }
       }
+      this.customLimitsMap.delete(sessionId);
 
       // Clear database entries
       db.prepare("DELETE FROM rate_limits WHERE session_id = ?").run(sessionId);

@@ -125,15 +125,18 @@ export function validateCommand(command: string): CommandValidation {
   // 5. Get base command
   const baseCommand = tokens[0]?.toLowerCase() || '';
   
-  // 4b. Check for dangerous environment patterns
-  const hasEnvAccess = DANGEROUS_ENV_PATTERNS.some(pattern => 
+  // 4b. Check for dangerous environment patterns - handle $VAR and %VAR% formats
+  const hasDollarVar = /\$[a-zA-Z_][a-zA-Z0-9_]*/.test(command);
+  const hasPercentVar = /%[a-zA-Z_][a-zA-Z0-9_]*%/i.test(command);
+  const hasBacktick = /`/.test(command);
+  const hasEnvAccess = hasDollarVar || hasPercentVar || hasBacktick || DANGEROUS_ENV_PATTERNS.some(pattern => 
     command.toLowerCase().includes(pattern.toLowerCase())
   );
   if (hasEnvAccess) {
     return {
       allowed: false,
-      reason: 'Environment variable access not allowed',
-      parsed: { baseCommand, args: tokens.slice(1), hasChaining, hasRedirection, hasInjection }
+      reason: hasBacktick ? 'Command substitution not allowed' : 'Environment variable access not allowed',
+      parsed: { baseCommand, args: tokens.slice(1), hasChaining: hasChaining || hasBacktick, hasRedirection, hasInjection }
     };
   }
   
