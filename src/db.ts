@@ -54,6 +54,7 @@ if (databaseUrl) {
         db.exec(`ALTER TABLE memory ADD COLUMN settings TEXT DEFAULT '{}'`);
         log.info("Added settings column to memory table");
     } catch (err) {
+        log.debug("Settings column already exists or migration skipped");
     }
 
     db.exec(`
@@ -194,11 +195,13 @@ if (databaseUrl) {
     try {
         db.exec(`ALTER TABLE agent_swarms RENAME COLUMN parent_session TO parent_session_id`);
     } catch (err) {
+        log.debug("Column parent_session_id may already exist or migration skipped");
     }
 
     try {
         db.exec(`ALTER TABLE agent_swarms RENAME COLUMN child_session TO child_session_id`);
     } catch (err) {
+        log.debug("Column child_session_id may already exist or migration skipped");
     }
 
     db.exec(`

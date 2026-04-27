@@ -69,18 +69,25 @@ export class AgentMessaging {
    * @throws Error if fromSessionId doesn't have permission to send to toSessionId
    */
   static sendMessage(fromSessionId: string, toSessionId: string, message: string): void {
-    log.debug(`Sending message from ${fromSessionId} to ${toSessionId}`);
-
-    // Check if target session has messaging enabled
-    if (!this.canReceiveMessages(toSessionId)) {
-      throw new Error(`Session ${toSessionId} does not allow messages`);
+    // Ensure both sessions exist to satisfy foreign key constraints
+    try {
+      db.prepare("INSERT OR IGNORE INTO sessions (id) VALUES (?)").run(fromSessionId);
+      db.prepare("INSERT OR IGNORE INTO sessions (id) VALUES (?)").run(toSessionId);
+    } catch (err) {
+      log.debug(`Non-fatal error ensuring sessions exist: ${err}`);
+      // Continue anyway, if FK fails it will be caught in next step
     }
 
-    // Check if sender has permission to send to this session
-    if (!this.hasPermission(fromSessionId, toSessionId, "write")) {
-      // Allow if sender and receiver have parent-child relationship
-      if (!this.hasAgentRelationship(fromSessionId, toSessionId)) {
-        throw new Error(`Session ${fromSessionId} does not have permission to send to ${toSessionId}`);
+    // Check if target session allows messages
+    const allowsPublic = this.canReceiveMessages(toSessionId);
+
+    // If not globally allowed, check for explicit permission or relationship
+    if (!allowsPublic) {
+      if (!this.hasPermission(fromSessionId, toSessionId, "write")) {
+        // Allow if sender and receiver have parent-child relationship
+        if (!this.hasAgentRelationship(fromSessionId, toSessionId)) {
+          throw new Error(`Session ${toSessionId} does not allow messages and no permission exists from ${fromSessionId}`);
+        }
       }
     }
 
@@ -110,18 +117,27 @@ export class AgentMessaging {
    */
   static readHistory(sessionId: string, limit?: number): Message[] {
     try {
-      let query = `
-        SELECT id, from_session_id, to_session_id, content, timestamp
-        FROM messages
-        WHERE to_session_id = ?
-        ORDER BY timestamp DESC
-      `;
-
+      let query: string;
       const params: unknown[] = [sessionId];
 
       if (limit !== undefined && limit > 0) {
-        query += ` LIMIT ?`;
+        query = `
+          SELECT * FROM (
+            SELECT id, from_session_id, to_session_id, content, timestamp, rowid
+            FROM messages
+            WHERE to_session_id = ?
+            ORDER BY timestamp DESC, rowid DESC
+            LIMIT ?
+          ) ORDER BY timestamp ASC, rowid ASC
+        `;
         params.push(limit);
+      } else {
+        query = `
+          SELECT id, from_session_id, to_session_id, content, timestamp
+          FROM messages
+          WHERE to_session_id = ?
+          ORDER BY timestamp ASC, rowid ASC
+        `;
       }
 
       const rows = db.prepare(query).all(...params) as Array<{
@@ -132,15 +148,13 @@ export class AgentMessaging {
         timestamp: string;
       }>;
 
-      const messages: Message[] = rows
-        .reverse() // Reverse to get chronological order
-        .map((row) => ({
-          id: row.id,
-          fromSessionId: row.from_session_id,
-          toSessionId: row.to_session_id,
-          content: row.content,
-          timestamp: new Date(row.timestamp),
-        }));
+      const messages: Message[] = rows.map((row) => ({
+        id: row.id,
+        fromSessionId: row.from_session_id,
+        toSessionId: row.to_session_id,
+        content: row.content,
+        timestamp: new Date(row.timestamp),
+      }));
 
       log.debug(`Read ${messages.length} messages for session ${sessionId}`);
       return messages;
@@ -163,7 +177,13 @@ export class AgentMessaging {
     targetSessionId: string,
     permission: Omit<MessagePermission, "grantedAt" | "grantedBy">
   ): void {
-    log.debug(`Granting ${JSON.stringify(permission)} from ${sessionId} to ${targetSessionId}`);
+    // Ensure sessions exist in sessions table for FK constraints
+    try {
+      db.prepare("INSERT OR IGNORE INTO sessions (id) VALUES (?)").run(sessionId);
+      db.prepare("INSERT OR IGNORE INTO sessions (id) VALUES (?)").run(targetSessionId);
+    } catch (err) {
+      log.debug(`Non-fatal: Error ensuring sessions for grantPermission: ${err}`);
+    }
 
     const permissionId = randomUUID();
     const now = new Date();

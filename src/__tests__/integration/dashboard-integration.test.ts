@@ -120,7 +120,7 @@ describe("Dashboard Integration Tests", () => {
       const updated = getSessionSettingsFromDb(testSessionId);
 
       expect(updated?.provider).toBe("openai");
-      expect(updated?.model).toBe("test-model"); // From initial creation
+      expect(updated?.model).toBe(mockSessionSettings.model); // From initial creation
     });
 
     it("should handle voice settings", async () => {

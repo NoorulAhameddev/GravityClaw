@@ -22,75 +22,87 @@ describe("Rate Limiter", () => {
 
   describe("Token Bucket Algorithm", () => {
     it("should allow requests within the limit", () => {
+      // Use a categorized tool (memory, burst=20) to test within-limit behavior
       for (let i = 0; i < 10; i++) {
-        const status = rateLimiter.checkRateLimit(testSessionId, "test_tool");
+        const status = rateLimiter.checkRateLimit(testSessionId, "save_fact");
         expect(status.allowed).toBe(true);
         expect(status.tokensAvailable).toBeGreaterThanOrEqual(0);
       }
     });
 
     it("should deny requests that exceed the burst", () => {
-      // Burst size is 10 for session level
-      for (let i = 0; i < 10; i++) {
-        const status = rateLimiter.checkRateLimit(testSessionId, "test_tool");
+      // Voice category burst=5: use dedicated session to test category-level denial
+      const bucketSession = "bucket-test-" + Date.now();
+      for (let i = 0; i < 5; i++) {
+        const status = rateLimiter.checkRateLimit(bucketSession, "text_to_speech");
         expect(status.allowed).toBe(true);
       }
 
-      // 11th request should fail
-      const status = rateLimiter.checkRateLimit(testSessionId, "test_tool");
+      // 6th request should fail (voice burst=5 exhausted)
+      const status = rateLimiter.checkRateLimit(bucketSession, "text_to_speech");
       expect(status.allowed).toBe(false);
       expect(status.retryAfter).toBeGreaterThan(0);
+      rateLimiter.resetSessionLimits(bucketSession);
     });
 
     it("should calculate correct retry time", () => {
-      // Use up the burst
-      for (let i = 0; i < 10; i++) {
-        rateLimiter.checkRateLimit(testSessionId, "test_tool");
+      // Use up voice burst
+      const retrySession = "retry-test-" + Date.now();
+      for (let i = 0; i < 5; i++) {
+        rateLimiter.checkRateLimit(retrySession, "text_to_speech");
       }
 
       // Next request should be denied
-      const status = rateLimiter.checkRateLimit(testSessionId, "test_tool");
+      const status = rateLimiter.checkRateLimit(retrySession, "text_to_speech");
       expect(status.allowed).toBe(false);
       expect(status.retryAfter).toBeGreaterThanOrEqual(0);
       expect(status.resetTime).toBeGreaterThan(Date.now());
+      rateLimiter.resetSessionLimits(retrySession);
     });
   });
 
+
   describe("Tool Category Limiting", () => {
     it("should apply different limits to voice tools", () => {
-      // Voice limit is 50 req/min with burst 5
+      // Voice limit is 50 req/min with burst 5 — use dedicated session
+      const voiceSession = "voice-test-" + Date.now();
       for (let i = 0; i < 5; i++) {
-        const status = rateLimiter.checkRateLimit(testSessionId, "text_to_speech");
+        const status = rateLimiter.checkRateLimit(voiceSession, "text_to_speech");
         expect(status.allowed).toBe(true);
       }
 
-      // 6th should fail
-      const status = rateLimiter.checkRateLimit(testSessionId, "text_to_speech");
+      // 6th should fail (voice category burst=5 exhausted)
+      const status = rateLimiter.checkRateLimit(voiceSession, "text_to_speech");
       expect(status.allowed).toBe(false);
+      rateLimiter.resetSessionLimits(voiceSession);
     });
 
     it("should apply different limits to memory tools", () => {
-      // Memory limit is 200 req/min with burst 20
+      // Memory limit is 200 req/min with burst 20 — use dedicated session
+      const memSession = "memory-test-" + Date.now();
       for (let i = 0; i < 20; i++) {
-        const status = rateLimiter.checkRateLimit(testSessionId, "save_fact");
+        const status = rateLimiter.checkRateLimit(memSession, "save_fact");
         expect(status.allowed).toBe(true);
       }
 
-      // 21st should fail
-      const status = rateLimiter.checkRateLimit(testSessionId, "save_fact");
+      // 21st should fail (memory category burst=20 exhausted)
+      const status = rateLimiter.checkRateLimit(memSession, "save_fact");
       expect(status.allowed).toBe(false);
+      rateLimiter.resetSessionLimits(memSession);
     });
 
     it("should apply different limits to system tools", () => {
-      // System limit is 500 req/min with burst 50
+      // System limit is 500 req/min with burst 50 — use dedicated session
+      const sysSession = "system-test-" + Date.now();
       for (let i = 0; i < 50; i++) {
-        const status = rateLimiter.checkRateLimit(testSessionId, "run_shell");
+        const status = rateLimiter.checkRateLimit(sysSession, "run_shell");
         expect(status.allowed).toBe(true);
       }
 
-      // 51st should fail
-      const status = rateLimiter.checkRateLimit(testSessionId, "run_shell");
+      // 51st should fail (system category burst=50 exhausted)
+      const status = rateLimiter.checkRateLimit(sysSession, "run_shell");
       expect(status.allowed).toBe(false);
+      rateLimiter.resetSessionLimits(sysSession);
     });
   });
 
@@ -135,23 +147,26 @@ describe("Rate Limiter", () => {
 
   describe("Rate Limit History", () => {
     it("should track rate limit history", () => {
-      // Make some requests
-      rateLimiter.checkRateLimit(testSessionId, "tool1");
-      rateLimiter.checkRateLimit(testSessionId, "tool1");
-      rateLimiter.checkRateLimit(testSessionId, "tool2");
+      const histSession = "history-test-" + Date.now();
+      rateLimiter.checkRateLimit(histSession, "tool1");
+      rateLimiter.checkRateLimit(histSession, "tool1");
+      rateLimiter.checkRateLimit(histSession, "tool2");
 
-      const history = rateLimiter.getHistory(testSessionId);
+      const history = rateLimiter.getHistory(histSession);
       expect(history.length).toBe(3);
+      rateLimiter.resetSessionLimits(histSession);
     });
 
     it("should filter history by tool name", () => {
-      rateLimiter.checkRateLimit(testSessionId, "tool1");
-      rateLimiter.checkRateLimit(testSessionId, "tool1");
-      rateLimiter.checkRateLimit(testSessionId, "tool2");
+      const filterSession = "filter-test-" + Date.now();
+      rateLimiter.checkRateLimit(filterSession, "tool1");
+      rateLimiter.checkRateLimit(filterSession, "tool1");
+      rateLimiter.checkRateLimit(filterSession, "tool2");
 
-      const history = rateLimiter.getHistory(testSessionId, { toolName: "tool1" });
+      const history = rateLimiter.getHistory(filterSession, { toolName: "tool1" });
       expect(history.length).toBe(2);
       expect(history.every(h => h.toolName === "tool1")).toBe(true);
+      rateLimiter.resetSessionLimits(filterSession);
     });
 
     it("should respect history limit", () => {

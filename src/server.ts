@@ -58,6 +58,17 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" })); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true, limit: "10mb" })); // Parse form data
 app.use(createTelemetryMiddleware());
+
+// Strict No-Cache middleware to prevent stale UI in browsers
+app.use((req, res, next) => {
+    res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
+    });
+    next();
+});
 export const server = createServer(app);
 export const wss = new WebSocketServer({ noServer: true });
 
@@ -473,7 +484,17 @@ app.get("/api/tools", authMiddleware, async (req, res) => {
 /**
  * Usage API - aggregate token usage statistics
  */
-app.get("/api/usage", authMiddleware, async (req, res) => {
+app.get("/api/usage", async (req, res) => {
+    const clientIp = req.ip || "";
+    const isLocalhost = clientIp === "127.0.0.1" || clientIp === "::1" || clientIp === "::ffff:127.0.0.1";
+    
+    if (!isLocalhost && config.API_KEY) {
+        const apiKey = req.headers["x-api-key"];
+        if (!apiKey || apiKey !== config.API_KEY) {
+            res.status(401).json({ success: false, error: "Unauthorized" });
+            return;
+        }
+    }
     try {
         const { getUsageStats } = await import("./usage.ts");
         const allTime = getUsageStats();
@@ -505,9 +526,20 @@ app.get("/api/usage", authMiddleware, async (req, res) => {
 });
 
 /**
- * Dashboard stats - combined counts for the overview page
+ * Dashboard stats - unauthenticated local-only endpoint
  */
-app.get("/api/stats", authMiddleware, (req, res) => {
+app.get("/api/stats", (req, res) => {
+    const clientIp = req.ip || "";
+    const isLocalhost = clientIp === "127.0.0.1" || clientIp === "::1" || clientIp === "::ffff:127.0.0.1";
+    
+    if (!isLocalhost && config.API_KEY) {
+        const apiKey = req.headers["x-api-key"];
+        if (!apiKey || apiKey !== config.API_KEY) {
+            res.status(401).json({ success: false, error: "Unauthorized" });
+            return;
+        }
+    }
+    
     try {
         const getCount = (sql: string) => (db.prepare(sql).get() as { count: number }).count;
         res.json({

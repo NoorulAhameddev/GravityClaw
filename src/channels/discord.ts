@@ -29,7 +29,6 @@ export class DiscordChannel implements Channel {
 
     static create(): DiscordChannel | null {
         if (!config.DISCORD_BOT_TOKEN) {
-            log.warn("DISCORD_BOT_TOKEN not set, skipping Discord channel");
             return null;
         }
         return new DiscordChannel();

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, type JSX } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { Send, Eraser, Bot, User, WifiOff, Copy, CheckCheck } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, getWsUrl } from '../lib/utils';
 
 interface ChatMessage {
     type: string;
@@ -12,18 +12,28 @@ interface ChatMessage {
 }
 
 export function Chat() {
-    const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
-    const { status, messages, sendMessage } = useWebSocket(wsUrl);
+    const [apiKey] = useState(() => localStorage.getItem('apiKey') || '');
+    const { status, messages, sendMessage } = useWebSocket(getWsUrl(apiKey));
     const [input, setInput] = useState('');
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+    const [isTyping, setIsTyping] = useState(false);
     const [copiedId, setCopiedId] = useState<number | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         const last = messages[messages.length - 1];
-        if (last && (last.type === 'message' || last.type === 'typing')) {
+        if (!last) return;
+
+        if (last.type === 'message') {
+            setIsTyping(false);
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
             setChatMessages((prev) => [...prev, { ...last as ChatMessage, timestamp: Date.now() }]);
+        } else if (last.type === 'typing') {
+            setIsTyping(true);
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 5000);
         }
     }, [messages]);
 
@@ -171,21 +181,6 @@ export function Chat() {
                 )}
 
                 {chatMessages.map((m, i) => {
-                    if (m.type === 'typing') {
-                        return (
-                            <div key={i} className="flex gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-purple-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-accent/20">
-                                    <Bot size={18} />
-                                </div>
-                                <div className="bg-surface border border-border px-5 py-4 rounded-2xl rounded-tl-none flex items-center gap-1.5 shadow-lg">
-                                    <span className="w-2 h-2 bg-accent rounded-full animate-bounce [animation-delay:-0.3s]" />
-                                    <span className="w-2 h-2 bg-accent rounded-full animate-bounce [animation-delay:-0.15s]" />
-                                    <span className="w-2 h-2 bg-accent rounded-full animate-bounce" />
-                                </div>
-                            </div>
-                        );
-                    }
-
                     const isUser = m.role === 'user' || (!m.isBot && m.text);
 
                     return (
@@ -240,6 +235,19 @@ export function Chat() {
                         </div>
                     );
                 })}
+
+                {isTyping && (
+                    <div className="flex gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-purple-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-accent/20">
+                            <Bot size={18} />
+                        </div>
+                        <div className="bg-surface border border-border px-5 py-4 rounded-2xl rounded-tl-none flex items-center gap-1.5 shadow-lg">
+                            <span className="w-2 h-2 bg-accent rounded-full animate-bounce [animation-delay:-0.3s]" />
+                            <span className="w-2 h-2 bg-accent rounded-full animate-bounce [animation-delay:-0.15s]" />
+                            <span className="w-2 h-2 bg-accent rounded-full animate-bounce" />
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Input Area */}

@@ -204,7 +204,7 @@ describe("Channel → Agent → Tool Integration", () => {
       );
 
       const history = getSessionHistory(testSessionId);
-      const systemMsg = history.find((m) => m.role === "system");
+      const systemMsg = history.find((m) => m.role === "system" && m.content !== "init");
 
       expect(systemMsg?.content).toContain("database design");
     });

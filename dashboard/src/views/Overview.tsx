@@ -28,7 +28,7 @@ export function Overview() {
         <div className="space-y-8">
             <StatusBanner
                 status={h.status === 'ok' ? 'ok' : 'err'}
-                uptime={fmtUptime(h.uptime)}
+                uptime={fmtUptime(h.uptime ?? 0)}
                 clients={h.server?.wsClients ?? 0}
                 port={h.server?.port ?? 3000}
             />

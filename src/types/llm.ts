@@ -1,6 +1,26 @@
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions.js";
 import type OpenAI from "openai";
 
+export type MessageRole = "user" | "assistant" | "system" | "tool";
+
+export interface Message {
+    role: MessageRole;
+    content: string | Array<{
+        type: "text" | "tool_use" | "tool_result" | "image" | "document";
+        id?: string;
+        name?: string;
+        text?: string;
+        content?: string;
+        is_error?: boolean;
+        source?: {
+            type: string;
+            id: string;
+        };
+    }>;
+    name?: string;
+    tool_calls?: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[];
+}
+
 export interface LLMResponse {
   stopReason: string;
   text: string;

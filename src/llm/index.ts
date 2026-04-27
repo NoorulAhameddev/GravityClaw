@@ -30,9 +30,6 @@ export * from "./orchestrator.ts";
 /**
  * Create a single provider instance by name (used by failover provider)
  */
-/**
- * Create a single provider instance by name (used by failover provider)
- */
 function createSingleProvider(providerName: string, model?: string): LLMProvider {
   const providerModel = model || config.LLM_MODEL;
 

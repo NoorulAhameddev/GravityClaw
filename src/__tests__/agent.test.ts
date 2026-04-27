@@ -149,10 +149,16 @@ describe('Agent System', () => {
       expect(isMeaningfulProgress('This is a concrete response with sufficient length and no errors.')).toBe(true);
     });
 
-    it('should not mark progress for short or error texts', () => {
-      expect(isMeaningfulProgress('error')).toBe(false);
-      expect(isMeaningfulProgress('Too short')).toBe(false);
-      expect(isMeaningfulProgress('Exception occurred')).toBe(false);
+    it('should not mark progress for short texts or specific error prefixes', () => {
+      expect(isMeaningfulProgress('err')).toBe(false);
+      expect(isMeaningfulProgress('bad')).toBe(false);
+      expect(isMeaningfulProgress('error: file not found')).toBe(false);
+      expect(isMeaningfulProgress('failed: permission denied')).toBe(false);
+    });
+
+    it('should mark progress for valid texts that happen to contain error keywords', () => {
+      expect(isMeaningfulProgress('The text contains the word error in it.')).toBe(true);
+      expect(isMeaningfulProgress('No error found in the system')).toBe(true);
     });
   });
 

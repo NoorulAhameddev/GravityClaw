@@ -52,6 +52,10 @@ export const shellTool: Tool = {
                 type: "number",
                 description: "Timeout in milliseconds (default: 30000, max: 120000)",
             },
+            cwd: {
+                type: "string",
+                description: "The directory to run the command in. Defaults to the current workspace.",
+            },
         },
         required: ["command"],
     },
@@ -59,6 +63,7 @@ export const shellTool: Tool = {
     async execute(input) {
         const command = String(input["command"] ?? "").trim();
         const timeoutMs = Math.min(Number(input["timeout_ms"] ?? 30_000), 120_000);
+        const cwdOverride = input["cwd"] ? String(input["cwd"]) : undefined;
 
         // Check group permissions
         const isGroup = Boolean(input["__isGroup"]);
@@ -93,6 +98,7 @@ RECOVERY HINT: Use modern PowerShell 'Get-CimInstance' instead.
         try {
             const { stdout, stderr } = await execAsync(command, {
                 timeout: timeoutMs,
+                cwd: cwdOverride,
                 shell: process.platform === "win32" ? "powershell.exe" : "/bin/sh",
             });
 

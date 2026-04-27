@@ -48,7 +48,6 @@ export class SlackChannel implements Channel {
 
     static create(): SlackChannel | null {
         if (!config.SLACK_BOT_TOKEN || !config.SLACK_SIGNING_SECRET) {
-            log.warn("SLACK_BOT_TOKEN or SLACK_SIGNING_SECRET not set, skipping Slack channel");
             return null;
         }
         return new SlackChannel();

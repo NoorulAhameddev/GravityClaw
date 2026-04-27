@@ -309,8 +309,9 @@ describe("Encrypted Secrets", () => {
       db.prepare(`DELETE FROM secret_access_log WHERE secret_name LIKE 'test%'`).run();
     });
     
-    it("should log and retrieve access entries", () => {
+    it("should log and retrieve access entries", async () => {
       logSecretAccess("test_secret", "read", "test_user");
+      await new Promise(r => setTimeout(r, 2));
       logSecretAccess("test_secret", "write", "test_user");
       
       const logs = getSecretAccessLog({ secret_name: "test_secret" });

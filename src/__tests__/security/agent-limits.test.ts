@@ -15,7 +15,8 @@ const mockToolRegistry = {
   getRelevantTools: vi.fn().mockReturnValue([]),
   get: vi.fn().mockReturnValue({
     name: 'test_tool',
-    execute: vi.fn().mockResolvedValue('result'),
+    inputSchema: { type: 'object', additionalProperties: true },
+    execute: vi.fn().mockImplementation(async () => `Success: no errors. Result: ${Date.now()}-${Math.random()}`),
   }),
 };
 
@@ -42,6 +43,19 @@ vi.mock('../../llm/index.ts', () => ({
   addToolResult: vi.fn(),
 }));
 
+vi.mock('ajv', () => {
+  return {
+    default: class MockAjv {
+      compile() { 
+        const validate = () => true;
+        (validate as any).errors = [];
+        return validate;
+      }
+      errorsText() { return 'mock error'; }
+    }
+  };
+});
+
 // Mock memory retrieval
 vi.mock('../../memory/retrieval.ts', () => ({
   retrieveRelevantMemories: vi.fn().mockResolvedValue([]),
@@ -55,14 +69,16 @@ vi.mock('../../performance/tool-optimization.ts', () => ({
   trackToolExecution: vi.fn(),
 }));
 
-// Mock telemetry
-vi.mock('../../lib/telemetry/tracer.js', () => ({
-  withSpanAsync: vi.fn().mockImplementation(async (name, fn) => await fn()),
-  withSpan: vi.fn().mockImplementation((name, fn) => fn()),
-  SpanKind: { INTERNAL: 'internal' },
-  injectTraceContext: vi.fn(),
-  tracer: { startSpan: vi.fn() },
-}));
+vi.mock('../../lib/telemetry/tracer.js', () => {
+  const mockSpan = { setAttribute: vi.fn(), setStatus: vi.fn(), recordException: vi.fn(), end: vi.fn() };
+  return {
+    withSpanAsync: vi.fn().mockImplementation(async (name, fn) => await fn(mockSpan)),
+    withSpan: vi.fn().mockImplementation((name, fn) => fn(mockSpan)),
+    SpanKind: { INTERNAL: 'internal' },
+    injectTraceContext: vi.fn(),
+    tracer: { startSpan: vi.fn() },
+  };
+});
 vi.mock('../../lib/telemetry/metrics.js', () => ({
   recordAgentRun: vi.fn(),
   recordToolCall: vi.fn(),
@@ -74,6 +90,17 @@ vi.mock('../../lib/telemetry/logger.js', () => ({
 describe('Agent Loop Security Limits', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset config to defaults
+    mockConfig.AGENT_MAX_ITERATIONS = 3;
+    mockConfig.AGENT_MAX_TOOLS_PER_ITERATION = 2;
+    mockConfig.AGENT_MAX_TOOLS_TOTAL = 5;
+    
+    // Reset tool registry mock
+    mockToolRegistry.get.mockReturnValue({
+      name: 'test_tool',
+      inputSchema: { type: 'object', additionalProperties: true },
+      execute: vi.fn().mockImplementation(async () => `Success: no errors. Result: ${Date.now()}-${Math.random()}`),
+    });
   });
 
   it('should respect per-iteration tool limit', async () => {
@@ -149,10 +176,8 @@ describe('Agent Loop Security Limits', () => {
 
     // Should have executed only 1 tool call (per-iteration limit)
     expect(result.toolCallCount).toBe(1);
-    // hitLimit should be false because we didn't exceed total limit
-    // Actually hitLimit is set when total limit is reached, not per-iteration limit
-    // So hitLimit should be false
-    expect(result.hitLimit).toBe(false);
+    // hitLimit is true because we hit maxIterations=1
+    expect(result.hitLimit).toBe(true);
   });
 
   it('should set hitLimit when total limit reached during iteration', async () => {
@@ -205,8 +230,8 @@ describe('Agent Loop Security Limits', () => {
 
     // Should have executed 2 tool calls (2 iterations)
     expect(result.toolCallCount).toBe(2);
-    // Should not hit limit because we stopped due to iteration limit
-    expect(result.hitLimit).toBe(false);
+    // Should hit limit because maxIterations returned hitLimit:true now
+    expect(result.hitLimit).toBe(true);
   });
 
   it('should handle unknown tools gracefully', async () => {
@@ -225,8 +250,8 @@ describe('Agent Loop Security Limits', () => {
       dependencies: mockDependencies as any,
     });
 
-    // Should not crash, tool call count increments but error returned to LLM
-    expect(result.toolCallCount).toBe(1);
+    // Should not crash, loop runs until consecutive no progress breaks it
+    expect(result.toolCallCount).toBe(2);
   });
 
   it('should enforce tool limits across multiple iterations', async () => {

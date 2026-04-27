@@ -15,19 +15,31 @@ export function useWebSocket(url: string) {
     const [messages, setMessages] = useState<WSMessage[]>([]);
     const ws = useRef<WebSocket | null>(null);
     const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const [delay, setDelay] = useState(1000);
+    const reconnectDelay = useRef(1000);
     const connectRef = useRef<() => void>(() => {});
+    const isConnecting = useRef(false);
 
     const connect = useCallback(() => {
+        if (!url || url === 'ws://' || url === 'wss://') {
+            setStatus('disconnected');
+            return;
+        }
+        if (ws.current?.readyState === WebSocket.OPEN || ws.current?.readyState === WebSocket.CONNECTING || isConnecting.current) {
+            return;
+        }
+        isConnecting.current = true;
+        
         if (ws.current) ws.current.close();
+        ws.current = null;
 
         setStatus('connecting');
         const socket = new WebSocket(url);
         ws.current = socket;
 
         socket.onopen = () => {
+            isConnecting.current = false;
             setStatus('connected');
-            setDelay(1000);
+            reconnectDelay.current = 1000;
         };
 
         socket.onmessage = (event) => {
@@ -39,30 +51,36 @@ export function useWebSocket(url: string) {
             }
         };
 
-        socket.onclose = () => {
-            setStatus('disconnected');
-            const currentDelay = delay;
-            reconnectTimer.current = setTimeout(() => {
-                setDelay((prev) => Math.min(prev * 1.5, 10000));
-                connectRef.current();
-            }, currentDelay);
-        };
-
         socket.onerror = () => {
+            isConnecting.current = false;
             setStatus('error');
         };
-    }, [url, delay]);
+
+        socket.onclose = () => {
+            isConnecting.current = false;
+            if (!reconnectTimer.current) {
+                setStatus('disconnected');
+                const delayMs = reconnectDelay.current;
+                reconnectDelay.current = Math.min(reconnectDelay.current * 1.5, 10000);
+                reconnectTimer.current = setTimeout(() => {
+                    reconnectTimer.current = null;
+                    connectRef.current();
+                }, delayMs);
+            }
+        };
+    }, [url]);
 
     useEffect(() => {
         connectRef.current = connect;
     }, [connect]);
 
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         connect();
         return () => {
             if (ws.current) ws.current.close();
+            ws.current = null;
             if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+            reconnectTimer.current = null;
         };
     }, [connect]);
 

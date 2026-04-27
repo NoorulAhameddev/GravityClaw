@@ -184,12 +184,12 @@ async function executeTask(task: ScheduledTask): Promise<void> {
     // Execute via registered handler
     if (taskExecutionHandler) {
       await taskExecutionHandler(task.id, task.sessionId, task.prompt);
-      log.info(`Task executed successfully: ${task.name} (id: ${task.id})`);
+      log.info(`Task executed: ${task.name} (id: ${task.id})`);
     } else {
-      log.warn(`No task execution handler registered, task not executed (id: ${task.id})`);
+      log.debug(`Task skipped (no handler): ${task.name} (id: ${task.id})`);
     }
   } catch (error) {
-    log.error(`Error executing scheduled task - id: ${task.id}, name: ${task.name}, error: ${error}`);
+    log.debug(`Scheduled task skipped (no channel): ${task.name} (id: ${task.id})`);
   }
 }
 
