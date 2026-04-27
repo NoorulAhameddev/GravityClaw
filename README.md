@@ -288,3 +288,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Built with ❤️ by the Gravity Claw community**
+#   G r a v i t y C l a w  
+ 
