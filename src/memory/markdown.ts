@@ -173,6 +173,23 @@ export function rewriteSessionFacts(sessionId: string, facts: MarkdownFact[]): v
 
     const content = lines.length > 0 ? `${lines.join("\n")}\n` : "";
     fs.writeFileSync(filePath, content, "utf8");
+
+    // Clean up orphaned stats from SQLite
+    try {
+        db.prepare("DELETE FROM fact_stats WHERE session_id = ?").run(sessionId);
+        
+        // Re-seed access stats for the new consolidated facts so they have history
+        for (const entry of facts) {
+            const normalizedCategory = normalizeCategory(entry.category);
+            touchFactAccess(sessionId, normalizedCategory, entry.fact, {
+                importanceDelta: 1,
+                incrementCount: true,
+            });
+        }
+    } catch (e) {
+        // Log error but don't fail the rewrite process
+        console.error(`Failed to purge/reseed fact_stats for session ${sessionId}:`, e);
+    }
 }
 
 export function getMemoryRoot(): string {

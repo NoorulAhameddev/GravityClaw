@@ -25,31 +25,54 @@ export function readLastConsolidatedAt(): number {
 
 export async function tryAcquireConsolidationLock(): Promise<number | null> {
     const lockPath = getLockFilePath();
-    if (fs.existsSync(lockPath)) {
+    
+    // Check if there's a stale lock we should clean up
+    try {
         const lockStat = fs.statSync(lockPath);
         const ageMs = Date.now() - lockStat.mtimeMs;
-        if (ageMs < 60 * 60 * 1000) {
-            log.debug("Lock file is recent, consolidation may already be running");
+        if (ageMs > 60 * 60 * 1000) {
+            log.warn("Lock file is stale, removing and retrying");
+            try {
+                fs.unlinkSync(lockPath);
+            } catch (e) {
+                // Ignore if it was already deleted by another process
+            }
+        }
+    } catch (e) {
+        // File doesn't exist, which is fine
+    }
+
+    try {
+        // Use 'wx' flag for atomic creation. Fails if file already exists.
+        const fd = fs.openSync(lockPath, "wx");
+        fs.writeSync(fd, JSON.stringify({ startedAt: Date.now() }));
+        fs.closeSync(fd);
+        return fs.statSync(lockPath).mtimeMs;
+    } catch (e: any) {
+        if (e.code === "EEXIST") {
+            log.debug("Lock file exists (or was just created), consolidation may already be running");
             return null;
         }
-        log.warn("Lock file is stale, removing and retrying");
-        fs.unlinkSync(lockPath);
+        throw e;
     }
-    fs.writeFileSync(lockPath, JSON.stringify({ startedAt: Date.now() }), "utf8");
-    return fs.statSync(lockPath).mtimeMs;
 }
 
 export async function releaseConsolidationLock(): Promise<void> {
     const lockPath = getLockFilePath();
-    if (fs.existsSync(lockPath)) {
-        fs.unlinkSync(lockPath);
+    try {
+        if (fs.existsSync(lockPath)) {
+            const now = new Date();
+            fs.utimesSync(lockPath, now, now);
+        }
+    } catch (e) {
+        log.warn(`Failed to release lock, might be already deleted: ${e}`);
     }
 }
 
 export async function rollbackConsolidationLock(priorMtime: number): Promise<void> {
     const lockPath = getLockFilePath();
     if (fs.existsSync(lockPath)) {
-        const stat = fs.statSync(lockPath);
-        fs.utimesSync(lockPath, priorMtime, priorMtime);
+        const priorDate = new Date(priorMtime);
+        fs.utimesSync(lockPath, priorDate, priorDate);
     }
 }
