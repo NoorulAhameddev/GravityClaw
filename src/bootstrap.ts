@@ -1,12 +1,13 @@
 import { config } from "./config.ts";
 import { db } from "./db.ts";
-import { registry, registerBuiltInTools } from "./tools/index.ts";
+import { registry, registerBuiltInTools, toolExecutor } from "./tools/index.ts";
 import { createProvider, getProvider } from "./llm/index.ts";
 
 export interface BootstrapContainer {
     config: typeof config;
     db: typeof db;
     toolRegistry: typeof registry;
+    toolExecutor: typeof toolExecutor;
     llmProvider: ReturnType<typeof getProvider>;
 }
 
@@ -37,6 +38,7 @@ export function bootstrap(options?: BootstrapOptions): BootstrapContainer {
         config,
         db,
         toolRegistry: registry,
+        toolExecutor,
         llmProvider,
     };
 }

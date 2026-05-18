@@ -92,21 +92,34 @@ export async function statsCommand(options: { period?: string; verbose?: boolean
     // Get usage stats from usage table
     const usageStats: UsageStats = getUsageStats(undefined, period !== "all" ? new Date(Date.now() - (period === "day" ? 24*60*60*1000 : period === "week" ? 7*24*60*60*1000 : 30*24*60*60*1000)) : undefined);
     
-    // Get tool usage from memory (approximate by parsing message_json for tool calls)
+    // Get tool usage from memory by parsing message_json for tool calls
     let toolUsage: Array<{ tool: string; count: number }> = [];
     try {
-      // This is a simplified approach - in reality, tool usage might be tracked elsewhere
-      // For now, we'll show placeholder or skip if not available
-      toolUsage = [
-        { tool: "read_file", count: 0 },
-        { tool: "write_file", count: 0 },
-        { tool: "bash", count: 0 },
-        { tool: "glob", count: 0 },
-        { tool: "grep", count: 0 }
-      ];
+      const toolResults = db.prepare(`
+        SELECT message_json FROM memory
+        WHERE message_json LIKE '%tool_calls%'
+        ${timeCondition}
+      `).all() as Array<{ message_json: string }>;
+
+      const toolCounts = new Map<string, number>();
+      for (const row of toolResults) {
+        try {
+          const msg = JSON.parse(row.message_json);
+          if (msg.tool_calls && Array.isArray(msg.tool_calls)) {
+            for (const call of msg.tool_calls) {
+              const name = call.function?.name || call.name || "unknown";
+              toolCounts.set(name, (toolCounts.get(name) || 0) + 1);
+            }
+          }
+        } catch {
+          // Skip invalid JSON - this is expected for non-tool messages
+        }
+      }
+      toolUsage = Array.from(toolCounts.entries())
+        .map(([tool, count]) => ({ tool, count }))
+        .sort((a, b) => b.count - a.count);
     } catch (e) {
-      // Tool usage tracking not implemented yet
-      log.debug("Tool usage tracking not available");
+      log.debug("Tool usage tracking not available: " + String(e));
     }
     
     // Calculate uptime (approximate from oldest session)

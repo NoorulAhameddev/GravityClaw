@@ -64,6 +64,21 @@ const DANGEROUS_ENV_PATTERNS = [
   '%env%',  // Windows environment variable
   '${',  // Shell variable expansion
   '$(',  // Command substitution
+  '$(',
+  '`',  // Backtick command substitution
+  '|xargs',  // Pipe to arg expansion
+  'xargs',  // Argument expansion
+];
+
+// Blocked commands that could reveal env vars
+const ENV_EXFIL_COMMANDS = [
+  'printenv',
+  'env',
+  'set',
+  'readonly',
+  'declare',
+  'typeset',
+  'export -p',
 ];
 
 /**
@@ -119,9 +134,7 @@ export function validateCommand(command: string): CommandValidation {
   const hasInjection = tokens.some(token => 
     DANGEROUS_ARGS.some(arg => token.toLowerCase() === arg.toLowerCase())
   );
-  
 
-  
   // 5. Get base command
   const baseCommand = tokens[0]?.toLowerCase() || '';
   
@@ -139,6 +152,18 @@ export function validateCommand(command: string): CommandValidation {
       parsed: { baseCommand, args: tokens.slice(1), hasChaining: hasChaining || hasBacktick, hasRedirection, hasInjection }
     };
   }
+
+  // 5b. Check for commands that could exfiltrate environment variables
+  const commandLower = command.toLowerCase().trim();
+  for (const exfilCmd of ENV_EXFIL_COMMANDS) {
+    if (commandLower.startsWith(exfilCmd) || commandLower.includes(' ' + exfilCmd) || commandLower.includes('|' + exfilCmd)) {
+      return {
+        allowed: false,
+        reason: `Command could expose environment variables: ${exfilCmd}`,
+        parsed: { baseCommand, args: tokens.slice(1), hasChaining, hasRedirection, hasInjection: true }
+      };
+    }
+  }
   
   // 6. Validate base command
   if (!ALLOWED_COMMANDS.has(baseCommand)) {
@@ -154,7 +179,7 @@ export function validateCommand(command: string): CommandValidation {
   if (!commandSpecificValidation.allowed) {
     return commandSpecificValidation;
   }
-  
+
   // 8. Final validation - check for dangerous patterns
   if (hasChaining || hasRedirection || hasInjection) {
     return {
@@ -163,7 +188,7 @@ export function validateCommand(command: string): CommandValidation {
       parsed: { baseCommand, args: tokens.slice(1), hasChaining, hasRedirection, hasInjection }
     };
   }
-  
+
   return {
     allowed: true,
     parsed: { baseCommand, args: tokens.slice(1), hasChaining, hasRedirection, hasInjection }

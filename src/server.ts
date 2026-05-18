@@ -41,6 +41,7 @@ import { authMiddleware } from "./middleware/auth.ts";
 import { WhatsAppChannel } from "./channels/whatsapp.ts";
 import { mobileGateway } from "./gateway/mobile.ts";
 import { createTelemetryMiddleware } from "./lib/telemetry/middleware.ts";
+import { toolExecutor } from "./tools/index.ts";
 
 let whatsappChannelInstance: WhatsAppChannel | null = null;
 
@@ -54,7 +55,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const app = express();
-app.use(cors());
+app.use(cors({
+    origin: [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:5173',
+    ],
+    credentials: true,
+}));
 app.use(express.json({ limit: "10mb" })); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true, limit: "10mb" })); // Parse form data
 app.use(createTelemetryMiddleware());
@@ -146,7 +155,7 @@ app.use("/api/metrics", metricsRouter);
  * Health check endpoint - returns server status and metrics
  * Response time: < 100ms
  */
-app.get("/api/health", (req, res) => {
+app.get("/api/health", authMiddleware, (req, res) => {
     const startTime = Date.now();
 
     try {
@@ -258,7 +267,7 @@ app.post('/api/auth/token', authMiddleware, (req, res) => {
 /**
  * Metrics endpoint - returns metrics in Prometheus text format
  */
-app.get("/metrics", (req, res) => {
+app.get("/metrics", authMiddleware, (req, res) => {
     try {
         const metricsText = exportPrometheusFormat();
         res.set("Content-Type", "text/plain; charset=utf-8");
@@ -484,7 +493,7 @@ app.get("/api/tools", authMiddleware, async (req, res) => {
 /**
  * Usage API - aggregate token usage statistics
  */
-app.get("/api/usage", async (req, res) => {
+app.get("/api/usage", authMiddleware, async (req, res) => {
     const clientIp = req.ip || "";
     const isLocalhost = clientIp === "127.0.0.1" || clientIp === "::1" || clientIp === "::ffff:127.0.0.1";
     
@@ -528,7 +537,7 @@ app.get("/api/usage", async (req, res) => {
 /**
  * Dashboard stats - unauthenticated local-only endpoint
  */
-app.get("/api/stats", (req, res) => {
+app.get("/api/stats", authMiddleware, (req, res) => {
     const clientIp = req.ip || "";
     const isLocalhost = clientIp === "127.0.0.1" || clientIp === "::1" || clientIp === "::ffff:127.0.0.1";
     
@@ -710,29 +719,37 @@ app.get("/api/export/download", authMiddleware, validateQuery(exportDownloadQuer
  */
 app.post("/api/tools/execute", authMiddleware, validateBody(toolsExecuteSchema), async (req, res) => {
     try {
-        const { tool: toolName, input } = req.body;
+        const { tool: toolName, input, sessionId, userId, approvalRequestId } = req.body;
+        const execution = await toolExecutor.execute({
+            toolName,
+            input: input || {},
+            approvalRequestId,
+            context: {
+                sessionId: sessionId || `api:${toolName}`,
+                userId,
+                source: "api",
+            },
+        });
 
-        // Get the tool from registry
-        const { registry } = await import("./tools/index.ts");
-        const tool = registry.get(toolName);
-
-        if (!tool) {
-            return res.status(404).json({
+        if (!execution.success) {
+            const status = execution.error?.type === "not_found" ? 404
+                : execution.error?.type === "validation" ? 400
+                : execution.error?.type === "timeout" ? 504
+                : execution.error?.type === "approval_required" || execution.error?.type === "security_policy" ? 403
+                : execution.error?.type === "rate_limit" ? 429
+                : 500;
+            return res.status(status).json({
                 success: false,
-                error: `Tool '${toolName}' not found`,
+                error: execution.error?.message || "Tool execution failed",
+                details: execution.error?.details,
             });
         }
 
-        // Execute the tool
-        const result = await tool.execute(input || {});
-        const parsedResult = safeJsonParse<unknown>(result, null, "tool execution result");
+        const parsedResult = safeJsonParse<unknown>(execution.result ?? "", null, "tool execution result");
         
         if (!parsedResult.success || parsedResult.data === null) {
             log.warn(`Failed to parse tool result: ${parsedResult.error}`);
-            return res.status(500).json({
-                success: false,
-                error: "Tool returned invalid result",
-            });
+            return res.json({ success: true, data: execution.result ?? "" });
         }
 
         res.json(parsedResult.data);
@@ -770,7 +787,7 @@ app.post("/api/voice/transcribe", authMiddleware, upload.single("audio"), async 
 
         const { transcribeAudio } = await import("./voice/transcription.ts");
         const text = await transcribeAudio(tmpPath, openaiKey);
-        await unlink(tmpPath).catch(() => { });
+        await unlink(tmpPath).catch((err) => log.warn("Failed to delete temp audio file", err));
 
         log.info(`Voice transcribed: "${text.substring(0, 60)}..."`);
         res.json({ success: true, text });
@@ -948,22 +965,36 @@ app.post("/api/whatsapp/reconnect", authMiddleware, async (req, res) => {
 
 export function startServer(): Promise<void> {
     return new Promise((resolve, reject) => {
-        const port = config.PORT || 3000;
+        const basePort = config.PORT || 3000;
+        let currentPort = basePort;
+        const maxTries = 5;
+        let tries = 0;
 
-        // Add error handler for server startup failures
-        server.on("error", (err: any) => {
-            if (err.code === "EADDRINUSE") {
-                log.error(`❌ Port ${port} is already in use`);
-                reject(new Error(`Port ${port} is already in use. Is another instance running?`));
-            } else {
-                log.error(`❌ Server startup error:`, err);
-                reject(err);
-            }
-        });
+        const attemptListen = (port: number) => {
+            const errorHandler = (err: any) => {
+                if (err.code === "EADDRINUSE" && tries < maxTries) {
+                    tries++;
+                    log.warn(`⚠️ Port ${port} is in use, trying ${port + 1}...`);
+                    server.off("error", errorHandler);
+                    attemptListen(port + 1);
+                } else {
+                    log.error(`❌ Server startup error:`, err);
+                    server.off("error", errorHandler);
+                    reject(err);
+                }
+            };
 
-        server.listen(port, () => {
-            log.info(`🚀 Web server listening on http://localhost:${port}`);
-            resolve();
-        });
+            server.on("error", errorHandler);
+
+            server.listen(port, () => {
+                server.off("error", errorHandler);
+                log.info(`🚀 Web server listening on http://localhost:${port}`);
+                // Update config port so other parts of the app know which port we actually used
+                (config as any).PORT = port;
+                resolve();
+            });
+        };
+
+        attemptListen(currentPort);
     });
 }

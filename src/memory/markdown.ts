@@ -39,27 +39,7 @@ export function fuzzySearchFacts<T>(
 const DEFAULT_MEMORY_ROOT = path.resolve(process.cwd(), "memory-files");
 let memoryRoot = DEFAULT_MEMORY_ROOT;
 
-function initFactStatsTable(): void {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS fact_stats (
-                session_id TEXT NOT NULL,
-                fact_hash TEXT NOT NULL,
-                fact_text TEXT NOT NULL,
-                category TEXT NOT NULL,
-                access_count INTEGER DEFAULT 0,
-                last_accessed DATETIME,
-                importance REAL DEFAULT 0,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (session_id, fact_hash)
-            );
-
-            CREATE INDEX IF NOT EXISTS idx_fact_stats_session ON fact_stats(session_id);
-            CREATE INDEX IF NOT EXISTS idx_fact_stats_last_accessed ON fact_stats(last_accessed);
-        `);
-}
-
-initFactStatsTable();
+// Table creation is now handled centrally by src/db/migrations/schema.ts
 
 function sanitizeSessionId(sessionId: string): string {
     return sessionId.replace(/[^a-zA-Z0-9._-]/g, "_");

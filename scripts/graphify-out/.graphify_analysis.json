@@ -1,0 +1,252 @@
+{
+  "communities": {
+    "0": [
+      "bench_tools_toolbenchmark",
+      "bench_tools_toolbenchmark_benchmarktool",
+      "bench_tools_toolbenchmark_generatesuite",
+      "bench_tools_toolbenchmark_mockcompilefacts",
+      "bench_tools_toolbenchmark_mockexecuteagent",
+      "bench_tools_toolbenchmark_mockgetsessionhistory",
+      "bench_tools_toolbenchmark_mockgetsessioninfo",
+      "bench_tools_toolbenchmark_mockgetusagestats",
+      "bench_tools_toolbenchmark_mocklisttools",
+      "bench_tools_toolbenchmark_mockparsemessage",
+      "bench_tools_toolbenchmark_mockquerydatabase",
+      "bench_tools_toolbenchmark_mockrecordusage",
+      "bench_tools_toolbenchmark_mocksavememory",
+      "bench_tools_toolbenchmark_printsummary",
+      "bench_tools_toolbenchmark_printtoolresult",
+      "bench_tools_toolbenchmark_run",
+      "bench_tools_toolbenchmark_saveresults",
+      "d_projects_gravityclaw_scripts_bench_tools_ts"
+    ],
+    "1": [
+      "d_projects_gravityclaw_scripts_load_test_ts",
+      "load_test_loadtester",
+      "load_test_loadtester_calculatelatencystats",
+      "load_test_loadtester_cleanup",
+      "load_test_loadtester_constructor",
+      "load_test_loadtester_generateresults",
+      "load_test_loadtester_parseargs",
+      "load_test_loadtester_printresults",
+      "load_test_loadtester_run",
+      "load_test_loadtester_saveresults",
+      "load_test_loadtester_sendmessage",
+      "load_test_loadtester_spawnclient"
+    ],
+    "2": [
+      "d_projects_gravityclaw_scripts_stress_test_ts",
+      "stress_test_stresstester",
+      "stress_test_stresstester_connectclient",
+      "stress_test_stresstester_constructor",
+      "stress_test_stresstester_generateresults",
+      "stress_test_stresstester_parseargs",
+      "stress_test_stresstester_printresults",
+      "stress_test_stresstester_run",
+      "stress_test_stresstester_saveresults",
+      "stress_test_stresstester_testlevel"
+    ],
+    "3": [
+      "d_projects_gravityclaw_scripts_hooks_session_start_js",
+      "session_start_getlastsession",
+      "session_start_loadsessioncontext",
+      "session_start_loadstate",
+      "session_start_savestate"
+    ],
+    "4": [
+      "d_projects_gravityclaw_scripts_hooks_session_end_js",
+      "session_end_loadstate",
+      "session_end_savesessionstate",
+      "session_end_savestate"
+    ],
+    "5": [
+      "canvas_demo_demo",
+      "canvas_demo_sleep",
+      "d_projects_gravityclaw_scripts_canvas_demo_ts"
+    ],
+    "6": [
+      "d_projects_gravityclaw_scripts_test_dashboard_ui_ts",
+      "test_dashboard_ui_calltool",
+      "test_dashboard_ui_testdashboard"
+    ],
+    "7": [
+      "d_projects_gravityclaw_scripts_test_dashboard_websocket_ts",
+      "test_dashboard_websocket_runtests",
+      "test_dashboard_websocket_testtool"
+    ],
+    "8": [
+      "add_numbers_add_numbers",
+      "add_numbers_main",
+      "d_projects_gravityclaw_scripts_debug_add_numbers_py"
+    ],
+    "9": [
+      "d_projects_gravityclaw_scripts_debug_factorial_c",
+      "factorial_factorial",
+      "factorial_main"
+    ],
+    "10": [
+      "d_projects_gravityclaw_scripts_hooks_pre_compact_js",
+      "pre_compact_loadstate",
+      "pre_compact_savestate"
+    ],
+    "11": [
+      "capture_screenshots_capturescreenshot",
+      "d_projects_gravityclaw_scripts_capture_screenshots_ts"
+    ],
+    "12": [
+      "check_chat_main",
+      "d_projects_gravityclaw_scripts_check_chat_ts"
+    ],
+    "13": [
+      "check_chat2_main",
+      "d_projects_gravityclaw_scripts_check_chat2_ts"
+    ],
+    "14": [
+      "check_chat3_main",
+      "d_projects_gravityclaw_scripts_check_chat3_ts"
+    ],
+    "15": [
+      "check_errors_main",
+      "d_projects_gravityclaw_scripts_check_errors_ts"
+    ],
+    "16": [
+      "check_web_main",
+      "d_projects_gravityclaw_scripts_check_web_ts"
+    ],
+    "17": [
+      "d_projects_gravityclaw_scripts_screenshot_all_ts",
+      "screenshot_all_main"
+    ],
+    "18": [
+      "d_projects_gravityclaw_scripts_screenshot_with_auth_ts",
+      "screenshot_with_auth_main"
+    ],
+    "19": [
+      "d_projects_gravityclaw_scripts_screenshot_ts",
+      "screenshot_main"
+    ],
+    "20": [
+      "d_projects_gravityclaw_scripts_test_dashboard_e2e_ts",
+      "test_dashboard_e2e_testtool"
+    ],
+    "21": [
+      "d_projects_gravityclaw_scripts_verify_airgap_ts",
+      "verify_airgap_verify"
+    ],
+    "22": [
+      "check_tools_checktools",
+      "d_projects_gravityclaw_scripts_debug_check_tools_ts"
+    ],
+    "23": [
+      "d_projects_gravityclaw_scripts_debug_debug_agent_ts",
+      "debug_agent_test"
+    ],
+    "24": [
+      "d_projects_gravityclaw_scripts_check_dashboard_tools_ts"
+    ],
+    "25": [
+      "d_projects_gravityclaw_scripts_debug_read_db_ts"
+    ],
+    "26": [
+      "d_projects_gravityclaw_scripts_hooks_post_bash_js"
+    ],
+    "27": [
+      "d_projects_gravityclaw_scripts_hooks_post_edit_js"
+    ],
+    "28": [
+      "d_projects_gravityclaw_scripts_hooks_pre_bash_js"
+    ],
+    "29": [
+      "d_projects_gravityclaw_scripts_hooks_pre_write_js"
+    ],
+    "30": [
+      "d_projects_gravityclaw_scripts_hooks_stop_session_summary_js"
+    ]
+  },
+  "cohesion": {
+    "0": 0.14,
+    "1": 0.26,
+    "2": 0.31,
+    "3": 0.4,
+    "4": 0.5,
+    "5": 1.0,
+    "6": 0.67,
+    "7": 1.0,
+    "8": 1.0,
+    "9": 1.0,
+    "10": 0.67,
+    "11": 1.0,
+    "12": 1.0,
+    "13": 1.0,
+    "14": 1.0,
+    "15": 1.0,
+    "16": 1.0,
+    "17": 1.0,
+    "18": 1.0,
+    "19": 1.0,
+    "20": 1.0,
+    "21": 1.0,
+    "22": 1.0,
+    "23": 1.0,
+    "24": 1.0,
+    "25": 1.0,
+    "26": 1.0,
+    "27": 1.0,
+    "28": 1.0,
+    "29": 1.0,
+    "30": 1.0
+  },
+  "gods": [
+    {
+      "id": "bench_tools_toolbenchmark",
+      "label": "ToolBenchmark",
+      "degree": 17
+    },
+    {
+      "id": "load_test_loadtester",
+      "label": "LoadTester",
+      "degree": 11
+    },
+    {
+      "id": "stress_test_stresstester",
+      "label": "StressTester",
+      "degree": 9
+    },
+    {
+      "id": "canvas_demo_demo",
+      "label": "demo()",
+      "degree": 2
+    },
+    {
+      "id": "canvas_demo_sleep",
+      "label": "sleep()",
+      "degree": 2
+    },
+    {
+      "id": "test_dashboard_websocket_runtests",
+      "label": "runTests()",
+      "degree": 2
+    },
+    {
+      "id": "test_dashboard_websocket_testtool",
+      "label": "testTool()",
+      "degree": 2
+    },
+    {
+      "id": "add_numbers_add_numbers",
+      "label": "add_numbers()",
+      "degree": 2
+    },
+    {
+      "id": "add_numbers_main",
+      "label": "main()",
+      "degree": 2
+    },
+    {
+      "id": "factorial_factorial",
+      "label": "factorial()",
+      "degree": 2
+    }
+  ],
+  "surprises": []
+}

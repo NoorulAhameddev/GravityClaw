@@ -1,45 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0a0e17;
-  --color-bg-gradient: linear-gradient(135deg, #0a0e17 0%, #111827 50%, #0f1729 100%);
-  --color-surface: rgba(30, 41, 59, 0.7);
-  --color-surface-solid: #1e293b;
-  --color-surface2: rgba(38, 51, 72, 0.5);
-  --color-surface-hover: rgba(51, 65, 85, 0.6);
-  --color-border: rgba(71, 85, 105, 0.4);
-  --color-border-glow: rgba(99, 102, 241, 0.3);
-  --color-text: #f1f5f9;
+  --color-bg: #0a0a0a;
+  --color-bg-gradient: none;
+  --color-surface: #121319;
+  --color-surface-solid: #121319;
+  --color-surface2: #1b1b21;
+  --color-surface-hover: #292930;
+  --color-border: #3f3f46;
+  --color-border-glow: #3f3f46;
+  --color-text: #e3e1ea;
   --color-text-bright: #ffffff;
-  --color-muted: #94a3b8;
-  --color-muted-dark: #64748b;
-  --color-accent: #6366f1;
-  --color-accent-hover: #818cf8;
-  --color-accent-glow: rgba(99, 102, 241, 0.4);
-  --color-accent2: #14b8a6;
-  --color-accent2-glow: rgba(20, 184, 166, 0.3);
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
+  --color-muted: #a78b7d;
+  --color-muted-dark: #584237;
+  
+  /* Option C Style Archetype Accents */
+  --color-accent: #f97316; /* Safety Orange */
+  --color-accent-hover: #ea580c;
+  --color-accent-glow: rgba(249, 115, 22, 0.2);
+  --color-accent2: #ffca45; /* Caution Yellow */
+  --color-accent2-glow: rgba(255, 202, 69, 0.2);
+  
+  --color-success: #22c55e;
+  --color-warning: #eab308;
   --color-danger: #ef4444;
   --color-info: #3b82f6;
-  --color-pink-500: #ec4899;
   
-  --shadow-card: 0 4px 24px -4px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(99, 102, 241, 0.1);
-  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.3);
-  --shadow-glow-teal: 0 0 20px rgba(20, 184, 166, 0.3);
+  --shadow-card: none;
+  --shadow-glow: 4px 4px 0px #3f3f46;
+  --shadow-glow-teal: 4px 4px 0px #292930;
 }
 
 @layer base {
   body {
-    background: var(--color-bg-gradient);
+    background-color: #0a0a0a;
+    background-image: linear-gradient(rgba(18, 19, 25, 0.3) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(18, 19, 25, 0.3) 1px, transparent 1px);
+    background-size: 20px 20px;
     @apply text-text antialiased;
     margin: 0;
     display: flex;
     min-height: 100vh;
-    background-attachment: fixed;
+    font-family: 'JetBrains Mono', monospace !important;
+  }
+
+  /* Global Brutalist Overrides */
+  * {
+    border-radius: 0px !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Focus and input states */
+  input, textarea, select, button {
+    outline: none !important;
+    transition: none !important;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    border-color: #ffca45 !important; /* Focus Caution Yellow */
+    background-color: #1b1b21 !important;
+  }
+
+  /* Custom scrollbars */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0a0a0a;
+    border-left: 2px solid #3f3f46;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border: 2px solid #0a0a0a;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #f97316;
   }
 }
 
 #root {
   width: 100%;
+}
+
+/* Custom Tactical HUD Classes */
+.module-header {
+  height: 28px;
+  background-color: #1b1b21;
+  border-bottom: 2px solid #3f3f46;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: #ffca45; /* Caution Yellow Headers */
+}
+
+.tactical-border {
+  border: 2px solid #3f3f46 !important;
+}
+
+.tactical-active-border {
+  border: 2px solid #f97316 !important;
+}
+
+/* scanline effect */
+.scanlines::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  z-index: 99999;
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
 }

@@ -211,7 +211,7 @@ export function setSupabaseMemoryAdapterForTests(adapter: SupabaseMemoryAdapter 
 }
 
 export function isSupabaseMemoryEnabled(): boolean {
-  return isSupabaseConfigured() || adapterOverride !== null;
+  return adapterOverride !== null || isSupabaseConfigured();
 }
 
 export async function syncMessageToSupabase(input: {
@@ -221,79 +221,61 @@ export async function syncMessageToSupabase(input: {
   timestamp?: string;
 }): Promise<boolean> {
   if (!isSupabaseMemoryEnabled()) {
+    log.debug("Supabase memory sync skipped: SUPABASE_URL/SUPABASE_KEY not configured");
     return false;
   }
 
-  try {
-    const timestamp = input.timestamp ?? new Date().toISOString();
-    const embedding = await generateEmbedding(input.content);
-    const { channelId, chatId } = parseSessionId(input.sessionId);
-
-    const adapter = getAdapter();
-
-    const sessionPayload: SessionSyncPayload = {
-      id: input.sessionId,
-      metadata: {
-        source: "gravityclaw",
-      },
-      embedding,
-    };
-
-    if (channelId) {
-      sessionPayload.channel_id = channelId;
-    }
-    if (chatId) {
-      sessionPayload.chat_id = chatId;
-    }
-
-    await adapter.upsertSession(sessionPayload);
-
-    await adapter.insertMessage({
-      id: `${input.sessionId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
-      session_id: input.sessionId,
-      role: input.role,
-      content: input.content,
-      timestamp,
-      embedding,
-    });
-
-    return true;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "unknown error";
-    log.warn(`Supabase async sync failed: ${message}`);
-    return false;
-  }
+  const embedding = await generateEmbedding(input.content);
+  const { channelId, chatId } = parseSessionId(input.sessionId);
+  const adapter = getAdapter();
+  const sessionPayload: SessionSyncPayload = {
+    id: input.sessionId,
+    embedding,
+  };
+  if (channelId) sessionPayload.channel_id = channelId;
+  if (chatId) sessionPayload.chat_id = chatId;
+  await adapter.upsertSession(sessionPayload);
+  await adapter.insertMessage({
+    id: `${input.sessionId}:${input.timestamp ?? new Date().toISOString()}:${input.role}`,
+    session_id: input.sessionId,
+    role: input.role,
+    content: input.content,
+    timestamp: input.timestamp ?? new Date().toISOString(),
+    embedding,
+  });
+  return true;
 }
 
-export function enqueueMessageSync(input: {
+export async function enqueueMessageSync(input: {
   sessionId: string;
   role: string;
   content: string;
   timestamp?: string;
-}): void {
-  void syncMessageToSupabase(input);
+}): Promise<void> {
+  if (!isSupabaseMemoryEnabled()) {
+    return;
+  }
+  try {
+    await syncMessageToSupabase(input);
+  } catch (err) {
+    log.warn(`Supabase memory sync failed: ${err instanceof Error ? err.message : String(err)}`);
+    throw err; // Re-throw so caller can track
+  }
 }
 
-function cosineSimilarity(a: number[], b: number[]): number {
-  const length = Math.min(a.length, b.length);
-  if (length === 0) {
-    return 0;
+function cosineSimilarity(v1: number[], v2: number[]): number {
+  if (v1.length !== v2.length || v1.length === 0) return 0;
+  let dotProduct = 0;
+  let mA = 0;
+  let mB = 0;
+  for (let i = 0; i < v1.length; i++) {
+    dotProduct += (v1[i] ?? 0) * (v2[i] ?? 0);
+    mA += (v1[i] ?? 0) * (v1[i] ?? 0);
+    mB += (v2[i] ?? 0) * (v2[i] ?? 0);
   }
-
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-
-  for (let i = 0; i < length; i++) {
-    const av = a[i] ?? 0;
-    const bv = b[i] ?? 0;
-    dot += av * bv;
-    normA += av * av;
-    normB += bv * bv;
-  }
-
-  const denom = Math.sqrt(normA) * Math.sqrt(normB);
-  return denom === 0 ? 0 : dot / denom;
+  const mag = Math.sqrt(mA) * Math.sqrt(mB);
+  if (mag === 0) return 0;
+  return dotProduct / mag;
 }
 
 export function fallbackLocalSemanticSearch(sessionId: string, query: string, limit: number): SemanticSearchResult[] {
@@ -361,28 +343,19 @@ export async function searchMemorySemantic(
   }
 
   const clampedLimit = Math.max(1, Math.min(50, Math.floor(limit)));
-
-  if (!isSupabaseMemoryEnabled()) {
-    return fallbackLocalSemanticSearch(sessionId, cleaned, clampedLimit);
-  }
-
-  try {
-    const queryEmbedding = await generateEmbedding(cleaned);
-    const adapter = getAdapter();
-    const results = await adapter.semanticSearch({
-      sessionId,
-      queryEmbedding,
-      limit: clampedLimit,
-    });
-
-    if (results.length === 0) {
-      return fallbackLocalSemanticSearch(sessionId, cleaned, clampedLimit);
+  
+  if (isSupabaseMemoryEnabled()) {
+    try {
+      const queryEmbedding = await generateEmbedding(cleaned);
+      return await getAdapter().semanticSearch({
+        sessionId,
+        queryEmbedding,
+        limit: clampedLimit,
+      });
+    } catch (err) {
+      log.warn(`Supabase semantic search failed, using local fallback: ${err instanceof Error ? err.message : String(err)}`);
     }
-
-    return results;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "unknown error";
-    log.warn(`Semantic search fallback to SQLite due to error: ${message}`);
-    return fallbackLocalSemanticSearch(sessionId, cleaned, clampedLimit);
   }
+
+  return fallbackLocalSemanticSearch(sessionId, cleaned, clampedLimit);
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { db } from "../db.ts";
 import { config } from "../config.ts";
-import { AgentSwarm, type SwarmConfig } from "../agents/swarm.ts";
+import { AgentSwarm, type SwarmConfig, type SwarmResult } from "../agents/swarm.ts";
 import { addUserMessage, addAssistantMessage, getHistory, clearHistory } from "../llm/index.ts";
 import { spawnAgentTool, aggregateResultsTool } from "../tools/core/swarm.ts";
 
@@ -225,7 +225,7 @@ describe("Agent Swarm System", () => {
       const sessionId2 = typeof result2 === 'string' ? result2 : result2.sessionId;
 
       // Aggregate their results
-      const aggregatedResult = await swarm.aggregateResults([sessionId1, sessionId2]);
+      const aggregatedResult = await swarm.aggregateResults([result1, result2] as SwarmResult[]);
 
       expect(aggregatedResult).toBeDefined();
       expect(typeof aggregatedResult).toBe("string");
@@ -250,7 +250,7 @@ describe("Agent Swarm System", () => {
       const sessionId1 = typeof result1 === 'string' ? result1 : result1.sessionId;
       const sessionId2 = typeof result2 === 'string' ? result2 : result2.sessionId;
 
-      const aggregatedResult = await swarm.aggregateResults([sessionId1, sessionId2]);
+      const aggregatedResult = await swarm.aggregateResults([result1, result2] as SwarmResult[]);
 
       expect(aggregatedResult).toBeDefined();
       // The aggregated result should be a string

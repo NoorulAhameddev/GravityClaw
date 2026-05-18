@@ -1,0 +1,18 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "label": "gravityclaw.mjs",
+      "file_type": "code",
+      "source_file": "D:\\Projects\\GravityClaw\\bin\\gravityclaw.mjs",
+      "source_location": "L1",
+      "id": "d_projects_gravityclaw_bin_gravityclaw_mjs",
+      "community": 0,
+      "norm_label": "gravityclaw.mjs"
+    }
+  ],
+  "links": [],
+  "hyperedges": []
+}

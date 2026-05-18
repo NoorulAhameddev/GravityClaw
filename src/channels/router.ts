@@ -883,7 +883,7 @@ export class ChannelRouter {
         // Command: /shutdown - Emergency process termination
         if (msg.text.trim() === "/shutdown") {
             // Only allow from TELEGRAM_ALLOWED_USER_ID if on Telegram
-            if (msg.channelId === "telegram" && msg.userId !== config.TELEGRAM_ALLOWED_USER_ID) {
+            if (msg.channelId === "telegram" && msg.userId !== String(config.TELEGRAM_ALLOWED_USER_ID)) {
                 await channel.sendMessage(msg.chatId, "❌ Unauthorized: You do not have permission to shutdown the system.");
                 return;
             }
@@ -903,7 +903,7 @@ export class ChannelRouter {
 
         // Command: /reset - Clear state and sessions
         if (msg.text.trim() === "/reset") {
-            if (msg.channelId === "telegram" && msg.userId !== config.TELEGRAM_ALLOWED_USER_ID) {
+            if (msg.channelId === "telegram" && msg.userId !== String(config.TELEGRAM_ALLOWED_USER_ID)) {
                 await channel.sendMessage(msg.chatId, "❌ Unauthorized: You do not have permission to reset the system.");
                 return;
             }
@@ -939,7 +939,7 @@ export class ChannelRouter {
         let typingInterval: NodeJS.Timeout | undefined;
         if (channel.sendTyping) {
             typingInterval = setInterval(() => {
-                channel.sendTyping!(msg.chatId).catch(() => { });
+                channel.sendTyping!(msg.chatId).catch((err) => log.debug("sendTyping error", err));
             }, 4000);
         }
 

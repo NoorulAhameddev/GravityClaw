@@ -35,9 +35,8 @@ export function wrapToolWithPermissionCheck(tool: Tool): Tool {
       const groupId = String(input["__groupId"] || "");
       const isGroup = Boolean(input["__isGroup"]);
 
-      // For non-group chats or missing context, allow all tools
       if (!isGroup || !groupId || !platform || !userId) {
-        return await tool.execute(input);
+        return "Error: Deprecated permission wrapper disabled. Use ToolExecutor for tool execution.";
       }
 
       // Check if user has permission to execute this tool
@@ -58,8 +57,7 @@ export function wrapToolWithPermissionCheck(tool: Tool): Tool {
         }
       }
 
-      // Permission granted, execute tool
-      return await tool.execute(input);
+      return "Error: Deprecated permission wrapper disabled. Use ToolExecutor for tool execution.";
     },
   };
 }

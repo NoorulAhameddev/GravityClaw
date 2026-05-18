@@ -70,11 +70,21 @@ export class GoogleProvider implements LLMProvider {
     }
 
     let text = "";
+    let thought = "";
+    let thoughtSignature = "";
     const toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] = [];
 
     for (const part of candidate.content.parts) {
+      // Capture signature if present in any part (often bundled with functionCall)
+      const partSignature = (part as any).thoughtSignature || (part as any).thought_signature;
+      if (partSignature) {
+        thoughtSignature = partSignature;
+      }
+
       if (part.text) {
         text += part.text;
+      } else if ((part as any).thought) {
+        thought = (part as any).thought;
       } else if (part.functionCall) {
         toolCalls.push({
           id: `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -88,13 +98,15 @@ export class GoogleProvider implements LLMProvider {
     }
 
     log.debug(
-      `Google response — stop: ${candidate.finishReason}, text: ${text.length} chars, tools: ${toolCalls.length}`
+      `Google response — stop: ${candidate.finishReason}, text: ${text.length} chars, tools: ${toolCalls.length}, thought: ${Boolean(thought)}`
     );
 
     const llmResponse: LLMResponse = {
       stopReason: candidate.finishReason ?? "STOP",
       text,
       toolCalls,
+      thought,
+      thoughtSignature,
     };
 
     // Google doesn't provide token counts in the same way, estimate if needed
@@ -116,7 +128,7 @@ export class GoogleProvider implements LLMProvider {
     let systemInstruction: string | undefined;
     const contents: Content[] = [];
 
-    for (const msg of messages) {
+    for (const msg of (messages as any[])) {
       if (msg.role === "system") {
         systemInstruction = typeof msg.content === "string" ? msg.content : "";
       } else if (msg.role === "user") {
@@ -127,20 +139,37 @@ export class GoogleProvider implements LLMProvider {
       } else if (msg.role === "assistant") {
         const parts: Part[] = [];
         
+        if (msg.thought && msg.thoughtSignature) {
+          parts.push({
+            thought: msg.thought,
+            thought_signature: msg.thoughtSignature
+          } as any);
+        }
+
         if (msg.content) {
           const content = typeof msg.content === "string" ? msg.content : "";
           parts.push({ text: content });
         }
 
-        if ("tool_calls" in msg && msg.tool_calls) {
+        if (msg.thought) {
+          parts.push({ thought: msg.thought } as any);
+        }
+
+        if (msg.tool_calls) {
           for (const toolCall of msg.tool_calls) {
             const argsResult = safeJsonParse<Record<string, unknown>>(toolCall.function.arguments, {} as Record<string, unknown>, "Google tool call args");
-            parts.push({
-              functionCall: {
-                name: toolCall.function.name,
-                args: argsResult.success && argsResult.data ? argsResult.data : {},
-              },
-            });
+            
+            const functionCall = {
+              name: toolCall.function.name,
+              args: argsResult.success && argsResult.data ? argsResult.data : {},
+            };
+
+            const part: any = { functionCall };
+            if (msg.thoughtSignature) {
+              part.thoughtSignature = msg.thoughtSignature;
+            }
+
+            parts.push(part);
           }
         }
 
@@ -151,7 +180,7 @@ export class GoogleProvider implements LLMProvider {
           role: "function",
           parts: [{
             functionResponse: {
-              name: "tool_result", // Generic name, would need mapping in real system
+              name: msg.name || "tool_result",
               response: { result: msg.content },
             },
           }],

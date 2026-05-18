@@ -16,14 +16,14 @@ export async function marketplaceCommand(subcommand: string | undefined, args: s
 
     switch (subcommand.toLowerCase()) {
         case "add":
-            await marketplaceAdd(args[0]);
+            await marketplaceAdd(args[0] ?? undefined);
             break;
         case "list":
             await marketplaceList();
             break;
         case "remove":
         case "rm":
-            await marketplaceRemove(args[0]);
+            await marketplaceRemove(args[0] ?? undefined);
             break;
         case "help":
             await showMarketplaceHelp();
@@ -62,6 +62,12 @@ async function marketplaceAdd(pluginSpec: string | undefined): Promise<void> {
         return;
     }
 
+    // Validate URL domain allowlist
+    const ALLOWED_DOMAINS = [
+        "github.com",
+        "github.dev",
+    ];
+    
     info(`Adding plugin: ${pluginSpec}`);
 
     try {
@@ -74,17 +80,35 @@ async function marketplaceAdd(pluginSpec: string | undefined): Promise<void> {
             const parts = pluginSpec.split("/");
             const owner = parts[0];
             const repo = parts[1];
-            if (!repo) {
+            if (!owner || !repo) {
                 error(`Invalid plugin specification: ${pluginSpec}\n`);
                 return;
             }
+            
+            // Basic validation for owner/repo format
+            if (!/^[a-zA-Z0-9][a-zA-Z0-9-]*$/.test(owner) || !/^[a-zA-Z0-9][a-zA-Z0-9-]*$/.test(repo)) {
+                error(`Invalid plugin specification: ${pluginSpec}. Use format owner/repo with alphanumeric and hyphens only.\n`);
+                return;
+            }
+            
             repoUrl = `https://github.com/${owner}/${repo}`;
             pluginId = repo.toLowerCase();
         } else if (pluginSpec.startsWith("http")) {
-            // Direct URL
+            // Direct URL - validate domain
+            const urlObj = new URL(pluginSpec);
+            if (!ALLOWED_DOMAINS.includes(urlObj.hostname)) {
+                error(`Domain not allowed: ${urlObj.hostname}. Only ${ALLOWED_DOMAINS.join(", ")} are supported.\n`);
+                return;
+            }
+            
+            // Block suspicious paths
+            if (urlObj.pathname.includes("..") || urlObj.pathname.includes("~")) {
+                error("Invalid URL path: traversal not allowed\n");
+                return;
+            }
+            
             repoUrl = pluginSpec;
             // Extract repo name from URL
-            const urlObj = new URL(pluginSpec);
             const pathParts = urlObj.pathname.split("/").filter(Boolean);
             const lastPart = pathParts[pathParts.length - 1];
             pluginId = lastPart ? lastPart.replace(/\.git$/, "") : "unknown";

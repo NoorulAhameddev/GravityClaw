@@ -1,0 +1,17 @@
+{
+  "files": {
+    "code": [
+      "D:\\Projects\\GravityClaw\\bin\\gravityclaw.mjs"
+    ],
+    "document": [],
+    "paper": [],
+    "image": [],
+    "video": []
+  },
+  "total_files": 1,
+  "total_words": 6,
+  "needs_graph": false,
+  "warning": "Corpus is ~6 words - fits in a single context window. You may not need a graph.",
+  "skipped_sensitive": [],
+  "graphifyignore_patterns": 0
+}

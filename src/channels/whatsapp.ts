@@ -46,6 +46,13 @@ export class WhatsAppChannel implements Channel {
         return this.connectionStatus;
     }
 
+    static create(): WhatsAppChannel | null {
+        if (!config.WHATSAPP_ENABLED) {
+            return null;
+        }
+        return new WhatsAppChannel();
+    }
+
     public async triggerReconnect(): Promise<void> {
         this.connectionStatus = "connecting";
         if (this.sock) {
@@ -284,7 +291,7 @@ export class WhatsAppChannel implements Channel {
     async stop(): Promise<void> {
         log.info("Stopping WhatsApp channel…");
         if (this.sock) {
-            this.sock.logout().catch(() => { });
+            this.sock.logout().catch((err) => log.warn("WhatsApp logout error", err));
         }
     }
     async sendMessage(chatId: string, text: string): Promise<void> {

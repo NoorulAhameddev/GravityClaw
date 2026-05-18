@@ -77,7 +77,9 @@ function getYearInReview(year: number): YearInReview {
                     toolCounts.set(name, (toolCounts.get(name) || 0) + 1);
                 }
             }
-        } catch (e) {}
+        } catch {
+            // Skip messages without tool_calls - this is expected
+        }
     }
 
     const topTools = Array.from(toolCounts.entries())

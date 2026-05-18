@@ -6,21 +6,30 @@ import type { BackupInfo } from "./backup.ts";
 import { BackupScheduler } from "./scheduler.ts";
 import type { BackupScheduleConfig } from "./scheduler.ts";
 import { createLogger } from "../logger.ts";
-import { config } from "../config.ts";
+import {
+    config,
+    BACKUP_DIR,
+    BACKUP_CRON,
+    BACKUP_RETENTION_DAYS,
+    BACKUP_ENABLED,
+    BACKUP_ENCRYPT,
+    BACKUP_COMPRESS,
+    BACKUP_MASTER_KEY,
+} from "../config.ts";
 
 const log = createLogger("backup");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Default configuration
+// Default configuration - now using config
 export const DEFAULT_BACKUP_CONFIG = {
-    backupDir: process.env.BACKUP_DIR || path.join(process.cwd(), "backups"),
-    cronExpression: process.env.BACKUP_CRON || "0 2 * * *", // Daily at 2 AM
-    retentionDays: parseInt(process.env.BACKUP_RETENTION_DAYS || "30", 10),
-    enabled: process.env.BACKUP_ENABLED !== "false", // Enabled by default
-    encryptBackups: process.env.BACKUP_ENCRYPT !== "false", // Enabled by default
-    compressBackups: process.env.BACKUP_COMPRESS !== "false", // Enabled by default
+    backupDir: BACKUP_DIR || path.join(process.cwd(), "backups"),
+    cronExpression: BACKUP_CRON || "0 2 * * *",
+    retentionDays: BACKUP_RETENTION_DAYS || 30,
+    enabled: BACKUP_ENABLED !== false,
+    encryptBackups: BACKUP_ENCRYPT !== false,
+    compressBackups: BACKUP_COMPRESS !== false,
 };
 
 let backupManager: BackupManager | null = null;
@@ -40,7 +49,7 @@ export async function initializeBackupSystem(
         log.info("Initializing backup system...");
 
         // Create backup manager
-        const masterKey = config.MASTER_KEY || process.env.BACKUP_MASTER_KEY;
+        const masterKey = config.MASTER_KEY || BACKUP_MASTER_KEY;
         backupManager = new BackupManager(finalConfig.backupDir, masterKey);
 
         // Create scheduler

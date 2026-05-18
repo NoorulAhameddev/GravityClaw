@@ -18,27 +18,7 @@ export type {
 
 const log = createLogger("multimodal");
 
-export function initMultimodalMemory(): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS attachments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      session_id TEXT NOT NULL,
-      type TEXT NOT NULL,
-      url TEXT,
-      base64_data TEXT,
-      extracted_text TEXT,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_attachments_session ON attachments(session_id);
-    CREATE INDEX IF NOT EXISTS idx_attachments_type ON attachments(type);
-    CREATE INDEX IF NOT EXISTS idx_attachments_timestamp ON attachments(timestamp);
-  `);
-
-  log.info("Multimodal memory initialized");
-}
-
-initMultimodalMemory();
+// Multimodal memory schema initialization is handled by src/db/migrations/schema.ts
 
 function mapAttachmentRow(row: {
   id: number;

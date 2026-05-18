@@ -1,6 +1,6 @@
 import { execSync, spawn } from "child_process";
 import { createLogger } from "../logger.js";
-import { writeFileSync, unlinkSync } from "fs";
+import { writeFileSync, unlinkSync, readFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -81,7 +81,6 @@ async function piperTextToSpeech(text: string): Promise<Buffer | null> {
           }
 
           // Read the output file
-          const { readFileSync } = require("fs");
           const buffer = readFileSync(tmpFile);
           unlinkSync(tmpFile); // Clean up
           log.debug(`Generated audio via piper: ${buffer.length} bytes`);
@@ -135,7 +134,6 @@ async function espeakTextToSpeech(text: string): Promise<Buffer | null> {
 
       execSync(command, { timeout: 10000, stdio: "pipe" });
 
-      const { readFileSync } = require("fs");
       const buffer = readFileSync(tmpFile);
       unlinkSync(tmpFile); // Clean up
       log.debug(`Generated audio via espeak: ${buffer.length} bytes`);

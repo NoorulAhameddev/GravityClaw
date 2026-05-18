@@ -4,6 +4,8 @@
  */
 
 import { createLogger } from "../../logger.ts";
+import { gunzipSync } from "node:zlib";
+import { writeFileSync } from "node:fs";
 
 const log = createLogger("export-utils");
 
@@ -66,7 +68,6 @@ export function decodeExportData(
 
   if (isCompressed) {
     try {
-      const { gunzipSync } = require("zlib");
       return gunzipSync(buffer);
     } catch (err) {
       log.error("Failed to decompress data", err);
@@ -103,13 +104,12 @@ export function saveExportToFile(
   }
 
   try {
-    const fs = require("fs");
     const buffer = decodeExportData(
       exportResult.data.base64,
       exportResult.data.compressed
     );
 
-    fs.writeFileSync(outputPath, buffer);
+    writeFileSync(outputPath, buffer);
     log.info(`Export saved to ${outputPath}`);
     return true;
   } catch (err) {

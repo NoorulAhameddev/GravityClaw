@@ -117,14 +117,41 @@ export class InProcessTaskQueue implements TaskQueue {
 
     private async runLoop(): Promise<void> {
         while (this.running) {
+            let claimedTask: BackgroundTask | null = null;
+            
             try {
-                const task = await this.claimNext();
-                if (task && this.workerFn) {
-                    await this.workerFn(task);
+                claimedTask = await this.claimNext();
+                
+                if (claimedTask && this.workerFn) {
+                    try {
+                        await this.workerFn(claimedTask);
+                        // Task completed successfully - workerFn is responsible for calling markSucceeded
+                    } catch (workerErr) {
+                        // Worker function threw - task is still in "processing" state
+                        // Must mark it as failed to prevent orphan state
+                        const errMsg = workerErr instanceof Error ? workerErr.message : String(workerErr);
+                        log.error(`Worker function failed for task ${claimedTask.id}: ${errMsg}`);
+                        
+                        // Mark task as failed - this is critical for data integrity
+                        // Without this, task would stay in "processing" forever
+                        storage.failTask(claimedTask.id, `Worker error: ${errMsg}`);
+                        
+                        log.warn(`Task ${claimedTask.id} marked as failed due to worker exception`);
+                    }
                 }
             } catch (err) {
+                // Claim or other storage operation failed
                 const msg = err instanceof Error ? err.message : String(err);
                 log.error("Worker loop error", msg);
+                
+                // If we had claimed a task but failed, ensure it's not orphaned
+                if (claimedTask) {
+                    try {
+                        storage.failTask(claimedTask.id, `Worker loop error: ${msg}`);
+                    } catch {
+                        // Storage might be down - can't do much here
+                    }
+                }
             }
 
             await new Promise(resolve => setTimeout(resolve, 1000));

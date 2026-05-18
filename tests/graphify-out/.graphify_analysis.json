@@ -1,0 +1,52 @@
+{
+  "communities": {
+    "0": [
+      "d_projects_gravityclaw_tests_e2e_chat_spec_ts"
+    ],
+    "1": [
+      "d_projects_gravityclaw_tests_e2e_sanity_spec_ts"
+    ],
+    "2": [
+      "d_projects_gravityclaw_tests_e2e_swarm_complete_spec_ts"
+    ],
+    "3": [
+      "d_projects_gravityclaw_tests_e2e_swarm_content_spec_ts"
+    ],
+    "4": [
+      "d_projects_gravityclaw_tests_e2e_swarm_debug_spec_ts"
+    ],
+    "5": [
+      "d_projects_gravityclaw_tests_e2e_swarm_deep_spec_ts"
+    ],
+    "6": [
+      "d_projects_gravityclaw_tests_e2e_swarm_feature_spec_ts"
+    ],
+    "7": [
+      "d_projects_gravityclaw_tests_e2e_swarm_llm_check_spec_ts"
+    ],
+    "8": [
+      "d_projects_gravityclaw_tests_e2e_swarm_vs_chat_spec_ts"
+    ],
+    "9": [
+      "d_projects_gravityclaw_tests_e2e_swarm_workflow_spec_ts"
+    ],
+    "10": [
+      "d_projects_gravityclaw_tests_e2e_workflow_feature_spec_ts"
+    ]
+  },
+  "cohesion": {
+    "0": 1.0,
+    "1": 1.0,
+    "2": 1.0,
+    "3": 1.0,
+    "4": 1.0,
+    "5": 1.0,
+    "6": 1.0,
+    "7": 1.0,
+    "8": 1.0,
+    "9": 1.0,
+    "10": 1.0
+  },
+  "gods": [],
+  "surprises": []
+}

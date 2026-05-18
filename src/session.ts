@@ -129,17 +129,21 @@ export function setSessionSettings(sessionId: string, settings: SessionSettings)
   const settingsJson = JSON.stringify(settings);
   
   try {
-    // Use transaction to prevent race conditions
-    const transaction = db.transaction(() => {
-      // Update settings for all rows in this session to ensure the latest row has them
-      const result = db.prepare(`
-        UPDATE memory 
-        SET settings = ? 
+    db.transaction(() => {
+      const existingRow = db.prepare(`
+        SELECT id FROM memory 
         WHERE session_id = ?
-      `).run(settingsJson, sessionId);
+        ORDER BY timestamp DESC 
+        LIMIT 1
+      `).get(sessionId) as { id: number } | undefined;
       
-      // If no rows were updated, create a new placeholder
-      if (result.changes === 0) {
+      if (existingRow) {
+        db.prepare(`
+          UPDATE memory 
+          SET settings = ? 
+          WHERE session_id = ?
+        `).run(settingsJson, sessionId);
+      } else {
         const metadataMessage = {
           role: "system",
           content: "",
@@ -150,9 +154,7 @@ export function setSessionSettings(sessionId: string, settings: SessionSettings)
           VALUES (?, ?, ?)
         `).run(sessionId, JSON.stringify(metadataMessage), settingsJson);
       }
-    });
-    
-    transaction();
+    })();
     log.info(`Saved settings for session ${sessionId}`);
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);

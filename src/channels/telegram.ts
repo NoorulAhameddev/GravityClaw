@@ -37,6 +37,13 @@ export class TelegramChannel implements Channel {
     private sessionIdsPerChat: Map<string, string> = new Map();
     private botUsername: string = "";
 
+    static create(): TelegramChannel | null {
+        if (!config.TELEGRAM_BOT_TOKEN) {
+            return null;
+        }
+        return new TelegramChannel();
+    }
+
     constructor() {
         this.bot = new Bot(config.TELEGRAM_BOT_TOKEN);
 

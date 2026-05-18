@@ -36,8 +36,9 @@
     "gravityclaw": "./bin/gravityclaw.mjs"
   },
   "scripts": {
+    "build": "npx esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --outdir=dist --packages=external",
     "dev": "npx tsx watch --exclude gravity.db* --exclude logs/**/* src/index.ts",
-    "start": "node --max-old-space-size=512 node_modules/tsx/dist/cli.mjs src/index.ts",
+    "start": "node --max-old-space-size=512 dist/index.js",
     "cli": "npx tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest --config config/vitest.config.ts",
@@ -144,6 +145,7 @@
     "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^4.0.18",
     "@vitest/ui": "^4.0.18",
+    "esbuild": "^0.28.0",
     "playwright": "^1.58.2",
     "tsx": "^4.21.0",
     "typescript": "^5.7.3",

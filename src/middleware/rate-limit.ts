@@ -146,47 +146,7 @@ export class RateLimiter {
   private isEnvironmentDev: boolean = (process.env.NODE_ENV || "development") === "development";
 
   constructor() {
-    this.initializeDatabase();
     this.startCleanupInterval();
-  }
-
-  /**
-   * Initialize SQLite tables for rate limiting
-   */
-  private initializeDatabase(): void {
-    try {
-      db.exec(`
-        CREATE TABLE IF NOT EXISTS rate_limits (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          session_id TEXT NOT NULL,
-          identifier TEXT NOT NULL,
-          tokens REAL NOT NULL,
-          last_refill_time INTEGER NOT NULL,
-          request_count INTEGER NOT NULL,
-          hit_count INTEGER NOT NULL,
-          last_hit_time INTEGER,
-          custom_limit_rpm INTEGER,
-          updated_at INTEGER NOT NULL,
-          UNIQUE(session_id, identifier)
-        );
-
-        CREATE TABLE IF NOT EXISTS rate_limit_history (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          timestamp INTEGER NOT NULL,
-          session_id TEXT NOT NULL,
-          tool_name TEXT NOT NULL,
-          allowed INTEGER NOT NULL,
-          tokens_available REAL NOT NULL,
-          created_at INTEGER NOT NULL
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_rate_limits_session ON rate_limits(session_id);
-        CREATE INDEX IF NOT EXISTS idx_rate_limit_history_session ON rate_limit_history(session_id, timestamp);
-      `);
-      log.info("Rate limiting database tables initialized");
-    } catch (err) {
-      log.error("Failed to initialize rate limit tables", err);
-    }
   }
 
   /**

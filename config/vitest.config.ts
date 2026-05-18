@@ -22,6 +22,9 @@ export default defineConfig({
     hookTimeout: 10000,
     env: {
       UNRESTRICTED_ACCESS: 'false',
+      TELEGRAM_BOT_TOKEN: '0000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      TELEGRAM_ALLOWED_USER_ID: '123456789',
+      LLM_PROVIDER: 'mock',
     },
   },
 });

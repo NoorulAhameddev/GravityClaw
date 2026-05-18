@@ -4,7 +4,7 @@
  */
 
 import "../src/config.ts";
-import { registry } from "../src/tools/index.ts";
+import { registry, toolExecutor } from "../src/tools/index.ts";
 import { dashboardTools } from "../src/tools/ui/index.ts";
 import { voiceSettingsTools } from "../src/tools/voice/index.ts";
 import { recordUsage } from "../src/usage.ts";
@@ -62,8 +62,19 @@ async function testTool(toolName: string, input: Record<string, unknown>) {
   }
   
   try {
-    const result = await tool.execute(input);
-    const parsed = JSON.parse(result);
+    const execution = await toolExecutor.execute({
+      toolName,
+      input,
+      context: {
+        sessionId: testSessionId,
+        source: "test",
+      },
+    });
+    if (!execution.success) {
+      console.log(`Tool ${toolName} failed: ${execution.error?.message || "Unknown error"}`);
+      return false;
+    }
+    const parsed = JSON.parse(execution.result ?? "null");
     
     if (parsed.success !== false && !parsed.error) {
       console.log(`✅ ${toolName} - OK`);

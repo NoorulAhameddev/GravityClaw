@@ -4,6 +4,9 @@ import type { Request, Response, NextFunction } from "express";
 export const toolsExecuteSchema = z.object({
     tool: z.string().min(1, "Tool name is required"),
     input: z.record(z.unknown()).optional(),
+    sessionId: z.string().optional(),
+    userId: z.string().optional(),
+    approvalRequestId: z.string().optional(),
 });
 
 export const voiceSpeakSchema = z.object({

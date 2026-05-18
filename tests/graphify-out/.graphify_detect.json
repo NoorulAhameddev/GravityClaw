@@ -1,0 +1,27 @@
+{
+  "files": {
+    "code": [
+      "D:\\Projects\\GravityClaw\\tests\\e2e\\chat.spec.ts",
+      "D:\\Projects\\GravityClaw\\tests\\e2e\\sanity.spec.ts",
+      "D:\\Projects\\GravityClaw\\tests\\e2e\\swarm-complete.spec.ts",
+      "D:\\Projects\\GravityClaw\\tests\\e2e\\swarm-content.spec.ts",
+      "D:\\Projects\\GravityClaw\\tests\\e2e\\swarm-debug.spec.ts",
+      "D:\\Projects\\GravityClaw\\tests\\e2e\\swarm-deep.spec.ts",
+      "D:\\Projects\\GravityClaw\\tests\\e2e\\swarm-feature.spec.ts",
+      "D:\\Projects\\GravityClaw\\tests\\e2e\\swarm-llm-check.spec.ts",
+      "D:\\Projects\\GravityClaw\\tests\\e2e\\swarm-vs-chat.spec.ts",
+      "D:\\Projects\\GravityClaw\\tests\\e2e\\swarm-workflow.spec.ts",
+      "D:\\Projects\\GravityClaw\\tests\\e2e\\workflow-feature.spec.ts"
+    ],
+    "document": [],
+    "paper": [],
+    "image": [],
+    "video": []
+  },
+  "total_files": 11,
+  "total_words": 2017,
+  "needs_graph": false,
+  "warning": "Corpus is ~2,017 words - fits in a single context window. You may not need a graph.",
+  "skipped_sensitive": [],
+  "graphifyignore_patterns": 0
+}

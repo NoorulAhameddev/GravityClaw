@@ -1,3 +1,4 @@
+import { config } from "../config.ts";
 import { mobileGateway } from "../gateway/mobile.ts";
 import type { UnifiedMessage, Channel } from "../types/channels.js";
 import { createLogger } from "../logger.ts";
@@ -12,6 +13,13 @@ export class MobileChannel implements Channel {
     public id = "mobile";
     public preferredFormat: "markdown" = "markdown";
     private onMessageCb?: (msg: UnifiedMessage) => Promise<void>;
+
+    static create(): MobileChannel | null {
+        if (!config.MOBILE_CHANNEL_ENABLED) {
+            return null;
+        }
+        return new MobileChannel();
+    }
 
     async start(onMessage: (msg: UnifiedMessage) => Promise<void>): Promise<void> {
         this.onMessageCb = onMessage;

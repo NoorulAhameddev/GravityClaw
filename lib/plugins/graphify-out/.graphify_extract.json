@@ -1,0 +1,25 @@
+{
+  "nodes": [
+    {
+      "id": "d_projects_gravityclaw_plugins_example_hello_index_ts",
+      "label": "index.ts",
+      "file_type": "code",
+      "source_file": "D:\\Projects\\GravityClaw\\plugins\\example-hello\\index.ts",
+      "source_location": "L1"
+    }
+  ],
+  "edges": [
+    {
+      "source": "d_projects_gravityclaw_plugins_example_hello_index_ts",
+      "target": "d_projects_gravityclaw_src_plugins_base_ts",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "D:\\Projects\\GravityClaw\\plugins\\example-hello\\index.ts",
+      "source_location": "L7",
+      "weight": 1.0
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

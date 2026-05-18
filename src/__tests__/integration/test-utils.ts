@@ -6,6 +6,7 @@
 import { db } from "../../db.ts";
 import { createLogger } from "../../logger.ts";
 import type { SessionSettings } from "../../session.ts";
+import { touchFactAccess } from "../../memory/markdown.ts";
 
 const log = createLogger("test-utils");
 
@@ -128,7 +129,7 @@ export function getSessionSettingsFromDb(sessionId: string): SessionSettings | n
   try {
     const row = db
       .prepare(
-        `SELECT settings FROM memory WHERE session_id = ? AND settings != '{}' AND settings IS NOT NULL ORDER BY timestamp DESC LIMIT 1`
+        `SELECT settings FROM memory WHERE session_id = ? AND settings != '{}' AND settings IS NOT NULL ORDER BY id DESC LIMIT 1`
       )
       .get(sessionId) as { settings: string } | undefined;
 
@@ -172,7 +173,6 @@ export function createTestFact(
   fact: string
 ): void {
   try {
-    const { touchFactAccess } = require("../../memory/markdown.ts");
     touchFactAccess(sessionId, category, fact, {
       incrementCount: true,
       importanceDelta: 1,

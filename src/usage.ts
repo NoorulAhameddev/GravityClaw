@@ -4,34 +4,7 @@ import { calculateCost, formatCost, getModelPricing } from "./llm/pricing.ts";
 
 const log = createLogger("usage");
 
-/**
- * Initialize usage tracking table
- */
-export function initUsageTracking(): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS usage (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-      session_id TEXT NOT NULL,
-      model TEXT NOT NULL,
-      prompt_tokens INTEGER NOT NULL,
-      completion_tokens INTEGER NOT NULL,
-      total_tokens INTEGER NOT NULL,
-      cost REAL NOT NULL,
-      latency_ms INTEGER,
-      provider TEXT
-    );
-    
-    CREATE INDEX IF NOT EXISTS idx_usage_session ON usage(session_id);
-    CREATE INDEX IF NOT EXISTS idx_usage_timestamp ON usage(timestamp);
-    CREATE INDEX IF NOT EXISTS idx_usage_model ON usage(model);
-  `);
-  
-  log.info("Usage tracking initialized");
-}
-
-// Initialize on module load
-initUsageTracking();
+// Usage schema initialization is handled by src/db/migrations/schema.ts
 
 export interface UsageRecord {
   id: number;

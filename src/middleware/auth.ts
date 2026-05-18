@@ -1,14 +1,49 @@
 import type { Request, Response, NextFunction } from "express";
-import { config } from "../config.ts";
+import {
+    config,
+    AUTH_TRUSTED_CIDRS,
+    AUTH_ALLOW_LOCALHOST,
+} from "../config.ts";
 import { createLogger } from "../logger.ts";
 
 const log = createLogger("auth");
 
 const API_KEY_HEADER = "x-api-key";
 
+// Allowlist for IPs that can bypass API key (comma-separated in config)
+const LOCALHOST_ALLOWLIST = new Set([
+    "127.0.0.1",
+    "::1",
+    "::ffff:127.0.0.1",
+    "0.0.0.0",
+]);
+
+// Trusted IP CIDRs for development (configure via config in production)
+const TRUSTED_CIDRS = new Set<string>();
+if (AUTH_TRUSTED_CIDRS) {
+    AUTH_TRUSTED_CIDRS.split(",").forEach(cidr => {
+        TRUSTED_CIDRS.add(cidr.trim());
+    });
+}
+
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_ATTEMPTS = 5;
+
+function isInternalIp(clientIp: string): boolean {
+    if (LOCALHOST_ALLOWLIST.has(clientIp)) {
+        return true;
+    }
+    
+    // Check trusted CIDRs
+    for (const cidr of TRUSTED_CIDRS) {
+        if (clientIp.startsWith(cidr) || cidr === clientIp) {
+            return true;
+        }
+    }
+    
+    return false;
+}
 
 function isRateLimited(ip: string): boolean {
     const now = Date.now();
@@ -36,7 +71,12 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
     const path = req.path;
     const method = req.method;
     const clientIp = req.ip || "unknown";
-
+    
+    // Security: Require API key in production unless explicitly configured to allow localhost
+    // In development (NODE_ENV !== production), allow localhost for easier testing
+    const isDevMode = process.env.NODE_ENV !== "production";
+    const allowLocalhostBypass = isDevMode || AUTH_ALLOW_LOCALHOST === true;
+    
     if (!config.API_KEY) {
         log.warn(`SECURITY: No API_KEY configured - rejecting request: ${method} ${path}`);
         res.status(503).json({
@@ -48,10 +88,9 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
     }
 
     if (!apiKey) {
-        // Allow localhost without API key for easier development/testing
-        const isLocalhost = clientIp === "127.0.0.1" || clientIp === "::1" || clientIp === "::ffff:127.0.0.1";
-        if (isLocalhost) {
-            log.debug(`Allowing local request without API key: ${method} ${path}`);
+        // Only allow localhost bypass if explicitly enabled
+        if (allowLocalhostBypass && isInternalIp(clientIp)) {
+            log.debug(`Allowing local request without API key (dev mode): ${method} ${path}`);
             next();
             return;
         }

@@ -96,6 +96,13 @@ export function setHeartbeatPrompt(params: {
 
     const intervalMinutes = deriveIntervalMinutes(params.schedule, cronExpression);
 
+    if (!intervalMinutes || intervalMinutes <= 0 || intervalMinutes > 525600) {
+      return {
+        success: false,
+        error: "Invalid interval: must be between 1 minute and 1 year",
+      };
+    }
+
     const result = db.prepare(`
       INSERT INTO heartbeat_tasks (session_id, interval_minutes, prompt, scheduled_task_id, enabled)
       VALUES (?, ?, ?, ?, 1)
