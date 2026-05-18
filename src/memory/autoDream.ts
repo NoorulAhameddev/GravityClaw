@@ -117,49 +117,48 @@ export async function executeAutoDream(): Promise<void> {
     try {
         let consolidatedCount = 0;
         for (const sessionId of sessionIds) {
-            const facts = readAllFacts(sessionId);
-            if (facts.length < 3) {
-                continue;
-            }
-
-            const prompt = `Review the facts below and consolidate them to be concise and accurate.
-Remove duplicate or outdated facts, and merge similar ones into a single clear, high-quality fact. Keep only the most important and active facts.
-
-Current facts for session ${sessionId}:
-${facts.map(f => `- [${f.category}] ${f.fact}`).join("\n")}
-
-Format each consolidated fact exactly as: "- [category] fact"`;
-
-            const result = await runForkedAgent({
-                prompt,
-                sessionId: `dream-${sessionId}`,
-                maxIterations: 1,
-            });
-
-            const responseText = result.messages
-                .map((m) => m.content)
-                .join("\n");
-
-            const factLines = responseText
-                .split("\n")
-                .filter((line) => line.startsWith("- ["));
-
-            const consolidatedFacts: MarkdownFact[] = [];
-            for (const line of factLines) {
-                const match = line.match(/^- \[([^\]]+)\] (.+)$/);
-                if (match && match[1] && match[2]) {
-                    consolidatedFacts.push({
-                        timestamp: new Date().toISOString(),
-                        category: match[1].trim(),
-                        fact: match[2].trim(),
-                    });
+            try {
+                const facts = readAllFacts(sessionId);
+                if (facts.length < 3) {
+                    continue;
                 }
-            }
 
-            if (consolidatedFacts.length > 0) {
-                rewriteSessionFacts(sessionId, consolidatedFacts);
-                log.info(`Consolidated memory for session ${sessionId}: reduced from ${facts.length} to ${consolidatedFacts.length} facts`);
-                consolidatedCount++;
+                const prompt = await buildConsolidationPrompt([sessionId]);
+
+                const result = await runForkedAgent({
+                    prompt,
+                    sessionId: `dream-${sessionId}`,
+                    maxIterations: 1,
+                });
+
+                const responseText = result.messages
+                    .map((m) => m.content)
+                    .join("\n");
+
+                const factLines = responseText
+                    .split("\n")
+                    .filter((line) => line.startsWith("- ["));
+
+                const consolidatedFacts: MarkdownFact[] = [];
+                for (const line of factLines) {
+                    const match = line.match(/^- \[([^\]]+)\] (.+)$/);
+                    if (match && match[1] && match[2]) {
+                        consolidatedFacts.push({
+                            timestamp: new Date().toISOString(),
+                            category: match[1].trim(),
+                            fact: match[2].trim(),
+                        });
+                    }
+                }
+
+                if (consolidatedFacts.length > 0) {
+                    rewriteSessionFacts(sessionId, consolidatedFacts);
+                    log.info(`Consolidated memory for session ${sessionId}: reduced from ${facts.length} to ${consolidatedFacts.length} facts`);
+                    consolidatedCount++;
+                }
+            } catch (err) {
+                log.error(`Failed to consolidate session ${sessionId}:`, err);
+                // Continue to the next session instead of aborting the entire batch
             }
         }
 
@@ -171,21 +170,36 @@ Format each consolidated fact exactly as: "- [category] fact"`;
     } catch (e) {
         log.error(`AutoDream failed: ${e}`);
         if (priorMtime !== null) {
-            await rollbackConsolidationLock(priorMtime);
+            await rollbackConsolidationLock(lastAt);
         }
     }
 }
 
 export function startAutoDreamScheduler(): { stop: () => void } {
-    const interval = setInterval(() => {
-        executeAutoDream().catch((err) => {
-            log.error("AutoDream execution failed", err);
-        });
-    }, 10 * 60 * 1000); // Check every 10 minutes
+    let timeoutId: NodeJS.Timeout;
+    let stopped = false;
+
+    const scheduleNext = () => {
+        if (stopped) return;
+        timeoutId = setTimeout(() => {
+            executeAutoDream()
+                .catch((err) => {
+                    log.error("AutoDream execution failed", err);
+                })
+                .finally(() => {
+                    if (!stopped) {
+                        scheduleNext();
+                    }
+                });
+        }, 10 * 60 * 1000); // Check every 10 minutes
+    };
+
+    scheduleNext();
 
     return {
         stop: () => {
-            clearInterval(interval);
+            stopped = true;
+            clearTimeout(timeoutId);
         },
     };
 }
