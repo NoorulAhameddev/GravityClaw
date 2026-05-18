@@ -93,7 +93,7 @@ WebChat is the built-in web interface that works alongside Telegram and WhatsApp
 | `npm run test:run` | Run tests once |
 | `npm run test:coverage` | Generate coverage report |
 
-For detailed CLI usage, see [docs/CLI.md](docs/CLI.md)
+For detailed CLI usage, see [docs/guides/CLI.md](docs/guides/CLI.md)
 
 ---
 
@@ -157,7 +157,7 @@ Integrate external Model Context Protocol tool servers.
 
 Reference: [src/plugins/README.md](src/plugins/README.md)
 
-## � Deployment
+## 📦 Deployment
 
 ### Docker (Recommended)
 ```bash
@@ -248,8 +248,8 @@ For more details, see [SECURITY.md](SECURITY.md).
 |----------|---------|
 | **[📚 Documentation Index](docs/INDEX.md)** | **Complete documentation hub & navigation** |
 | [🛠️ Tools Reference](docs/TOOLS_REFERENCE.md) | Catalog of all 80+ tools with examples |
-| [📖 CLI Guide](docs/CLI.md) | Command-line interface reference |
-| [🏗️ Architecture](ARCHITECTURE_OVERVIEW.md) | Complete system design & data flow |
+| [📖 CLI Guide](docs/guides/CLI.md) | Command-line interface reference |
+| [🏗️ Architecture](docs/architecture/ARCHITECTURE_OVERVIEW.md) | Complete system design & data flow |
 
 ### 🤖 Core Features
 | Document | Purpose |
@@ -257,26 +257,26 @@ For more details, see [SECURITY.md](SECURITY.md).
 | [Multi-Agent Systems](docs/MULTI_AGENT_SYSTEMS.md) | Swarms & Mesh workflows for complex tasks |
 | [Skills Guide](docs/SKILLS_GUIDE.md) | Create prompt-based knowledge assets with code |
 | [Proactive Features](docs/PROACTIVE_FEATURES.md) | Heartbeat check-ins, daily recommendations, evening recaps |
-| [Live Canvas (A2UI)](docs/CANVAS.md) | Push rich HTML/JS widgets to users |
-| [Model Switching](docs/MODEL_SWITCHING.md) | Dynamic provider/model selection |
+| [Live Canvas (A2UI)](docs/features/canvas/CANVAS.md) | Push rich HTML/JS widgets to users |
+| [Model Switching](docs/guides/MODEL_SWITCHING.md) | Dynamic provider/model selection |
 
 ### 🔒 Security & Operations
 | Document | Purpose |
 |----------|---------|
 | [Security Policy](SECURITY.md) | Security features & vulnerability reporting |
-| [Air-Gapped Mode](docs/AIRGAP.md) | Complete offline operation with local models |
+| [Air-Gapped Mode](docs/features/airgap/AIRGAP.md) | Complete offline operation with local models |
 | [Encrypted Secrets](docs/ENCRYPTED_SECRETS.md) | AES-256-GCM secret management |
-| [Backup & Restore](docs/BACKUP_RESTORE_SYSTEM.md) | Automated backup system |
-| [Observability](docs/OBSERVABILITY.md) | Logging, metrics, tracing, monitoring |
-| [Rate Limiting](docs/RATE_LIMITING.md) | API rate limiting configuration |
-| [Performance Optimization](docs/PERFORMANCE.md) | Speed & efficiency tuning |
+| [Backup & Restore](docs/features/backup/BACKUP_RESTORE_SYSTEM.md) | Automated backup system |
+| [Observability](docs/features/observability/OBSERVABILITY.md) | Logging, metrics, tracing, monitoring |
+| [Rate Limiting](docs/features/rate-limiting/RATE_LIMITING.md) | API rate limiting configuration |
+| [Performance Optimization](docs/features/performance/PERFORMANCE.md) | Speed & efficiency tuning |
 
 ### 🧩 Development & Integration
 | Document | Purpose |
 |----------|---------|
-| [API Reference](docs/API.md) | REST & WebSocket API documentation |
+| [API Reference](docs/guides/API.md) | REST & WebSocket API documentation |
 | [Plugin System](src/plugins/README.md) | Create runtime extensions |
-| [Deployment Guide](docs/DEPLOYMENT.md) | Production deployment (VPS, Docker) |
+| [Deployment Guide](docs/guides/DEPLOYMENT.md) | Production deployment (VPS, Docker) |
 | [Contributing Guide](CONTRIBUTING.md) | How to contribute to the project |
 
 ---
@@ -288,5 +288,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Built with ❤️ by the Gravity Claw community**
-#   G r a v i t y C l a w  
+#   G r a v i t y C l a w 
+ 
  
