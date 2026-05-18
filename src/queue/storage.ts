@@ -125,50 +125,57 @@ export function createTask(task: {
 }
 
 export function claimTask(sessionId?: string): BackgroundTask | null {
-    const now = new Date().toISOString();
+    return db.transaction(() => {
+        const now = new Date().toISOString();
 
-    let query = `
-        SELECT * FROM background_tasks
-        WHERE status = 'queued' AND available_at <= ?
-    `;
-    const params: unknown[] = [now];
+        let query = `
+            SELECT * FROM background_tasks
+            WHERE status = 'queued' AND available_at <= ?
+        `;
+        const params: unknown[] = [now];
 
-    if (sessionId) {
-        query += ` AND session_id = ?`;
-        params.push(sessionId);
-    }
+        if (sessionId) {
+            query += ` AND session_id = ?`;
+            params.push(sessionId);
+        }
 
-    query += ` ORDER BY created_at ASC LIMIT 1`;
+        query += ` ORDER BY created_at ASC LIMIT 1`;
 
-    const row = db.prepare(query).get(...params) as {
-        id: string;
-        session_id: string;
-        run_id: string;
-        source: string;
-        tool_name: string;
-        input_json: string;
-        user_id: string | null;
-        platform: string | null;
-        group_id: string | null;
-        is_group: number;
-        attempt: number;
-        max_retries: number;
-        status: string;
-        result_json: string | null;
-        error: string | null;
-        workflow_id: string | null;
-        workflow_task_id: string | null;
-        available_at: string;
-        created_at: string;
-        updated_at: string;
-    } | undefined;
+        const row = db.prepare(query).get(...params) as {
+            id: string;
+            session_id: string;
+            run_id: string;
+            source: string;
+            tool_name: string;
+            input_json: string;
+            user_id: string | null;
+            platform: string | null;
+            group_id: string | null;
+            is_group: number;
+            attempt: number;
+            max_retries: number;
+            status: string;
+            result_json: string | null;
+            error: string | null;
+            workflow_id: string | null;
+            workflow_task_id: string | null;
+            available_at: string;
+            created_at: string;
+            updated_at: string;
+        } | undefined;
 
-    if (!row) return null;
+        if (!row) return null;
 
-    db.prepare(`UPDATE background_tasks SET status = 'processing', updated_at = ? WHERE id = ?`)
-        .run(now, row.id);
+        const update = db.prepare(`
+            UPDATE background_tasks
+            SET status = 'processing', updated_at = ?
+            WHERE id = ? AND status = 'queued'
+        `).run(now, row.id);
 
-    return rowToTask(row);
+        if (update.changes !== 1) return null;
+
+        return rowToTask({ ...row, status: "processing", updated_at: now });
+    })();
 }
 
 export function completeTask(taskId: string, result: unknown): void {

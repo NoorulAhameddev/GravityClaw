@@ -1,0 +1,12 @@
+{
+  "communities": {
+    "0": [
+      "d_projects_gravityclaw_plugins_example_hello_index_ts"
+    ]
+  },
+  "cohesion": {
+    "0": 1.0
+  },
+  "gods": [],
+  "surprises": []
+}

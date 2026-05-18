@@ -6,6 +6,7 @@ import { bootstrap } from "./bootstrap.ts";
 import { initializeBackupSystem, stopBackupScheduler, DEFAULT_BACKUP_CONFIG } from "./backup/index.ts";
 import { EVENING_RECAP_PROMPT, buildEveningRecap } from "./recap/index.ts";
 import { startDailyRecommendations } from "./recommendations/index.ts";
+import { startAutoDreamScheduler } from "./memory/autoDream.ts";
 import { runAgent } from "./agent.ts";
 import { ChannelRouter } from "./channels/router.ts";
 import { TelegramChannel } from "./channels/telegram.ts";
@@ -31,11 +32,11 @@ import { mcpClient } from "./mcp/index.ts";
 import { skillsManager } from "./skills/index.ts";
 import { registerTaskExecutionHandler } from "./scheduler/index.ts";
 import { isHeartbeatTask, isHeartbeatEnabledForSession, markHeartbeatRun, isHeartbeatResponseNoteworthy } from "./heartbeat/index.ts";
-import { withSpanAsync, injectTraceContext, extractTraceContext } from "./lib/telemetry/tracer.js";
+import { withSpanAsync, injectTraceContext } from "./lib/telemetry/tracer.js";
 import { telemetryLogger } from "./lib/telemetry/logger.js";
 import { context } from "@opentelemetry/api";
 import { recordWorkerJob } from "./lib/telemetry/metrics.js";
-import { getTaskQueue, getTask } from "./queue/index.ts";
+import { computeBackoff, getTaskQueue, getTask, isRetryableError } from "./queue/index.ts";
 import { setWhatsAppChannel } from "./server.ts";
 import { config } from "./config.ts";
 import { runWithConcurrencyLimit } from "./concurrency.ts";
@@ -60,7 +61,7 @@ process.on("uncaughtException", (err: Error) => {
         message: err.message,
         stack: err.stack,
     });
-    shutdownTelemetry().catch(() => {});
+    shutdownTelemetry().catch((err) => log.error("Failed to shutdown telemetry", err));
     process.exit(1);
 });
 
@@ -155,17 +156,9 @@ async function main() {
     if (config.QUEUE_ENABLED) {
         try {
             const queue = getTaskQueue();
-            if (queue && "startWorker" in queue) {
-                (queue as any).startWorker(async (task: any) => {
-                    let ctx;
-                    if (task._trace) {
-                        ctx = extractTraceContext(task._trace);
-                        if (!ctx) {
-                            telemetryLogger.warn("invalid trace context, using active", { job_id: task.id });
-                        }
-                    }
-
-                    return await context.with(ctx || context.active(), async () => {
+            if (queue.startWorker) {
+                queue.startWorker(async (task) => {
+                    return await context.with(context.active(), async () => {
                         return await withSpanAsync("worker.job", async (span) => {
                             span.setAttribute("job.id", task.id);
                             span.setAttribute("job.tool", task.toolName);
@@ -173,12 +166,54 @@ async function main() {
                             try {
                                 telemetryLogger.info("worker started", { job_id: task.id, tool: task.toolName });
                                 log.info(`Processing queued task: ${task.id} - ${task.toolName}`);
+                                let result: unknown;
+                                if (task.toolName === "__run_agent") {
+                                    const message = String(task.input["message"] ?? "");
+                                    if (!message.trim()) {
+                                        throw new Error("Queued agent task missing message");
+                                    }
+                                    result = await runAgent({
+                                        message,
+                                        sessionId: task.sessionId,
+                                        userId: task.userId,
+                                        platform: task.platform,
+                                        groupId: task.groupId,
+                                        isGroup: task.isGroup,
+                                        dependencies: container,
+                                    });
+                                } else {
+                                    const execution = await container.toolExecutor.execute({
+                                        toolName: task.toolName,
+                                        input: task.input,
+                                        context: {
+                                            sessionId: task.sessionId,
+                                            userId: task.userId,
+                                            platform: task.platform,
+                                            groupId: task.groupId,
+                                            isGroup: task.isGroup,
+                                            source: "queue",
+                                        },
+                                    });
+                                    if (!execution.success) {
+                                        throw new Error(`${execution.error?.type ?? "execution"}: ${execution.error?.message ?? "Tool execution failed"}`);
+                                    }
+                                    result = execution.result;
+                                }
+                                await queue.markSucceeded(task.id, result);
                                 span.setAttribute("job.success", true);
                                 recordWorkerJob("default", task.toolName, true);
                             } catch (err) {
                                 span.setAttribute("job.success", false);
                                 span.recordException(err as Error);
-                                telemetryLogger.error("worker failed", { job_id: task.id, error: (err as Error).message });
+                                const message = err instanceof Error ? err.message : String(err);
+                                if (task.attempt < task.maxRetries && isRetryableError(err)) {
+                                    const delay = computeBackoff(task.attempt);
+                                    await queue.retry(task.id, delay);
+                                    telemetryLogger.warn("worker retry scheduled", { job_id: task.id, delay_ms: delay, error: message });
+                                } else {
+                                    await queue.markFailed(task.id, message);
+                                    telemetryLogger.error("worker failed", { job_id: task.id, error: message });
+                                }
                                 recordWorkerJob("default", task.toolName, false);
                                 throw err;
                             }
@@ -201,31 +236,32 @@ async function main() {
     log.info(`Plugins loaded: ${loadedPlugins.length}`);
 
     const router = new ChannelRouter();
-    router.register(new TelegramChannel());
-    const whatsappChannel = new WhatsAppChannel();
-    router.register(whatsappChannel);
-    router.register(new WebChatChannel());
-    setWhatsAppChannel(whatsappChannel);
+    
+    // Dynamic channel registration swarm
+    const channelClasses = [
+        TelegramChannel,
+        WhatsAppChannel,
+        WebChatChannel,
+        DiscordChannel,
+        SlackChannel,
+        SignalChannel,
+        MobileChannel
+    ];
 
-    const discordChannel = DiscordChannel.create();
-    if (discordChannel) {
-        router.register(discordChannel);
-    }
-
-    const slackChannel = SlackChannel.create();
-    if (slackChannel) {
-        router.register(slackChannel);
-    }
-
-    const signalChannel = SignalChannel.create();
-    if (signalChannel) {
-        router.register(signalChannel);
-    }
-
-    if (config.MOBILE_CHANNEL_ENABLED) {
-        const mobileChannel = new MobileChannel();
-        router.register(mobileChannel);
-        log.info("📱 Mobile companion channel enabled");
+    for (const ChannelClass of channelClasses) {
+        try {
+            const instance = (ChannelClass as any).create();
+            if (instance) {
+                router.register(instance);
+                log.info(`✅ Registered channel: ${instance.id}`);
+                // Special case for WhatsApp needed for the server to serve QR code
+                if (instance.id === "whatsapp") {
+                    setWhatsAppChannel(instance);
+                }
+            }
+        } catch (err: any) {
+            log.warn(`⚠️ Failed to register channel ${ChannelClass.name}:`, err);
+        }
     }
 
     registerTaskExecutionHandler(async (taskId, sessionId, prompt) => {

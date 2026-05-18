@@ -1,0 +1,50 @@
+{
+  "files": {
+    "code": [
+      "D:\\Projects\\GravityClaw\\scripts\\bench-tools.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\canvas-demo.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\capture-screenshots.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\check-chat.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\check-chat2.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\check-chat3.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\check-dashboard-tools.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\check-errors.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\check-web.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\load-test.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\screenshot-all.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\screenshot-with-auth.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\screenshot.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\stress-test.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\test-dashboard-e2e.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\test-dashboard-ui.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\test-dashboard-websocket.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\verify-airgap.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\debug\\add_numbers.py",
+      "D:\\Projects\\GravityClaw\\scripts\\debug\\check_tools.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\debug\\debug_agent.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\debug\\factorial.c",
+      "D:\\Projects\\GravityClaw\\scripts\\debug\\read_db.ts",
+      "D:\\Projects\\GravityClaw\\scripts\\hooks\\post-bash.js",
+      "D:\\Projects\\GravityClaw\\scripts\\hooks\\post-edit.js",
+      "D:\\Projects\\GravityClaw\\scripts\\hooks\\pre-bash.js",
+      "D:\\Projects\\GravityClaw\\scripts\\hooks\\pre-compact.js",
+      "D:\\Projects\\GravityClaw\\scripts\\hooks\\pre-write.js",
+      "D:\\Projects\\GravityClaw\\scripts\\hooks\\session-end.js",
+      "D:\\Projects\\GravityClaw\\scripts\\hooks\\session-start.js",
+      "D:\\Projects\\GravityClaw\\scripts\\hooks\\stop-session-summary.js"
+    ],
+    "document": [],
+    "paper": [],
+    "image": [],
+    "video": []
+  },
+  "total_files": 31,
+  "total_words": 8552,
+  "needs_graph": false,
+  "warning": "Corpus is ~8,552 words - fits in a single context window. You may not need a graph.",
+  "skipped_sensitive": [
+    "D:\\Projects\\GravityClaw\\scripts\\encrypt-secret.ts",
+    "D:\\Projects\\GravityClaw\\scripts\\secret-manager.ts"
+  ],
+  "graphifyignore_patterns": 0
+}

@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, writeFileSync, unlinkSync, existsSync } from "node:fs";
+import { mkdtempSync, writeFileSync, unlinkSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Tool } from "./index.ts";
@@ -201,7 +201,7 @@ function createSandboxEnv(language: string): Record<string, string> {
 
 export const sandboxTool: Tool = {
     name: "execute_code",
-    description: "Execute code in a sandboxed environment. Supports JavaScript/TypeScript and Python with strict security controls: no filesystem access beyond temp, no network, strict timeout, and dangerous functions blocked.",
+    description: "Execute code in an experimental process-limited runner. Supports JavaScript/TypeScript and Python with timeout and pattern blocking; this is not a hardened OS sandbox.",
     inputSchema: {
         type: "object" as const,
         properties: {
@@ -345,7 +345,7 @@ export const sandboxTool: Tool = {
             }
             try {
                 if (tempDir && existsSync(tempDir)) {
-                    unlinkSync(tempDir);
+                    rmSync(tempDir, { recursive: true, force: true });
                 }
             } catch {
                 // Ignore cleanup errors
@@ -356,10 +356,11 @@ export const sandboxTool: Tool = {
 
 export const runCodeAliasTool: Tool = {
     name: "run_code",
-    description: "Execute code in a sandboxed environment. Alias for execute_code.",
+    description: "Disabled alias for execute_code. Use execute_code through the centralized executor.",
     inputSchema: sandboxTool.inputSchema,
     requiresApproval: true,
     async execute(input) {
-        return sandboxTool.execute(input);
+        void input;
+        return "Error: run_code alias is disabled. Use execute_code through the centralized tool executor.";
     },
 };

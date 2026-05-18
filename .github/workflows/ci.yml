@@ -2,28 +2,43 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
   pull_request:
     branches: [ main ]
 
 jobs:
-  build:
+  typecheck-and-test:
+    name: Type Check & Test (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        node-version: ['20', '22']
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Use Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Type check
-      run: npm run typecheck
-      
-    - name: Run tests
-      run: npm run test:run
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm run test:run
+        env:
+          # Dummy values so Zod config validation passes in CI.
+          # No real credentials — tests use mock/stub providers.
+          TELEGRAM_BOT_TOKEN: "0000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          TELEGRAM_ALLOWED_USER_ID: "123456789"
+          LLM_PROVIDER: "mock"
+          OPENROUTER_API_KEY: "sk-or-dummy"
+          API_KEY: "ci-test-key"
+          UNRESTRICTED_ACCESS: "false"
+          NODE_ENV: "test"

@@ -115,7 +115,6 @@ export function createTalkModeHandler(
     return new Promise((resolve, reject) => {
       try {
         // Dynamic import to avoid loading node-record-lpcm16 in test environments
-        const record = require('node-record-lpcm16');
 
         audioChunks = [];
         let isSilent = false;

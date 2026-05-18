@@ -87,7 +87,7 @@ When reviewing code or work, be critical but constructive, and provide actionabl
 When summarizing, focus on clarity and relevance, ensuring nothing critical is lost.`,
 };
 
-interface SwarmResult {
+export interface SwarmResult {
   sessionId: string;
   role: string;
   content: string;
@@ -151,7 +151,8 @@ export class AgentSwarm {
         timestamp
       );
 
-      log.info(`Spawned ${role} agent: ${childSessionId} for task: "${task}"`);
+      const taskStr = typeof task === "string" ? task : String(task ?? "");
+      log.info(`Spawned ${role} agent: ${childSessionId} for task: "${taskStr}"`);
 
       // Get system prompt for this role
       const systemPrompt = ROLE_PROMPTS[role] || ROLE_PROMPTS.researcher;
@@ -163,19 +164,19 @@ export class AgentSwarm {
       };
 
       // Initialize the agent's conversation
-      addUserMessage(childSessionId, task, childOrchestratorDeps);
+      addUserMessage(childSessionId, taskStr, childOrchestratorDeps);
 
       // Get the provider and call LLM with role-specific system prompt
       const provider = getProvider();
 
       // Add assistant's initial response
       const systemPromptContent: string = (ROLE_PROMPTS[role] || ROLE_PROMPTS.researcher) ?? "You are a helpful assistant.";
-      log.debug(`[${role}] Calling LLM with task: ${task.substring(0, 50)}...`);
+      log.debug(`[${role}] Calling LLM with task: ${taskStr.substring(0, 50)}...`);
       
       const response = await provider.chat(
         [
           { role: "system" as const, content: systemPromptContent },
-          { role: "user" as const, content: task },
+          { role: "user" as const, content: taskStr },
         ],
         []
       );

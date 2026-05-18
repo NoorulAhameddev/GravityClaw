@@ -92,34 +92,28 @@ export class OpenRouterProvider implements LLMProvider {
       return isCached && !isBlacklisted && !isExcluded;
     };
 
-    // Known high-quality free models in preference order (March 2026)
-    // Prioritizing models that support tools/function calling
+    // Known high-quality free models in preference order (Updated May 2026)
+    // Prioritizing Meta Llama 3.3 as it's currently the most stable tool-supporting free model
     const preferredFreeModels = [
-      // Google Gemini models (Very reliable for tools)
-      "google/gemini-2.0-flash-exp:free",
-      "google/gemini-2.0-flash-lite-preview-02-05:free",
-      "google/gemini-2.0-pro-exp-02-05:free",
-      
-      // NVIDIA models
-      "nvidia/llama-3.1-nemotron-70b-instruct:free",
-      "nvidia/llama-3.1-nemotron-51b-instruct:free", 
-      "nvidia/llama-3.1-nemotron-8b-instruct:free",
-
-      // Meta Llama
+      // Meta Llama 3.3 (High reliability, good tool support)
       "meta-llama/llama-3.3-70b-instruct:free",
-      "meta-llama/llama-3.2-3b-instruct:free",
       
-      // DeepSeek
+      // NVIDIA / Mistral (Solid alternatives with dedicated endpoints)
+      "nvidia/llama-3.1-nemotron-70b-instruct:free",
+      "mistralai/mistral-small-3.1-24b-instruct:free",
+
+      // DeepSeek (Excellent but often rate-limited)
       "deepseek/deepseek-chat:free",
       "deepseek/deepseek-r1:free",
       
-      // Qwen
+      // Google Gemma 3 (Very new, may have limited endpoints)
+      "google/gemma-3-27b-it:free",
+      "google/gemma-3-12b-it:free",
+      
+      // Fallbacks
       "qwen/qwen-2.5-72b-instruct:free",
-      "qwen/qwen-2.5-7b-instruct:free",
-
-      // Mistral
-      "mistralai/mistral-small-3.1-24b-instruct:free",
-      "mistralai/mistral-7b-instruct:free",
+      "nousresearch/hermes-3-llama-3.1-405b:free",
+      "google/gemini-2.0-flash-lite-preview-02-05:free",
     ];
 
     // 1. Try to find a preferred model that is currently available and not blacklisted
@@ -144,7 +138,7 @@ export class OpenRouterProvider implements LLMProvider {
       // Pick a random one from available free models to distribute load
       const randomIndex = Math.floor(Math.random() * availableFreeModels.length);
       const randomModel = availableFreeModels[randomIndex];
-      const selectedModel = randomModel ?? availableFreeModels[0] ?? "google/gemini-2.0-flash-exp:free";
+      const selectedModel = randomModel ?? availableFreeModels[0] ?? "google/gemma-3-27b-it:free";
       log.debug(`Resolved 'openrouter/free' to random free model: ${selectedModel} (from ${availableFreeModels.length} available)`);
       return selectedModel;
     }
@@ -153,13 +147,13 @@ export class OpenRouterProvider implements LLMProvider {
     const allFreeModels = models.filter(m => m.pricing.prompt === 0).map(m => m.id);
     if (allFreeModels.length > 0) {
       // Pick the first one - it might work if blacklist expires
-      const fallback = allFreeModels[0] ?? "google/gemini-2.0-flash-exp:free";
+      const fallback = allFreeModels[0] ?? "google/gemma-3-27b-it:free";
       log.warn(`All free models are excluded/blacklisted. Trying first free model anyway: ${fallback}`);
       return fallback;
     }
 
-    // 4. Ultimate fallback
-    return "google/gemini-2.0-flash-exp:free";
+    // 4. Ultimate fallback (Confirmed stable as of May 2026)
+    return "meta-llama/llama-3.3-70b-instruct:free";
   }
 
   async chat(
@@ -283,8 +277,8 @@ export class OpenRouterProvider implements LLMProvider {
           }
 
           if (status === 429 && attempt < 3) {
-            log.warn(`Rate limited (429) — retrying in 3s (attempt ${attempt}/3)`);
-            await new Promise((r) => setTimeout(r, 3000));
+            log.warn(`Rate limited (429) — retrying in 5s (attempt ${attempt}/3)`);
+            await new Promise((r) => setTimeout(r, 5000));
             continue;
           }
 

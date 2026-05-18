@@ -8,22 +8,7 @@ import { getSessionSettings, updateSessionSetting } from "../session.ts";
 
 const log = createLogger("recommendations");
 
-function initRecommendationsStore(): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS recommendation_events (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      session_id TEXT NOT NULL,
-      date_key TEXT NOT NULL,
-      suggestions_json TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_recommendation_events_session ON recommendation_events(session_id);
-    CREATE INDEX IF NOT EXISTS idx_recommendation_events_date ON recommendation_events(date_key);
-  `);
-}
-
-initRecommendationsStore();
+// Recommendations schema initialization is handled by src/db/migrations/schema.ts
 
 export interface RecommendationsProfile {
   topCommands: Array<{ command: string; count: number }>;

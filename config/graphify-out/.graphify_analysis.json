@@ -1,0 +1,16 @@
+{
+  "communities": {
+    "0": [
+      "d_projects_gravityclaw_config_vitest_config_ts"
+    ],
+    "1": [
+      "d_projects_gravityclaw_config_vitest_setup_ts"
+    ]
+  },
+  "cohesion": {
+    "0": 1.0,
+    "1": 1.0
+  },
+  "gods": [],
+  "surprises": []
+}

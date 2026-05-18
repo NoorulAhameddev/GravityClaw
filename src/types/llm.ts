@@ -19,12 +19,16 @@ export interface Message {
     }>;
     name?: string;
     tool_calls?: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[];
+    thought?: string;
+    thoughtSignature?: string;
 }
 
 export interface LLMResponse {
   stopReason: string;
   text: string;
   toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[];
+  thought?: string;
+  thoughtSignature?: string;
   usage?: {
     promptTokens: number;
     completionTokens: number;

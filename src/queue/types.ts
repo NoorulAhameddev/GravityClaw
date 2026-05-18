@@ -16,6 +16,8 @@ export interface QueuedTaskPayload {
     workflowId: string | undefined;
     workflowTaskId: string | undefined;
     _trace?: Record<string, string>;
+    /** Unique key for idempotency - prevents duplicate job execution */
+    idempotencyKey?: string;
 }
 
 export interface BackgroundTask {
@@ -63,4 +65,6 @@ export interface TaskQueue {
     getTask(taskId: string): Promise<BackgroundTask | null>;
     getPendingTasks(sessionId?: string): Promise<BackgroundTask[]>;
     updateStatus(taskId: string, status: TaskStatus): Promise<void>;
+    startWorker?(workerFn: (task: BackgroundTask) => Promise<void>, concurrency?: number): void;
+    stopWorker?(): void;
 }

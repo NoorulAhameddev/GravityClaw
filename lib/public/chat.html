@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gravity Claw - Web Chat</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --border: #d9e1ee;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --bot: #e8f0ff;
+      --user: #2563eb;
+      --user-text: #ffffff;
+      --success: #10b981;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .chat-app {
+      width: 100%;
+      max-width: 900px;
+      height: min(90vh, 760px);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+    .header {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, #ffffff 0%, #f9fafc 100%);
+    }
+    .title { 
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.3px;
+    }
+    .status { 
+      font-size: 12px; 
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--error);
+      animation: pulse 2s infinite;
+    }
+    .status-dot.connected { 
+      background: var(--success);
+      animation: none;
+      box-shadow: 0 0 6px var(--success);
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: #fbfcff;
+    }
+    .messages::-webkit-scrollbar {
+      width: 6px;
+    }
+    .messages::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .messages::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+    .messages::-webkit-scrollbar-thumb:hover {
+      background: #cbd5e1;
+    }
+    .msg-group {
+      display: flex;
+      gap: 10px;
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .msg-group.user { justify-content: flex-end; }
+    .msg-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .msg-group.bot .msg-avatar {
+      background: #dbe7ff;
+    }
+    .msg-group.user .msg-avatar {
+      background: var(--accent);
+      color: white;
+    }
+    .msg-container {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-width: 75%;
+    }
+    .message {
+      padding: 12px 14px;
+      border-radius: 12px;
+      line-height: 1.5;
+      word-break: break-word;
+      position: relative;
+      transition: background-color 0.2s;
+    }
+    .message:hover {
+      background-color: rgba(0, 0, 0, 0.02);
+    }
+    .message.bot {
+      background: var(--bot);
+      color: var(--text);
+      border: 1px solid #dbe7ff;
+      border-radius: 4px 12px 12px 12px;
+    }
+    .message.user {
+      background: var(--user);
+      color: var(--user-text);
+      border-radius: 12px 4px 12px 12px;
+    }
+    /* Markdown rendering */
+    .message p { margin: 6px 0; }
+    .message p:first-child { margin-top: 0; }
+    .message p:last-child { margin-bottom: 0; }
+    .message code {
+      background: rgba(0, 0, 0, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+    }
+    .message.user code {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    .message pre {
+      background: rgba(0, 0, 0, 0.05);
+      padding: 10px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    .message pre code {
+      background: none;
+      padding: 0;
+    }
+    .message a {
+      color: inherit;
+      text-decoration: underline;
+      opacity: 0.8;
+    }
+    .message a:hover {
+      opacity: 1;
+    }
+    .message strong { font-weight: 600; }
+    .message em { font-style: italic; }
+    .message ul, .message ol {
+      margin: 6px 0;
+      padding-left: 20px;
+    }
+    .message li {
+      margin: 3px 0;
+    }
+    .msg-time {
+      font-size: 11px;
+      color: var(--muted);
+      opacity: 0.7;
+    }
+    .msg-group.user .msg-time {
+      text-align: right;
+    }
+    .typing {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 0 18px 4px;
+      min-height: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .typing-dots {
+      display: flex;
+      gap: 3px;
+    }
+    .typing-dots span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+      animation: typingBounce 1.4s infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingBounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-8px); }
+    }
+    .composer {
+      border-top: 1px solid var(--border);
+      padding: 14px 16px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      background: #ffffff;
+      flex-shrink: 0;
+    }
+    .composer input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .composer input:focus { 
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .composer input::placeholder {
+      color: var(--muted);
+    }
+    .composer button {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 18px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .composer button:hover:not(:disabled) { 
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+    .composer button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    .composer button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    @media (max-width: 640px) {
+      .chat-app {
+        height: 100vh;
+        border-radius: 0;
+      }
+      .msg-container {
+        max-width: 85%;
+      }
+      .messages {
+        padding: 12px;
+      }
+      .composer {
+        padding: 10px 12px;
+      }
+      .title {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-app">
+    <div class="header">
+      <div class="title">🦾 Gravity Claw</div>
+      <div class="status" role="status" aria-live="polite">
+        <span id="status-dot" class="status-dot"></span>
+        <span id="status-text">Disconnected</span>
+      </div>
+    </div>
+
+    <div id="messages" class="messages" role="log" aria-label="Chat messages"></div>
+    <div id="typing" class="typing" aria-live="polite"></div>
+
+    <form id="composer" class="composer">
+      <input 
+        id="input" 
+        type="text" 
+        placeholder="Type a message... (Shift+Enter for new line)" 
+        autocomplete="off"
+        aria-label="Message input"
+      />
+      <button id="send" type="submit" disabled aria-label="Send message">Send</button>
+    </form>
+  </div>
+
+  <script>
+    // ─── Configuration ───────────────────────
+    const messagesEl = document.getElementById('messages');
+    const typingEl = document.getElementById('typing');
+    const inputEl = document.getElementById('input');
+    const sendBtn = document.getElementById('send');
+    const formEl = document.getElementById('composer');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}`;
+
+    let ws;
+    let reconnectMs = 1000;
+    let reconnectTimer;
+
+    // ─── Markdown & Highlighting ─────────────
+    marked.setOptions({
+      breaks: true,
+      gfm: true,
+    });
+
+    function renderMarkdown(text) {
+      const html = marked.parse(text);
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      div.querySelectorAll('pre code').forEach(el => {
+        el.classList.add('hljs');
+        hljs.highlightElement(el);
+      });
+      return div;
+    }
+
+    // ─── Message Rendering ──────────────────
+    function addMessage(role, text) {
+      const msgGroup = document.createElement('div');
+      msgGroup.className = `msg-group ${role}`;
+      
+      const avatar = document.createElement('div');
+      avatar.className = 'msg-avatar';
+      avatar.textContent = role === 'user' ? '👤' : '🦾';
+      
+      const container = document.createElement('div');
+      container.className = 'msg-container';
+      
+      const bubble = document.createElement('div');
+      bubble.className = `message ${role}`;
+      
+      // Render markdown for bot messages
+      if (role === 'bot') {
+        bubble.appendChild(renderMarkdown(text));
+      } else {
+        bubble.textContent = text;
+      }
+      
+      const time = document.createElement('div');
+      time.className = 'msg-time';
+      time.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      container.appendChild(bubble);
+      container.appendChild(time);
+      
+      msgGroup.appendChild(avatar);
+      msgGroup.appendChild(container);
+      
+      messagesEl.appendChild(msgGroup);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    // ─── Status Management ──────────────────
+    function setStatus(connected) {
+      if (connected) {
+        statusDot.classList.add('connected');
+        statusText.textContent = 'Connected';
+        sendBtn.disabled = false;
+      } else {
+        statusDot.classList.remove('connected');
+        statusText.textContent = 'Disconnected';
+        sendBtn.disabled = true;
+      }
+    }
+
+    // ─── Typing Indicator ────────────────────
+    function showTyping(show) {
+      if (show) {
+        typingEl.innerHTML = `
+          <span>Agent is thinking</span>
+          <div class="typing-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        `;
+      } else {
+        typingEl.innerHTML = '';
+      }
+    }
+
+    // ─── WebSocket Connection ───────────────
+    function connect() {
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        clearTimeout(reconnectTimer);
+        reconnectMs = 1000;
+        setStatus(true);
+        addMessage('bot', '✅ Connected! You can start chatting now.');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+
+          if (payload.type === 'typing') {
+            showTyping(true);
+            return;
+          }
+
+          if (payload.type === 'message' && typeof payload.text === 'string') {
+            showTyping(false);
+            addMessage(payload.isBot ? 'bot' : 'user', payload.text);
+            return;
+          }
+
+          if (payload.type === 'tool_response') {
+            showTyping(false);
+            addMessage('bot', '```json\n' + JSON.stringify(payload, null, 2) + '\n```');
+          }
+        } catch (err) {
+          addMessage('bot', String(event.data));
+        }
+      };
+
+      ws.onerror = () => {
+        setStatus(false);
+      };
+
+      ws.onclose = () => {
+        setStatus(false);
+        showTyping(false);
+        reconnectTimer = setTimeout(connect, reconnectMs);
+        reconnectMs = Math.min(reconnectMs * 2, 10000);
+      };
+    }
+
+    // ─── Event Listeners ────────────────────
+    formEl.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const text = inputEl.value.trim();
+      if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+      addMessage('user', text);
+      ws.send(JSON.stringify({ type: 'message', text }));
+      inputEl.value = '';
+      inputEl.focus();
+    });
+
+    // Keyboard shortcuts
+    inputEl.addEventListener('keydown', (e) => {
+      // Send on Enter (or Cmd+Enter on Mac)
+      if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        formEl.dispatchEvent(new Event('submit'));
+      }
+    });
+
+    // Auto-focus input on load
+    inputEl.focus();
+
+    // Connect on startup
+    connect();
+  </script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "nodes": [
+    {
+      "id": "d_projects_gravityclaw_bin_gravityclaw_mjs",
+      "label": "gravityclaw.mjs",
+      "file_type": "code",
+      "source_file": "D:\\Projects\\GravityClaw\\bin\\gravityclaw.mjs",
+      "source_location": "L1"
+    }
+  ],
+  "edges": [
+    {
+      "source": "d_projects_gravityclaw_bin_gravityclaw_mjs",
+      "target": "esm",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "D:\\Projects\\GravityClaw\\bin\\gravityclaw.mjs",
+      "source_location": "L2",
+      "weight": 1.0
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

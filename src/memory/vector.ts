@@ -97,6 +97,7 @@ export async function upsertVectorMemory(opts: {
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         log.warn(`Vector upsert failed for id=${id}: ${msg}`);
+        throw err; // Re-throw so caller can track failure
     }
 }
 

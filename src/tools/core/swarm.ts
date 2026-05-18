@@ -1,6 +1,7 @@
 import type { Tool } from "./index.ts";
-import { AgentSwarm } from "../../agents/swarm.ts";
+import { AgentSwarm, type SwarmResult } from "../../agents/swarm.ts";
 import { createLogger } from "../../logger.ts";
+import { db } from "../../db.ts";
 
 const log = createLogger("swarm-tools");
 
@@ -71,13 +72,13 @@ export const spawnAgentTool: Tool = {
         maxConcurrency: 1,
       });
 
-      const sessionId = await swarm.spawnAgent(role, task);
+      const result = await swarm.spawnAgent(role, task);
 
-      log.info(`Spawned agent with session ID: ${sessionId}`);
+      log.info(`Spawned agent with session ID: ${result.sessionId}`);
 
       return JSON.stringify({
         success: true,
-        sessionId,
+        sessionId: result.sessionId,
         role,
         message: `Agent spawned successfully`,
       });
@@ -143,7 +144,24 @@ export const aggregateResultsTool: Tool = {
         maxConcurrency: 1,
       });
 
-      const aggregatedResult = await swarm.aggregateResults(sessionIds);
+      const swarmResults: SwarmResult[] = sessionIds.map((sid) => {
+        const entry = db
+          .prepare("SELECT role, status FROM agent_swarms WHERE child_session_id = ?")
+          .get(sid) as { role: string; status: string } | undefined;
+
+        const lastMsg = db
+          .prepare("SELECT content FROM memory WHERE session_id = ? AND role = 'assistant' ORDER BY rowid DESC LIMIT 1")
+          .get(sid) as { content: string } | undefined;
+
+        return {
+          sessionId: sid,
+          role: entry?.role || "researcher",
+          content: lastMsg?.content || "",
+          status: (entry?.status === "completed" ? "completed" : "failed") as "completed" | "failed",
+        };
+      });
+
+      const aggregatedResult = await swarm.aggregateResults(swarmResults);
 
       log.info(`Aggregated results from ${sessionIds.length} agents`);
 
@@ -161,3 +179,4 @@ export const aggregateResultsTool: Tool = {
     }
   },
 };
+

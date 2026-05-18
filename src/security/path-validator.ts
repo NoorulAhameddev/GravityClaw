@@ -94,6 +94,7 @@ const BLOCKED_FILE_PATTERNS = [
 // Validation cache (results cached for 5 minutes)
 const validationCache = new Map<string, { result: PathValidationResult; timestamp: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const MAX_CACHE_SIZE = 500;
 
 /**
  * Clear old cache entries
@@ -109,6 +110,29 @@ function removeOldCacheEntries(): void {
   }
   
   keysToDelete.forEach(key => validationCache.delete(key));
+}
+
+/**
+ * Enforce cache size limit with LRU-style eviction
+ */
+function enforceCacheLimit(): void {
+  while (validationCache.size > MAX_CACHE_SIZE) {
+    let oldestKey: string | null = null;
+    let oldestTime = Date.now();
+    
+    for (const [key, entry] of validationCache.entries()) {
+      if (entry.timestamp < oldestTime) {
+        oldestTime = entry.timestamp;
+        oldestKey = key;
+      }
+    }
+    
+    if (oldestKey) {
+      validationCache.delete(oldestKey);
+    } else {
+      break;
+    }
+  }
 }
 
 /**
@@ -216,16 +240,17 @@ export function validatePathAccess(
   filePath: string,
   config: PathValidationConfig
 ): PathValidationResult {
-  // Check cache first
+  // Check cache first (only for non-symlink paths)
   const cacheKey = `${filePath}:${config.allowedPaths.join(',')}:${config.action}`;
   const cached = validationCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS && !cached.result.isSymlink) {
     return cached.result;
   }
   
   // Clean old cache entries periodically
-  if (validationCache.size > 1000) {
+  if (validationCache.size > MAX_CACHE_SIZE) {
     removeOldCacheEntries();
+    enforceCacheLimit();
   }
   
   // Default config values
@@ -238,6 +263,7 @@ export function validatePathAccess(
   // GLOBAL BYPASS: If unrestricted access is enabled, allow ALL paths immediately
   if (UNRESTRICTED_ACCESS) {
     const resolvedPath = path.resolve(filePath);
+    logger.warn(`UNRESTRICTED_ACCESS enabled - allowing path: ${filePath}`);
     return {
       allowed: true,
       resolvedPath,

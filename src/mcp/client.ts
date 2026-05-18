@@ -23,6 +23,7 @@ const __dirname = path.dirname(__filename);
 /**
  * MCP Client Manager
  * Manages connections to MCP servers and routes tool calls
+ * Includes automatic reconnection for crashed servers
  */
 export class MCPClient {
   private servers: Map<string, MCPServer> = new Map();
@@ -31,6 +32,18 @@ export class MCPClient {
     number,
     { resolve: (value: any) => void; reject: (error: any) => void }
   > = new Map();
+
+  // Track failed servers for reconnection with exponential backoff
+  private failedServers: Map<string, { 
+    lastFailure: number; 
+    attempt: number;
+    reconnectTimer?: NodeJS.Timeout;
+  }> = new Map();
+  
+  // Reconnection configuration
+  private readonly INITIAL_RECONNECT_DELAY_MS = 5000;
+  private readonly MAX_RECONNECT_DELAY_MS = 300000; // 5 minutes max
+  private readonly MAX_RECONNECT_ATTEMPTS = 10;
 
   /**
    * Initialize MCP client and connect to all configured servers
@@ -53,12 +66,103 @@ export class MCPClient {
         await this.connectServer(name, serverConfig);
       } catch (error) {
         log.error(`Failed to connect to MCP server "${name}": ${error}`);
+        // Schedule reconnection for failed server
+        this.scheduleReconnect(name, serverConfig);
       }
     }
 
     log.info(
       `MCP client initialized with ${this.servers.size} server(s)`
     );
+  }
+
+  /**
+   * Schedule reconnection attempt with exponential backoff
+   */
+  private scheduleReconnect(name: string, config: MCPServerConfig): void {
+    // Clear any existing reconnect timer
+    const existing = this.failedServers.get(name);
+    if (existing?.reconnectTimer) {
+      clearTimeout(existing.reconnectTimer);
+    }
+
+    const failure = this.failedServers.get(name) || { lastFailure: Date.now(), attempt: 0 };
+    failure.lastFailure = Date.now();
+    failure.attempt++;
+
+    // Don't retry beyond max attempts
+    if (failure.attempt > this.MAX_RECONNECT_ATTEMPTS) {
+      log.warn(`MCP server "${name}" has exceeded max reconnection attempts (${this.MAX_RECONNECT_ATTEMPTS}). Manual intervention required.`);
+      this.failedServers.delete(name);
+      return;
+    }
+
+    // Calculate delay with exponential backoff
+    const delay = Math.min(
+      this.INITIAL_RECONNECT_DELAY_MS * Math.pow(2, failure.attempt - 1),
+      this.MAX_RECONNECT_DELAY_MS
+    );
+
+    log.info(`Scheduling reconnection for MCP server "${name}" in ${delay}ms (attempt ${failure.attempt}/${this.MAX_RECONNECT_ATTEMPTS})`);
+
+    const timer = setTimeout(async () => {
+      try {
+        await this.connectServer(name, config);
+        // Connection succeeded - remove from failed list
+        this.failedServers.delete(name);
+        log.info(`MCP server "${name}" reconnected successfully`);
+      } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        log.warn(`Reconnection failed for MCP server "${name}": ${errMsg}`);
+        // Schedule next attempt
+        this.scheduleReconnect(name, config);
+      }
+    }, delay);
+
+    failure.reconnectTimer = timer;
+    this.failedServers.set(name, failure);
+  }
+
+  /**
+   * Manually trigger reconnection for a specific server
+   */
+  async reconnectServer(name: string): Promise<boolean> {
+    const config = this.loadConfig();
+    if (!config || !config.mcpServers[name]) {
+      log.error(`Cannot reconnect: MCP server "${name}" not found in config`);
+      return false;
+    }
+
+    // Clear any pending reconnect
+    const failed = this.failedServers.get(name);
+    if (failed?.reconnectTimer) {
+      clearTimeout(failed.reconnectTimer);
+    }
+    this.failedServers.delete(name);
+
+    try {
+      await this.connectServer(name, config.mcpServers[name]);
+      log.info(`MCP server "${name}" reconnected manually`);
+      return true;
+    } catch (error) {
+      log.error(`Manual reconnection failed for "${name}": ${error}`);
+      this.scheduleReconnect(name, config.mcpServers[name]);
+      return false;
+    }
+  }
+
+  /**
+   * Check if a server is available or scheduled for reconnection
+   */
+  getServerHealth(name: string): { connected: boolean; reconnectScheduled: boolean; attempt: number } {
+    const server = this.servers.get(name);
+    const failed = this.failedServers.get(name);
+
+    return {
+      connected: server?.connected ?? false,
+      reconnectScheduled: failed !== undefined,
+      attempt: failed?.attempt ?? 0,
+    };
   }
 
   /**
@@ -335,6 +439,14 @@ export class MCPClient {
   async shutdown(): Promise<void> {
     log.info("Shutting down MCP client...");
 
+    // Clear all reconnection timers
+    for (const [name, failure] of this.failedServers.entries()) {
+      if (failure.reconnectTimer) {
+        clearTimeout(failure.reconnectTimer);
+      }
+    }
+    this.failedServers.clear();
+
     for (const server of this.servers.values()) {
       try {
         server.process.kill();
@@ -356,13 +468,32 @@ export class MCPClient {
     connected: boolean;
     toolCount: number;
     command: string;
+    reconnectAttempt?: number;
+    lastFailure?: number;
   }> {
-    return Array.from(this.servers.values()).map((server) => ({
-      name: server.name,
-      connected: server.connected,
-      toolCount: server.tools.length,
-      command: server.config.command,
-    }));
+    return Array.from(this.servers.values()).map((server) => {
+      const failed = this.failedServers.get(server.name);
+      const status: {
+        name: string;
+        connected: boolean;
+        toolCount: number;
+        command: string;
+        reconnectAttempt?: number;
+        lastFailure?: number;
+      } = {
+        name: server.name,
+        connected: server.connected,
+        toolCount: server.tools.length,
+        command: server.config.command,
+      };
+      
+      if (failed) {
+        status.reconnectAttempt = failed.attempt;
+        status.lastFailure = failed.lastFailure;
+      }
+      
+      return status;
+    });
   }
 }
 

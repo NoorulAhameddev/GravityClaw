@@ -37,33 +37,7 @@ const metrics: Metrics = {
 
 const startTime = Date.now();
 
-/**
- * Initialize metrics table in SQLite if not exists
- */
-export function initMetricsTable(): void {
-    try {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS metrics (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                type TEXT NOT NULL,
-                value REAL NOT NULL,
-                labels TEXT,
-                timestamp INTEGER NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            );
-            
-            CREATE INDEX IF NOT EXISTS idx_metrics_name_timestamp 
-            ON metrics(name, timestamp DESC);
-            
-            CREATE INDEX IF NOT EXISTS idx_metrics_created_at 
-            ON metrics(created_at DESC);
-        `);
-        log.debug("Metrics table initialized");
-    } catch (err) {
-        log.warn("Failed to initialize metrics table", { error: err });
-    }
-}
+// Metrics schema initialization is handled by src/db/migrations/schema.ts
 
 /**
  * Increment a counter metric
@@ -379,4 +353,3 @@ export const metrics_ = {
 };
 
 // Initialize on load
-initMetricsTable();

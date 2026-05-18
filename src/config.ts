@@ -283,6 +283,16 @@ const envSchema = z.object({
         .default("true")
         .transform((val) => val === "true" || val === "1")
         .describe("Enable mobile companion channel (iOS/Android)"),
+    MOBILE_REQUIRE_AUTH: z
+        .string()
+        .optional()
+        .default("true")
+        .transform((val) => val === "true" || val === "1")
+        .describe("Require authentication for mobile endpoints"),
+    MOBILE_ALLOWED_DEVICES: z
+        .string()
+        .optional()
+        .describe("Comma-separated list of allowed device IDs (leave empty for open registration)"),
     MOBILE_WS_PORT: z
         .string()
         .optional()
@@ -364,6 +374,20 @@ const envSchema = z.object({
         .default("200000")
         .transform(val => parseInt(val, 10))
         .describe("Maximum tokens per agent run (0 = unlimited)"),
+    
+    LLM_MAX_TOKENS: z
+        .string()
+        .optional()
+        .default("4096")
+        .transform(val => parseInt(val, 10))
+        .describe("Maximum tokens per LLM response (default: 4096, max: 8192)"),
+    
+    LLM_COST_LIMIT_PER_SESSION: z
+        .string()
+        .optional()
+        .default("10.00")
+        .transform(val => parseFloat(val))
+        .describe("Maximum cost (USD) per session before blocking - set to 0 for unlimited"),
 
     TOKEN_BUDGET_DIMINISHING_THRESHOLD: z
         .string()
@@ -650,6 +674,58 @@ const envSchema = z.object({
         .string()
         .optional()
         .describe("Base URL for webhooks"),
+
+    // Backup System Configuration
+    BACKUP_DIR: z
+        .string()
+        .optional()
+        .default("backups")
+        .describe("Directory for backup files"),
+    BACKUP_CRON: z
+        .string()
+        .optional()
+        .default("0 2 * * *")
+        .describe("Cron expression for automatic backups (default: daily at 2 AM)"),
+    BACKUP_RETENTION_DAYS: z
+        .string()
+        .optional()
+        .default("30")
+        .transform(val => parseInt(val, 10))
+        .describe("Number of days to retain backups"),
+    BACKUP_ENABLED: z
+        .string()
+        .optional()
+        .default("true")
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable automatic backup system"),
+    BACKUP_ENCRYPT: z
+        .string()
+        .optional()
+        .default("true")
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable encryption for backups"),
+    BACKUP_COMPRESS: z
+        .string()
+        .optional()
+        .default("true")
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable compression for backups"),
+    BACKUP_MASTER_KEY: z
+        .string()
+        .optional()
+        .describe("Master key for backup encryption (defaults to config.MASTER_KEY)"),
+
+    // Auth Configuration
+    AUTH_TRUSTED_CIDRS: z
+        .string()
+        .optional()
+        .describe("Comma-separated list of trusted CIDRs for auth"),
+    AUTH_ALLOW_LOCALHOST: z
+        .string()
+        .optional()
+        .default("false")
+        .transform(val => val === "true" || val === "1")
+        .describe("Allow localhost bypass in production"),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -666,6 +742,14 @@ if (!parsed.success) {
 
 export const config = parsed.data;
 
+if (process.env.NODE_ENV === "production" && config.UNRESTRICTED_ACCESS) {
+    console.error("\n❌ Gravity Claw startup failed — CRITICAL SECURITY VIOLATION:\n");
+    console.error("  • UNRESTRICTED_ACCESS cannot be enabled in production (NODE_ENV=production).");
+    console.error("  • This flag bypasses path validation and allows unauthenticated reads/writes to any system file.");
+    console.error("\n→ Disable UNRESTRICTED_ACCESS in your .env to start the server in production.\n");
+    process.exit(1);
+}
+
 // Destructure commonly used values for convenience
 export const {
     TELEGRAM_BOT_TOKEN,
@@ -681,6 +765,8 @@ export const {
     TOKEN_BUDGET_ENABLED,
     TOKEN_BUDGET_MAX,
     TOKEN_BUDGET_DIMINISHING_THRESHOLD,
+    LLM_MAX_TOKENS,
+    LLM_COST_LIMIT_PER_SESSION,
     AUTO_DREAM_ENABLED,
     AUTO_DREAM_MIN_HOURS,
     AUTO_DREAM_MIN_SESSIONS,
@@ -758,6 +844,26 @@ export const {
     RECOMMENDATIONS_DAILY_CRON,
     CHROMA_URL,
     WEBHOOK_BASE_URL,
+    BACKUP_DIR,
+    BACKUP_CRON,
+    BACKUP_RETENTION_DAYS,
+    BACKUP_ENABLED,
+    BACKUP_ENCRYPT,
+    BACKUP_COMPRESS,
+    BACKUP_MASTER_KEY,
+    AUTH_TRUSTED_CIDRS,
+    AUTH_ALLOW_LOCALHOST,
+    MOBILE_CHANNEL_ENABLED,
+    MOBILE_REQUIRE_AUTH,
+    MOBILE_ALLOWED_DEVICES,
+    MOBILE_WS_PORT,
+    MOBILE_UPLOAD_DIR,
+    MOBILE_FCM_ENABLED,
+    MOBILE_FCM_CREDENTIALS,
+    MOBILE_APNS_ENABLED,
+    MOBILE_APNS_KEY_ID,
+    MOBILE_APNS_TEAM_ID,
+    MOBILE_APNS_PRIVATE_KEY,
 } = config;
 
 // Helper: Get allowed paths as array

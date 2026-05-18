@@ -54,9 +54,27 @@ function sanitizeMemoryContent(content: string): string {
         .replace(/ignore\s+(all\s+)?(previous|prior)?\s*(instructions|rules)?/gi, "[REMOVED_INJECTION]")
         .replace(/bypass\s+(security|rules|filters)?/gi, "[REMOVED_INJECTION]")
         .replace(/system\s*prompt/gi, "[REMOVED_REFERENCE]")
+        .replace(/you\s+are\s+now/gi, "[REMOVED_ROLE]")
+        .replace(/ignore\s+all\s+previous/gi, "[REMOVED_INJECTION]")
+        .replace(/disregard\s+(all\s+)?(previous|prior)?/gi, "[REMOVED_INJECTION]")
+        .replace(/forget\s+(all\s+)?(previous|prior|your)?/gi, "[REMOVED_INJECTION]")
+        .replace(/new\s+instructions/gi, "[REMOVED_INJECTION]")
+        .replace(/override\s+(system|previous)?/gi, "[REMOVED_INJECTION]")
+        .replace(/\[INST\]/gi, "[MARKER_REMOVED]")
+        .replace(/\[SYS\]/gi, "[MARKER_REMOVED]")
 
         // Neutralize dangerous action verbs
         .replace(/\b(run|execute|delete|drop|install|fetch|curl|wget)\b/gi, "[FILTERED]")
+
+        // Neutralize role confusion attempts
+        .replace(/^i\s+am\s+(?:the\s+)?(ai|assistant|model|bot|agent)/gim, "[ROLE_CLAIM_BLOCKED]")
+        .replace(/^you\s+(?:are|should|must)\s+/gim, "[INSTRUCTION_BLOCKED]")
+        .replace(/^ignore\s+prior/gim, "[REMOVED_INJECTION]")
+
+        // Block common jailbreak patterns
+        .replace(/DAN\.?\.?/gi, "[JAILBREAK_BLOCKED]")
+        .replace(/developer\s+mode/gi, "[JAILBREAK_BLOCKED]")
+        .replace(/jailbreak/gi, "[JAILBREAK_BLOCKED]")
 
         // Hard cap
         .slice(0, 300)
@@ -101,10 +119,21 @@ export function getHistory(sessionId: string, deps: OrchestratorDependencies): C
     const rows = deps.db.prepare("SELECT message_json FROM memory WHERE session_id = ? ORDER BY timestamp ASC, id ASC").all(sessionId) as { message_json: string }[];
     const messages = rows.map((row) => JSON.parse(row.message_json));
 
-    // STEP 5.2 — Token protection: trim oldest history if exceeds MAX_MESSAGES
+    // Token protection: trim oldest history if exceeds MAX_MESSAGES
     if (messages.length > MAX_MESSAGES) {
-        const trimmed = messages.slice(-MAX_MESSAGES);
-        log.debug(`Trimmed history from ${messages.length} to ${MAX_MESSAGES} messages`);
+        let trimmed = messages.slice(-MAX_MESSAGES);
+        
+        // Find first 'user' message to ensure conversation structure is valid for strict providers
+        const firstUserIndex = trimmed.findIndex(m => m.role === "user");
+        if (firstUserIndex > 0) {
+            trimmed = trimmed.slice(firstUserIndex);
+        } else if (firstUserIndex === -1) {
+            // If no user message found in the last MAX_MESSAGES, take the absolute last few turns
+            // and force the first one to be a dummy user message if necessary (rare edge case)
+            log.warn(`No user message found in last ${MAX_MESSAGES} messages during trimming`);
+        }
+        
+        log.debug(`Trimmed history from ${messages.length} to ${trimmed.length} messages starting with role: ${trimmed[0]?.role}`);
         return trimmed;
     }
 
@@ -119,13 +148,72 @@ function shouldStoreMemory(content: string): boolean {
         return false;
     }
 
+    // Block injection attempts from being stored as facts
+    const injectionPatterns = [
+        'ignore',
+        'forget',
+        'disregard',
+        'override',
+        'new instructions',
+        'bypass',
+        'security',
+        'system prompt',
+    ];
+    
+    for (const pattern of injectionPatterns) {
+        if (text.includes(pattern)) {
+            log.debug(`Blocked potential injection from memory storage: ${pattern}`);
+            return false;
+        }
+    }
+
     return true;
+}
+
+/**
+ * Sanitize fact content to prevent injection attacks
+ */
+function sanitizeFact(fact: string): string {
+    // Remove any content that looks like instructions
+    const cleaned = fact
+        .replace(/^(ignore|forget|disregard|override|bypass)/gi, '')
+        .replace(/all previous/gi, '')
+        .replace(/your instructions/gi, '')
+        .replace(/system prompt/gi, '')
+        .replace(/\[.*\]/g, '') // Remove bracketed content
+        .trim();
+    
+    // Only return if there's still meaningful content
+    if (cleaned.length < 2) {
+        return '';
+    }
+    
+    return cleaned.slice(0, 100); // Limit fact length
 }
 
 /** Extract meaningful facts from content */
 function extractFacts(content: string): string[] {
+    if (typeof content !== 'string') {
+        return [];
+    }
     const facts: string[] = [];
     const text = content.toLowerCase();
+
+    // Block obvious injection attempts before processing
+    const lowerContent = content.toLowerCase();
+    if (lowerContent.includes('ignore all') || 
+        lowerContent.includes('forget everything') ||
+        lowerContent.includes('disregard all') ||
+        lowerContent.includes('new instructions') ||
+        lowerContent.includes('override ') ||
+        lowerContent.includes('bypass ') ||
+        lowerContent.includes('system:') ||
+        lowerContent.includes('[system]') ||
+        lowerContent.startsWith('my ') && lowerContent.includes('is ') && (lowerContent.includes(' to ') || lowerContent.includes(' and '))) {
+        // Looks like injection, don't extract any facts
+        log.debug('Blocked potential prompt injection from fact extraction');
+        return [];
+    }
 
     const factPatterns = [
         /my project is (.+)/i,
@@ -143,7 +231,12 @@ function extractFacts(content: string): string[] {
     for (const pattern of factPatterns) {
         const match = content.match(pattern);
         if (match && match[1]) {
-            facts.push(match[1].trim());
+            const extracted = match[1].trim();
+            // Sanitize before storing
+            const safe = sanitizeFact(extracted);
+            if (safe && safe.length >= 2) {
+                facts.push(safe);
+            }
         }
     }
 
@@ -161,9 +254,23 @@ function validateSessionId(sessionId: string): void {
     if (sessionId.length > 255) {
         throw new Error('Session ID exceeds maximum length of 255 characters');
     }
-    // Allow alphanumeric, hyphens, underscores, colons (for sub-identifiers)
+    // Allow alphanumeric, hyphens, underscores, and colons (used for channel prefixes)
     if (!/^[a-zA-Z0-9\-_:]+$/.test(sessionId)) {
-        throw new Error('Session ID contains invalid characters');
+        throw new Error('Session ID contains invalid characters. Only alphanumeric, hyphens, underscores, and colons are allowed.');
+    }
+}
+
+/**
+ * Validate that user is authorized to use this session
+ * In production, this should verify the user owns the session
+ */
+function validateSessionAccess(sessionId: string, userId?: string): void {
+    // In a full implementation, verify session ownership via database
+    // For now, we ensure session ID doesn't contain suspicious patterns
+    
+    // Block session fixation attempts - allow colons for channel prefixes but block path traversal
+    if (sessionId.includes('..')) {
+        throw new Error('Invalid session ID format');
     }
 }
 
@@ -176,8 +283,25 @@ export function addUserMessage(sessionId: string, text: string, deps: Orchestrat
     const msg = { role: "user", content: text, memoryType };
     const row = deps.db.prepare("INSERT INTO memory (session_id, message_json) VALUES (?, ?) RETURNING id").get(sessionId, JSON.stringify(msg)) as { id: number } | undefined;
     const id = row?.id ? `${sessionId}:user:${row.id}` : `${sessionId}:user:${Date.now()}`;
-    enqueueMessageSync({ sessionId, role: "user", content: text });
-    void upsertVectorMemory({ id, sessionId, role: "user", content: text });
+    
+    // Track async side effects - these must not block but failures MUST be surfaced
+    const syncPromise = enqueueMessageSync({ sessionId, role: "user", content: text });
+    syncPromise.catch((err) => {
+        telemetryLogger.error("memory_sync_failed", { 
+            sessionId, 
+            role: "user", 
+            error: err instanceof Error ? err.message : String(err) 
+        });
+    });
+    
+    const vectorPromise = upsertVectorMemory({ id, sessionId, role: "user", content: text });
+    vectorPromise.catch((err) => {
+        telemetryLogger.warn("vector_upsert_failed", { 
+            sessionId, 
+            id,
+            error: err instanceof Error ? err.message : String(err) 
+        });
+    });
 
     const count = deps.db.prepare("SELECT COUNT(*) as cnt FROM memory WHERE session_id = ?").get(sessionId) as { cnt: number };
     if (count.cnt > 1000) {
@@ -190,17 +314,40 @@ export function addAssistantMessage(
     sessionId: string,
     content: string,
     deps: OrchestratorDependencies,
-    toolCalls?: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[]
+    toolCalls?: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[],
+    thought?: string,
+    thoughtSignature?: string
 ): void {
     validateSessionId(sessionId);
     const msg = { role: "assistant", content, memoryType: "conversation" };
     if (toolCalls && toolCalls.length > 0) {
         (msg as any).tool_calls = toolCalls;
     }
+    if (thought) (msg as any).thought = thought;
+    if (thoughtSignature) (msg as any).thoughtSignature = thoughtSignature;
     const row = deps.db.prepare("INSERT INTO memory (session_id, message_json) VALUES (?, ?) RETURNING id").get(sessionId, JSON.stringify(msg)) as { id: number } | undefined;
     const id = row?.id ? `${sessionId}:assistant:${row.id}` : `${sessionId}:assistant:${Date.now()}`;
-    enqueueMessageSync({ sessionId, role: "assistant", content });
-    if (content) void upsertVectorMemory({ id, sessionId, role: "assistant", content });
+    
+    // Track async side effects - these must not block but failures MUST be surfaced
+    const syncPromise = enqueueMessageSync({ sessionId, role: "assistant", content });
+    syncPromise.catch((err) => {
+        telemetryLogger.error("memory_sync_failed", { 
+            sessionId, 
+            role: "assistant", 
+            error: err instanceof Error ? err.message : String(err) 
+        });
+    });
+    
+    if (content) {
+        const vectorPromise = upsertVectorMemory({ id, sessionId, role: "assistant", content });
+        vectorPromise.catch((err) => {
+            telemetryLogger.warn("vector_upsert_failed", { 
+                sessionId, 
+                id,
+                error: err instanceof Error ? err.message : String(err) 
+            });
+        });
+    }
 }
 
 /** Appends a tool result to history (feeds back into the agentic loop) */
@@ -208,18 +355,30 @@ export function addToolResult(
     sessionId: string,
     toolCallId: string,
     result: string,
-    deps: OrchestratorDependencies
+    deps: OrchestratorDependencies,
+    toolName?: string
 ): void {
     validateSessionId(sessionId);
 
     const content = result || "(empty result)";
-    const msg: ChatCompletionMessageParam = {
+    const msg: any = {
         role: "tool",
         tool_call_id: toolCallId,
         content,
     };
+    if (toolName) msg.name = toolName;
+    
     deps.db.prepare("INSERT INTO memory (session_id, message_json) VALUES (?, ?)").run(sessionId, JSON.stringify(msg));
-    enqueueMessageSync({ sessionId, role: "tool", content });
+    
+    // Track async side effects - these must not block but failures MUST be surfaced
+    const syncPromise = enqueueMessageSync({ sessionId, role: "tool", content });
+    syncPromise.catch((err) => {
+        telemetryLogger.error("memory_sync_failed", { 
+            sessionId, 
+            role: "tool", 
+            error: err instanceof Error ? err.message : String(err) 
+        });
+    });
 }
 
 /** Clear entire conversation history for session */
@@ -435,4 +594,3 @@ const messagesWithSystem: ChatCompletionMessageParam[] = [
         throw err;
     }
 }
-

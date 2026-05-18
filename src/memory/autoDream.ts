@@ -9,6 +9,8 @@ import { buildConsolidationPrompt } from "./consolidationPrompt.ts";
 import { readAllFacts, rewriteSessionFacts } from "./markdown.ts";
 import { createLogger } from "../logger.ts";
 import { db } from "../db.ts";
+import { runForkedAgent } from "../lib/forkedAgent.ts";
+import type { MarkdownFact } from "../types/memory.js";
 
 const log = createLogger("autoDream");
 
@@ -25,8 +27,8 @@ function listSessionsTouchedSince(timestamp: number): string[] {
             `
             SELECT DISTINCT session_id
             FROM memory
-            WHERE created_at > datetime(? / 1000, 'unixepoch')
-            ORDER BY created_at DESC
+            WHERE timestamp > datetime(? / 1000, 'unixepoch')
+            ORDER BY timestamp DESC
             `
         )
         .all(timestamp) as Array<{ session_id: string }>;
@@ -37,7 +39,7 @@ function listSessionsTouchedSince(timestamp: number): string[] {
 export function getAllSessionIds(): string[] {
     const rows = db
         .prepare(
-            `SELECT DISTINCT session_id FROM memory ORDER BY created_at DESC LIMIT 100`
+            `SELECT DISTINCT session_id FROM memory ORDER BY timestamp DESC LIMIT 100`
         )
         .all() as Array<{ session_id: string }>;
 
@@ -113,14 +115,58 @@ export async function executeAutoDream(): Promise<void> {
     );
 
     try {
-        const prompt = await buildConsolidationPrompt(sessionIds);
+        let consolidatedCount = 0;
+        for (const sessionId of sessionIds) {
+            const facts = readAllFacts(sessionId);
+            if (facts.length < 3) {
+                continue;
+            }
 
-        log.debug(`Consolidation prompt built for ${sessionIds.length} sessions`);
+            const prompt = `Review the facts below and consolidate them to be concise and accurate.
+Remove duplicate or outdated facts, and merge similar ones into a single clear, high-quality fact. Keep only the most important and active facts.
+
+Current facts for session ${sessionId}:
+${facts.map(f => `- [${f.category}] ${f.fact}`).join("\n")}
+
+Format each consolidated fact exactly as: "- [category] fact"`;
+
+            const result = await runForkedAgent({
+                prompt,
+                sessionId: `dream-${sessionId}`,
+                maxIterations: 1,
+            });
+
+            const responseText = result.messages
+                .map((m) => m.content)
+                .join("\n");
+
+            const factLines = responseText
+                .split("\n")
+                .filter((line) => line.startsWith("- ["));
+
+            const consolidatedFacts: MarkdownFact[] = [];
+            for (const line of factLines) {
+                const match = line.match(/^- \[([^\]]+)\] (.+)$/);
+                if (match && match[1] && match[2]) {
+                    consolidatedFacts.push({
+                        timestamp: new Date().toISOString(),
+                        category: match[1].trim(),
+                        fact: match[2].trim(),
+                    });
+                }
+            }
+
+            if (consolidatedFacts.length > 0) {
+                rewriteSessionFacts(sessionId, consolidatedFacts);
+                log.info(`Consolidated memory for session ${sessionId}: reduced from ${facts.length} to ${consolidatedFacts.length} facts`);
+                consolidatedCount++;
+            }
+        }
 
         await releaseConsolidationLock();
 
         log.info(
-            `AutoDream completed — reviewed ${sessionIds.length} sessions`,
+            `AutoDream completed — consolidated ${consolidatedCount} sessions`,
         );
     } catch (e) {
         log.error(`AutoDream failed: ${e}`);
@@ -128,4 +174,18 @@ export async function executeAutoDream(): Promise<void> {
             await rollbackConsolidationLock(priorMtime);
         }
     }
+}
+
+export function startAutoDreamScheduler(): { stop: () => void } {
+    const interval = setInterval(() => {
+        executeAutoDream().catch((err) => {
+            log.error("AutoDream execution failed", err);
+        });
+    }, 10 * 60 * 1000); // Check every 10 minutes
+
+    return {
+        stop: () => {
+            clearInterval(interval);
+        },
+    };
 }

@@ -1,6 +1,6 @@
 import { execSync } from "child_process";
 import { createLogger } from "../logger.js";
-import { existsSync } from "fs";
+import { existsSync, readFileSync, unlinkSync } from "fs";
 
 const log = createLogger("voice:local-transcription");
 
@@ -117,7 +117,6 @@ export async function localTranscribe(
       const outputFile = `/tmp/${basename}.txt`;
 
       if (existsSync(outputFile)) {
-        const { readFileSync, unlinkSync } = require("fs");
         const text = readFileSync(outputFile, "utf-8").trim();
         unlinkSync(outputFile); // Clean up
         

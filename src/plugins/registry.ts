@@ -9,6 +9,7 @@
  */
 
 import { readdir, readFile, access } from "fs/promises";
+import { existsSync } from "fs";
 import { join, resolve } from "path";
 import { pathToFileURL } from "url";
 import { createLogger } from "../logger.ts";
@@ -450,7 +451,7 @@ class PluginRegistry {
       this.pluginDirectories.find(d => {
         const pluginPath = join(d, pluginId);
         try {
-          return require("fs").existsSync(pluginPath);
+          return existsSync(pluginPath);
         } catch {
           return false;
         }
@@ -511,7 +512,7 @@ class PluginRegistry {
           this.pluginDirectories.find(d => {
             const pluginPath = join(d, pluginId);
             try {
-              return require("fs").existsSync(pluginPath);
+              return existsSync(pluginPath);
             } catch {
               return false;
             }
@@ -520,7 +521,6 @@ class PluginRegistry {
           entry.manifest.main
         );
         
-        delete require.cache[require.resolve(mainPath)];
         const newModule = await import(mainPath + "?t=" + Date.now());
         entry.plugin = newModule.default;
         

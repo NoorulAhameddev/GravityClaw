@@ -44,6 +44,7 @@ import { mcpTools } from "../mcp/index.ts";
 import { calendarTools } from "./calendar/google-calendar.ts";
 import { notionTools } from "./productivity/notion.ts";
 import { sandboxTool, runCodeAliasTool } from "./sandbox.ts";
+import { ToolExecutor } from "./executor.ts";
 
 class ToolRegistry implements ToolRegistryType {
     private readonly tools = new Map<string, Tool>();
@@ -139,9 +140,10 @@ class ToolRegistry implements ToolRegistryType {
                 score -= 4;
             }
 
-            // (F) Penalize generic run_shell (-5)
-            if (name === "run_shell") {
-                score -= 5;
+            // (F) Boost core work tools (+5)
+            const coreWorkTools = ["run_shell", "spawn_agent", "read_file", "write_file", "search_files"];
+            if (coreWorkTools.includes(name)) {
+                score += 5;
             }
 
             // (G) Boost domain-specific tools (+3)
@@ -197,6 +199,7 @@ class ToolRegistry implements ToolRegistryType {
 }
 
 export const registry = new ToolRegistry();
+export const toolExecutor = new ToolExecutor(registry);
 
 export function registerBuiltInTools(): void {
     registry.register(datetimeTool);

@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { callClaude, type ClaudeResponse } from "../llm/orchestrator.ts";
+import { callClaude, addUserMessage, type ClaudeResponse } from "../llm/orchestrator.ts";
 import { db } from "../db.ts";
 import { config } from "../config.ts";
 import { createLogger } from "../logger.ts";
@@ -60,6 +60,9 @@ export async function runForkedAgent(
     } = options;
 
     log.debug(`Starting forked agent: ${sessionId} (parent: ${parentSessionId})`);
+
+    // Add user prompt to database memory so that callClaude can fetch it when building history
+    addUserMessage(sessionId, prompt, orchestratorDeps);
 
     const messages: ForkedAgentResult["messages"] = [];
     let totalPromptTokens = 0;

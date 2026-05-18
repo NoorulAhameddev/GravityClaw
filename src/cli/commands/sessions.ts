@@ -115,29 +115,43 @@ async function exportSession(sessionId: string): Promise<void> {
     title(`📤 Export Session: ${sessionId}`);
 
     try {
-        const messages = db.prepare(`
-            SELECT role, content, timestamp
+        const rows = db.prepare(`
+            SELECT message_json, timestamp
             FROM memory
             WHERE session_id = ?
             ORDER BY timestamp ASC
-        `).all(sessionId) as Array<{ role: string; content: string; timestamp: number }>;
+        `).all(sessionId) as Array<{ message_json: string; timestamp: number }>;
 
-        if (messages.length === 0) {
+        if (rows.length === 0) {
             error("Session not found or empty");
             process.exitCode = 1;
             return;
         }
 
         // Format as JSON
+        const messages = rows.map((row) => {
+            try {
+                const msg = JSON.parse(row.message_json);
+                return {
+                    role: msg.role || "unknown",
+                    content: msg.content || "",
+                    timestamp: new Date(row.timestamp).toISOString(),
+                    ...msg // Include other metadata like tool_calls, etc.
+                };
+            } catch (e) {
+                return {
+                    role: "error",
+                    content: `Failed to parse message: ${row.message_json}`,
+                    timestamp: new Date(row.timestamp).toISOString(),
+                };
+            }
+        });
+
         const exportData = {
             sessionId,
             exportDate: new Date().toISOString(),
             messageCount: messages.length,
-            messages: messages.map((msg) => ({
-                role: msg.role,
-                content: msg.content,
-                timestamp: new Date(msg.timestamp).toISOString(),
-            })),
+            messages,
         };
 
         console.log(JSON.stringify(exportData, null, 2));

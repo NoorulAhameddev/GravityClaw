@@ -6,55 +6,7 @@ export type { GraphEntity, GraphRelationship, GraphQueryResult } from "../types/
 
 const log = createLogger("graph");
 
-export function initGraphMemory(): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS entities (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      session_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL,
-      properties TEXT DEFAULT '{}',
-      access_count INTEGER DEFAULT 0,
-      last_accessed DATETIME,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(session_id, name)
-    );
-
-    CREATE TABLE IF NOT EXISTS relationships (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      session_id TEXT NOT NULL,
-      from_id INTEGER NOT NULL,
-      to_id INTEGER NOT NULL,
-      relation_type TEXT NOT NULL,
-      metadata TEXT DEFAULT '{}',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(from_id) REFERENCES entities(id) ON DELETE CASCADE,
-      FOREIGN KEY(to_id) REFERENCES entities(id) ON DELETE CASCADE
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_entities_session_name ON entities(session_id, name);
-    CREATE INDEX IF NOT EXISTS idx_relationships_session ON relationships(session_id);
-    CREATE INDEX IF NOT EXISTS idx_relationships_from ON relationships(from_id);
-    CREATE INDEX IF NOT EXISTS idx_relationships_to ON relationships(to_id);
-  `);
-
-  try {
-    db.exec(`ALTER TABLE entities ADD COLUMN access_count INTEGER DEFAULT 0`);
-  } catch {
-    // Column already exists
-  }
-
-  try {
-    db.exec(`ALTER TABLE entities ADD COLUMN last_accessed DATETIME`);
-  } catch {
-    // Column already exists
-  }
-
-  log.info("Knowledge graph memory initialized");
-}
-
-initGraphMemory();
+// Table creation is now handled centrally by src/db/migrations/schema.ts
 
 function parseJson<T>(value: string | null | undefined, fallback: T): T {
   if (!value) {

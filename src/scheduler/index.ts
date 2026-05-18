@@ -9,24 +9,7 @@ const log = createLogger("scheduler");
  * Initialize scheduled_tasks table
  */
 export function initScheduler(): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS scheduled_tasks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      cron_expression TEXT NOT NULL,
-      session_id TEXT NOT NULL,
-      prompt TEXT NOT NULL,
-      enabled INTEGER DEFAULT 1,
-      last_run DATETIME,
-      next_run DATETIME,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      created_by TEXT
-    );
-    
-    CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_session ON scheduled_tasks(session_id);
-    CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_enabled ON scheduled_tasks(enabled);
-  `);
-  
+  // Database schema initialized centrally in src/db.ts
   log.info("Scheduler initialized");
   
   // Load and start all enabled tasks

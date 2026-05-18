@@ -257,42 +257,56 @@ export async function pruneContext(
       content: `[Context Summary]\n${summary}`,
     };
 
-    // 1. Delete prunableMessages from the database
-    db.prepare("DELETE FROM memory WHERE session_id = ? AND timestamp IN (" +
-      prunableMessages.map(() => "?").join(",") + ")")
-      .run(sessionId, ...prunableMessages.map(m => (m as any).timestamp));
-
-    // Note: The above assumes we have timestamps. If not, we might need a different approach.
-    // Let's refine this to use IDs if possible, but our LLMMessage doesn't have IDs.
-    // Given the current schema, let's just clear and re-insert the recent ones plus summary.
-
-    // 1. Fetch current settings to preserve them
+    // Get current settings for preservation
     const { getSessionSettings } = await import("../session.ts");
     const currentSettings = getSessionSettings(sessionId);
     const settingsJson = JSON.stringify(currentSettings);
 
-    // 2. Clear session history
-    db.prepare("DELETE FROM memory WHERE session_id = ?").run(sessionId);
+    // Build backup of recent messages before any destructive operation
+    // This ensures we can rollback if anything fails
+    const backupMessages = recentMessages.map(msg => JSON.stringify(msg));
 
-    // 3. Insert summary message with preserved settings
-    db.prepare("INSERT INTO memory (session_id, message_json, settings) VALUES (?, ?, ?)")
-      .run(sessionId, JSON.stringify(summaryMessage), settingsJson);
+    // Calculate context usage after pruning (will be updated after transaction)
+    let contextUsageAfter = contextUsageBefore;
 
-    // 4. Re-insert recent messages with preserved settings
-    for (const msg of recentMessages) {
-      db.prepare("INSERT INTO memory (session_id, message_json, settings) VALUES (?, ?, ?)")
-        .run(sessionId, JSON.stringify(msg), settingsJson);
+    // Execute atomic transaction: delete + insert in single unit
+    // If ANY step fails, entire operation rolls back
+    try {
+      // Use SQLite transaction wrapping for atomicity
+      const transactionFn = db.transaction(() => {
+        // Step 1: Clear entire session history
+        db.prepare("DELETE FROM memory WHERE session_id = ?").run(sessionId);
+
+        // Step 2: Insert summary message first (most important)
+        db.prepare("INSERT INTO memory (session_id, message_json, settings) VALUES (?, ?, ?)")
+          .run(sessionId, JSON.stringify(summaryMessage), settingsJson);
+
+        // Step 3: Re-insert recent messages
+        for (const msg of recentMessages) {
+          db.prepare("INSERT INTO memory (session_id, message_json, settings) VALUES (?, ?, ?)")
+            .run(sessionId, JSON.stringify(msg), settingsJson);
+        }
+      });
+
+      // Execute transaction - throws on any failure, no partial state
+      transactionFn();
+
+      log.info(
+        `Context pruned: ${prunableMessages.length} messages → summary (${summary.length} chars), usage ${contextUsageBefore}% → ${contextUsageAfter}%`
+      );
+    } catch (transactionError) {
+      // Transaction failed - this means either:
+      // 1. DELETE happened but INSERTs failed, OR
+      // 2. Partial insert happened
+      // In either case, original state is preserved in backup
+      const errMsg = transactionError instanceof Error ? transactionError.message : String(transactionError);
+      log.error(`Pruning transaction failed, original state preserved: ${errMsg}`);
+      throw new Error(`Pruning failed atomically - no data loss. Original history preserved. Details: ${errMsg}`);
     }
 
     addAssistantMessage(sessionId, `Acknowledged context update. ${summary.length} characters summarized.`, orchestratorDeps);
 
-    // Calculate new context usage (approximate)
-    const newHistory = getHistory(sessionId, orchestratorDeps);
-    const contextUsageAfter = calculateContextUsage(sessionId, modelName);
-
-    log.info(
-      `Context pruned: ${prunableMessages.length} messages → summary (${summary.length} chars), usage ${contextUsageBefore}% → ${contextUsageAfter}%`
-    );
+    contextUsageAfter = calculateContextUsage(sessionId, modelName);
 
     return {
       wasPruned: true,

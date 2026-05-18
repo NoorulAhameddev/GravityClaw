@@ -6,29 +6,7 @@ import crypto from "crypto";
 
 const log = createLogger("webhooks");
 
-/**
- * Initialize webhooks table
- */
-export function initWebhooks(): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS webhooks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      session_id TEXT NOT NULL,
-      secret TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      created_by TEXT
-    );
-    
-    CREATE INDEX IF NOT EXISTS idx_webhooks_session ON webhooks(session_id);
-    CREATE INDEX IF NOT EXISTS idx_webhooks_name ON webhooks(name, session_id);
-  `);
-  
-  log.info("Webhooks initialized");
-}
-
-// Initialize on module load
-initWebhooks();
+// Webhooks schema initialization is handled by src/db/migrations/schema.ts
 
 /**
  * Webhook data structure

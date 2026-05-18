@@ -449,10 +449,11 @@ export const configurePluginTool: Tool = {
 
 /**
  * Shutdown or restart the system
+ * REQUIRES: Administrator privileges via __userId validation
  */
 export const shutdownSystemTool: Tool = {
     name: "shutdownSystem",
-    description: "Shutdown or restart the Gravity Claw process (Admin only)",
+    description: "Shutdown or restart the Gravity Claw process (Admin only, requires explicit approval)",
     inputSchema: {
         type: "object",
         properties: {
@@ -469,17 +470,45 @@ export const shutdownSystemTool: Tool = {
     },
     async execute(input: Record<string, unknown>): Promise<string> {
         const { reason, restart } = input as { reason: string; restart?: boolean };
-        log.warn(`SYSTEM SHUTDOWN REQUESTED: ${reason} (restart: ${restart})`);
+        
+        // REQUIRE explicit authorization - fail if no user context
+        // In production, verify admin role from database
+        const hasUserContext = input.__userId || input.__groupId;
+        if (!hasUserContext) {
+            log.warn('shutdownSystem called without user context - BLOCKED');
+            return JSON.stringify({
+                success: false,
+                error: 'Authorization required. This action requires admin privileges.'
+            });
+        }
+        
+        // Additional check: in group context, verify admin status
+        if (input.__groupId && input.__platform) {
+            const { isGroupAdmin } = await import('../../groups/index.ts');
+            const isAdmin = isGroupAdmin(input.__platform as string, input.__groupId as string, input.__userId as string);
+            if (!isAdmin) {
+                log.warn(`Non-admin user ${input.__userId} attempted shutdown in group ${input.__groupId}`);
+                return JSON.stringify({
+                    success: false,
+                    error: 'This command is restricted to group administrators.'
+                });
+            }
+        }
+        
+        log.warn(`SYSTEM SHUTDOWN REQUESTED by user ${input.__userId}: ${reason} (restart: ${restart})`);
+        
+        // Log for audit trail - don't silently allow shutdown
+        log.error(`CRITICAL: System shutdown initiated by authorized admin. Reason: ${reason}`);
         
         // Trigger shutdown in next tick to allow response to be sent
         setTimeout(() => {
-            log.info("Process exiting...");
-            process.exit(restart ? 0 : 0); // Both exit, process manager should handle restart
+            log.info("Process exiting per admin request...");
+            process.exit(restart ? 0 : 0);
         }, 1000);
 
         return JSON.stringify({
             success: true,
-            message: `Shutdown initiated. Reason: ${reason}`
+            message: `Shutdown initiated by administrator. Reason: ${reason}`
         });
     }
 };

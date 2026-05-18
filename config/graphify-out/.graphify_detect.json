@@ -1,0 +1,18 @@
+{
+  "files": {
+    "code": [
+      "D:\\Projects\\GravityClaw\\config\\vitest.config.ts",
+      "D:\\Projects\\GravityClaw\\config\\vitest.setup.ts"
+    ],
+    "document": [],
+    "paper": [],
+    "image": [],
+    "video": []
+  },
+  "total_files": 2,
+  "total_words": 89,
+  "needs_graph": false,
+  "warning": "Corpus is ~89 words - fits in a single context window. You may not need a graph.",
+  "skipped_sensitive": [],
+  "graphifyignore_patterns": 0
+}

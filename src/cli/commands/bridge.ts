@@ -5,7 +5,7 @@
 import { createLogger } from "../../logger.ts";
 import { BridgeServer, BridgeClient, createBridgeServer, createBridgeClient } from "../../bridge/index.js";
 import { success, error, info, title, section, printTable, dim } from "../utils.ts";
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { resolve } from "path";
 
 const log = createLogger("bridge-cli");
@@ -38,7 +38,6 @@ function saveConfig(config: BridgeConfig): void {
   const dir = resolve("config");
   
   if (!existsSync(dir)) {
-    const { mkdirSync } = require("fs");
     mkdirSync(dir, { recursive: true });
   }
   

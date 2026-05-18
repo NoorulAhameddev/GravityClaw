@@ -286,8 +286,8 @@ export function createWakeWordDetector(
 export async function getAvailableWakeWords(): Promise<string[]> {
   try {
     const speechCommands = await import('@tensorflow-models/speech-commands');
-    // Try to load tfjs-node if possible
-    try { await import('@tensorflow/tfjs-node'); } catch (e) { }
+    // Try to load tfjs-node if possible (optional, for better performance)
+    try { await import('@tensorflow/tfjs-node'); } catch { log.debug('tfjs-node not available, using fallback'); }
 
     const recognizer = speechCommands.create('BROWSER_FFT');
     await recognizer.ensureModelLoaded();

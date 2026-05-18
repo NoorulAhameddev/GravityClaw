@@ -1,0 +1,18 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "label": "index.ts",
+      "file_type": "code",
+      "source_file": "D:\\Projects\\GravityClaw\\plugins\\example-hello\\index.ts",
+      "source_location": "L1",
+      "id": "d_projects_gravityclaw_plugins_example_hello_index_ts",
+      "community": 0,
+      "norm_label": "index.ts"
+    }
+  ],
+  "links": [],
+  "hyperedges": []
+}

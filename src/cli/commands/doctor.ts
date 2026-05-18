@@ -6,8 +6,8 @@ import { existsSync } from "fs";
 import { resolve } from "path";
 import { config } from "../../config.ts";
 import { db } from "../../db.ts";
-import { registry, registerBuiltInTools } from "../../tools/index.ts";
-import { success, error, warn, info, title, section, printTable, dim } from "../utils.ts";
+import { registry, registerBuiltInTools, toolExecutor } from "../../tools/index.ts";
+import { colors, success, error, warn, info, title, section, dim } from "../utils.ts";
 
 export async function doctorCommand(): Promise<void> {
     title("🏥 Gravity Claw Health Check");
@@ -145,18 +145,48 @@ export async function doctorCommand(): Promise<void> {
 
     console.log();
 
-    // Check 6: Node.js Version
-    section("Runtime");
+    console.log();
+    
+    // Check 7: Agent & Tool Wiring (Integration Test)
+    section("Wiring Verification");
+    
+    try {
+        const { runAgent } = await import("../../agent.ts");
+        const testPrompt = "echo 'WIRING_TEST_SUCCESS'";
+        
+        info(`Simulating task: "${testPrompt}"...`);
+        
+        const result = await runAgent({
+            message: `Run this exact shell command: ${testPrompt}`,
+            sessionId: "doctor-test-session",
+            dependencies: {
+                config,
+                toolRegistry: registry,
+                toolExecutor,
+                db,
+            },
+        });
+        
+        if (result.text.includes("WIRING_TEST_SUCCESS")) {
+            success("Agent loop and tool wiring confirmed functional");
+        }
+        
+        if (result.toolCalls && result.toolCalls.length > 0) {
+            info("Execution path:");
+            result.toolCalls.forEach(call => {
+                const status = call.success
+                    ? `${colors.green}✓${colors.reset}`
+                    : `${colors.red}✗${colors.reset}`;
+                console.log(`  ${status} ${call.name} ${dim(JSON.stringify(call.input).substring(0, 50))}`);
+            });
+        }
 
-    const nodeVersion = process.version;
-    const [major] = nodeVersion.slice(1).split(".").map(Number);
-
-    info(`Node.js: ${nodeVersion}`);
-
-    if (major && major >= 20) {
-        success("Node.js version meets requirements (≥20)");
-    } else {
-        error(`Node.js version ${nodeVersion} is too old. Requires ≥20.0.0`);
+        if (!result.text.includes("WIRING_TEST_SUCCESS") && (!result.toolCalls || result.toolCalls.length === 0)) {
+            error("Agent loop failed to trigger shell tool");
+            hasErrors = true;
+        }
+    } catch (err) {
+        error(`Wiring check failed: ${err instanceof Error ? err.message : String(err)}`);
         hasErrors = true;
     }
 
