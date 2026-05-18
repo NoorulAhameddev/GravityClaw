@@ -5,79 +5,111 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
 ![Status](https://img.shields.io/badge/Status-Early%20Development-orange)
 
-Gravity Claw is a high-performance, secure, and pro-active personal AI agent ecosystem. Built from scratch in TypeScript, it transforms a simple LLM into a "Personal OS" capable of automation, multi-agent orchestration, and rich interactive experiences.
+A high-performance, secure, and proactive personal AI agent ecosystem. Transform any LLM into a "Personal OS" capable of intelligent automation, multi-agent orchestration, and seamless multi-platform integration.
 
-**[Features](#-features) • [Quick Start](#-quick-start) • [Architecture](#-architecture) • [Docs](#-documentation) • [Contributing](#-contributing) • [Security](#-security)**
+**[Quick Start](#-quick-start) • [Features](#-features) • [Architecture](#-architecture) • [Documentation](#-documentation) • [Deployment](#-deployment) • [Contributing](#-contributing) • [Security](#-security)**
 
 ---
 
 ## ⚠️ Project Status
 
-**Early Development** - Gravity Claw is under active development. Core features are functional, but APIs and configuration may change. Not recommended for production use yet. Contributions and feedback are welcome!
+**Early Development** — Gravity Claw is actively under development. Core features are functional, but APIs and configuration may change. Not recommended for production use yet.
+
+---
+
+## ✨ Features
+
+- **🤖 Intelligent Agent Loop** — Advanced tool-use orchestration with confirmation gates and safety limits
+- **📱 Multi-Channel Support** — Telegram, WhatsApp, WebChat with unified messaging interface
+- **🧠 Hybrid Memory System** — SQLite + Vector Database + Knowledge Graph for intelligent context
+- **👥 Multi-Agent Orchestration** — Agent Swarms (role-based) and Mesh Workflows (DAG-based task decomposition)
+- **🔮 Proactive Engine** — Heartbeat check-ins, daily recommendations, and automated insights
+- **🎨 Live Canvas (A2UI)** — Push rich HTML/JS widgets to users via WebSockets
+- **🔌 Plugin System** — Runtime extensibility without restarts
+- **🛡️ Enterprise Security** — Air-gap mode, AES-256-GCM encryption, user/path allowlisting
+- **🌐 LLM Flexibility** — OpenAI, Claude, Google AI, Groq, Ollama (local), and more
+- **🧩 80+ Built-in Tools** — Browser automation, shell commands, file operations, and integrations
+
+---
 
 ## 📋 Requirements
 
-Before getting started, ensure you have:
-
-- **Node.js**: Version 20 or higher
-- **npm**: Version 10 or higher
-- **API Keys** (at least one):
+### Required
+- **Node.js** v20 or higher
+- **npm** v10 or higher
+- **LLM API Key** (at least one):
   - OpenAI API key
   - Anthropic (Claude) API key
   - Google AI API key
   - Groq API key
   - OpenRouter API key
-  - **OR** Ollama locally installed (for air-gapped mode)
+  - OR Ollama (for local/air-gapped mode)
 
-### Optional Dependencies
-
-- **Telegram Bot Token** - For Telegram integration
-- **WhatsApp Credentials** - For WhatsApp integration  
-- **Supabase** - For cloud memory sync
-- **ElevenLabs API Key** - For high-quality voice synthesis
+### Optional
+- **Telegram Bot Token** — For Telegram integration
+- **WhatsApp Credentials** — For WhatsApp integration
+- **Supabase** — For cloud memory sync
+- **ElevenLabs API Key** — For voice synthesis
 
 ---
 
 ## 🚀 Quick Start
 
+### 1. Clone & Install
 ```bash
-# 1. Install dependencies
+git clone https://github.com/NoorulAhameddev/GravityClaw.git
+cd GravityClaw
 npm install
-
-# 2. Set up your environment
-cp .env.example .env
-# Edit .env with your keys
-
-# 3. Run in development
-npm run dev
-
-# 4. Run in production
-npm start
-
-# 5. Use the CLI
-npm run cli -- help
-npm run cli -- chat
 ```
 
-## 🖥️ Dashboard
+### 2. Configure Environment
+```bash
+cp .env.example .env
+# Edit .env with your API keys and preferences
+```
 
-Access the web dashboard at **http://localhost:3000** when running the server. The dashboard provides:
+### 3. Run in Development
+```bash
+npm run dev
+```
+Access the dashboard at **http://localhost:3000**
 
-- **Overview** — System status, stats, and quick actions
-- **Chat** — WebChat interface (built-in web channel for direct messaging)
-- **Admin** — Plugin management, settings, and configuration
-- **Analytics** — Usage metrics and performance insights
-- **Memory** — View and manage knowledge graph and stored facts
-- **Tools** — Browse available tools and their schemas
-- **Workflows & Swarms** — Visualize multi-agent workflows
-- **Sessions** — Manage conversation history
-- **Heartbeats** — Configure proactive check-ins
-- **Scheduler** — Set up recurring tasks
-- **Webhooks** — Configure incoming webhook endpoints
+### 4. Try the CLI
+```bash
+npm run cli -- chat          # Interactive chat REPL
+npm run cli -- doctor        # Health checks & diagnostics
+npm run cli -- config        # View current configuration
+npm run cli -- tools         # List all available tools
+```
 
-WebChat is the built-in web interface that works alongside Telegram and WhatsApp channels.
+### 5. Production Deployment
+```bash
+npm start
+```
 
-## 🖥️ CLI Commands
+---
+
+## 🖥️ Dashboard Overview
+
+Access the web dashboard at **http://localhost:3000** for:
+
+| Section | Purpose |
+|---------|---------|
+| **Overview** | System status, statistics, and quick actions |
+| **Chat** | WebChat interface for direct messaging |
+| **Admin** | Plugin management, settings, and configuration |
+| **Analytics** | Usage metrics and performance insights |
+| **Memory** | View and manage knowledge graph and facts |
+| **Tools** | Browse available tools and schemas |
+| **Workflows & Swarms** | Visualize multi-agent task orchestration |
+| **Sessions** | Manage conversation history |
+| **Heartbeats** | Configure proactive check-ins |
+| **Scheduler** | Set up recurring tasks and automations |
+| **Webhooks** | Configure incoming webhook endpoints |
+
+---
+
+## 🛠️ CLI Commands
 
 | Command | Purpose |
 |---------|---------|
@@ -85,77 +117,79 @@ WebChat is the built-in web interface that works alongside Telegram and WhatsApp
 | `npm start` | Start in production mode |
 | `npm run cli -- chat` | Interactive chat REPL |
 | `npm run cli -- doctor` | Health checks & diagnostics |
-| `npm run cli -- config` | View configuration |
+| `npm run cli -- config` | View current configuration |
 | `npm run cli -- tools` | List all available tools |
 | `npm run cli -- sessions` | Manage conversation sessions |
-| `npm run typecheck` | Type checking |
+| `npm run typecheck` | TypeScript type checking |
 | `npm run test` | Run tests in watch mode |
 | `npm run test:run` | Run tests once |
 | `npm run test:coverage` | Generate coverage report |
 
-For detailed CLI usage, see [docs/guides/CLI.md](docs/guides/CLI.md)
+For detailed CLI documentation, see [docs/guides/CLI.md](docs/guides/CLI.md)
 
 ---
 
-Gravity Claw is designed as a modular **Personal OS**:
-- **Channels**: Multi-platform support (Telegram, WhatsApp, WebChat) with unified messaging.
-- **Agent Loop**: Advanced tool-use loop with confirmation gates and safety limits.
-- **Memory**: Hybrid engine (SQLite + Vector/Semantic + Knowledge Graph).
-- **Orchestration**: **Agent Swarms** (role-based) and **Mesh Workflows** (DAG-based task decomposition).
-- **Proactive Engine**: Heartbeat updates and LLM-driven daily recommendations.
-- **Interactive UI**: **Live Canvas (A2UI)** via WebSockets for pushing rich HTML/JS widgets.
+## 🏗️ Architecture
+
+### Core Design
+
+Gravity Claw is built as a modular **Personal OS** with these key layers:
+
+```
+Channel Layer (Telegram/WhatsApp/Web)
+    ↓
+Channel Router
+    ↓
+Agent Loop (LLM Orchestrator)
+    ↓
+Tool Execution Engine
+    ↓
+Memory System (Hybrid Storage)
+```
+
+### Key Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| **Agent Loop** | `src/agent.ts` | Agentic execution with tool calling |
+| **LLM Orchestrator** | `src/llm/orchestrator.ts` | Multi-provider LLM management |
+| **Tool Registry** | `src/tools/` | Modular tool system (80+ tools) |
+| **Memory Engine** | `src/memory/` | SQLite + Vector + Knowledge Graph |
+| **Channels** | `src/channels/` | Multi-platform adapters |
+| **Plugin System** | `src/plugins/` | Runtime extensions |
+
+### Key Features
+
+- **Channels** — Multi-platform support with unified messaging
+- **Agent Loop** — Tool-use with confirmation gates and safety limits
+- **Memory** — Hybrid storage for context and learning
+- **Orchestration** — Swarms and Mesh workflows for complex tasks
+- **Proactive Engine** — Heartbeat updates and recommendations
+- **Live Canvas** — Real-time rich UI pushing via WebSockets
+
+For detailed architecture, see [docs/architecture/ARCHITECTURE_OVERVIEW.md](docs/architecture/ARCHITECTURE_OVERVIEW.md)
+
+---
 
 ## 🛡️ Security & Privacy
 
+Gravity Claw implements enterprise-grade security:
+
 | Feature | Description |
-|---|---|
-| **Air-Gapped Mode** | Full local operation via Ollama; blocks all external fetch calls |
-| **Encrypted Secrets** | AES-256-GCM management for API keys, decoupled from environment |
-| **User Allowlisting** | Strict user ID filtering for all communication channels |
-| **Path Allowlisting** | File operations restricted to specific safe directories |
+|---------|-------------|
+| **Air-Gapped Mode** | Full local operation via Ollama; zero external calls |
+| **Encrypted Secrets** | AES-256-GCM for API keys, decoupled from environment |
+| **User Allowlisting** | Strict user ID filtering across all channels |
+| **Path Allowlisting** | File operations restricted to safe directories |
 | **Admin Controls** | Granular tool permissions for group chats |
 | **No External Calls** | Complete network isolation in air-gap mode |
+| **Audit Logging** | Complete activity tracking and monitoring |
 
-See [SECURITY.md](SECURITY.md) for detailed security policy and vulnerability reporting.
-
----
-
-## 🏗️ Architecture Overview
-
-**Request Flow:**
-```
-Channel (Telegram/WhatsApp/Web) 
-  → ChannelRouter 
-  → runAgent() (LLM orchestrator) 
-  → callClaude() (tool-use loop)
-  → Tool execution
-  → Repeat until completion
-```
-
-**Core Components:**
-- `src/agent.ts` - Agentic loop with tool execution
-- `src/llm/orchestrator.ts` - LLM provider management & history
-- `src/tools/` - Modular tool registry
-- `src/memory/` - Hybrid storage (SQLite + Vector + Graph)
-- `src/channels/` - Multi-platform adapters
-- `src/plugins/` - Runtime extension system
-
-For detailed architecture, see [docs/architecture/ARCHITECTURE_OVERVIEW.md](docs/architecture/ARCHITECTURE_OVERVIEW.md).
+**Found a security vulnerability?** Please report privately:
+- See [SECURITY.md](SECURITY.md) for reporting guidelines
+- Do NOT open public issues for security concerns
 
 ---
-
-## 🔌 Extensibility
-
-### Plugins (`src/plugins/`)
-Runtime system for extending providers, channels, tools, and memory— no restart required.
-
-### Skills (`skills/`)
-Prompt-based behavior guidance documents (not runtime modules).
-
-### MCP Bridge
-Integrate external Model Context Protocol tool servers.
-
-Reference: [src/plugins/README.md](src/plugins/README.md)
 
 ## 📦 Deployment
 
@@ -167,10 +201,11 @@ docker-compose up -d
 ### Manual VPS / Self-Hosted
 ```bash
 # 1. Install Node.js 20+
+sudo apt update && sudo apt install nodejs npm
 
 # 2. Clone repository
-git clone https://github.com/noorulahamed/gravityclaw.git
-cd gravityclaw
+git clone https://github.com/NoorulAhameddev/GravityClaw.git
+cd GravityClaw
 
 # 3. Install dependencies
 npm install
@@ -179,115 +214,135 @@ npm install
 cp .env.example .env
 # Edit .env with your API keys
 
-# 5. Start in background (using PM2, screen, or systemd)
+# 5. Start in background
 npm start
+
+# Or use PM2 for process management
+npm install -g pm2
+pm2 start npm --name "gravity-claw" -- start
+pm2 save
+pm2 startup
 ```
 
-### Air-Gapped Mode
-For offline operation:
+### Air-Gapped Mode (Offline)
 ```bash
 # 1. Install Ollama
-# 2. Pull a model: ollama pull mistral (or your preferred model)
-# 3. Set in .env: LLM_PROVIDER=ollama
+# 2. Pull a model
+ollama pull mistral
+
+# 3. Configure .env
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+
+# 4. Start
 npm start
 ```
 
-See [docs/features/airgap/AIRGAP.md](docs/features/airgap/AIRGAP.md) for detailed air-gap setup.
+For detailed deployment guide, see [docs/guides/DEPLOYMENT.md](docs/guides/DEPLOYMENT.md)
+
+---
+
+## 📚 Documentation
+
+### Quick Links
+| Document | Purpose |
+|----------|---------|
+| **[📚 Documentation Index](docs/INDEX.md)** | Complete documentation hub |
+| **[🛠️ Tools Reference](docs/TOOLS_REFERENCE.md)** | Catalog of 80+ tools with examples |
+| **[🏗️ Architecture](docs/architecture/ARCHITECTURE_OVERVIEW.md)** | System design & data flow |
+
+### Core Features
+| Document | Purpose |
+|----------|---------|
+| [Multi-Agent Systems](docs/MULTI_AGENT_SYSTEMS.md) | Swarms & Mesh workflows |
+| [Skills Guide](docs/SKILLS_GUIDE.md) | Create prompt-based knowledge assets |
+| [Proactive Features](docs/PROACTIVE_FEATURES.md) | Heartbeats & recommendations |
+| [Live Canvas (A2UI)](docs/features/canvas/CANVAS.md) | Rich UI widget system |
+| [Model Switching](docs/guides/MODEL_SWITCHING.md) | Dynamic LLM provider selection |
+| [📖 CLI Guide](docs/guides/CLI.md) | Command-line interface reference |
+
+### Security & Operations
+| Document | Purpose |
+|----------|---------|
+| [Security Policy](SECURITY.md) | Security features & vulnerability reporting |
+| [Air-Gapped Mode](docs/features/airgap/AIRGAP.md) | Offline operation setup |
+| [Encrypted Secrets](docs/ENCRYPTED_SECRETS.md) | Secret management system |
+| [Backup & Restore](docs/features/backup/BACKUP_RESTORE_SYSTEM.md) | Backup automation |
+| [Observability](docs/features/observability/OBSERVABILITY.md) | Logging, metrics, tracing |
+| [Rate Limiting](docs/features/rate-limiting/RATE_LIMITING.md) | API rate limits |
+| [Performance Optimization](docs/features/performance/PERFORMANCE.md) | Tuning & efficiency |
+
+### Development
+| Document | Purpose |
+|----------|---------|
+| [API Reference](docs/guides/API.md) | REST & WebSocket APIs |
+| [Plugin System](src/plugins/README.md) | Create runtime extensions |
+| [Deployment Guide](docs/guides/DEPLOYMENT.md) | Production deployment |
+| [Contributing Guide](CONTRIBUTING.md) | Contribution guidelines |
+
+---
+
+## 🔌 Extensibility
+
+### Plugins
+Runtime system for extending providers, channels, tools, and memory without restart.
+See [src/plugins/README.md](src/plugins/README.md) for details.
+
+### Skills
+Prompt-based behavior guidance documents for customizing agent responses.
+See [docs/SKILLS_GUIDE.md](docs/SKILLS_GUIDE.md) for details.
+
+### Model Context Protocol (MCP)
+Integrate external tool servers via the MCP bridge.
 
 ---
 
 ## 📜 Roadmap
 
-- [x] **Level 1 — Foundation** (Telegram, Tool Loop)
-- [x] **Level 2 — Memory** (SQLite, RAG, Knowledge Graph)
-- [x] **Level 3 — Automation** (Browser, Shell, Scheduler)
-- [x] **Level 4 — Connectivity** (MCP, Webhooks, Plugins)
-- [x] **Level 5 — Intelligence** (Swarms, Mesh, Recommendations)
-- [x] **Level 6 — Experience** (Voice, Live Canvas, Airgap)
+- [x] **Level 1 — Foundation** — Telegram, Tool Loop, Core Architecture
+- [x] **Level 2 — Memory** — SQLite, RAG, Knowledge Graph
+- [x] **Level 3 — Automation** — Browser, Shell, Scheduler
+- [x] **Level 4 — Connectivity** — MCP, Webhooks, Plugins
+- [x] **Level 5 — Intelligence** — Swarms, Mesh, Recommendations
+- [x] **Level 6 — Experience** — Voice, Live Canvas, Air-gap Mode
+
+---
 
 ## 🤝 Contributing
 
-We welcome contributions! Whether it's bug fixes, new features, documentation, or ideas:
+We welcome contributions! Here's how to get started:
 
-1. Read our [Contributing Guide](CONTRIBUTING.md)
-2. Check out [open issues](https://github.com/noorulahamed/gravityclaw/issues)
-3. Follow our [Code of Conduct](CODE_OF_CONDUCT.md)
-4. Submit your pull request!
+1. **Read** [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines and standards
+2. **Check** [open issues](https://github.com/NoorulAhameddev/GravityClaw/issues)
+3. **Follow** [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+4. **Submit** your pull request
 
 ### Development Setup
-
 ```bash
-git clone https://github.com/noorulahamed/gravityclaw.git
-cd gravityclaw
+git clone https://github.com/NoorulAhameddev/GravityClaw.git
+cd GravityClaw
 npm install
 npm run dev
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on code standards, testing, and the PR process.
-
-## 🔒 Security
-
-Security is a top priority. Gravity Claw includes:
-
-- **Air-gapped mode** for complete offline operation
-- **Encrypted secrets** with AES-256-GCM
-- **User allowlisting** to restrict access
-- **Path allowlisting** for file operations
-
-Found a security vulnerability? Please report it privately:
-
-- See our [Security Policy](SECURITY.md) for reporting guidelines
-- Do not open public issues for security concerns
-
-For more details, see [SECURITY.md](SECURITY.md).
-
-## 📚 Documentation
-
-### 🚀 Start Here
-| Document | Purpose |
-|----------|---------|
-| **[📚 Documentation Index](docs/INDEX.md)** | **Complete documentation hub & navigation** |
-| [🛠️ Tools Reference](docs/TOOLS_REFERENCE.md) | Catalog of all 80+ tools with examples |
-| [📖 CLI Guide](docs/guides/CLI.md) | Command-line interface reference |
-| [🏗️ Architecture](docs/architecture/ARCHITECTURE_OVERVIEW.md) | Complete system design & data flow |
-
-### 🤖 Core Features
-| Document | Purpose |
-|----------|---------|
-| [Multi-Agent Systems](docs/MULTI_AGENT_SYSTEMS.md) | Swarms & Mesh workflows for complex tasks |
-| [Skills Guide](docs/SKILLS_GUIDE.md) | Create prompt-based knowledge assets with code |
-| [Proactive Features](docs/PROACTIVE_FEATURES.md) | Heartbeat check-ins, daily recommendations, evening recaps |
-| [Live Canvas (A2UI)](docs/features/canvas/CANVAS.md) | Push rich HTML/JS widgets to users |
-| [Model Switching](docs/guides/MODEL_SWITCHING.md) | Dynamic provider/model selection |
-
-### 🔒 Security & Operations
-| Document | Purpose |
-|----------|---------|
-| [Security Policy](SECURITY.md) | Security features & vulnerability reporting |
-| [Air-Gapped Mode](docs/features/airgap/AIRGAP.md) | Complete offline operation with local models |
-| [Encrypted Secrets](docs/ENCRYPTED_SECRETS.md) | AES-256-GCM secret management |
-| [Backup & Restore](docs/features/backup/BACKUP_RESTORE_SYSTEM.md) | Automated backup system |
-| [Observability](docs/features/observability/OBSERVABILITY.md) | Logging, metrics, tracing, monitoring |
-| [Rate Limiting](docs/features/rate-limiting/RATE_LIMITING.md) | API rate limiting configuration |
-| [Performance Optimization](docs/features/performance/PERFORMANCE.md) | Speed & efficiency tuning |
-
-### 🧩 Development & Integration
-| Document | Purpose |
-|----------|---------|
-| [API Reference](docs/guides/API.md) | REST & WebSocket API documentation |
-| [Plugin System](src/plugins/README.md) | Create runtime extensions |
-| [Deployment Guide](docs/guides/DEPLOYMENT.md) | Production deployment (VPS, Docker) |
-| [Contributing Guide](CONTRIBUTING.md) | How to contribute to the project |
+See [CONTRIBUTING.md](CONTRIBUTING.md) for code standards, testing requirements, and PR process.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License** — see [LICENSE](LICENSE) for details.
+
+---
+
+## 📞 Support & Community
+
+- **Issues** — [GitHub Issues](https://github.com/NoorulAhameddev/GravityClaw/issues)
+- **Discussions** — [GitHub Discussions](https://github.com/NoorulAhameddev/GravityClaw/discussions)
+- **Security** — [SECURITY.md](SECURITY.md)
 
 ---
 
 **Built with ❤️ by the Gravity Claw community**
-#   G r a v i t y C l a w 
- 
- 
+
+Made with TypeScript • Powered by AI • Built for Automation
