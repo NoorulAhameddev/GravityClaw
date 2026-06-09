@@ -5,6 +5,7 @@ import { AnthropicProvider } from "./anthropic.ts";
 import { GoogleProvider } from "./google.ts";
 import { GroqProvider } from "./groq.ts";
 import { DeepSeekProvider } from "./deepseek.ts";
+import { OpenCodeZenProvider } from "./opencodezen.ts";
 import { CohereProvider } from "./cohere.ts";
 import { MistralProvider } from "./mistral.ts";
 import { OllamaProvider } from "./ollama.ts";
@@ -20,6 +21,7 @@ export { SYSTEM_PROMPT } from "./base.ts";
 export type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
 export { FailoverProvider } from "./failover.ts";
 export { OpenRouterProvider } from "./openrouter.ts";
+export { OpenCodeZenProvider } from "./opencodezen.ts";
 export { CohereProvider } from "./cohere.ts";
 export { MistralProvider } from "./mistral.ts";
 export { NvidiaProvider } from "./nvidia.ts";
@@ -45,6 +47,12 @@ function createSingleProvider(providerName: string, model?: string): LLMProvider
         throw new Error("OPENAI_API_KEY is required for OpenAI provider");
       }
       return new OpenAIProvider(config.OPENAI_API_KEY, providerModel);
+
+    case "opencodezen":
+      if (!config.OPENCODEZEN_API_KEY) {
+        throw new Error("OPENCODEZEN_API_KEY is required for OpenCodeZen provider");
+      }
+      return new OpenCodeZenProvider(config.OPENCODEZEN_API_KEY, providerModel, config.OPENCODEZEN_BASE_URL);
 
     case "anthropic":
       if (!config.ANTHROPIC_API_KEY) {
@@ -97,7 +105,7 @@ function createSingleProvider(providerName: string, model?: string): LLMProvider
 
     default:
       throw new Error(
-        `Unknown LLM provider: ${providerName}. Available: openrouter, openai, anthropic, google, groq, deepseek, ollama, cohere, mistral, nvidia, mock`
+        `Unknown LLM provider: ${providerName}. Available: openrouter, openai, anthropic, google, groq, deepseek, ollama, cohere, mistral, nvidia, mock, opencodezen`
       );
   }
 }

@@ -38,6 +38,10 @@ import {
   getCacheStats as getDBCacheStats,
 } from "./db-optimization.ts";
 import { db } from "../db.ts";
+import { isVectorStoreAvailable } from "../memory/vector.ts";
+import { mcpClient } from "../mcp/index.ts";
+import { isQueueWorkerRunning } from "../queue/index.ts";
+import { config } from "../config.ts";
 
 const log = createLogger("metrics-api");
 const router = Router();
@@ -289,6 +293,37 @@ router.get("/health", (req: Request, res: Response) => {
     const memoryPercent = parseFloat((memory.heapPercent as string)) || 0;
     const avgLatency = parseFloat((iterations.avgDuration as string)) || 0;
 
+    // Database check
+    let databaseStatus: "ok" | "critical" = "ok";
+    try {
+      db.prepare("SELECT 1").get();
+    } catch (dbErr) {
+      log.error("Database health check failed", dbErr);
+      databaseStatus = "critical";
+    }
+
+    // Vector store check
+    const vectorAvailable = isVectorStoreAvailable();
+    const vectorStatus: "ok" | "degraded" = vectorAvailable ? "ok" : "degraded";
+
+    // MCP status check
+    const mcpServers = mcpClient.getStatus();
+    let mcpStatus: "ok" | "degraded" | "critical" = "ok";
+    if (mcpServers.length > 0) {
+      const connectedCount = mcpServers.filter(s => s.connected).length;
+      if (connectedCount === 0) {
+        mcpStatus = "critical";
+      } else if (connectedCount < mcpServers.length) {
+        mcpStatus = "degraded";
+      }
+    }
+
+    // Queue status check
+    let queueStatus: "ok" | "degraded" = "ok";
+    if (config.QUEUE_ENABLED && !isQueueWorkerRunning()) {
+      queueStatus = "degraded";
+    }
+
     const health = {
       status: "ok" as "ok" | "degraded" | "critical",
       timestamp: new Date().toISOString(),
@@ -296,14 +331,29 @@ router.get("/health", (req: Request, res: Response) => {
         memory: memoryPercent < 80 ? "ok" : memoryPercent < 90 ? "degraded" : "critical",
         performance:
           avgLatency < 300 ? "ok" : avgLatency < 500 ? "degraded" : "critical",
+        database: databaseStatus,
+        vectorStore: vectorStatus,
+        mcp: mcpStatus,
+        queue: queueStatus,
         uptime: process.uptime(),
       },
     };
 
     // Set overall status
-    if (health.checks.memory === "critical" || health.checks.performance === "critical") {
+    if (
+      health.checks.memory === "critical" ||
+      health.checks.performance === "critical" ||
+      health.checks.database === "critical"
+    ) {
       health.status = "critical";
-    } else if (health.checks.memory === "degraded" || health.checks.performance === "degraded") {
+    } else if (
+      health.checks.memory === "degraded" ||
+      health.checks.performance === "degraded" ||
+      health.checks.vectorStore === "degraded" ||
+      health.checks.mcp === "degraded" ||
+      health.checks.mcp === "critical" ||
+      health.checks.queue === "degraded"
+    ) {
       health.status = "degraded";
     }
 

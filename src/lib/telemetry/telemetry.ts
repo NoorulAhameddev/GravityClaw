@@ -11,7 +11,6 @@
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
-import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
 import { Resource } from "@opentelemetry/resources";
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
 import { createLogger } from "../../logger.js";
@@ -38,8 +37,8 @@ export async function initializeTelemetry(config?: TelemetryConfig): Promise<voi
     const enabled = config?.enabled ?? false;
     const otlpEndpoint = config?.otlpEndpoint ?? "";
 
-    if (!enabled || !otlpEndpoint) {
-        log.info("Telemetry disabled or endpoint not configured");
+    if (!enabled) {
+        log.info("Telemetry disabled");
         isEnabled = false;
         return;
     }
@@ -49,20 +48,23 @@ export async function initializeTelemetry(config?: TelemetryConfig): Promise<voi
     const serviceName = config?.serviceName ?? "gravyclaw";
     const serviceVersion = config?.serviceVersion ?? "0.1.0";
 
-    log.info(`Initializing OpenTelemetry (endpoint: ${otlpEndpoint})`);
-
     const resource = new Resource({
         [ATTR_SERVICE_NAME]: serviceName,
         [ATTR_SERVICE_VERSION]: serviceVersion,
     });
 
-    const traceExporter = new OTLPTraceExporter({
-        url: `${otlpEndpoint}/v1/traces`,
-    });
+    let traceExporter;
 
-    const metricExporter = new OTLPMetricExporter({
-        url: `${otlpEndpoint}/v1/metrics`,
-    });
+    if (otlpEndpoint) {
+        log.info(`Initializing OpenTelemetry (endpoint: ${otlpEndpoint})`);
+        traceExporter = new OTLPTraceExporter({
+            url: `${otlpEndpoint}/v1/traces`,
+        });
+    } else {
+        log.info("Initializing OpenTelemetry with Console exporter (local fallback)");
+        const { ConsoleSpanExporter } = await import("@opentelemetry/sdk-trace-node");
+        traceExporter = new ConsoleSpanExporter();
+    }
 
     // Import samplers
     const { ParentBasedSampler, TraceIdRatioBasedSampler } = await import("@opentelemetry/sdk-trace-node");

@@ -181,7 +181,7 @@ export class ChannelRouter {
                     `Model: ${currentModel}\n\n` +
                     `To change: \`/model <provider> <model-name>\`\n` +
                     `Example: \`/model anthropic claude-3-5-sonnet-20241022\`\n\n` +
-                    `Available providers: openrouter, anthropic, openai, google, groq, deepseek, ollama\n` +
+                    `Available providers: openrouter, anthropic, openai, google, groq, deepseek, ollama, opencodezen\n` +
                     `Use \`/models openrouter\` to see available OpenRouter models.`
                 );
                 return;
@@ -191,7 +191,7 @@ export class ChannelRouter {
             let model: string;
             
             // Check if first arg is a provider name or a model name
-            const validProviders = ["openrouter", "anthropic", "openai", "google", "groq", "deepseek", "ollama"];
+            const validProviders = ["openrouter", "anthropic", "openai", "google", "groq", "deepseek", "ollama", "opencodezen"];
             
             if (parts.length === 1) {
                 // Only model name provided - keep current provider

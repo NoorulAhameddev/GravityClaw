@@ -67,4 +67,5 @@ export interface TaskQueue {
     updateStatus(taskId: string, status: TaskStatus): Promise<void>;
     startWorker?(workerFn: (task: BackgroundTask) => Promise<void>, concurrency?: number): void;
     stopWorker?(): void;
+    isWorkerRunning?(): boolean;
 }

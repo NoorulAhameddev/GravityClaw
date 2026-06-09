@@ -10,6 +10,7 @@ import { generateEmbedding, fallbackLocalSemanticSearch } from "./supabase.ts";
 import { db } from "../db.ts";
 import type { SemanticSearchResult } from "../types/memory.js";
 import { CHROMA_URL } from "../config.ts";
+import { meter } from "../lib/telemetry/metrics.ts";
 
 const log = createLogger("memory:vector");
 
@@ -18,6 +19,27 @@ const COLLECTION_NAME = "gravity_claw_memory";
 let client: ChromaClient | null = null;
 let collection: Collection | null = null;
 let chromaAvailable = false;
+
+// Create observable gauge for ChromaDB availability
+const vectorStoreAvailableGauge = meter.createObservableGauge("vector_store_available", {
+    description: "Whether the vector store (ChromaDB) is currently available (1) or not (0)",
+    unit: "1",
+});
+
+vectorStoreAvailableGauge.addCallback((observableResult) => {
+    observableResult.observe(chromaAvailable ? 1 : 0);
+});
+
+function setChromaAvailable(available: boolean): void {
+    if (available !== chromaAvailable) {
+        if (available) {
+            log.info("ChromaDB vector store has become AVAILABLE.");
+        } else {
+            log.warn("⚠️ ChromaDB vector store has become UNAVAILABLE. Falling back to SQLite/BM25.");
+        }
+        chromaAvailable = available;
+    }
+}
 
 const openaiEmbeddingFunction = {
     name: "openai",
@@ -50,13 +72,13 @@ async function ensureChroma(): Promise<Collection | null> {
             embeddingFunction: openaiEmbeddingFunction,
         });
 
-        chromaAvailable = true;
+        setChromaAvailable(true);
         log.info(`✅ ChromaDB vector store ready — collection: ${COLLECTION_NAME}`);
         return collection;
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         log.info(`ChromaDB unavailable at ${CHROMA_URL} (${msg}). Using SQLite fallback.`);
-        chromaAvailable = false;
+        setChromaAvailable(false);
         return null;
     }
 }
@@ -142,7 +164,8 @@ export async function vectorSemanticSearch(
         }));
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        log.warn(`Vector search failed, falling back to SQLite: ${msg}`);
+        log.warn(`Vector search failed, resetting ChromaDB availability and falling back to SQLite: ${msg}`);
+        setChromaAvailable(false);
         return fallbackLocalSemanticSearch(sessionId, query, limit);
     }
 }

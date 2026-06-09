@@ -11,12 +11,10 @@ let queueInstance: TaskQueue | null = null;
 export function getTaskQueue(): TaskQueue {
     if (!queueInstance) {
         if (config.QUEUE_ENABLED && config.REDIS_URL) {
-            log.info("Using BullMQ queue backend");
-            throw new Error("BullMQ backend not yet implemented");
-        } else {
-            log.info("Using in-process queue backend");
-            queueInstance = new InProcessTaskQueue();
+            log.warn("⚠️ BullMQ backend not yet implemented — REDIS_URL is configured but Redis-backed queue is unavailable. Falling back to in-process queue. Tasks will NOT survive process restarts.");
         }
+        log.info(`Using in-process queue backend (QUEUE_ENABLED=${config.QUEUE_ENABLED})`);
+        queueInstance = new InProcessTaskQueue();
     }
     return queueInstance;
 }
@@ -105,6 +103,14 @@ export function isRetryableError(error: unknown): boolean {
         );
     }
     return false;
+}
+
+export function isQueueWorkerRunning(): boolean {
+    const queue = getTaskQueue();
+    if (queue.isWorkerRunning) {
+        return queue.isWorkerRunning();
+    }
+    return config.QUEUE_ENABLED;
 }
 
 export type { TaskQueue, QueuedTaskPayload, BackgroundTask };

@@ -172,7 +172,7 @@ async function executeTask(task: ScheduledTask): Promise<void> {
       log.debug(`Task skipped (no handler): ${task.name} (id: ${task.id})`);
     }
   } catch (error) {
-    log.debug(`Scheduled task skipped (no channel): ${task.name} (id: ${task.id})`);
+    log.warn(`Scheduled task failed (no handler/channel): ${task.name} (id: ${task.id}, error: ${error instanceof Error ? error.message : String(error)})`);
   }
 }
 

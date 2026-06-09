@@ -1,3 +1,5 @@
+import path from "node:path";
+
 let input = '';
 process.stdin.on('data', chunk => input += chunk);
 process.stdin.on('end', () => {
@@ -25,5 +27,3 @@ process.stdin.on('end', () => {
 
   console.log(input);
 });
-
-const path = require('path');

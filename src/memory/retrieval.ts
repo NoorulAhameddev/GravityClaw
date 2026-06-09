@@ -1,6 +1,9 @@
 import { isVectorStoreAvailable, vectorSemanticSearch } from "./vector.ts";
 import { searchMemorySemantic } from "./supabase.ts";
 import type { SemanticSearchResult } from "../types/memory.js";
+import { createLogger } from "../logger.ts";
+
+const log = createLogger("memory:retrieval");
 
 export interface RetrievedMemory {
     id: string;
@@ -18,6 +21,13 @@ export interface RetrievalOptions {
     maxChars?: number;
     modelName?: string;
     minSimilarity?: number;
+}
+
+export type RetrievalMode = "chromadb" | "bm25" | "tfidf";
+
+export interface RetrievalResult {
+    memories: RetrievedMemory[];
+    retrievalMode: RetrievalMode;
 }
 
 function normalizeContent(text: string): string {
@@ -169,7 +179,14 @@ export async function retrieveRelevantMemories(
     const minSimilarity = opts?.minSimilarity ?? 0.7;
     const maxPerItem = 260;
 
-    const raw: SemanticSearchResult[] = isVectorStoreAvailable()
+    const useVectorStore = isVectorStoreAvailable();
+    const retrievalMode: RetrievalMode = useVectorStore ? "chromadb" : "bm25";
+
+    if (!useVectorStore) {
+        log.warn(`Vector store unavailable, using ${retrievalMode} fallback for session ${sessionId}`);
+    }
+
+    const raw: SemanticSearchResult[] = useVectorStore
         ? await vectorSemanticSearch(sessionId, latestUserMessage, limit)
         : await searchMemorySemantic(sessionId, latestUserMessage, limit);
 
@@ -198,7 +215,9 @@ export async function retrieveRelevantMemories(
 
     const deduped = deduplicateByNormalizedContent(ranked);
 
-    return fitToBudget(deduped, maxChars, limit, maxPerItem);
+    const result = fitToBudget(deduped, maxChars, limit, maxPerItem) as RetrievedMemory[] & { retrievalMode?: RetrievalMode };
+    result.retrievalMode = retrievalMode;
+    return result;
 }
 
 export function formatRelevantMemories(memories: RetrievedMemory[]): string {

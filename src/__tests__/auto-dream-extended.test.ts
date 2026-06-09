@@ -101,7 +101,8 @@ describe("AutoDream Extended Production Verification", () => {
                 throw new Error("Simulated LLM Timeout/Failure");
             }
             return {
-                messages: [{ role: "assistant", content: "- [preferences] Consolidated 2" }]
+                messages: [{ role: "assistant", content: "- [preferences] Consolidated 2" }],
+                totalUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
             };
         });
 
@@ -114,7 +115,7 @@ describe("AutoDream Extended Production Verification", () => {
         // Session 2 should be consolidated (1 fact)
         const facts2 = readAllFacts("test_session_2");
         expect(facts2.length).toBe(1);
-        expect(facts2[0].fact).toBe("Consolidated 2");
+        expect(facts2[0]?.fact).toBe("Consolidated 2");
         
         vi.restoreAllMocks();
     });
@@ -127,7 +128,7 @@ describe("AutoDream Extended Production Verification", () => {
         db.prepare("INSERT INTO memory (session_id, message_json) VALUES (?, ?)").run("test_session_db", "{}");
 
         // Verify stats exist
-        let stats = db.prepare("SELECT * FROM fact_stats WHERE session_id = ?").all("test_session_db");
+        let stats: any[] = db.prepare("SELECT * FROM fact_stats WHERE session_id = ?").all("test_session_db");
         expect(stats.length).toBe(3);
 
         const lockPath = getConsolidationLockPath();
@@ -137,7 +138,8 @@ describe("AutoDream Extended Production Verification", () => {
 
         vi.spyOn(agent, 'runForkedAgent').mockImplementation(async () => {
             return {
-                messages: [{ role: "assistant", content: "- [preferences] New Unified Fact" }]
+                messages: [{ role: "assistant", content: "- [preferences] New Unified Fact" }],
+                totalUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
             };
         });
         
