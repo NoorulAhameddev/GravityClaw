@@ -3,24 +3,20 @@ import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/reso
 import type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
 import { createLogger } from "../logger.ts";
 
-const log = createLogger("llm:deepseek");
+const log = createLogger("llm:opencodezen");
 
-/**
- * DeepSeek Provider
- * Chinese LLM with strong coding capabilities, OpenAI-compatible API
- */
-export class DeepSeekProvider implements LLMProvider {
-  readonly name = "deepseek";
+export class OpenCodeZenProvider implements LLMProvider {
+  readonly name = "opencodezen";
   private client: OpenAI;
   private defaultModel: string;
 
-  constructor(apiKey: string, defaultModel: string = "deepseek-chat") {
+  constructor(apiKey: string, defaultModel: string = "minimax-m2.5-free", baseURL: string = "https://opencode.ai/zen/v1") {
     this.client = new OpenAI({
       apiKey,
-      baseURL: "https://api.deepseek.com/v1",
+      baseURL,
     });
     this.defaultModel = defaultModel;
-    log.info(`DeepSeek provider initialized with model: ${defaultModel}`);
+    log.info(`OpenCodeZen provider initialized with model: ${defaultModel} and baseURL: ${baseURL}`);
   }
 
   async chat(
@@ -32,7 +28,7 @@ export class DeepSeekProvider implements LLMProvider {
     const maxTokens = options?.maxTokens ?? 2000;
     const hasTools = toolDefinitions.length > 0;
 
-    log.debug(`Calling DeepSeek — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`);
+    log.debug(`Calling OpenCodeZen — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`);
 
     const mappedMessages = messages.map((msg) => {
       if (msg.role === "assistant") {
@@ -54,7 +50,7 @@ export class DeepSeekProvider implements LLMProvider {
 
     const response = await this.client.chat.completions.create(params);
     const choice = response.choices[0];
-    if (!choice) throw new Error("DeepSeek returned no choices");
+    if (!choice) throw new Error("OpenCodeZen returned no choices");
 
     const msg = choice.message;
     const text = msg.content ?? "";
@@ -62,7 +58,7 @@ export class DeepSeekProvider implements LLMProvider {
     const thought = (msg as any).reasoning_content;
 
     log.debug(
-      `DeepSeek response — stop: ${choice.finish_reason}, text: ${text.length} chars, tools: ${toolCalls.length}`
+      `OpenCodeZen response — stop: ${choice.finish_reason}, text: ${text.length} chars, tools: ${toolCalls.length}`
     );
 
     const result: LLMResponse = {

@@ -91,13 +91,13 @@ export interface SwarmResult {
   sessionId: string;
   role: string;
   content: string;
-  status: "completed" | "failed" | "timeout";
+  status: "completed" | "failed" | "timeout" | "degraded";
 }
 
 interface SpawnResult {
   sessionId: string;
   content: string;
-  status: "completed" | "failed";
+  status: "completed" | "failed" | "degraded";
 }
 
 // Legacy return type for backward compatibility with tests
@@ -197,13 +197,12 @@ export class AgentSwarm {
         log.warn(`No response text from LLM for agent ${role}, session: ${childSessionId}, stopReason: ${response.stopReason}`);
         
         // Generate fallback content based on role
-        const fallbackContent = generateFallbackResponse(role, task);
+        const fallbackContent = `⚠️ [FALLBACK RESPONSE — LLM unavailable]\n\n${generateFallbackResponse(role, task)}`;
         content = fallbackContent;
         addAssistantMessage(childSessionId, fallbackContent, childOrchestratorDeps);
         
-        // Mark as completed since we have fallback
         childDB.prepare(`UPDATE agent_swarms SET status = ? WHERE child_session_id = ?`).run(
-          "completed",
+          "degraded",
           childSessionId
         );
       }
@@ -211,7 +210,7 @@ export class AgentSwarm {
       return {
         sessionId: childSessionId,
         content,
-        status: "completed",
+        status: response.text?.trim() ? "completed" : "degraded",
       };
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);

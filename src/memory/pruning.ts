@@ -199,7 +199,11 @@ export async function pruneContext(
   const finalConfig = { ...DEFAULT_PRUNING_CONFIG, ...config };
 
   try {
-    const history = getHistory(sessionId, orchestratorDeps);
+    const rows = db.prepare(
+      "SELECT message_json, timestamp, settings FROM memory WHERE session_id = ? ORDER BY timestamp ASC, id ASC"
+    ).all(sessionId) as Array<{ message_json: string; timestamp: string; settings: string }>;
+
+    const history = rows.map(r => JSON.parse(r.message_json));
     const contextUsageBefore = calculateContextUsage(sessionId, modelName);
 
     log.info(
@@ -232,12 +236,11 @@ export async function pruneContext(
     }
 
     // Identify prunable messages
-    const [recentMessages, prunableMessages] = identifyPrunableMessages(
-      history,
-      finalConfig.keepRecentExchanges
-    );
+    const pruneUpTo = rows.length - (finalConfig.keepRecentExchanges * 2);
+    const prunableRows = rows.slice(0, pruneUpTo);
+    const recentRows = rows.slice(pruneUpTo);
 
-    if (prunableMessages.length === 0) {
+    if (prunableRows.length === 0) {
       log.debug("No messages to prune");
       return {
         wasPruned: false,
@@ -249,6 +252,7 @@ export async function pruneContext(
     }
 
     // Generate summary
+    const prunableMessages = prunableRows.map(r => JSON.parse(r.message_json));
     const summary = await generateContextSummary(sessionId, prunableMessages);
 
     // Create summary message to insert into history
@@ -261,10 +265,6 @@ export async function pruneContext(
     const { getSessionSettings } = await import("../session.ts");
     const currentSettings = getSessionSettings(sessionId);
     const settingsJson = JSON.stringify(currentSettings);
-
-    // Build backup of recent messages before any destructive operation
-    // This ensures we can rollback if anything fails
-    const backupMessages = recentMessages.map(msg => JSON.stringify(msg));
 
     // Calculate context usage after pruning (will be updated after transaction)
     let contextUsageAfter = contextUsageBefore;
@@ -281,10 +281,12 @@ export async function pruneContext(
         db.prepare("INSERT INTO memory (session_id, message_json, settings) VALUES (?, ?, ?)")
           .run(sessionId, JSON.stringify(summaryMessage), settingsJson);
 
-        // Step 3: Re-insert recent messages
-        for (const msg of recentMessages) {
-          db.prepare("INSERT INTO memory (session_id, message_json, settings) VALUES (?, ?, ?)")
-            .run(sessionId, JSON.stringify(msg), settingsJson);
+        // Step 3: Re-insert recent messages with original timestamps and settings preserved
+        const insertStmt = db.prepare(
+          "INSERT INTO memory (session_id, message_json, timestamp, settings) VALUES (?, ?, ?, ?)"
+        );
+        for (const row of recentRows) {
+          insertStmt.run(sessionId, row.message_json, row.timestamp, row.settings);
         }
       });
 
@@ -292,13 +294,13 @@ export async function pruneContext(
       transactionFn();
 
       log.info(
-        `Context pruned: ${prunableMessages.length} messages → summary (${summary.length} chars), usage ${contextUsageBefore}% → ${contextUsageAfter}%`
+        `Context pruned: ${prunableRows.length} messages → summary (${summary.length} chars), usage ${contextUsageBefore}% → ${contextUsageAfter}%`
       );
     } catch (transactionError) {
       // Transaction failed - this means either:
       // 1. DELETE happened but INSERTs failed, OR
       // 2. Partial insert happened
-      // In either case, original state is preserved in backup
+      // In either case, database transaction rolls back automatically
       const errMsg = transactionError instanceof Error ? transactionError.message : String(transactionError);
       log.error(`Pruning transaction failed, original state preserved: ${errMsg}`);
       throw new Error(`Pruning failed atomically - no data loss. Original history preserved. Details: ${errMsg}`);
@@ -312,7 +314,7 @@ export async function pruneContext(
       wasPruned: true,
       contextUsageBefore,
       contextUsageAfter,
-      messagesPruned: prunableMessages.length,
+      messagesPruned: prunableRows.length,
       summaryLength: summary.length,
     };
   } catch (err) {

@@ -153,7 +153,11 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
             
             const runStartTime = performance.now();
 
-            telemetryLogger.info("agent started", { session_id: sessionId, memory_count: relevantMemories.length });
+            telemetryLogger.info("agent started", {
+                session_id: sessionId,
+                memory_count: relevantMemories.length,
+                retrieval_mode: (relevantMemories as any).retrievalMode,
+            });
 
             addUserMessage(sessionId, message, orchestratorDeps);
 

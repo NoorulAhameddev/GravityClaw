@@ -115,6 +115,10 @@ export class InProcessTaskQueue implements TaskQueue {
         log.info("Queue worker stopped");
     }
 
+    isWorkerRunning(): boolean {
+        return this.running;
+    }
+
     private async runLoop(): Promise<void> {
         while (this.running) {
             let claimedTask: BackgroundTask | null = null;
@@ -154,7 +158,7 @@ export class InProcessTaskQueue implements TaskQueue {
                 }
             }
 
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise((r) => setTimeout(r, 250));
         }
     }
 }

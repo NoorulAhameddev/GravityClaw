@@ -16,7 +16,7 @@ const envSchema = z.object({
     
     // LLM Provider Configuration
     LLM_PROVIDER: z
-        .enum(["openrouter", "anthropic", "openai", "google", "groq", "deepseek", "ollama", "cohere", "mistral", "nvidia", "failover", "mock"])
+        .enum(["openrouter", "anthropic", "openai", "google", "groq", "deepseek", "ollama", "cohere", "mistral", "nvidia", "failover", "mock", "opencodezen"])
         .default("openrouter"),
     LLM_MODEL: z
         .string()
@@ -28,6 +28,13 @@ const envSchema = z.object({
         .describe("Comma-separated list of providers to use in failover mode (e.g., 'openai,anthropic,groq')"),
     
     // API Keys for different providers (at least one required based on LLM_PROVIDER)
+    OPENCODEZEN_API_KEY: z
+        .string()
+        .optional(),
+    OPENCODEZEN_BASE_URL: z
+        .string()
+        .optional()
+        .default("https://opencode.ai/zen/v1"),
     OPENROUTER_API_KEY: z
         .string()
         .optional(),
@@ -360,6 +367,13 @@ const envSchema = z.object({
         .default("60000")
         .transform(val => parseInt(val, 10))
         .describe("Tool execution timeout in milliseconds (default: 60000)"),
+
+    AGENT_MAX_CONCURRENT: z
+        .string()
+        .optional()
+        .default("10")
+        .transform(val => parseInt(val, 10))
+        .describe("Maximum concurrent agent sessions (default: 10)"),
 
     TOKEN_BUDGET_ENABLED: z
         .string()
@@ -756,12 +770,15 @@ export const {
     TELEGRAM_ALLOWED_USER_ID,
     LLM_PROVIDER,
     LLM_MODEL,
+    OPENCODEZEN_API_KEY,
+    OPENCODEZEN_BASE_URL,
     OPENAI_API_KEY,
     NVIDIA_API_KEY,
     AGENT_MAX_ITERATIONS,
     AGENT_MAX_TOOLS_PER_ITERATION,
     AGENT_MAX_TOOLS_TOTAL,
     AGENT_TOOL_TIMEOUT_MS,
+    AGENT_MAX_CONCURRENT,
     TOKEN_BUDGET_ENABLED,
     TOKEN_BUDGET_MAX,
     TOKEN_BUDGET_DIMINISHING_THRESHOLD,

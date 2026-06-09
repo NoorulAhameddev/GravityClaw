@@ -82,6 +82,11 @@ vi.mock('../../lib/telemetry/tracer.js', () => {
 vi.mock('../../lib/telemetry/metrics.js', () => ({
   recordAgentRun: vi.fn(),
   recordToolCall: vi.fn(),
+  meter: {
+    createObservableGauge: vi.fn().mockReturnValue({ addCallback: vi.fn() }),
+    createCounter: vi.fn().mockReturnValue({ add: vi.fn() }),
+    createHistogram: vi.fn().mockReturnValue({ record: vi.fn() }),
+  },
 }));
 vi.mock('../../lib/telemetry/logger.js', () => ({
   telemetryLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },

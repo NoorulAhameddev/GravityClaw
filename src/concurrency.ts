@@ -1,8 +1,9 @@
 import { createLogger } from "./logger.ts";
+import { AGENT_MAX_CONCURRENT } from "./config.ts";
 
 const log = createLogger("concurrency");
 
-const MAX_CONCURRENT = 10;
+const MAX_CONCURRENT = AGENT_MAX_CONCURRENT;
 
 /**
  * Clear all active and pending sessions

@@ -174,9 +174,12 @@ export function updateSessionSetting(
   key: keyof SessionSettings,
   value: unknown
 ): void {
-  const settings = getSessionSettings(sessionId);
-  settings[key] = value;
-  setSessionSettings(sessionId, settings);
+  const txn = db.transaction(() => {
+    const settings = getSessionSettings(sessionId);
+    settings[key] = value;
+    setSessionSettings(sessionId, settings);
+  });
+  txn();
 }
 
 /**
