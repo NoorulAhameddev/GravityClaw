@@ -147,7 +147,7 @@ describe("Plugin Registry", () => {
     
     const plugins = pluginRegistry.listPlugins();
     expect(plugins).toHaveLength(1);
-    expect(plugins[0]?.id).toBe("test-plugin");
+    expect(plugins[0]?.metadata.id).toBe("test-plugin");
   });
   
   it("should load a registered plugin", async () => {
@@ -289,7 +289,7 @@ describe("Plugin Registry", () => {
     
     const list = pluginRegistry.listPlugins();
     expect(list).toHaveLength(2);
-    expect(list.map(p => p.id)).toEqual(expect.arrayContaining(["plugin1", "plugin2"]));
+    expect(list.map(p => p.metadata.id)).toEqual(expect.arrayContaining(["plugin1", "plugin2"]));
   });
 });
 

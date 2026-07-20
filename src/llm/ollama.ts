@@ -48,11 +48,15 @@ export class OllamaProvider implements LLMProvider {
       } else if (Array.isArray(msg.content)) {
         // Handle content arrays (multimodal)
         content = msg.content
-          .map((block: any) => {
+          .map((block: unknown) => {
             if (typeof block === "string") return block;
-            if (block.type === "text") return block.text || "";
-            if (block.type === "image_url") return "[Image content omitted]";
-            return block.text || JSON.stringify(block);
+            if (typeof block === "object" && block !== null) {
+              const b = block as Record<string, unknown>;
+              if (b.type === "text") return String(b.text || "");
+              if (b.type === "image_url") return "[Image content omitted]";
+              return typeof b.text === "string" ? b.text : JSON.stringify(block);
+            }
+            return String(block);
           })
           .join("\n");
       } else if (msg.content) {
@@ -75,7 +79,7 @@ export class OllamaProvider implements LLMProvider {
 
     log.debug(`Ollama sanitized messages: ${sanitizedMessages.length}`);
 
-    const response = await fetch(`${this.baseURL}/api/chat`, {
+    const resp = await fetch(`${this.baseURL}/api/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -85,15 +89,16 @@ export class OllamaProvider implements LLMProvider {
         messages: sanitizedMessages,
         stream: false,
       }),
+      signal: AbortSignal.timeout(120000),
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      log.error(`Ollama error: ${response.status}`);
-      throw new Error(`Ollama error: ${response.status} - ${error}`);
+    if (!resp.ok) {
+      const error = await resp.text();
+      log.error(`Ollama error: ${resp.status}`);
+      throw new Error(`Ollama error: ${resp.status} - ${error}`);
     }
 
-    const data = (await response.json()) as {
+    const data = (await resp.json()) as {
       message: {
         role: string;
         content: string;
@@ -115,7 +120,6 @@ export class OllamaProvider implements LLMProvider {
       toolCalls: [],
     };
 
-    // Estimate tokens from character count (rough approximation)
     if (data.prompt_eval_count !== undefined && data.eval_count !== undefined) {
       result.usage = {
         promptTokens: data.prompt_eval_count,
@@ -129,7 +133,7 @@ export class OllamaProvider implements LLMProvider {
 
   async listModels(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseURL}/api/tags`);
+      const response = await fetch(`${this.baseURL}/api/tags`, { signal: AbortSignal.timeout(30000) });
       if (!response.ok) return [];
       
       const data = (await response.json()) as { models: Array<{ name: string }> };
@@ -138,5 +142,9 @@ export class OllamaProvider implements LLMProvider {
       log.error("Error fetching Ollama models", err);
       return [];
     }
+  }
+
+  destroy(): void {
+    // Ollama is local, no API key to clear
   }
 }

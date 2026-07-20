@@ -4,6 +4,9 @@ import { createHash } from "node:crypto";
 import Fuse from "fuse.js";
 import { db } from "../db.ts";
 import type { MarkdownFact, FactAccessStat } from "../types/memory.js";
+import { createLogger } from "../logger.ts";
+
+const log = createLogger("memory:markdown");
 
 export type { MarkdownFact, FactAccessStat } from "../types/memory.js";
 
@@ -188,11 +191,11 @@ export function rewriteSessionFacts(sessionId: string, facts: MarkdownFact[]): v
         }
     } catch (e) {
         // Log error but don't fail the rewrite process
-        console.error(`Failed to purge/reseed fact_stats for session ${sessionId}:`, e);
+        log.error(`Failed to purge/reseed fact_stats for session ${sessionId}:`, e);
     }
 }
 
-export function getMemoryRoot(): string {
+function getMemoryRoot(): string {
     return memoryRoot;
 }
 

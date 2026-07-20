@@ -13,11 +13,12 @@ import { enqueueMessageSync } from "../memory/supabase.ts";
 import { upsertVectorMemory } from "../memory/vector.ts";
 import type { RetrievedMemory } from "../memory/retrieval.ts";
 import { applyMicrocompact } from "../compact/microCompact.js";
-import type { Message } from "../types/llm.js";
+import type { Message, StreamCallback } from "../types/llm.js";
 import { pruneContext } from "../memory/pruning.ts";
 import { trace } from "@opentelemetry/api";
 import { recordLlmCall } from "../lib/telemetry/metrics.js";
 import { telemetryLogger } from "../lib/telemetry/logger.js";
+import { trackBackgroundTask } from "../lib/background.ts";
 
 const log = createLogger("llm");
 const tracer = trace.getTracer("gravyclaw");
@@ -41,6 +42,11 @@ export interface PromptContext {
 
 function sanitizeMemoryContent(content: string): string {
     return content
+        .normalize("NFC")
+
+        // Remove zero-width characters
+        .replace(/[\u200B\u200C\u200D\u200E\u200F\uFEFF\u00AD]/g, "")
+
         // Remove code blocks
         .replace(/```[\s\S]*?```/g, "[CODE_BLOCK_REMOVED]")
 
@@ -75,9 +81,13 @@ function sanitizeMemoryContent(content: string): string {
         .replace(/DAN\.?\.?/gi, "[JAILBREAK_BLOCKED]")
         .replace(/developer\s+mode/gi, "[JAILBREAK_BLOCKED]")
         .replace(/jailbreak/gi, "[JAILBREAK_BLOCKED]")
+        .replace(/do\s+anything\s+now/gi, "[JAILBREAK_BLOCKED]")
+        .replace(/act\s+as\s+(an?\s+)?(unrestricted|unfiltered)/gi, "[JAILBREAK_BLOCKED]")
+        .replace(/pretend\s+(to\s+be|you\s+are)/gi, "[JAILBREAK_BLOCKED]")
+        .replace(/roleplay\s+as/gi, "[JAILBREAK_BLOCKED]")
 
         // Hard cap
-        .slice(0, 300)
+        .slice(0, 10000)
         .trim();
 }
 
@@ -116,7 +126,7 @@ export type ConversationHistory = ChatCompletionMessageParam[];
 /** Retrieves conversation history from SQLite */
 export function getHistory(sessionId: string, deps: OrchestratorDependencies): ConversationHistory {
     validateSessionId(sessionId);
-    const rows = deps.db.prepare("SELECT message_json FROM memory WHERE session_id = ? ORDER BY timestamp ASC, id ASC").all(sessionId) as { message_json: string }[];
+    const rows = deps.db.prepare("SELECT message_json FROM (SELECT id, message_json, timestamp FROM memory WHERE session_id = ? ORDER BY timestamp DESC, id DESC LIMIT 200) sub ORDER BY timestamp ASC, id ASC").all(sessionId) as { message_json: string }[];
     const messages = rows.map((row) => JSON.parse(row.message_json));
 
     // Token protection: trim oldest history if exceeds MAX_MESSAGES
@@ -280,28 +290,19 @@ export function addUserMessage(sessionId: string, text: string, deps: Orchestrat
     const facts = extractFacts(text);
     const memoryType = facts.length > 0 ? "fact" : "conversation";
     
-    const msg = { role: "user", content: text, memoryType };
+    const sanitizedText = text.normalize("NFC").replace(/[\u200B\u200C\u200D\u200E\u200F\uFEFF\u00AD]/g, "");
+    const msg = { role: "user", content: sanitizedText, memoryType };
     const row = deps.db.prepare("INSERT INTO memory (session_id, message_json) VALUES (?, ?) RETURNING id").get(sessionId, JSON.stringify(msg)) as { id: number } | undefined;
     const id = row?.id ? `${sessionId}:user:${row.id}` : `${sessionId}:user:${Date.now()}`;
     
-    // Track async side effects - these must not block but failures MUST be surfaced
-    const syncPromise = enqueueMessageSync({ sessionId, role: "user", content: text });
-    syncPromise.catch((err) => {
-        telemetryLogger.error("memory_sync_failed", { 
-            sessionId, 
-            role: "user", 
-            error: err instanceof Error ? err.message : String(err) 
-        });
-    });
-    
-    const vectorPromise = upsertVectorMemory({ id, sessionId, role: "user", content: text });
-    vectorPromise.catch((err) => {
-        telemetryLogger.warn("vector_upsert_failed", { 
-            sessionId, 
-            id,
-            error: err instanceof Error ? err.message : String(err) 
-        });
-    });
+    // Track async side effects through the background task manager
+    // These must not block the main flow but failures are surfaced to telemetry
+    trackBackgroundTask("memory_sync", sessionId, () =>
+        enqueueMessageSync({ sessionId, role: "user", content: text }),
+    );
+    trackBackgroundTask("vector_upsert", sessionId, () =>
+        upsertVectorMemory({ id, sessionId, role: "user", content: text }),
+    );
 
     const count = deps.db.prepare("SELECT COUNT(*) as cnt FROM memory WHERE session_id = ?").get(sessionId) as { cnt: number };
     if (count.cnt > 1000) {
@@ -319,34 +320,31 @@ export function addAssistantMessage(
     thoughtSignature?: string
 ): void {
     validateSessionId(sessionId);
-    const msg = { role: "assistant", content, memoryType: "conversation" };
+    const msg: {
+        role: string;
+        content: string;
+        memoryType: string;
+        tool_calls?: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[];
+        thought?: string;
+        thoughtSignature?: string;
+    } = { role: "assistant", content, memoryType: "conversation" };
     if (toolCalls && toolCalls.length > 0) {
-        (msg as any).tool_calls = toolCalls;
+        msg.tool_calls = toolCalls;
     }
-    if (thought) (msg as any).thought = thought;
-    if (thoughtSignature) (msg as any).thoughtSignature = thoughtSignature;
+    if (thought) msg.thought = thought;
+    if (thoughtSignature) msg.thoughtSignature = thoughtSignature;
     const row = deps.db.prepare("INSERT INTO memory (session_id, message_json) VALUES (?, ?) RETURNING id").get(sessionId, JSON.stringify(msg)) as { id: number } | undefined;
     const id = row?.id ? `${sessionId}:assistant:${row.id}` : `${sessionId}:assistant:${Date.now()}`;
     
-    // Track async side effects - these must not block but failures MUST be surfaced
-    const syncPromise = enqueueMessageSync({ sessionId, role: "assistant", content });
-    syncPromise.catch((err) => {
-        telemetryLogger.error("memory_sync_failed", { 
-            sessionId, 
-            role: "assistant", 
-            error: err instanceof Error ? err.message : String(err) 
-        });
-    });
-    
+    // Track async side effects through the background task manager
+    trackBackgroundTask("memory_sync_assistant", sessionId, () =>
+        enqueueMessageSync({ sessionId, role: "assistant", content }),
+    );
+
     if (content) {
-        const vectorPromise = upsertVectorMemory({ id, sessionId, role: "assistant", content });
-        vectorPromise.catch((err) => {
-            telemetryLogger.warn("vector_upsert_failed", { 
-                sessionId, 
-                id,
-                error: err instanceof Error ? err.message : String(err) 
-            });
-        });
+        trackBackgroundTask("vector_upsert_assistant", sessionId, () =>
+            upsertVectorMemory({ id, sessionId, role: "assistant", content }),
+        );
     }
 }
 
@@ -361,7 +359,12 @@ export function addToolResult(
     validateSessionId(sessionId);
 
     const content = result || "(empty result)";
-    const msg: any = {
+    const msg: {
+        role: string;
+        tool_call_id: string;
+        content: string;
+        name?: string;
+    } = {
         role: "tool",
         tool_call_id: toolCallId,
         content,
@@ -370,15 +373,10 @@ export function addToolResult(
     
     deps.db.prepare("INSERT INTO memory (session_id, message_json) VALUES (?, ?)").run(sessionId, JSON.stringify(msg));
     
-    // Track async side effects - these must not block but failures MUST be surfaced
-    const syncPromise = enqueueMessageSync({ sessionId, role: "tool", content });
-    syncPromise.catch((err) => {
-        telemetryLogger.error("memory_sync_failed", { 
-            sessionId, 
-            role: "tool", 
-            error: err instanceof Error ? err.message : String(err) 
-        });
-    });
+    // Track async side effects through the background task manager
+    trackBackgroundTask("memory_sync_tool", sessionId, () =>
+        enqueueMessageSync({ sessionId, role: "tool", content }),
+    );
 }
 
 /** Clear entire conversation history for session */
@@ -401,7 +399,8 @@ export async function callClaude(
     sessionId: string,
     toolDefinitions: ChatCompletionTool[],
     promptContext: PromptContext | undefined,
-    deps: OrchestratorDependencies
+    deps: OrchestratorDependencies,
+    onToken?: StreamCallback
 ): Promise<ClaudeResponse> {
     const history = getHistory(sessionId, deps);
     log.debug(`Calling LLM — history length: ${history.length}`);
@@ -462,8 +461,8 @@ export async function callClaude(
     if (promptContext?.relevantMemories && promptContext.relevantMemories.length > 0) {
         const filtered = promptContext.relevantMemories.filter(m => m.role !== "tool");
         
-        const facts = filtered.filter(m => (m as any).memoryType === "fact");
-        const conversations = filtered.filter(m => (m as any).memoryType !== "fact");
+        const facts = filtered.filter(m => m.memoryType === "fact");
+        const conversations = filtered.filter(m => m.memoryType !== "fact");
 
         if (facts.length > 0) {
             const factsContent = facts.map(m => `- ${m.content}`).join("\n");
@@ -541,7 +540,11 @@ const messagesWithSystem: ChatCompletionMessageParam[] = [
     try {
         let response: LLMResponse;
         
-        if (deps.config.RETRY_MAX_RETRIES && deps.config.RETRY_MAX_RETRIES > 0) {
+        const useStream = onToken !== undefined && typeof provider.chatStream === "function";
+        
+        if (useStream) {
+            response = await provider.chatStream!(messagesWithSystem, toolDefinitions, { onToken });
+        } else if (deps.config.RETRY_MAX_RETRIES && deps.config.RETRY_MAX_RETRIES > 0) {
             const { withRetrySimple } = await import("./retry.js");
             response = await withRetrySimple(async () => provider.chat(messagesWithSystem, toolDefinitions));
         } else {

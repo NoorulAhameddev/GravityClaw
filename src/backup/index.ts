@@ -6,16 +6,7 @@ import type { BackupInfo } from "./backup.ts";
 import { BackupScheduler } from "./scheduler.ts";
 import type { BackupScheduleConfig } from "./scheduler.ts";
 import { createLogger } from "../logger.ts";
-import {
-    config,
-    BACKUP_DIR,
-    BACKUP_CRON,
-    BACKUP_RETENTION_DAYS,
-    BACKUP_ENABLED,
-    BACKUP_ENCRYPT,
-    BACKUP_COMPRESS,
-    BACKUP_MASTER_KEY,
-} from "../config.ts";
+import { config } from "../config.ts";
 
 const log = createLogger("backup");
 
@@ -24,12 +15,12 @@ const __dirname = path.dirname(__filename);
 
 // Default configuration - now using config
 export const DEFAULT_BACKUP_CONFIG = {
-    backupDir: BACKUP_DIR || path.join(process.cwd(), "backups"),
-    cronExpression: BACKUP_CRON || "0 2 * * *",
-    retentionDays: BACKUP_RETENTION_DAYS || 30,
-    enabled: BACKUP_ENABLED !== false,
-    encryptBackups: BACKUP_ENCRYPT !== false,
-    compressBackups: BACKUP_COMPRESS !== false,
+    backupDir: config.BACKUP_DIR || path.join(process.cwd(), "backups"),
+    cronExpression: config.BACKUP_CRON || "0 2 * * *",
+    retentionDays: config.BACKUP_RETENTION_DAYS || 30,
+    enabled: config.BACKUP_ENABLED !== false,
+    encryptBackups: config.BACKUP_ENCRYPT !== false,
+    compressBackups: config.BACKUP_COMPRESS !== false,
 };
 
 let backupManager: BackupManager | null = null;
@@ -49,7 +40,7 @@ export async function initializeBackupSystem(
         log.info("Initializing backup system...");
 
         // Create backup manager
-        const masterKey = config.MASTER_KEY || BACKUP_MASTER_KEY;
+        const masterKey = config.MASTER_KEY || config.BACKUP_MASTER_KEY;
         backupManager = new BackupManager(finalConfig.backupDir, masterKey);
 
         // Create scheduler
@@ -167,9 +158,9 @@ export function getNextScheduledBackupTime(): Date | null {
 }
 
 /**
- * Verify a backup
+ * Verify a backup by name (via BackupManager)
  */
-export function verifyBackup(filename: string): { valid: boolean; message: string } {
+export function verifyBackupByName(filename: string): { valid: boolean; message: string } {
     const manager = getBackupManager();
     return manager.verifyBackup(filename);
 }
@@ -196,5 +187,6 @@ export function stopBackupScheduler(): void {
     }
 }
 
+export { verifyBackup, type VerificationResult } from "./verify.ts";
 export type { BackupInfo, BackupMetadata } from "./backup.ts";
 export type { BackupScheduleConfig } from "./scheduler.ts";

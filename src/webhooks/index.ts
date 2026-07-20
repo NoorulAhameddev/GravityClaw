@@ -1,6 +1,7 @@
 import { db } from "../db.ts";
 import { createLogger } from "../logger.ts";
 import { config } from "../config.ts";
+import { getActualPort } from "../lib/runtime.ts";
 import type { Tool } from "../tools/index.js";
 import crypto from "crypto";
 
@@ -18,6 +19,16 @@ export interface Webhook {
   secret: string | null;
   createdAt: string;
   createdBy: string | null;
+}
+
+export interface WebhookDelivery {
+  id: number;
+  webhookId: number;
+  payload: string;
+  status: string;
+  responseCode: number | null;
+  error: string | null;
+  createdAt: string;
 }
 
 /**
@@ -61,7 +72,7 @@ function generateSecret(): string {
  * Get webhook URL
  */
 export function getWebhookUrl(sessionId: string, name: string): string {
-  const baseUrl = config.WEBHOOK_BASE_URL || `http://localhost:${config.PORT || 3000}`;
+  const baseUrl = config.WEBHOOK_BASE_URL || `http://localhost:${getActualPort()}`;
   return `${baseUrl}/webhook/${encodeURIComponent(sessionId)}/${encodeURIComponent(name)}`;
 }
 
@@ -211,6 +222,52 @@ export function deleteWebhook(webhookId: number): boolean {
   } catch (error) {
     log.error(`Error deleting webhook - webhookId: ${webhookId}, error: ${error}`);
     throw error;
+  }
+}
+
+/**
+ * Record a webhook delivery attempt
+ */
+export function recordDelivery(
+  webhookId: number,
+  payload: string,
+  status: string,
+  responseCode?: number,
+  error?: string
+): number {
+  const result = db
+    .prepare(
+      "INSERT INTO webhook_deliveries (webhook_id, payload, status, response_code, error) VALUES (?, ?, ?, ?, ?)"
+    )
+    .run(webhookId, payload, status, responseCode ?? null, error ?? null);
+  return result.lastInsertRowid as number;
+}
+
+/**
+ * Get last failed delivery for a webhook
+ */
+export function getLastFailedDelivery(webhookId: number): WebhookDelivery | null {
+  try {
+    const row = db
+      .prepare(
+        "SELECT * FROM webhook_deliveries WHERE webhook_id = ? AND status = 'failed' ORDER BY created_at DESC LIMIT 1"
+      )
+      .get(webhookId) as any;
+
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      webhookId: row.webhook_id,
+      payload: row.payload,
+      status: row.status,
+      responseCode: row.response_code ?? null,
+      error: row.error ?? null,
+      createdAt: row.created_at,
+    };
+  } catch (error) {
+    log.error(`Error getting last failed delivery for webhook ${webhookId}: ${error}`);
+    return null;
   }
 }
 
@@ -390,9 +447,109 @@ const deleteWebhookTool: Tool = {
   },
 };
 
+/**
+ * Tool: replay_webhook
+ * Replays the last failed delivery for a webhook
+ */
+const replayWebhookTool: Tool = {
+  name: "replay_webhook",
+  description:
+    "Replay the last failed delivery for a webhook. Re-sends the failed payload to the webhook URL and records the new delivery attempt.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      webhook_id: {
+        type: "number",
+        description: "The ID of the webhook to replay",
+      },
+    },
+    required: ["webhook_id"],
+  },
+  execute: async (params: any): Promise<string> => {
+    try {
+      if (!params.webhook_id || typeof params.webhook_id !== "number") {
+        return JSON.stringify({
+          success: false,
+          error: "Missing or invalid 'webhook_id' parameter",
+        });
+      }
+
+      const webhook = getWebhook(params.webhook_id);
+      if (!webhook) {
+        return JSON.stringify({
+          success: false,
+          error: `Webhook with ID ${params.webhook_id} not found`,
+        });
+      }
+
+      const delivery = getLastFailedDelivery(params.webhook_id);
+      if (!delivery) {
+        return JSON.stringify({
+          success: false,
+          error: `No failed deliveries found for webhook ${params.webhook_id}`,
+        });
+      }
+
+      const url = getWebhookUrl(webhook.sessionId, webhook.name);
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (webhook.secret) {
+        const signature = generateSignature(delivery.payload, webhook.secret);
+        headers["X-Webhook-Signature"] = signature;
+      }
+
+      let responseCode: number | undefined;
+      let errorMsg: string | undefined;
+      let status: string;
+
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers,
+          body: delivery.payload,
+        });
+        responseCode = response.status;
+        status = response.ok ? "success" : "failed";
+        if (!response.ok) {
+          errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+        }
+      } catch (err: any) {
+        status = "failed";
+        errorMsg = err.message || "Network error";
+      }
+
+      const newDeliveryId = recordDelivery(
+        params.webhook_id,
+        delivery.payload,
+        status,
+        responseCode,
+        errorMsg
+      );
+
+      return JSON.stringify({
+        success: status === "success",
+        delivery_id: newDeliveryId,
+        status,
+        response_code: responseCode,
+        error: errorMsg || undefined,
+      });
+    } catch (error: any) {
+      log.error(`Error in replay_webhook tool: ${error}`);
+      return JSON.stringify({
+        success: false,
+        error: error.message || "Failed to replay webhook",
+      });
+    }
+  },
+};
+
 // Export tools array
 export const webhookTools: Tool[] = [
   createWebhookTool,
   listWebhooksTool,
   deleteWebhookTool,
+  replayWebhookTool,
 ];

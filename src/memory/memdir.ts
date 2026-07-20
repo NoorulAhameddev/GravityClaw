@@ -80,7 +80,7 @@ export async function loadMemoryPrompt(projectRoot?: string): Promise<string> {
         .join("\n");
 }
 
-export function parseMemoryContent(content: string): MemoryEntry[] {
+function parseMemoryContent(content: string): MemoryEntry[] {
     const entries: MemoryEntry[] = [];
     const lines = content.split("\n");
     let currentType: MemoryType = "user";
@@ -131,7 +131,7 @@ export function parseMemoryContent(content: string): MemoryEntry[] {
     return entries;
 }
 
-export function saveMemoryEntry(
+function saveMemoryEntry(
     projectRoot: string,
     type: MemoryType,
     content: string,
@@ -157,7 +157,7 @@ export function saveMemoryEntry(
     log.debug(`Saved memory entry: ${type}`);
 }
 
-export function scanMemoryFiles(projectRoot?: string): string[] {
+function scanMemoryFiles(projectRoot?: string): string[] {
     if (!isAutoMemoryEnabled()) {
         return [];
     }

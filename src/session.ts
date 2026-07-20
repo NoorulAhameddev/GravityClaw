@@ -1,114 +1,65 @@
-/**
- * Session Settings Management
- * 
- * Manages per-session configuration like active model, provider, preferences, etc.
- * Settings are stored as JSON in the memory table's settings column.
- */
-
 import { db } from "./db.ts";
 import { createLogger } from "./logger.ts";
 import { safeJsonParse } from "./utils/json.ts";
+import type { DbProvider } from "./db/provider.ts";
 
 const log = createLogger("session");
+
+// Ensure the session_settings table exists (idempotent — safe if migrations already ran)
+try {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS session_settings (
+      session_id TEXT PRIMARY KEY,
+      settings_json TEXT NOT NULL DEFAULT '{}',
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+} catch (err) {
+  log.warn("Could not create session_settings table (may already exist via migrations)", { error: err instanceof Error ? err.message : String(err) });
+}
 
 /**
  * Session settings structure
  */
 export interface SessionSettings {
-  /**
-   * Active LLM provider (overrides global config)
-   */
   provider?: string;
-  
-  /**
-   * Active model name (overrides global config)
-   */
   model?: string;
-  
-  /**
-   * Thinking level (off, low, medium, high)
-   */
   thinkingLevel?: "off" | "low" | "medium" | "high";
-  
-  /**
-   * Voice mode (off, transcribe-only, full-voice)
-   */
   voiceMode?: "off" | "transcribe" | "full";
-  
-  /**
-   * TTS provider (openai, elevenlabs)
-   */
   ttsProvider?: "openai" | "elevenlabs";
-  
-  /**
-   * Heartbeat interval in minutes
-   */
   heartbeatInterval?: number;
-  
-  /**
-   * Heartbeat enabled flag
-   */
   heartbeatEnabled?: boolean;
-
-  /**
-   * Recap hour in local time (0-23)
-   */
   recapHourLocal?: number;
-
-  /**
-   * Smart recommendations enabled flag
-   */
   recommendationsEnabled?: boolean;
-
-  /**
-   * Last recommendations sent date (YYYY-MM-DD)
-   */
   recommendationsLastSentDate?: string | undefined;
-  
-  /**
-   * Custom system prompt override
-   */
   customSystemPrompt?: string;
-  
-  /**
-   * Temperature override (0.0 - 2.0)
-   */
   temperature?: number;
-  
-  /**
-   * Max tokens override
-   */
   maxTokens?: number;
-  
-  /**
-   * Additional custom settings
-   */
   [key: string]: unknown;
 }
 
 /**
- * Get session settings from database
- * @param sessionId - Session identifier
- * @returns Session settings (empty object if not found)
+ * Get session settings from the dedicated session_settings table.
+ *
+ * Uses direct lookup by primary key — O(1) instead of scanning memory rows.
+ * Falls back to empty settings if no row exists.
  */
 export function getSessionSettings(sessionId: string): SessionSettings {
   try {
-    // Get the most recent settings entry for this session
-    const row = db.prepare(`
-      SELECT settings 
-      FROM memory 
-      WHERE session_id = ? AND settings != '{}' AND settings IS NOT NULL
-      ORDER BY timestamp DESC 
-      LIMIT 1
-    `).get(sessionId) as { settings: string } | undefined;
-    
-    if (!row || !row.settings) {
+    const row = db.prepare(
+      "SELECT settings_json FROM session_settings WHERE session_id = ?",
+    ).get(sessionId) as { settings_json: string } | undefined;
+
+    if (!row || !row.settings_json) {
       return {};
     }
-    
-    const parseResult = safeJsonParse<SessionSettings>(row.settings, {} as SessionSettings, "session settings");
+
+    const parseResult = safeJsonParse<SessionSettings>(
+      row.settings_json,
+      {} as SessionSettings,
+      "session settings",
+    );
     const settings = parseResult.success && parseResult.data ? parseResult.data : {};
-    log.debug(`Loaded settings for session ${sessionId}: ${JSON.stringify(settings)}`);
     return settings;
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
@@ -118,43 +69,22 @@ export function getSessionSettings(sessionId: string): SessionSettings {
 }
 
 /**
- * Set session settings in database
- * Updates the settings for all existing rows in this session
- * If no rows exist, creates an initial system message with the settings
- * Uses a transaction to prevent race conditions
- * @param sessionId - Session identifier
- * @param settings - Settings to save
+ * Set session settings using UPSERT (INSERT OR REPLACE).
+ *
+ * This is safe because session_id is the PRIMARY KEY of session_settings.
+ * No more scanning memory rows or updating all rows in a session.
  */
 export function setSessionSettings(sessionId: string, settings: SessionSettings): void {
   const settingsJson = JSON.stringify(settings);
-  
+
   try {
-    db.transaction(() => {
-      const existingRow = db.prepare(`
-        SELECT id FROM memory 
-        WHERE session_id = ?
-        ORDER BY timestamp DESC 
-        LIMIT 1
-      `).get(sessionId) as { id: number } | undefined;
-      
-      if (existingRow) {
-        db.prepare(`
-          UPDATE memory 
-          SET settings = ? 
-          WHERE session_id = ?
-        `).run(settingsJson, sessionId);
-      } else {
-        const metadataMessage = {
-          role: "system",
-          content: "",
-        };
-        
-        db.prepare(`
-          INSERT INTO memory (session_id, message_json, settings) 
-          VALUES (?, ?, ?)
-        `).run(sessionId, JSON.stringify(metadataMessage), settingsJson);
-      }
-    })();
+    db.prepare(`
+      INSERT INTO session_settings (session_id, settings_json, updated_at)
+      VALUES (?, ?, datetime('now'))
+      ON CONFLICT(session_id) DO UPDATE SET
+        settings_json = excluded.settings_json,
+        updated_at = datetime('now')
+    `).run(sessionId, settingsJson);
     log.info(`Saved settings for session ${sessionId}`);
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
@@ -164,35 +94,25 @@ export function setSessionSettings(sessionId: string, settings: SessionSettings)
 }
 
 /**
- * Update a specific setting without overwriting others
- * @param sessionId - Session identifier
- * @param key - Setting key
- * @param value - Setting value
+ * Update a single setting without overwriting others.
  */
 export function updateSessionSetting(
   sessionId: string,
   key: keyof SessionSettings,
-  value: unknown
+  value: unknown,
 ): void {
-  const txn = db.transaction(() => {
-    const settings = getSessionSettings(sessionId);
-    settings[key] = value;
-    setSessionSettings(sessionId, settings);
-  });
-  txn();
+  const settings = getSessionSettings(sessionId);
+  settings[key] = value;
+  setSessionSettings(sessionId, settings);
 }
 
 /**
- * Get a specific setting value
- * @param sessionId - Session identifier
- * @param key - Setting key
- * @param defaultValue - Default value if not set
- * @returns Setting value or default
+ * Get a specific setting value with optional default.
  */
 export function getSessionSetting<T>(
   sessionId: string,
   key: keyof SessionSettings,
-  defaultValue?: T
+  defaultValue?: T,
 ): T | undefined {
   const settings = getSessionSettings(sessionId);
   const value = settings[key];
@@ -200,17 +120,25 @@ export function getSessionSetting<T>(
 }
 
 /**
- * Delete a session and all its settings
- * @param sessionId - Session identifier
- * @returns true if session was deleted, false if not found
+ * Delete all settings for a session.
+ */
+export function deleteSessionSettings(sessionId: string): void {
+  try {
+    db.prepare("DELETE FROM session_settings WHERE session_id = ?").run(sessionId);
+    log.info(`Deleted session settings for ${sessionId}`);
+  } catch (err) {
+    log.error(`Error deleting session settings for ${sessionId}`, err);
+    throw err;
+  }
+}
+
+/**
+ * Delete a session and all its messages.
+ * Does NOT delete session_settings — they persist independently.
  */
 export function deleteSession(sessionId: string): boolean {
   try {
-    const result = db.prepare(`
-      DELETE FROM memory 
-      WHERE session_id = ?
-    `).run(sessionId);
-    
+    const result = db.prepare("DELETE FROM memory WHERE session_id = ?").run(sessionId);
     log.info(`Deleted session ${sessionId} (${result.changes} rows removed)`);
     return (result.changes ?? 0) > 0;
   } catch (err) {
@@ -220,29 +148,21 @@ export function deleteSession(sessionId: string): boolean {
 }
 
 /**
- * List all active sessions
- * @returns Array of session IDs
+ * List all active sessions.
  */
 export function listSessions(): string[] {
   try {
-    const rows = db.prepare(`
-      SELECT DISTINCT session_id 
-      FROM memory 
-      ORDER BY session_id
-    `).all() as Array<{ session_id: string }>;
-    
-    return rows.map(row => row.session_id);
+    const rows = db.prepare(
+      "SELECT DISTINCT session_id FROM memory ORDER BY session_id",
+    ).all() as Array<{ session_id: string }>;
+
+    return rows.map((row) => row.session_id);
   } catch (err) {
     log.error("Error listing sessions", err);
     return [];
   }
 }
 
-/**
- * Get session statistics
- * @param sessionId - Session identifier
- * @returns Statistics (message count, user/assistant counts, timestamps)
- */
 export function getSessionStats(sessionId: string): {
   messageCount: number;
   userMessages: number;
@@ -253,20 +173,18 @@ export function getSessionStats(sessionId: string): {
 } {
   try {
     const row = db.prepare(`
-      SELECT 
+      SELECT
         COUNT(*) as count,
         MIN(timestamp) as first_msg,
-        MAX(timestamp) as last_msg,
-        (SELECT settings FROM memory WHERE session_id = ? ORDER BY timestamp DESC LIMIT 1) as settings
-      FROM memory 
+        MAX(timestamp) as last_msg
+      FROM memory
       WHERE session_id = ?
-    `).get(sessionId, sessionId) as {
+    `).get(sessionId) as {
       count: number;
       first_msg: string | null;
       last_msg: string | null;
-      settings: string | null;
     } | undefined;
-    
+
     if (!row) {
       return {
         messageCount: 0,
@@ -277,26 +195,25 @@ export function getSessionStats(sessionId: string): {
         settings: {},
       };
     }
-    
-    // Count user and assistant messages separately using json_extract
+
     const roleCounts = db.prepare(`
-      SELECT 
+      SELECT
         SUM(CASE WHEN json_extract(message_json, '$.role') = 'user' THEN 1 ELSE 0 END) as user_count,
         SUM(CASE WHEN json_extract(message_json, '$.role') = 'assistant' THEN 1 ELSE 0 END) as assistant_count
-      FROM memory 
+      FROM memory
       WHERE session_id = ?
     `).get(sessionId) as {
       user_count: number;
       assistant_count: number;
     } | undefined;
-    
+
     return {
       messageCount: row.count,
       userMessages: roleCounts?.user_count || 0,
       assistantMessages: roleCounts?.assistant_count || 0,
       firstMessage: row.first_msg ? new Date(row.first_msg) : null,
       lastMessage: row.last_msg ? new Date(row.last_msg) : null,
-      settings: row.settings ? (() => { const r = safeJsonParse<SessionSettings>(row.settings, {} as SessionSettings, "session stats"); return r.success && r.data ? r.data : {}; })() : {},
+      settings: getSessionSettings(sessionId),
     };
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);

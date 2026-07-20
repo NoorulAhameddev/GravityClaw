@@ -88,7 +88,7 @@ export function analyzeSessionPatterns(sessionId: string, windowDays = 30): Reco
 
   for (const row of rows) {
     try {
-      const message = JSON.parse(row.message_json) as any;
+      const message = JSON.parse(row.message_json) as Record<string, unknown>;
       const role = String(message.role || "");
       const content = typeof message.content === "string" ? message.content.trim() : "";
 
@@ -169,7 +169,7 @@ function getHeuristicRecommendations(profile: RecommendationsProfile): string[] 
 export async function generateRecommendations(profile: RecommendationsProfile): Promise<string[]> {
   const fallback = getHeuristicRecommendations(profile);
 
-  if (process.env.VITEST || process.env.NODE_ENV === "test") {
+  if (config.VITEST || config.NODE_ENV === "test") {
     return fallback;
   }
 

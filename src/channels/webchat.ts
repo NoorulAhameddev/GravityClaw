@@ -3,6 +3,7 @@ import { createLogger } from "../logger.ts";
 import type { Channel, UnifiedMessage } from "../types/channels.js";
 import { wss, startServer } from "../server.ts";
 import { toolExecutor } from "../tools/index.ts";
+import "../types/websocket.js";
 
 const log = createLogger("webchat");
 
@@ -38,9 +39,9 @@ export class WebChatChannel implements Channel {
             this.clients.add(ws);
 
             // Initialize keep-alive tracking for pong handler
-            (ws as any).isAlive = true;
+            ws.isAlive = true;
             ws.on("pong", () => {
-              (ws as any).isAlive = true;
+              ws.isAlive = true;
             });
 
             ws.on("message", async (data) => {

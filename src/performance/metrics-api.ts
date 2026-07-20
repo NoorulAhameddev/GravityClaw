@@ -75,10 +75,11 @@ router.get("/performance", (req: Request, res: Response) => {
         })),
       },
     });
-  } catch (error: any) {
-    log.error("Failed to get performance metrics:", error);
-    res.status(500).json({ error: error.message });
-  }
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error("Failed to get performance metrics:", error);
+        res.status(500).json({ error: message });
+    }
 });
 
 /**
@@ -97,9 +98,10 @@ router.get("/memory", (req: Request, res: Response) => {
       trend,
       leakDetection,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     log.error("Failed to get memory metrics:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: message });
   }
 });
 
@@ -115,9 +117,10 @@ router.get("/memory-trend", (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
       dataSeries: series,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     log.error("Failed to get memory trend:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: message });
   }
 });
 
@@ -127,14 +130,14 @@ router.get("/memory-trend", (req: Request, res: Response) => {
  */
 router.get("/websocket", (req: Request, res: Response) => {
   try {
-    // This should be populated when WSOptimizations initializes
     res.json({
       timestamp: new Date().toISOString(),
       note: "WebSocket metrics available via /api/ws-info",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     log.error("Failed to get websocket metrics:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: message });
   }
 });
 
@@ -180,9 +183,10 @@ router.get("/tools", (req: Request, res: Response) => {
       errorRates,
       cache: cacheStats,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     log.error("Failed to get tool metrics:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: message });
   }
 });
 
@@ -208,9 +212,10 @@ router.get("/iterations", (req: Request, res: Response) => {
       })),
       sessionStats,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     log.error("Failed to get iteration metrics:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: message });
   }
 });
 
@@ -223,12 +228,11 @@ router.get("/database", (req: Request, res: Response) => {
     const stats = getDatabaseStats();
     const cacheStats = getDBCacheStats();
 
-    // Get row counts
     const counts = {
-      memory: (db.prepare("SELECT COUNT(*) as count FROM memory").get() as any)?.count || 0,
-      usage: (db.prepare("SELECT COUNT(*) as count FROM usage").get() as any)?.count || 0,
-      sessions: (db.prepare("SELECT COUNT(*) as count FROM sessions").get() as any)?.count || 0,
-      workflows: (db.prepare("SELECT COUNT(*) as count FROM workflows").get() as any)?.count || 0,
+      memory: (db.prepare("SELECT COUNT(*) as count FROM memory").get() as { count: number })?.count || 0,
+      usage: (db.prepare("SELECT COUNT(*) as count FROM usage").get() as { count: number })?.count || 0,
+      sessions: (db.prepare("SELECT COUNT(*) as count FROM sessions").get() as { count: number })?.count || 0,
+      workflows: (db.prepare("SELECT COUNT(*) as count FROM workflows").get() as { count: number })?.count || 0,
     };
 
     res.json({
@@ -237,9 +241,10 @@ router.get("/database", (req: Request, res: Response) => {
       rowCounts: counts,
       cache: cacheStats,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     log.error("Failed to get database metrics:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: message });
   }
 });
 
@@ -275,9 +280,10 @@ router.get("/all", (req: Request, res: Response) => {
         performanceOk: parseFloat((iterations.avgDuration as string)) < 300,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     log.error("Failed to get all metrics:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: message });
   }
 });
 
@@ -359,10 +365,85 @@ router.get("/health", (req: Request, res: Response) => {
 
     const statusCode = health.status === "ok" ? 200 : health.status === "degraded" ? 202 : 503;
     res.status(statusCode).json(health);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     log.error("Failed to get health metrics:", error);
-    res.status(500).json({ status: "error", error: error.message });
+    res.status(500).json({ status: "error", error: message });
   }
 });
+
+// Prometheus-format metrics endpoint
+router.get("/prometheus", async (_req: Request, res: Response) => {
+  try {
+    const memStats = getMemoryStats();
+    const toolMetrics = getToolMetrics();
+    const dbStats = getDatabaseStats();
+    const dbCache = getDBCacheStats();
+    const toolCache = getToolCacheStats();
+    const sessionCount = (db.prepare("SELECT COUNT(*) as count FROM sessions").get() as { count: number }).count;
+    const memoryCount = (db.prepare("SELECT COUNT(*) as count FROM memory").get() as { count: number }).count;
+
+    const lines: string[] = [
+      "# HELP gravityclaw_sessions_total Total number of sessions",
+      "# TYPE gravityclaw_sessions_total gauge",
+      `gravityclaw_sessions_total ${sessionCount}`,
+      "",
+      "# HELP gravityclaw_memory_messages_total Total messages in memory",
+      "# TYPE gravityclaw_memory_messages_total gauge",
+      `gravityclaw_memory_messages_total ${memoryCount}`,
+      "",
+      "# HELP gravityclaw_heap_used_bytes Heap memory used",
+      "# TYPE gravityclaw_heap_used_bytes gauge",
+      `gravityclaw_heap_used_bytes ${(memStats.heapUsed as { bytes?: number })?.bytes ?? 0}`,
+      "",
+      "# HELP gravityclaw_tool_executions_total Total tool executions",
+      "# TYPE gravityclaw_tool_executions_total counter",
+      `gravityclaw_tool_executions_total ${toolMetrics.totalExecutions ?? 0}`,
+      "",
+      "# HELP gravityclaw_tool_errors_total Total tool execution errors",
+      "# TYPE gravityclaw_tool_errors_total counter",
+      `gravityclaw_tool_errors_total ${toolMetrics.totalErrors ?? 0}`,
+      "",
+      "# HELP gravityclaw_tool_cache_entries Tool cache entries",
+      "# TYPE gravityclaw_tool_cache_entries gauge",
+      `gravityclaw_tool_cache_entries ${toolCache.size ?? 0}`,
+      "",
+      "# HELP gravityclaw_db_cache_entries Database cache entries",
+      "# TYPE gravityclaw_db_cache_entries gauge",
+      `gravityclaw_db_cache_entries ${dbCache.size ?? 0}`,
+      "",
+      "# HELP gravityclaw_db_query_count Total database queries",
+      "# TYPE gravityclaw_db_query_count counter",
+      `gravityclaw_db_query_count ${dbStats.totalQueries ?? 0}`,
+      "",
+      "# HELP gravityclaw_uptime_seconds Server uptime",
+      "# TYPE gravityclaw_uptime_seconds gauge",
+      `gravityclaw_uptime_seconds ${process.uptime()}`,
+      "",
+    ];
+
+    res.set("Content-Type", "text/plain; version=0.0.4");
+    res.send(lines.join("\n"));
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    log.error("Failed to generate prometheus metrics:", error);
+    res.status(500).send("");
+  }
+});
+
+// Track request duration middleware
+export function trackRequestDuration(req: Request, res: Response, next: () => void): void {
+  const start = Date.now();
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    log.info(`Request metrics`, {
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      durationMs: duration,
+    });
+  });
+  next();
+}
 
 export default router;

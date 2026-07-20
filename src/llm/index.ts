@@ -12,6 +12,8 @@ import { OllamaProvider } from "./ollama.ts";
 import { NvidiaProvider } from "./nvidia.ts";
 import { FailoverProvider } from "./failover.ts";
 import { MockProvider } from "./mock.ts";
+import { CachedLLMProvider } from "./cache.ts";
+import { setCachedProviderRef } from "../tools/cache.ts";
 import { config } from "../config.ts";
 import { createLogger } from "../logger.ts";
 
@@ -119,6 +121,8 @@ export function createProvider(overrides?: { provider?: string | undefined; mode
 
   log.info(`Creating LLM provider: ${providerName}${overrides ? " (session override)" : ""}`);
 
+  let provider: LLMProvider;
+
   // Special case: failover provider
   if (providerName === "failover") {
     const failoverList = config.LLM_FAILOVER_LIST || "openai,anthropic,openrouter";
@@ -157,11 +161,19 @@ export function createProvider(overrides?: { provider?: string | undefined; mode
       );
     }
 
-    return new FailoverProvider(providers);
+    provider = new FailoverProvider(providers);
+  } else {
+    // Single provider mode
+    provider = createSingleProvider(providerName, modelName);
   }
 
-  // Single provider mode
-  return createSingleProvider(providerName, modelName);
+  if (config.LLM_CACHE_ENABLED) {
+    const cached = new CachedLLMProvider(provider, config.LLM_CACHE_TTL_MS || 60000);
+    setCachedProviderRef({ current: cached });
+    provider = cached;
+  }
+
+  return provider;
 }
 
 /**
@@ -185,4 +197,15 @@ export function getProvider(): LLMProvider {
 export function setProvider(provider: LLMProvider): void {
   log.info(`Switching to provider: ${provider.name}`);
   providerInstance = provider;
+}
+
+/**
+ * Destroy the current provider instance, clearing API keys from memory
+ */
+export function destroyProvider(): void {
+  if (providerInstance) {
+    log.info(`Destroying provider: ${providerInstance.name}`);
+    providerInstance.destroy?.();
+    providerInstance = null;
+  }
 }

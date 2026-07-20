@@ -1,7 +1,7 @@
 import { Client } from "@notionhq/client";
 import type { Tool } from "../index.js";
 import { createLogger } from "../../logger.ts";
-import { NOTION_API_KEY, NOTION_DATABASE_ID } from "../../config.js";
+import { config } from "../../config.js";
 import { getSecret, hasSecret } from "../../secrets-runtime.ts";
 
 const log = createLogger("notion");
@@ -9,7 +9,7 @@ const log = createLogger("notion");
 let notionClient: Client | null = null;
 
 async function getNotionClient(): Promise<Client> {
-    const apiKey = NOTION_API_KEY || await getSecret("NOTION_API_KEY");
+    const apiKey = config.NOTION_API_KEY || await getSecret("NOTION_API_KEY");
     
     if (!apiKey) {
         throw new Error("Notion API key not configured. Set NOTION_API_KEY in environment or add to secrets store.");
@@ -498,7 +498,7 @@ export const notionQueryDatabaseTool: Tool = {
                 maxResults?: number;
             };
 
-            const dbId = databaseId || NOTION_DATABASE_ID;
+            const dbId = databaseId || config.NOTION_DATABASE_ID;
             
             if (!dbId) {
                 return JSON.stringify({

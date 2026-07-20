@@ -9,12 +9,29 @@ const LEVELS: Record<LogLevel, number> = {
     error: 3,
 };
 
-const ICONS: Record<LogLevel, string> = {
-    debug: "🔍",
-    info: "ℹ️ ",
-    warn: "⚠️ ",
-    error: "❌",
-};
+let pinoLogger: any = null;
+try {
+    const pinoModule = await import("pino");
+    const opts: Record<string, unknown> = {
+        level: config.LOG_LEVEL || "info",
+        redact: {
+            paths: [
+                "req.headers.authorization",
+                "req.headers['x-api-key']",
+                "body.apiKey",
+                "apiKey",
+                "token",
+                "password",
+            ],
+            censor: "[REDACTED]",
+        },
+    };
+    if (config.NODE_ENV === "development") {
+        opts.transport = { target: "pino-pretty", options: { colorize: true } };
+    }
+    pinoLogger = pinoModule.default(opts);
+} catch {
+}
 
 export function sanitizeForLogs(input: unknown): unknown {
     try {
@@ -74,13 +91,9 @@ function timestamp(): string {
     return new Date().toISOString();
 }
 
-/**
- * Get caller info (filename and line number)
- * Useful for identifying where logs originated
- */
 function getCallerInfo(): { file: string; line: number } {
     const stack = new Error().stack?.split("\n") || [];
-    const callerLine = stack[4]; // Skip Error, getCallerInfo, format, and direct logger call
+    const callerLine = stack[4];
     
     if (!callerLine) return { file: "unknown", line: 0 };
     
@@ -93,6 +106,13 @@ function getCallerInfo(): { file: string; line: number } {
     
     return { file: "unknown", line: 0 };
 }
+
+const ICONS: Record<LogLevel, string> = {
+    debug: "🔍",
+    info: "ℹ️ ",
+    warn: "⚠️ ",
+    error: "❌",
+};
 
 function formatPretty(level: LogLevel, prefix: string, message: string, context?: LogContext): string {
     const ts = timestamp();
@@ -123,7 +143,6 @@ function formatJSON(level: LogLevel, prefix: string, message: string, context?: 
     try {
         return JSON.stringify(entry);
     } catch {
-        // Fallback if context contains non-serializable objects
         const safe: LogEntry = {
             ...entry,
             context: context ? Object.fromEntries(
@@ -136,8 +155,33 @@ function formatJSON(level: LogLevel, prefix: string, message: string, context?: 
 
 export function createLogger(prefix: string) {
     const isJSON = config.LOG_FORMAT === "json";
-    const caller = config.ENABLE_CALLER_INFO ? getCallerInfo() : null;
     
+    if (pinoLogger) {
+        const child = pinoLogger.child({ module: prefix });
+        return {
+            debug: (msg: string, context?: LogContext) => {
+                if (shouldLog("debug")) {
+                    child.debug(context || {}, msg);
+                }
+            },
+            info: (msg: string, context?: LogContext) => {
+                if (shouldLog("info")) {
+                    child.info(context || {}, msg);
+                }
+            },
+            warn: (msg: string, context?: LogContext) => {
+                if (shouldLog("warn")) {
+                    child.warn(context || {}, msg);
+                }
+            },
+            error: (msg: string, err?: unknown, context?: LogContext) => {
+                if (shouldLog("error")) {
+                    child.error({ err, ...(context || {}) }, msg);
+                }
+            },
+        };
+    }
+
     return {
         debug: (msg: string, context?: LogContext) => {
             if (shouldLog("debug")) {

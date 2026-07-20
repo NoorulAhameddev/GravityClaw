@@ -208,20 +208,20 @@ function loadEnabledTasks(): void {
   try {
     const tasks = db
       .prepare("SELECT * FROM scheduled_tasks WHERE enabled = 1")
-      .all() as any[];
-    
+      .all() as Record<string, unknown>[];
+
     for (const row of tasks) {
       const task: ScheduledTask = {
-        id: row.id,
-        name: row.name,
-        cronExpression: row.cron_expression,
-        sessionId: row.session_id,
-        prompt: row.prompt,
+        id: row.id as number,
+        name: row.name as string,
+        cronExpression: row.cron_expression as string,
+        sessionId: row.session_id as string,
+        prompt: row.prompt as string,
         enabled: Boolean(row.enabled),
-        lastRun: row.last_run,
-        nextRun: row.next_run,
-        createdAt: row.created_at,
-        createdBy: row.created_by,
+        lastRun: row.last_run as string | null,
+        nextRun: row.next_run as string | null,
+        createdAt: row.created_at as string,
+        createdBy: row.created_by as string | null,
       };
       
       startCronJob(task);

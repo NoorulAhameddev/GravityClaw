@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions.js";
-import type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
+import type { LLMProvider, LLMResponse, LLMChatOptions, Message } from "../types/llm.js";
 import { createLogger } from "../logger.ts";
 
 const log = createLogger("llm:opencodezen");
@@ -14,6 +14,7 @@ export class OpenCodeZenProvider implements LLMProvider {
     this.client = new OpenAI({
       apiKey,
       baseURL,
+      timeout: 120000,
     });
     this.defaultModel = defaultModel;
     log.info(`OpenCodeZen provider initialized with model: ${defaultModel} and baseURL: ${baseURL}`);
@@ -32,7 +33,7 @@ export class OpenCodeZenProvider implements LLMProvider {
 
     const mappedMessages = messages.map((msg) => {
       if (msg.role === "assistant") {
-        const assistantMsg = msg as any;
+        const assistantMsg = msg as Message & { reasoning_content?: string };
         if (assistantMsg.thought && !assistantMsg.reasoning_content) {
           const { thought, ...rest } = assistantMsg;
           return {
@@ -45,17 +46,17 @@ export class OpenCodeZenProvider implements LLMProvider {
     });
 
     const params = hasTools
-      ? { model, max_tokens: maxTokens, tools: toolDefinitions, tool_choice: "auto" as const, messages: mappedMessages as any }
-      : { model, max_tokens: maxTokens, messages: mappedMessages as any };
+      ? { model, max_tokens: maxTokens, tools: toolDefinitions, tool_choice: "auto" as const, messages: mappedMessages as ChatCompletionMessageParam[] }
+      : { model, max_tokens: maxTokens, messages: mappedMessages as ChatCompletionMessageParam[] };
 
-    const response = await this.client.chat.completions.create(params);
+    const response = await this.client.chat.completions.create(params, { signal: AbortSignal.timeout(120000) });
     const choice = response.choices[0];
     if (!choice) throw new Error("OpenCodeZen returned no choices");
 
     const msg = choice.message;
     const text = msg.content ?? "";
     const toolCalls = msg.tool_calls ?? [];
-    const thought = (msg as any).reasoning_content;
+    const thought = (msg as unknown as Record<string, unknown>).reasoning_content as string | undefined;
 
     log.debug(
       `OpenCodeZen response — stop: ${choice.finish_reason}, text: ${text.length} chars, tools: ${toolCalls.length}`
@@ -80,5 +81,9 @@ export class OpenCodeZenProvider implements LLMProvider {
     }
 
     return result;
+  }
+
+  destroy(): void {
+    this.client = null as unknown as OpenAI;
   }
 }

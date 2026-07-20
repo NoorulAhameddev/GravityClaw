@@ -98,6 +98,18 @@ const DEFAULT_CONFIGS: Record<string, RateLimitConfig> = {
     burstSize: 3,
     refillInterval: 60000,
   },
+  // LLM API limit
+  "llm": {
+    requestsPerMinute: 60,
+    burstSize: 20,
+    refillInterval: 60000,
+  },
+  // HTTP endpoint limit
+  "http": {
+    requestsPerMinute: 120,
+    burstSize: 30,
+    refillInterval: 60000,
+  },
 };
 
 /**
@@ -131,6 +143,9 @@ const TOOL_CATEGORIES: Record<string, string> = {
   "write_file": "system",
   "list_files": "system",
   "delete_file": "system",
+  
+  // LLM API
+  "llm_api_call": "llm",
 };
 
 /**
@@ -145,15 +160,24 @@ export class RateLimiter {
   private cleanupIntervalMs: number = 5 * 60 * 1000; // 5 minutes
   private isEnvironmentDev: boolean = (process.env.NODE_ENV || "development") === "development";
 
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
   constructor() {
     this.startCleanupInterval();
+  }
+
+  stop(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
   }
 
   /**
    * Start periodic cleanup of expired buckets and old history
    */
   private startCleanupInterval(): void {
-    setInterval(() => {
+    this.cleanupTimer = setInterval(() => {
       this.cleanup();
     }, this.cleanupIntervalMs);
   }
@@ -182,6 +206,7 @@ export class RateLimiter {
       // Extract config category from compound keys like 'session:xyz', 'tool:xyz:voice'
       const configKey = identifier.startsWith("session:") ? "session"
         : identifier.startsWith("tool:") ? identifier.split(":").slice(2).join(":") || "tool"
+        : identifier.startsWith("http:") || identifier.startsWith("webhook:") ? "http"
         : identifier;
       bucket = {
         tokens: this.getConfig(configKey).burstSize,
@@ -562,14 +587,38 @@ export class RateLimiter {
  */
 export const rateLimiter = new RateLimiter();
 
+export interface RateLimitMiddlewareOptions {
+  windowMs?: number;
+  maxRequests?: number;
+  prefix?: string;
+}
+
 /**
  * Middleware for Express/HTTP requests
  * Returns 429 Too Many Requests if limit exceeded
+ *
+ * Usage:
+ *   app.use(rateLimitMiddleware())              // default limits
+ *   app.use(rateLimitMiddleware("session123"))   // per-session
+ *   app.use(rateLimitMiddleware({ maxRequests: 100, prefix: "api" }))  // configured limits
  */
-export function rateLimitMiddleware(sessionId?: string) {
+export function rateLimitMiddleware(sessionIdOrOptions?: string | RateLimitMiddlewareOptions) {
+  let sessionId: string | undefined;
+  let options: RateLimitMiddlewareOptions = {};
+
+  if (typeof sessionIdOrOptions === "string") {
+    sessionId = sessionIdOrOptions;
+  } else if (sessionIdOrOptions) {
+    options = sessionIdOrOptions;
+  }
+
   return (req: any, res: any, next: any) => {
-    const currentSessionId = sessionId || req.query.sessionId || req.body?.sessionId || "anonymous";
-    const status = rateLimiter.checkRateLimit(currentSessionId, "http_request");
+    const identifier = options.prefix
+      ? `${options.prefix}:${req.ip || "unknown"}`
+      : sessionId || req.query.sessionId || req.body?.sessionId || req.ip || "anonymous";
+
+    const category = options.prefix ? `http:${options.prefix}` : "http_request";
+    const status = rateLimiter.checkRateLimit(identifier, category);
 
     res.set("X-RateLimit-Limit", String(status.limit.requestsPerMinute));
     res.set("X-RateLimit-Remaining", String(Math.floor(status.tokensAvailable)));

@@ -15,3 +15,4 @@ export { insightsCommand } from "./insights.ts";
 export { pluginCommand } from "./plugin.ts";
 export { thinkbackCommand } from "./thinkback.ts";
 export { vimCommand, isVimMode } from "./vim.ts";
+export { initCommand } from "./init.ts";

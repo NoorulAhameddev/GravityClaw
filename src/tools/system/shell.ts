@@ -2,6 +2,7 @@ import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import type { Tool } from "./index.ts";
 import { createLogger } from "../../logger.ts";
+import { validateCommand } from "../../security/command-validator.ts";
 
 const execAsync = promisify(exec);
 const log = createLogger("tool:shell");
@@ -86,6 +87,12 @@ export const shellTool: Tool = {
 
         log.info(`Executing: ${command.substring(0, 80)}${command.length > 80 ? "…" : ""}`);
 
+        const validation = validateCommand(command);
+        if (!validation.allowed) {
+            log.warn("Shell command blocked by command validator", { command: command.substring(0, 100), reason: validation.reason });
+            return `Error: Command blocked — ${validation.reason ?? "security policy violation"}.`;
+        }
+
         // Shell Intelligence: Correct the AI if it tries to use deprecated 'wmic'
         if (process.platform === "win32" && /\bwmic\b/i.test(command)) {
             return `Error: 'wmic' is deprecated and NOT available on this system. 
@@ -93,6 +100,23 @@ RECOVERY HINT: Use modern PowerShell 'Get-CimInstance' instead.
 - For Motherboard: 'Get-CimInstance Win32_BaseBoard | Select-Object Manufacturer, Product'
 - For Disk: 'Get-CimInstance Win32_LogicalDisk | Select-Object DeviceID, Size, FreeSpace'
 - For CPU: 'Get-CimInstance Win32_Processor | Select-Object Name, LoadPercentage'`;
+        }
+
+        const localBlockPatterns: [RegExp, string][] = [
+            [/\beval\b/i, "eval is blocked for security"],
+            [/\bsudo\b/i, "sudo is blocked — run commands directly"],
+            [/>\s*\/dev\/[a-z]+/i, "raw device writes are blocked"],
+            [/\bchmod\s+[0-7]*s/i, "setuid/setgid is blocked"],
+            [/\bnc\s+-l/i, "netcat listeners are blocked"],
+            [/\bpython[23]?\s+-c\s/i, "inline python execution is blocked"],
+            [/\bnode\s+-e\s/i, "inline node execution is blocked"],
+        ];
+
+        for (const [pattern, reason] of localBlockPatterns) {
+            if (pattern.test(command)) {
+                log.warn(`Shell command blocked: ${reason}`, { command: command.substring(0, 100) });
+                return `Error: Command blocked — ${reason}.`;
+            }
         }
 
         try {

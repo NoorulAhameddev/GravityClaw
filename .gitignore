@@ -3,73 +3,57 @@
 # ============================================================================
 node_modules/
 .npm/
-.yarn/cache/
-.yarn/unplugged/
-.yarn/build-state.yml
-.yarn/install-state.gz
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
+.yarn/
+.pnpm/
+*.log
 lerna-debug.log*
-
-# Lock files (except package-lock.json which should be committed)
-# pnpm-lock.yaml
-# yarn.lock
-# poetry.lock
-# pnpm-lock.yaml
-# yarn.lock
-# poetry.lock
-
 
 # ============================================================================
 # BUILD OUTPUT & RUNTIME ARTIFACTS
 # ============================================================================
-# TypeScript
 dist/
 build/
 .tsc/
 *.tsbuildinfo
 *.js.map
 *.d.ts.map
-
-# Next.js
 .next/
-next-env.d.ts
 out/
-
-# Cache directories
 .cache/
 .turbo/
 .turborun/
 
-# Vitest & Testing
+# ============================================================================
+# TEST OUTPUT
+# ============================================================================
 coverage/
 .vitest*/
 .coverage/
 test-results/
 blob-report/
 playwright-report/
-
+.playwright/
+.playwright-mcp/
+*.trace
+test-output*.txt
+*-output.txt
+output*.json
+test_output.txt
+test_results.json
+typecheck_output.txt
+audit_output.txt
+audit_results.json
 
 # ============================================================================
-# ENVIRONMENT & SECRETS (CRITICAL - NEVER COMMIT)
+# ENVIRONMENT & SECRETS
 # ============================================================================
-# Environment files
 .env
 .env.local
 .env.*.local
 .env.production
-.env.production.local
-.env.development.local
-.env.test.local
-.env.local.d.ts
-
-# Secret files
 .secrets/
-secrets.enc.json
-secrets.json
-secrets.*.json
+secrets*.json
+config/secrets.enc.json
 credentials.json
 .credentials
 *.key
@@ -78,117 +62,70 @@ private.*
 .api-keys/
 .tokens/
 
-# Baileys WhatsApp Authentication (SENSITIVE - Runtime generated)
-baileys_auth_info/
-app-state-sync-key-*
-creds.json
-device-list-*
-lid-mapping-*
-pre-key-*
-sender-key-*
-session-*
-app-state-sync-version-*
-
-
 # ============================================================================
 # DATABASES & BACKUPS
 # ============================================================================
-# SQLite databases
 *.db
 *.db-shm
 *.db-wal
 *.sqlite
 *.sqlite3
-*.sqlite-journal
-gravity.db
-gravity.db-shm
-gravity.db-wal
+gravity.db*
 .database/
-
-# Automated backup system
 backups/
 *.gz.enc
 backup-*.db*
 backup-*.json
 
-
 # ============================================================================
 # APPLICATION RUNTIME DATA
 # ============================================================================
-# Memory and cache files
 memory-files/
 *.memo
 .datapping-*
-
-# Logs
 logs/
-*.log
-*.log.*
-
+.docker-data/
+docker-volumes/
 
 # ============================================================================
-# IDE & EDITOR CONFIGURATIONS
+# IDE & EDITOR
 # ============================================================================
-# VS Code
 .vscode/
 !.vscode/extensions.json
 !.vscode/settings.json.example
 .vscode-test
-
-# JetBrains IDEs
 .idea/
-.idea_modules/
 *.iml
-
-# Sublime Text
-*.sublime-project
-*.sublime-workspace
-
-# Eclipse
+*.sublime-*
 .project
 .classpath
 .settings/
-
-# Cloud9
-*.c9/
-
-# Vim
 *.swp
 *.swo
 *~
-
-# Emacs
 .~*
 
-
 # ============================================================================
-# OS-SPECIFIC FILES
+# OS FILES
 # ============================================================================
-# macOS
 .DS_Store
-.DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
-
-# Windows
 Thumbs.db
 ehthumbs.db
 Desktop.ini
-nul
-
-# Linux
 .directory
 
-
 # ============================================================================
-# AI AGENT & TOOL METADATA (AUTO-GENERATED)
+# AI AGENT METADATA (AUTO-GENERATED)
 # ============================================================================
+.config/.claude/
+.config/.agents/
+.config/.codex/
 .adal/
-.agents/
 .augment/
 .bob/
-.claude/
 .codebuddy/
 .commandcode/
 .continue/
@@ -214,68 +151,23 @@ nul
 .vibe/
 .windsurf/
 .zencoder/
-
-
-# ============================================================================
-# TESTING & PLAYWRIGHT
-# ============================================================================
-.playwright/
-.playwright-mcp/
-*.trace
-
+.agent_inbox/
+.agent_outbox/
 
 # ============================================================================
 # TEMPORARY & DEVELOPMENT FILES
 # ============================================================================
-# Temporary files
 *.tmp
 *.temp
 temp_*
 tmp/
 .tmp/
-
-# Development scripts (ephemeral)
-scripts/debug/
-scripts/test/
-check_tools.ts
-debug_agent.ts
-verify-airgap.ts
-
-# Test artifacts
-test-output*.txt
-*-output.txt
-output*.json
-test_output.txt
-test_results.json
-typecheck_output.txt
-audit_output.txt
-audit_results.json
-backend.log
-backend_*.log
-
-# Scratch & Artifacts
 scratch/
 artifacts/
-
-# Sample/test code files
-add_numbers.py
-factorial.c
-read_db.ts
-delete_files.py
-
-# Images and binary test files
 *.png.temp
 improved-ui-final.png
-
-# Working notes (development phase)
-.fix-status.md
-dashboard_current.md
-BACKEND_INTEGRATION_REPORT.md
-DASHBOARD_PROGRESS.md
-UI_IMPROVEMENTS_SUMMARY.md
-WEBSOCKET_FIX_COMPLETION.md
-GITIGNORE_*.md
-
+backend.log
+backend_*.log
 
 # ============================================================================
 # PLUGINS & EXTERNAL DATA
@@ -283,44 +175,21 @@ GITIGNORE_*.md
 plugins/external/
 public/canvas/build/
 
-
 # ============================================================================
-# ARCHIVE & WORKING DIRECTORIES
+# ARCHIVE & GENERATED ARTIFACTS
 # ============================================================================
-# Keep .archive structure but ignore contents
 .archive/*
 !.archive/
 !.archive/README.md
-
-# Docker volumes (if using docker-compose volumes)
-.docker-data/
-docker-volumes/
-
+scripts/archive/
+lib/mobile-companion/graphify-out/
 
 # ============================================================================
 # MISCELLANEOUS
 # ============================================================================
-# Package manager patches
-.yarn/patches/
+dist-ssr/
 .npm-cache/
 
-# Debug output
-dist-ssr/
-
-# Keep these files
+# Keep these
 !.env.example
 !.gitkeep
-
-# ============================================================================
-# PROJECT SPECIFIC
-# ============================================================================
-# Screenshot artifacts
-screenshots/*.png
-screenshots/*.ps1
-
-# Test artifacts in scripts
-scripts/check-chat*.ts
-scripts/check-errors.ts
-scripts/check-web.ts
-scripts/screenshot*.ts
-scripts/capture-screenshots.ts

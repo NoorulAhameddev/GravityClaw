@@ -1,5 +1,5 @@
 import { createLogger } from "../logger.ts";
-import { APPROVAL_ENABLED, APPROVAL_TIMEOUT_MINUTES, APPROVAL_REQUIRED_TOOLS } from "../config.ts";
+import { config as appConfig } from "../config.ts";
 
 const log = createLogger("approval");
 
@@ -24,10 +24,10 @@ export interface ApprovalConfig {
 }
 
 function parseApprovalTools(): Set<string> {
-    if (!APPROVAL_REQUIRED_TOOLS) {
+    if (!appConfig.APPROVAL_REQUIRED_TOOLS) {
         return new Set(["run_shell", "file_delete", "http_request", "execute_code"]);
     }
-    return new Set(APPROVAL_REQUIRED_TOOLS.split(",").map(t => t.trim()));
+    return new Set(appConfig.APPROVAL_REQUIRED_TOOLS.split(",").map(t => t.trim()));
 }
 
 export class ApprovalGate {
@@ -37,8 +37,8 @@ export class ApprovalGate {
 
     constructor(config?: Partial<ApprovalConfig>) {
         this.config = {
-            timeoutMinutes: config?.timeoutMinutes ?? APPROVAL_TIMEOUT_MINUTES ?? 5,
-            enabled: config?.enabled ?? APPROVAL_ENABLED ?? true,
+            timeoutMinutes: config?.timeoutMinutes ?? appConfig.APPROVAL_TIMEOUT_MINUTES ?? 5,
+            enabled: config?.enabled ?? appConfig.APPROVAL_ENABLED ?? true,
             requiredTools: config?.requiredTools ?? parseApprovalTools(),
         };
         this.startExpirationChecker();
@@ -192,13 +192,23 @@ export class ApprovalGate {
         return `approval_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     }
 
+    private expirationTimer: ReturnType<typeof setInterval> | null = null;
+
+    stopExpirationChecker(): void {
+        if (this.expirationTimer) {
+            clearInterval(this.expirationTimer);
+            this.expirationTimer = null;
+        }
+    }
+
     private startExpirationChecker(): void {
-        setInterval(() => {
+        this.expirationTimer = setInterval(() => {
             const now = new Date();
             for (const [id, request] of this.pendingApprovals.entries()) {
                 if (request.status === "pending" && now > request.expiresAt) {
                     request.status = "expired";
                     log.info(`Expired approval request ${id}`);
+                    this.pendingApprovals.delete(id);
                 }
             }
         }, 30000);

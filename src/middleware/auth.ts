@@ -1,9 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
-import {
-    config,
-    AUTH_TRUSTED_CIDRS,
-    AUTH_ALLOW_LOCALHOST,
-} from "../config.ts";
+import crypto from "crypto";
+import { config } from "../config.ts";
 import { createLogger } from "../logger.ts";
 
 const log = createLogger("auth");
@@ -20,8 +17,8 @@ const LOCALHOST_ALLOWLIST = new Set([
 
 // Trusted IP CIDRs for development (configure via config in production)
 const TRUSTED_CIDRS = new Set<string>();
-if (AUTH_TRUSTED_CIDRS) {
-    AUTH_TRUSTED_CIDRS.split(",").forEach(cidr => {
+if (config.AUTH_TRUSTED_CIDRS) {
+    config.AUTH_TRUSTED_CIDRS.split(",").forEach(cidr => {
         TRUSTED_CIDRS.add(cidr.trim());
     });
 }
@@ -75,7 +72,7 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
     // Security: Require API key in production unless explicitly configured to allow localhost
     // In development (NODE_ENV !== production), allow localhost for easier testing
     const isDevMode = process.env.NODE_ENV !== "production";
-    const allowLocalhostBypass = isDevMode || AUTH_ALLOW_LOCALHOST === true;
+    const allowLocalhostBypass = isDevMode || config.AUTH_ALLOW_LOCALHOST === true;
     
     if (!config.API_KEY) {
         log.warn(`SECURITY: No API_KEY configured - rejecting request: ${method} ${path}`);
@@ -131,15 +128,11 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
     next();
 }
 
-function constantTimeEquals(a: string, b: string): boolean {
+export function constantTimeEquals(a: string, b: string): boolean {
     if (a.length !== b.length) {
         return false;
     }
-    let result = 0;
-    for (let i = 0; i < a.length; i++) {
-        result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-    }
-    return result === 0;
+    return crypto.timingSafeEqual(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
 }
 
 export function optionalAuthMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
@@ -151,7 +144,7 @@ export function optionalAuthMiddleware(req: AuthenticatedRequest, res: Response,
         return;
     }
 
-    if (apiKey === config.API_KEY) {
+    if (apiKey === config.API_KEY || constantTimeEquals(apiKey, config.API_KEY)) {
         req.apiKey = apiKey;
     } else {
         delete req.apiKey;

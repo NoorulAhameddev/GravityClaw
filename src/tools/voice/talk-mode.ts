@@ -8,7 +8,7 @@
 import type { Tool } from './index.js';
 import { createLogger } from '../../logger.js';
 import { createTalkModeHandler, type TalkModeHandler, type TalkModeCallbacks } from '../../voice/talk-mode.js';
-import * as config from '../../config.js';
+import { config } from '../../config.js';
 
 const logger = createLogger('talk-mode-tools');
 

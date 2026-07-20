@@ -1,7 +1,6 @@
 import { createLogger } from "../logger.ts";
 import { db } from "../db.ts";
 import { config } from "../config.ts";
-import { loadFactsForPrompt } from "../memory/markdown.ts";
 import type { Attachment, AttachmentContext, AttachmentOptions } from "./attachmentTypes.js";
 
 const log = createLogger("attachments");
@@ -26,15 +25,6 @@ export async function buildAttachments(
         }
     }
 
-    const mcpResources = await getMCPResourcesAttachment();
-    if (mcpResources && options.includeMCPResources) {
-        attachments.push(mcpResources);
-    }
-
-    const relevantFiles = await getAtMentionedFilesAttachment(context);
-    if (relevantFiles) {
-        attachments.push(relevantFiles);
-    }
 
     attachments.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
@@ -104,54 +94,6 @@ function getDateChangeAttachment(): Attachment | null {
     return null;
 }
 
-async function getMCPResourcesAttachment(): Promise<Attachment | null> {
-    return null;
-}
-
-async function getAtMentionedFilesAttachment(
-    context: AttachmentContext,
-): Promise<Attachment | null> {
-    const { sessionId } = context;
-
-    try {
-        const recentMessages = db
-            .prepare(
-                `
-                SELECT message_json FROM memory
-                WHERE session_id = ?
-                ORDER BY id DESC
-                LIMIT 5
-                `,
-            )
-            .all(sessionId) as Array<{ message_json: string }>;
-
-        const mentionedFiles = new Set<string>();
-
-        for (const row of recentMessages) {
-            const msg = JSON.parse(row.message_json);
-            if (typeof msg.content === "string") {
-                const matches = msg.content.match(/@[\w\/.-]+/g);
-                if (matches) {
-                    for (const match of matches) {
-                        mentionedFiles.add(match.slice(1));
-                    }
-                }
-            }
-        }
-
-        if (mentionedFiles.size === 0) {
-            return null;
-        }
-
-        return {
-            type: "at_mentioned_files",
-            content: `Recent @mentions: ${Array.from(mentionedFiles).join(", ")}`,
-            priority: 60,
-        };
-    } catch (e) {
-        return null;
-    }
-}
 
 export function formatAttachments(attachments: Attachment[]): string {
     if (attachments.length === 0) {

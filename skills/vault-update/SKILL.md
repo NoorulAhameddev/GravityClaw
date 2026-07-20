@@ -18,8 +18,8 @@ Ask user:
 
 ### Step 2: Update Vault Files
 Write to:
-- `C:\Users\Noorul_Ahamed\OneDrive\Documents\Zed\1-Daily\YYYY-MM-DD.md` — session summary
-- `C:\Users\Noorul_Ahamed\OneDrive\Documents\Zed\9-Decisions\sessions\[slug].md` — full session log
+- `D:\Projects\Zed\1-Daily\YYYY-MM-DD.md` — session summary
+- `D:\Projects\Zed\9-Decisions\sessions\[slug].md` — full session log
 - Project file in `2-Projects/` — update if major milestone
 
 ### Step 3: Update Vault Context

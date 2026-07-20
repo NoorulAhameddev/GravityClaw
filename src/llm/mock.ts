@@ -1,5 +1,5 @@
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions.js";
-import type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
+import type { LLMProvider, LLMResponse, LLMChatOptions, StreamCallback } from "../types/llm.js";
 
 const RESPONSES: Record<string, string> = {
   default: "I'm a mock agent responding without an LLM API. I can help with file operations, running shell commands, and other tasks.",
@@ -131,11 +131,34 @@ export class MockProvider implements LLMProvider {
     };
   }
 
+  async chatStream(
+    messages: ChatCompletionMessageParam[],
+    toolDefinitions: ChatCompletionTool[],
+    options?: LLMChatOptions & { onToken?: StreamCallback }
+  ): Promise<LLMResponse> {
+    const result = await this.chat(messages, toolDefinitions, options);
+    const onToken = options?.onToken;
+
+    if (onToken && result.text) {
+      for (const char of result.text) {
+        onToken(char, false);
+        await new Promise((r) => setTimeout(r, 10));
+      }
+    }
+
+    onToken?.("", true);
+    return result;
+  }
+
   async listModels(): Promise<string[]> {
     return ["mock-model"];
   }
 
   countTokens(messages: ChatCompletionMessageParam[]): number {
     return messages.reduce((acc, m) => acc + (typeof m.content === "string" ? m.content.length : 50), 0);
+  }
+
+  destroy(): void {
+    // Mock provider has no resources to clean up
   }
 }

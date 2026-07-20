@@ -52,6 +52,7 @@ export class OpenRouterProvider implements LLMProvider {
     this.client = new OpenAI({
       apiKey,
       baseURL: "https://openrouter.ai/api/v1",
+      timeout: 120000,
       defaultHeaders: {
         "HTTP-Referer": "https://github.com/gravyclaw",
         "X-Title": "Gravity Claw",
@@ -180,7 +181,7 @@ export class OpenRouterProvider implements LLMProvider {
       let lastError: unknown;
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const response = await this.client.chat.completions.create(params);
+          const response = await this.client.chat.completions.create(params, { signal: AbortSignal.timeout(120000) });
           const choice = response.choices[0];
           if (!choice) throw new Error("OpenRouter returned no choices");
 
@@ -209,9 +210,10 @@ export class OpenRouterProvider implements LLMProvider {
           return result;
         } catch (err: unknown) {
           lastError = err;
-          const errorObj = (err as any)?.error || (err as any);
-          const status = (err as any)?.status || (err as any)?.code || errorObj?.code || errorObj?.status;
-          const message = errorObj?.message || (err as Error)?.message || String(err);
+          const errRecord = err as Record<string, unknown>;
+          const errorObj = (errRecord?.error as Record<string, unknown>) || errRecord;
+          const status = (errRecord?.status as number) || (errRecord?.code as number) || (errorObj?.code as number) || (errorObj?.status as number);
+          const message = (errorObj?.message as string) || (err as Error)?.message || String(err);
 
           log.warn(`OpenRouter API error — Model: ${model}, Status: ${status}, Message: ${message.substring(0, 100)}`);
 
@@ -220,7 +222,7 @@ export class OpenRouterProvider implements LLMProvider {
             log.warn(`Model ${model} does not support tools. Retrying without tools.`);
             const noToolsParams = { model, max_tokens: maxTokens, messages };
             try {
-              const retryResponse = await this.client.chat.completions.create(noToolsParams);
+              const retryResponse = await this.client.chat.completions.create(noToolsParams, { signal: AbortSignal.timeout(120000) });
               const choice = retryResponse.choices[0];
               if (choice) {
                 log.info(`Successful fallback for ${model} without tools.`);
@@ -424,5 +426,9 @@ export class OpenRouterProvider implements LLMProvider {
 
     result += `_Use \`/model <model-id>\` to switch models_`;
     return result;
+  }
+
+  destroy(): void {
+    this.client = null as unknown as OpenAI;
   }
 }

@@ -106,10 +106,13 @@ type LegacySpawnResult = string;
 /**
  * Agent Swarm - coordinates multiple specialized agents to work on complex tasks
  */
+const MAX_SWARM_ITERATIONS = 5;
+
 export class AgentSwarm {
   private parentSessionId: string;
   private config: SwarmConfig;
   private parentDB: ReturnType<typeof createSessionDB>;
+  private iterationCount = 0;
 
   constructor(parentSessionId: string, config: SwarmConfig) {
     this.parentSessionId = parentSessionId;
@@ -131,8 +134,28 @@ export class AgentSwarm {
    * @returns SpawnResult containing session ID, content, and status
    */
   async spawnAgent(role: string, task: string): Promise<SpawnResult> {
+    this.iterationCount++;
+    if (this.iterationCount > MAX_SWARM_ITERATIONS) {
+        log.warn(`Swarm iteration cap reached (${MAX_SWARM_ITERATIONS})`);
+        return {
+            sessionId: 'capped',
+            content: 'Swarm iteration limit reached to prevent runaway loops.',
+            status: 'degraded'
+        };
+    }
+    // Mock budget of 100 for now
+    return this.executeAgentWithGuardrails(role, task, 100);
+  }
+
+  async executeAgentWithGuardrails(role: string, task: string, budget: number): Promise<SpawnResult> {
     const childSessionId = `${this.parentSessionId}-${role}-${crypto.randomBytes(4).toString("hex")}`;
     const timestamp = new Date().toISOString();
+    
+    const truncatedTask = task.length > 4000 ? task.substring(0, 4000) + '... [TRUNCATED]' : task;
+    
+    if (budget <= 0) {
+        return { sessionId: childSessionId, content: 'Budget exhausted', status: 'degraded' };
+    }
     
     // Create session-scoped DB for child
     const childDB = createSessionDB(childSessionId, this.parentSessionId);
@@ -164,7 +187,7 @@ export class AgentSwarm {
       };
 
       // Initialize the agent's conversation
-      addUserMessage(childSessionId, taskStr, childOrchestratorDeps);
+      addUserMessage(childSessionId, truncatedTask, childOrchestratorDeps);
 
       // Get the provider and call LLM with role-specific system prompt
       const provider = getProvider();
@@ -176,9 +199,10 @@ export class AgentSwarm {
       const response = await provider.chat(
         [
           { role: "system" as const, content: systemPromptContent },
-          { role: "user" as const, content: taskStr },
+          { role: "user" as const, content: truncatedTask },
         ],
-        []
+        [],
+        { maxTokens: 500 } // Output limit
       );
 
       log.debug(`[${role}] LLM response: ${response.text?.substring(0, 100) ?? 'empty'} | stopReason: ${response.stopReason}`);

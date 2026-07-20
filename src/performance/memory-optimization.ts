@@ -77,7 +77,6 @@ class CircularBuffer<T> {
 
 class MemoryEfficientCache<K, V> {
   private cache = new Map<K, CacheEntry<V>>();
-  private accessOrder: K[] = [];
 
   constructor(
     private maxSize: number,
@@ -85,19 +84,16 @@ class MemoryEfficientCache<K, V> {
   ) {}
 
   set(key: K, value: V, customTTL?: number): void {
-    const now = Date.now();
-    
-    while (this.cache.size >= this.maxSize && this.accessOrder.length > 0) {
-      const oldestKey = this.accessOrder.shift()!;
-      this.cache.delete(oldestKey);
+    this.cache.delete(key);
+    while (this.cache.size >= this.maxSize) {
+      const lruKey = this.cache.keys().next().value;
+      if (lruKey === undefined) break;
+      this.cache.delete(lruKey);
     }
-
     this.cache.set(key, {
       value,
-      expiresAt: now + (customTTL ?? this.ttlMs)
+      expiresAt: Date.now() + (customTTL ?? this.ttlMs)
     });
-    
-    this.accessOrder.push(key);
   }
 
   get(key: K): V | undefined {
@@ -106,33 +102,31 @@ class MemoryEfficientCache<K, V> {
     
     if (Date.now() > entry.expiresAt) {
       this.cache.delete(key);
-      const idx = this.accessOrder.indexOf(key);
-      if (idx > -1) this.accessOrder.splice(idx, 1);
       return undefined;
     }
 
-    const idx = this.accessOrder.indexOf(key);
-    if (idx > -1) {
-      this.accessOrder.splice(idx, 1);
-      this.accessOrder.push(key);
-    }
+    this.cache.delete(key);
+    this.cache.set(key, entry);
     
     return entry.value;
   }
 
   has(key: K): boolean {
-    return this.get(key) !== undefined;
+    const entry = this.cache.get(key);
+    if (!entry) return false;
+    if (Date.now() > entry.expiresAt) {
+      this.cache.delete(key);
+      return false;
+    }
+    return true;
   }
 
   delete(key: K): boolean {
-    const idx = this.accessOrder.indexOf(key);
-    if (idx > -1) this.accessOrder.splice(idx, 1);
     return this.cache.delete(key);
   }
 
   clear(): void {
     this.cache.clear();
-    this.accessOrder = [];
   }
 
   get size(): number {
@@ -146,8 +140,6 @@ class MemoryEfficientCache<K, V> {
     for (const [key, entry] of this.cache.entries()) {
       if (now > entry.expiresAt) {
         this.cache.delete(key);
-        const idx = this.accessOrder.indexOf(key);
-        if (idx > -1) this.accessOrder.splice(idx, 1);
         cleaned++;
       }
     }
@@ -159,6 +151,9 @@ class MemoryEfficientCache<K, V> {
 let memorySnapshots: CircularBuffer<MemorySnapshot>;
 let maxHeapObserved = 0;
 let globalCache: MemoryEfficientCache<string, unknown>;
+
+let memoryMonitorTimer: ReturnType<typeof setInterval> | null = null;
+let gcHintTimer: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Initialize memory optimizations
@@ -173,11 +168,22 @@ export function initializeMemoryOptimizations(): void {
   startGCHints();
 }
 
+export function stopMemoryOptimizations(): void {
+  if (memoryMonitorTimer) {
+    clearInterval(memoryMonitorTimer);
+    memoryMonitorTimer = null;
+  }
+  if (gcHintTimer) {
+    clearInterval(gcHintTimer);
+    gcHintTimer = null;
+  }
+}
+
 /**
  * Start memory monitoring
  */
 function startMemoryMonitoring(): void {
-  setInterval(() => {
+  memoryMonitorTimer = setInterval(() => {
     const mem = memoryUsage();
     const heapPercent = mem.heapUsed / mem.heapTotal;
 
@@ -220,7 +226,7 @@ function startGCHints(): void {
     return;
   }
 
-  setInterval(() => {
+  gcHintTimer = setInterval(() => {
     log.debug("Suggesting garbage collection");
     global.gc!();
   }, GC_INTERVAL);

@@ -27,7 +27,7 @@ import {
     searchTools,
 } from "./memory/index.ts";
 import { datetimeTool, shellTool, searchAttachmentsTool, fileOperationTools, rateLimitingTools } from "./system/index.ts";
-import { dashboardTools, mobileTools } from "./ui/index.ts";
+import { dashboardTools } from "./ui/index.ts";
 import { schedulerTools } from "../scheduler/index.ts";
 import { webhookTools } from "../webhooks/index.ts";
 import { heartbeatTools } from "../heartbeat/index.ts";
@@ -43,7 +43,9 @@ import { browserTools } from "./automation/index.ts";
 import { mcpTools } from "../mcp/index.ts";
 import { calendarTools } from "./calendar/google-calendar.ts";
 import { notionTools } from "./productivity/notion.ts";
-import { sandboxTool, runCodeAliasTool } from "./sandbox.ts";
+import { sandboxTool } from "./sandbox.ts";
+import { clearLLMCacheTool } from "./cache.ts";
+import { fileDiffTool } from "./files/index.ts";
 import { ToolExecutor } from "./executor.ts";
 
 class ToolRegistry implements ToolRegistryType {
@@ -223,7 +225,6 @@ export function registerBuiltInTools(): void {
     browserTools.forEach(tool => registry.register(tool));
     communicationTools.forEach(tool => registry.register(tool));
     dashboardTools.forEach(tool => registry.register(tool));
-    mobileTools.forEach(tool => registry.register(tool));
     memoryTools.forEach(tool => registry.register(tool));
     adminTools.forEach(tool => registry.register(tool));
     rateLimitingTools.forEach(tool => registry.register(tool));
@@ -247,5 +248,6 @@ export function registerBuiltInTools(): void {
     calendarTools.forEach(tool => registry.register(tool));
     notionTools.forEach(tool => registry.register(tool));
     registry.register(sandboxTool);
-    registry.register(runCodeAliasTool);
+    registry.register(clearLLMCacheTool);
+    registry.register(fileDiffTool);
 }

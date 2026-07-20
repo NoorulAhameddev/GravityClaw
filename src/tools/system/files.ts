@@ -17,7 +17,7 @@
 
 import type { Tool } from './index.js';
 import { createLogger } from '../../logger.js';
-import { getSafeDirectories, SECURITY_AUDIT_ENABLED } from '../../config.js';
+import { config, getSafeDirectories } from '../../config.js';
 import { validatePathAccess } from '../../security/path-validator.js';
 import type { PathValidationConfig } from '../../security/path-validator.js';
 import { getAllowedPaths } from '../../config.js';
@@ -50,7 +50,7 @@ function logFileAccess(
   sizeBytes?: number,
   durationMs?: number
 ): void {
-  if (!SECURITY_AUDIT_ENABLED) {
+  if (!config.SECURITY_AUDIT_ENABLED) {
     return;
   }
   

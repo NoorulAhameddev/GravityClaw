@@ -23,8 +23,8 @@ describe("Webhooks Module", () => {
   });
 
   describe("Tool Metadata", () => {
-    it("should export exactly 3 tools", () => {
-      expect(webhookTools).toHaveLength(3);
+    it("should export exactly 4 tools", () => {
+      expect(webhookTools).toHaveLength(4);
     });
 
     it("should have correct tool names", () => {
@@ -32,6 +32,7 @@ describe("Webhooks Module", () => {
       expect(names).toContain("create_webhook");
       expect(names).toContain("list_webhooks");
       expect(names).toContain("delete_webhook");
+      expect(names).toContain("replay_webhook");
     });
 
     it("should have descriptions for all tools", () => {

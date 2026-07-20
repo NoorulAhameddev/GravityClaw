@@ -4,12 +4,7 @@ const log = createLogger("formatter");
 
 export type FormatType = "markdown" | "html" | "plaintext" | "whatsapp";
 
-export interface FormattingOptions {
-    bold?: boolean;
-    italic?: boolean;
-    code?: boolean;
-    link?: string;
-}
+
 
 /**
  * Utility to format text consistently across different messaging platforms.

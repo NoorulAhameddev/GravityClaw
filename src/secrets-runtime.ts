@@ -34,13 +34,25 @@ interface SecretsCache {
     secrets: Map<string, string>;
     loaded: boolean;
     masterKey: string | undefined;
+    loadedAt: number;
 }
 
 const cache: SecretsCache = {
     secrets: new Map(),
     loaded: false,
     masterKey: undefined,
+    loadedAt: 0,
 };
+
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+// Periodic cache cleanup
+setInterval(() => {
+    const now = Date.now();
+    if (cache.loaded && (now - cache.loadedAt) > CACHE_TTL_MS * 2) {
+        clearSecretsCache();
+    }
+}, CACHE_TTL_MS).unref();
 
 function getSecretsFilePath(): string {
     return path.join(process.cwd(), SECRETS_FILE);
@@ -51,21 +63,26 @@ function getMasterKey(): string | undefined {
 }
 
 async function loadSecretsIntoCache(): Promise<void> {
-    if (cache.loaded) {
+    const masterKey = getMasterKey();
+    const now = Date.now();
+
+    if (cache.loaded && cache.masterKey === masterKey && (now - cache.loadedAt) < CACHE_TTL_MS) {
         return;
     }
+    
+    cache.secrets.clear();
+    cache.masterKey = masterKey;
+    cache.loadedAt = now;
+    cache.loaded = true;
 
-    const masterKey = getMasterKey();
     if (!masterKey) {
         logger.debug("No MASTER_KEY configured, secrets store unavailable");
-        cache.loaded = true;
         return;
     }
 
     const secretsPath = getSecretsFilePath();
     if (!fs.existsSync(secretsPath)) {
         logger.debug("No secrets file found");
-        cache.loaded = true;
         return;
     }
 
@@ -81,12 +98,9 @@ async function loadSecretsIntoCache(): Promise<void> {
             }
         }
 
-        cache.masterKey = masterKey;
-        cache.loaded = true;
         logger.info(`Loaded ${cache.secrets.size} secrets from encrypted store`);
     } catch (err) {
         logger.error("Failed to load secrets into cache:", err);
-        cache.loaded = true;
     }
 }
 
@@ -207,11 +221,21 @@ export async function getAllSecrets(): Promise<Map<string, string>> {
  * Clears cache and re-reads secrets.enc.json.
  */
 export async function reloadSecrets(): Promise<void> {
+    clearSecretsCache();
+    await loadSecretsIntoCache();
+}
+
+/**
+ * Strip secrets from memory.
+ * Clears the cache, removing all decrypted secrets and the master key from memory
+ * so they can be garbage collected.
+ */
+export function clearSecretsCache(): void {
     cache.secrets.clear();
     cache.loaded = false;
     cache.masterKey = undefined;
-    
-    await loadSecretsIntoCache();
+    cache.loadedAt = 0;
+    logger.debug("Secrets cache cleared from memory");
 }
 
 /**

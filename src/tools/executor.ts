@@ -110,6 +110,7 @@ function abortable<T>(promise: Promise<T>, signal: AbortSignal, timeoutMs: numbe
 }
 
 export class ToolExecutor {
+  private compiledValidators = new Map<string, any>();
   constructor(private readonly registry: ToolLookup) {}
 
   async execute(request: ToolExecutionRequest): Promise<ToolExecutionResult> {
@@ -241,7 +242,11 @@ export class ToolExecutor {
   }
 
   private validateInput(tool: Tool, input: Record<string, unknown>): { valid: boolean; errors?: unknown } {
-    const validate = ajv.compile(tool.inputSchema);
+    let validate = this.compiledValidators.get(tool.name);
+    if (!validate) {
+        validate = ajv.compile(tool.inputSchema);
+        this.compiledValidators.set(tool.name, validate);
+    }
     const valid = validate(input);
     return {
       valid,

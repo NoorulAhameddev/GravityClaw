@@ -6,12 +6,15 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Mock config to provide fake API key while keeping other config intact
 vi.mock('../config.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../config.js')>();
+  const actual = await importOriginal<typeof import('../config.ts')>();
   return {
     ...actual,
-    OPENAI_API_KEY: 'test-api-key',
-    WAKE_WORD_PHRASE: 'hey claw',
-    WAKE_WORD_THRESHOLD: 0.75,
+    config: {
+      ...actual.config,
+      OPENAI_API_KEY: 'test-api-key',
+      WAKE_WORD_PHRASE: 'hey claw',
+      WAKE_WORD_THRESHOLD: 0.75,
+    }
   };
 });
 
