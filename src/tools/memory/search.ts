@@ -9,13 +9,7 @@
 
 import type { Tool } from './index.js';
 import { createLogger } from '../../logger.js';
-import {
-    SEARCH_PROVIDER,
-    SERPAPI_API_KEY,
-    BRAVE_SEARCH_KEY,
-    SEARCH_CACHE_TTL_MINUTES,
-    AIR_GAPPED,
-} from '../../config.js';
+import { config } from '../../config.js';
 import { checkAirGapTool } from '../../airgap/enforcement.ts';
 
 const logger = createLogger('search-tools');
@@ -119,13 +113,14 @@ async function searchDuckDuckGo(query: string, numResults: number): Promise<Sear
  * https://serpapi.com - $50/month for 5k searches
  */
 async function searchSerpAPI(query: string, numResults: number): Promise<SearchResult[]> {
-    if (!SERPAPI_API_KEY) {
-        throw new Error('SerpAPI selected but SERPAPI_API_KEY not set. Get from https://serpapi.com');
+    const apiKey = config.SERPAPI_API_KEY;
+    if (!apiKey) {
+        throw new Error('SerpAPI selected but config.SERPAPI_API_KEY not set. Get from https://serpapi.com');
     }
 
     try {
         const url = new URL('https://serpapi.com/search');
-        url.searchParams.set('api_key', SERPAPI_API_KEY);
+        url.searchParams.set('api_key', apiKey);
         url.searchParams.set('q', query);
         url.searchParams.set('engine', 'google');
         url.searchParams.set('num', Math.min(numResults, 100).toString());
@@ -164,8 +159,9 @@ async function searchSerpAPI(query: string, numResults: number): Promise<SearchR
  * https://api.search.brave.com - requires API key
  */
 async function searchBrave(query: string, numResults: number): Promise<SearchResult[]> {
-    if (!BRAVE_SEARCH_KEY) {
-        throw new Error('Brave Search selected but BRAVE_SEARCH_KEY not set. Get from https://api.search.brave.com');
+    const braveKey = config.BRAVE_SEARCH_KEY;
+    if (!braveKey) {
+        throw new Error('Brave Search selected but config.BRAVE_SEARCH_KEY not set. Get from https://api.search.brave.com');
     }
 
     try {
@@ -176,7 +172,7 @@ async function searchBrave(query: string, numResults: number): Promise<SearchRes
         const response = await fetch(url, {
             headers: {
                 'Accept': 'application/json',
-                'X-Subscription-Token': BRAVE_SEARCH_KEY,
+                'X-Subscription-Token': braveKey,
             },
             signal: AbortSignal.timeout(10000),
         });
@@ -213,7 +209,7 @@ async function searchBrave(query: string, numResults: number): Promise<SearchRes
  * Route search through appropriate provider
  */
 async function performSearch(query: string, numResults: number): Promise<SearchResult[]> {
-    switch (SEARCH_PROVIDER) {
+    switch (config.SEARCH_PROVIDER) {
         case 'duckduckgo':
             return searchDuckDuckGo(query, numResults);
         case 'serpapi':
@@ -221,7 +217,7 @@ async function performSearch(query: string, numResults: number): Promise<SearchR
         case 'brave':
             return searchBrave(query, numResults);
         default:
-            throw new Error(`Unknown search provider: ${SEARCH_PROVIDER}`);
+            throw new Error(`Unknown search provider: ${config.SEARCH_PROVIDER}`);
     }
 }
 
@@ -234,12 +230,12 @@ export const webSearchTool: Tool = {
 
 Returns a list of search results with title, URL, and snippet.
 
-The search results are cached for ${SEARCH_CACHE_TTL_MINUTES} minutes to avoid duplicate queries.
+The search results are cached for ${config.SEARCH_CACHE_TTL_MINUTES} minutes to avoid duplicate queries.
 
-Search provider: ${SEARCH_PROVIDER}${
-        SEARCH_PROVIDER === 'duckduckgo'
+Search provider: ${config.SEARCH_PROVIDER}${
+        config.SEARCH_PROVIDER === 'duckduckgo'
             ? ' (free, instant answers and related topics)'
-            : SEARCH_PROVIDER === 'serpapi'
+            : config.SEARCH_PROVIDER === 'serpapi'
             ? ' (requires API key, comprehensive results)'
             : ' (requires API key, free tier: 2k queries/month)'
     }
@@ -264,7 +260,7 @@ Example: web_search({ query: "quantum computing 2024", num_results: 5 })`,
     async execute(args: Record<string, unknown>): Promise<string> {
         try {
             // Check air-gap mode
-            if (AIR_GAPPED) {
+            if (config.AIR_GAPPED) {
                 checkAirGapTool('web_search');
             }
 
@@ -287,23 +283,23 @@ Example: web_search({ query: "quantum computing 2024", num_results: 5 })`,
                     query,
                     results: cached.slice(0, numResults),
                     cached: true,
-                    provider: SEARCH_PROVIDER,
+                    provider: config.SEARCH_PROVIDER,
                 });
             }
 
             // Perform search
-            logger.info(`Searching for: "${query}" (provider: ${SEARCH_PROVIDER})`);
+            logger.info(`Searching for: "${query}" (provider: ${config.SEARCH_PROVIDER})`);
             const results = await performSearch(query, numResults);
 
             // Cache results
-            searchCache.set(query, results, SEARCH_CACHE_TTL_MINUTES);
+            searchCache.set(query, results, config.SEARCH_CACHE_TTL_MINUTES);
 
             return JSON.stringify({
                 success: true,
                 query,
                 results: results.slice(0, numResults),
                 cached: false,
-                provider: SEARCH_PROVIDER,
+                provider: config.SEARCH_PROVIDER,
                 count: results.length,
             });
 

@@ -107,6 +107,32 @@ function sanitizePython(code: string): string {
     return sanitized.join("\n");
 }
 
+function sanitizeBashCode(code: string): string {
+    const lines = code.split("\n");
+    const sanitized: string[] = [];
+    const dangerous = [
+        /\bcurl\b.*\s+\|\s*(?:sh|bash)/,
+        /\bwget\b.*\s+\|\s*(?:sh|bash)/,
+        /\bsudo\b/,
+        />\s*\/dev\/(?!null)/,
+        /\beval\b/,
+        /\bexec\b/,
+    ];
+    
+    for (const line of lines) {
+        let processed = line;
+        for (const pattern of dangerous) {
+            if (pattern.test(processed)) {
+                processed = `# BLOCKED: ${processed}`;
+                break;
+            }
+        }
+        sanitized.push(processed);
+    }
+    
+    return sanitized.join("\n");
+}
+
 async function executeWithTimeout(
     command: string,
     args: string[],
@@ -193,7 +219,7 @@ function createSandboxEnv(language: string): Record<string, string> {
     };
     
     if (language === "javascript") {
-        baseEnv.NODE_OPTIONS = "--no-warnings --disable-experimental-fetch --no-experimental-fetch";
+        baseEnv.NODE_OPTIONS = "--no-warnings";
     }
     
     return baseEnv;
@@ -273,8 +299,6 @@ export const sandboxTool: Tool = {
                     args = [
                         "--no-warnings",
                         "--experimental-vm-modules",
-                        "--no-experimental-fetch",
-                        "--disable-experimental-fetch",
                         "--max-old-space-size=" + MAX_MEMORY_MB,
                         tempFile,
                     ];
@@ -291,12 +315,13 @@ export const sandboxTool: Tool = {
                     break;
                     
                 case "bash":
+                    sanitizedCode = sanitizeBashCode(code);
                     tempFile = join(tempDir, "script.sh");
-                    writeFileSync(tempFile, code, "utf-8");
+                    writeFileSync(tempFile, sanitizedCode, "utf-8");
                     command = process.platform === "win32" ? "powershell.exe" : "/bin/sh";
                     args = process.platform === "win32" 
-                        ? ["-NoProfile", "-NonInteractive", "-Command", code]
-                        : ["-c", code];
+                        ? ["-NoProfile", "-NonInteractive", "-Command", sanitizedCode]
+                        : ["-c", sanitizedCode];
                     break;
                     
                 default:
@@ -354,13 +379,4 @@ export const sandboxTool: Tool = {
     },
 };
 
-export const runCodeAliasTool: Tool = {
-    name: "run_code",
-    description: "Disabled alias for execute_code. Use execute_code through the centralized executor.",
-    inputSchema: sandboxTool.inputSchema,
-    requiresApproval: true,
-    async execute(input) {
-        void input;
-        return "Error: run_code alias is disabled. Use execute_code through the centralized tool executor.";
-    },
-};
+

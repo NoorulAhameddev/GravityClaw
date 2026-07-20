@@ -13,18 +13,14 @@ export function getBaseUrl() {
     return '';
 }
 
-export function getWsUrl(apiKey?: string) {
+export function getWsUrl(_apiKey?: string) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
     const port = (window.location.port === '5173' || window.location.port === '5174' || window.location.port === '5175') 
         ? ':3000' 
         : (window.location.port ? `:${window.location.port}` : '');
     
-    let url = `${protocol}//${host}${port}`;
-    if (apiKey) {
-        url += `?api_key=${apiKey}`;
-    }
-    return url;
+    return `${protocol}//${host}${port}`;
 }
 
 export function fmtUptime(seconds: number): string {

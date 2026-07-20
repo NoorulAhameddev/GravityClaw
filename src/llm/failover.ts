@@ -303,4 +303,11 @@ export class FailoverProvider implements LLMProvider {
       return Math.ceil(totalChars / 4);
     }
   }
+
+  destroy(): void {
+    for (const p of this.providers) {
+      p.destroy?.();
+    }
+    this.providers = [];
+  }
 }

@@ -1,4 +1,5 @@
 import Groq from "groq-sdk";
+import type { ChatCompletionCreateParamsNonStreaming } from "groq-sdk/resources/chat/completions.js";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions.js";
 import type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
 import { createLogger } from "../logger.ts";
@@ -15,7 +16,7 @@ export class GroqProvider implements LLMProvider {
   private defaultModel: string;
 
   constructor(apiKey: string, defaultModel: string = "llama-3.3-70b-versatile") {
-    this.client = new Groq({ apiKey });
+    this.client = new Groq({ apiKey, timeout: 120000 });
     this.defaultModel = defaultModel;
     log.info(`Groq provider initialized with model: ${defaultModel}`);
   }
@@ -31,20 +32,20 @@ export class GroqProvider implements LLMProvider {
 
     log.debug(`Calling Groq — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`);
 
-    const params: any = {
+    const params: ChatCompletionCreateParamsNonStreaming = {
       model,
-      messages,
+      messages: messages as unknown as Array<import("groq-sdk/resources/chat/completions.js").ChatCompletionMessageParam>,
       max_tokens: maxTokens,
-      temperature: options?.temperature,
-      top_p: options?.topP,
     };
+    if (options?.temperature !== undefined) params.temperature = options.temperature;
+    if (options?.topP !== undefined) params.top_p = options.topP;
 
     if (hasTools) {
-      params.tools = toolDefinitions;
+      params.tools = toolDefinitions as unknown as Array<import("groq-sdk/resources/chat/completions.js").ChatCompletionTool> | null;
       params.tool_choice = "auto";
     }
 
-    const response = await this.client.chat.completions.create(params);
+    const response = await this.client.chat.completions.create(params, { signal: AbortSignal.timeout(120000) });
     const choice = response.choices[0];
     if (!choice) throw new Error("Groq returned no choices");
 
@@ -81,5 +82,9 @@ export class GroqProvider implements LLMProvider {
       log.error("Error fetching Groq models", err);
       return [];
     }
+  }
+
+  destroy(): void {
+    this.client = null as unknown as Groq;
   }
 }

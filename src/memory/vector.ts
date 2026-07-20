@@ -9,7 +9,9 @@ import { createLogger } from "../logger.ts";
 import { generateEmbedding, fallbackLocalSemanticSearch } from "./supabase.ts";
 import { db } from "../db.ts";
 import type { SemanticSearchResult } from "../types/memory.js";
-import { CHROMA_URL } from "../config.ts";
+import { config } from "../config.ts";
+
+const CHROMA_URL = config.CHROMA_URL;
 import { meter } from "../lib/telemetry/metrics.ts";
 
 const log = createLogger("memory:vector");
@@ -156,9 +158,9 @@ export async function vectorSemanticSearch(
         return ids.map((id, i) => ({
             id: String(id),
             sessionId,
-            role: String((metadatas[i] as any)?.role ?? "unknown"),
+            role: String((metadatas[i] as Record<string, unknown>)?.role ?? "unknown"),
             content: String(documents[i] ?? ""),
-            timestamp: String((metadatas[i] as any)?.timestamp ?? ""),
+            timestamp: String((metadatas[i] as Record<string, unknown>)?.timestamp ?? ""),
             // ChromaDB returns L2 distance with cosine space — convert to similarity
             similarity: 1 - (distances[i] ?? 0),
         }));
@@ -215,7 +217,7 @@ function scoreBM25(
     return score;
 }
 
-async function keywordBM25Search(
+export async function keywordBM25Search(
     sessionId: string,
     query: string,
     limit: number
@@ -312,7 +314,7 @@ async function keywordBM25Search(
     }
 }
 
-export async function vectorSemanticSearchWithFallback(
+async function vectorSemanticSearchWithFallback(
     sessionId: string,
     query: string,
     limit = 5
@@ -334,5 +336,3 @@ export function isVectorStoreAvailable(): boolean {
     return chromaAvailable;
 }
 
-// Kick off initialisation eagerly (but don't block startup)
-void ensureChroma();

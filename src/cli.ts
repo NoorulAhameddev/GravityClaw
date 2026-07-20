@@ -13,6 +13,7 @@ import {
     pluginCommand,
     thinkbackCommand,
     vimCommand,
+    initCommand,
 } from "./cli/commands/index.ts";
 
 const log = createLogger("cli");
@@ -27,6 +28,7 @@ function printHelp(): void {
     section("Commands:");
     printBox(
         `${c.cyan("start")}              Start Gravity Claw services ${c.dim("(default)")}
+${c.cyan("init")}               First-time setup wizard
 ${c.cyan("chat")}               Interactive chat mode (REPL)
 ${c.cyan("doctor")}             Run health checks and diagnostics
 ${c.cyan("config")}             View current configuration
@@ -222,6 +224,10 @@ async function run(): Promise<void> {
 
             case "version":
                 await printVersion();
+                break;
+
+            case "init":
+                await initCommand();
                 break;
 
             case "help":

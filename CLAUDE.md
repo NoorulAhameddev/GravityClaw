@@ -88,7 +88,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `f
 ## Personal Knowledge Base (Zed Vault)
 
 Your personal knowledge base is the Obsidian vault "Zed" at:
-`C:\Users\Noorul_Ahamed\OneDrive\Documents\Zed\`
+`D:\Projects\Zed\`
 
 **Before each session:**
 1. Read `vault-context.md` for current state (project status, OKRs, active decisions)

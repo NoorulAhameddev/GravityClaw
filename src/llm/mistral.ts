@@ -16,7 +16,7 @@ export class MistralProvider implements LLMProvider {
   private defaultModel: string;
 
   constructor(apiKey: string, defaultModel: string = "mistral-large-latest") {
-    this.client = new Mistral({ apiKey });
+    this.client = new Mistral({ apiKey, timeoutMs: 120000 });
     this.defaultModel = defaultModel;
     log.info(`Mistral provider initialized with model: ${defaultModel}`);
   }
@@ -72,7 +72,7 @@ export class MistralProvider implements LLMProvider {
       })) : undefined,
     };
 
-    const response = await this.client.chat.complete(params);
+    const response = await this.client.chat.complete(params, { signal: AbortSignal.timeout(120000) });
     const choice = response.choices?.[0];
     if (!choice) throw new Error("Mistral returned no choices");
 
@@ -118,5 +118,9 @@ export class MistralProvider implements LLMProvider {
       log.error("Error fetching Mistral models", err);
       return [];
     }
+  }
+
+  destroy(): void {
+    this.client = null as unknown as Mistral;
   }
 }

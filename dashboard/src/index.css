@@ -46,22 +46,26 @@
   }
 
   /* Global Brutalist Overrides */
-  * {
+  .brutalist, .brutalist * {
     border-radius: 0px !important;
-    font-family: 'JetBrains Mono', monospace !important;
     box-shadow: none !important;
     text-shadow: none !important;
   }
 
   /* Focus and input states */
   input, textarea, select, button {
-    outline: none !important;
     transition: none !important;
   }
 
   input:focus, textarea:focus, select:focus {
     border-color: #ffca45 !important; /* Focus Caution Yellow */
     background-color: #1b1b21 !important;
+  }
+
+  /* Accessibility: Visible focus rings */
+  *:focus-visible {
+    outline: 2px solid #ffca45 !important;
+    outline-offset: 2px !important;
   }
 
   /* Custom scrollbars */

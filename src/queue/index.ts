@@ -1,6 +1,6 @@
 import { config } from "../config.ts";
 import { createLogger } from "../logger.ts";
-import { InProcessTaskQueue } from "./backends/in-process.ts";
+import { SqliteTaskQueue } from "./backends/sqlite.ts";
 import type { TaskQueue, QueuedTaskPayload, BackgroundTask } from "./types.ts";
 import { injectTraceContext } from "../lib/telemetry/tracer.js";
 
@@ -11,10 +11,10 @@ let queueInstance: TaskQueue | null = null;
 export function getTaskQueue(): TaskQueue {
     if (!queueInstance) {
         if (config.QUEUE_ENABLED && config.REDIS_URL) {
-            log.warn("⚠️ BullMQ backend not yet implemented — REDIS_URL is configured but Redis-backed queue is unavailable. Falling back to in-process queue. Tasks will NOT survive process restarts.");
+            log.warn("⚠️ BullMQ backend not yet implemented — REDIS_URL is configured but Redis-backed queue is unavailable. Falling back to SQLite queue.");
         }
-        log.info(`Using in-process queue backend (QUEUE_ENABLED=${config.QUEUE_ENABLED})`);
-        queueInstance = new InProcessTaskQueue();
+        log.info(`Using SQLite queue backend (QUEUE_ENABLED=${config.QUEUE_ENABLED})`);
+        queueInstance = new SqliteTaskQueue();
     }
     return queueInstance;
 }

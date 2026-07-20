@@ -34,6 +34,7 @@ describe("OpenCodeZenProvider", () => {
     expect(mockConstructor).toHaveBeenCalledWith({
       apiKey: "test-key",
       baseURL: "https://opencode.ai/zen/v1",
+      timeout: 120000,
     });
   });
 
@@ -42,6 +43,7 @@ describe("OpenCodeZenProvider", () => {
     expect(mockConstructor).toHaveBeenCalledWith({
       apiKey: "test-key",
       baseURL: "https://custom.url",
+      timeout: 120000,
     });
   });
 
@@ -73,11 +75,11 @@ describe("OpenCodeZenProvider", () => {
         totalTokens: 15,
       },
     });
-    expect(mockCreate).toHaveBeenCalledWith({
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
       model: "minimax-m2.5-free",
       max_tokens: 2000,
       messages: [{ role: "user", content: "Hello!" }],
-    });
+    }), expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it("should support tool definitions", async () => {
@@ -113,13 +115,13 @@ describe("OpenCodeZenProvider", () => {
     expect(result.stopReason).toBe("tool_calls");
     expect(result.toolCalls).toHaveLength(1);
     expect(result.toolCalls[0]?.function.name).toBe("get_weather");
-    expect(mockCreate).toHaveBeenCalledWith({
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
       model: "minimax-m2.5-free",
       max_tokens: 2000,
       tools: [tool],
       tool_choice: "auto",
       messages: [{ role: "user", content: "Weather in NY?" }],
-    });
+    }), expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it("should map thought in history to reasoning_content and extract reasoning_content from response", async () => {
@@ -146,7 +148,7 @@ describe("OpenCodeZenProvider", () => {
     );
 
     expect(result.thought).toBe("Thinking...");
-    expect(mockCreate).toHaveBeenCalledWith({
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
       model: "minimax-m2.5-free",
       max_tokens: 2000,
       messages: [
@@ -154,6 +156,6 @@ describe("OpenCodeZenProvider", () => {
         { role: "assistant", content: "Hello", reasoning_content: "Thinking history" },
         { role: "user", content: "How are you?" }
       ],
-    });
+    }), expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 });

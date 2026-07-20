@@ -2,8 +2,9 @@ import type { Tool } from './index.js';
 import { chromium } from "playwright";
 import type { Browser, BrowserContext, Page } from "playwright";
 import { createLogger } from "../../logger.ts";
-import { AIR_GAPPED } from "../../config.ts";
+import { config } from "../../config.ts";
 import { checkAirGapTool } from "../../airgap/enforcement.ts";
+import { validateUrl } from "../../security/url-validator.ts";
 
 const logger = createLogger("browser");
 
@@ -98,11 +99,24 @@ class BrowserSessionManager {
 const sessionManager = new BrowserSessionManager();
 
 // Check idle timeout every minute
-setInterval(() => {
-  sessionManager.checkIdleTimeout().catch((err) => {
-    logger.error("Error checking browser idle timeout", { error: err });
-  });
-}, 60 * 1000);
+let browserIdleTimer: ReturnType<typeof setInterval> | null = null;
+
+function startBrowserIdleCheck(): void {
+  browserIdleTimer = setInterval(() => {
+    sessionManager.checkIdleTimeout().catch((err) => {
+      logger.error("Error checking browser idle timeout", { error: err });
+    });
+  }, 60 * 1000);
+}
+
+export function stopBrowserIdleCheck(): void {
+  if (browserIdleTimer) {
+    clearInterval(browserIdleTimer);
+    browserIdleTimer = null;
+  }
+}
+
+startBrowserIdleCheck();
 
 /**
  * Navigate to a URL
@@ -130,17 +144,16 @@ const browserNavigate: Tool = {
   execute: async ({ url, waitUntil = "load" }: { url: string; waitUntil?: string }) => {
     try {
       // Check air-gap mode
-      if (AIR_GAPPED) {
+      if (config.AIR_GAPPED) {
         checkAirGapTool('browser_navigate');
       }
 
       // Validate URL
-      try {
-        new URL(url);
-      } catch {
+      const validated = validateUrl(url);
+      if (!validated.valid) {
         return JSON.stringify({
           success: false,
-          error: "Invalid URL format. Must include protocol (e.g., https://example.com)",
+          error: validated.error,
         });
       }
 
@@ -201,21 +214,27 @@ const browserScreenshot: Tool = {
   execute: async ({ url, fullPage = false, selector }: { url?: string; fullPage?: boolean; selector?: string }) => {
     try {
       // Check air-gap mode
-      if (AIR_GAPPED) {
+      if (config.AIR_GAPPED) {
         checkAirGapTool('browser_screenshot');
       }
 
       const page = await sessionManager.getPage();
 
-      // Navigate if URL provided
+      // Navigate if URL provided - screenshot
       if (url) {
+        const validated = validateUrl(url);
+        if (!validated.valid) {
+          return JSON.stringify({
+            success: false,
+            error: validated.error,
+          });
+        }
         try {
-          new URL(url);
           await page.goto(url, { waitUntil: "load", timeout: 30000 });
         } catch {
           return JSON.stringify({
             success: false,
-            error: "Invalid URL format",
+            error: "Failed to navigate to URL",
           });
         }
       }
@@ -287,7 +306,7 @@ const browserClick: Tool = {
   execute: async ({ selector, waitForNavigation = false }: { selector: string; waitForNavigation?: boolean }) => {
     try {
       // Check air-gap mode
-      if (AIR_GAPPED) {
+      if (config.AIR_GAPPED) {
         checkAirGapTool('browser_click');
       }
 
@@ -365,7 +384,7 @@ const browserType: Tool = {
   execute: async ({ selector, text, pressEnter = false }: { selector: string; text: string; pressEnter?: boolean }) => {
     try {
       // Check air-gap mode
-      if (AIR_GAPPED) {
+      if (config.AIR_GAPPED) {
         checkAirGapTool('browser_type');
       }
 
@@ -456,21 +475,27 @@ const browserExtract: Tool = {
   execute: async ({ url, selector, extract = "text", attribute, multiple = false }: { url?: string; selector: string; extract?: string; attribute?: string; multiple?: boolean }) => {
     try {
       // Check air-gap mode
-      if (AIR_GAPPED) {
+      if (config.AIR_GAPPED) {
         checkAirGapTool('browser_extract');
       }
 
       const page = await sessionManager.getPage();
 
-      // Navigate if URL provided
+      // Navigate if URL provided - extract
       if (url) {
+        const validated = validateUrl(url);
+        if (!validated.valid) {
+          return JSON.stringify({
+            success: false,
+            error: validated.error,
+          });
+        }
         try {
-          new URL(url);
           await page.goto(url, { waitUntil: "load", timeout: 30000 });
         } catch {
           return JSON.stringify({
             success: false,
-            error: "Invalid URL format",
+            error: "Failed to navigate to URL",
           });
         }
       }

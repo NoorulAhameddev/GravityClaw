@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions.js";
+import type { ChatCompletionMessageParam, ChatCompletionTool, ChatCompletionCreateParamsNonStreaming } from "openai/resources/chat/completions.js";
 import type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
 import { createLogger } from "../logger.ts";
 
@@ -18,6 +18,7 @@ export class NvidiaProvider implements LLMProvider {
     this.client = new OpenAI({
       apiKey,
       baseURL: "https://integrate.api.nvidia.com/v1",
+      timeout: 120000,
     });
     this.defaultModel = defaultModel;
     log.info(`NVIDIA provider initialized with model: ${defaultModel}`);
@@ -34,9 +35,15 @@ export class NvidiaProvider implements LLMProvider {
 
     log.debug(`Calling NVIDIA — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`);
 
-    const params: any = hasTools
-      ? { model, max_tokens: maxTokens, tools: toolDefinitions, tool_choice: "auto", messages }
-      : { model, max_tokens: maxTokens, messages };
+    const params: ChatCompletionCreateParamsNonStreaming = {
+      model,
+      messages,
+      max_tokens: maxTokens,
+    };
+    if (hasTools) {
+      params.tools = toolDefinitions;
+      params.tool_choice = "auto";
+    }
 
     // Add temperature/top_p if provided
     if (options?.temperature !== undefined) {
@@ -47,7 +54,7 @@ export class NvidiaProvider implements LLMProvider {
     }
 
     try {
-      const response = await this.client.chat.completions.create(params);
+      const response = await this.client.chat.completions.create(params, { signal: AbortSignal.timeout(120000) });
       const choice = response.choices[0];
       if (!choice) throw new Error("NVIDIA returned no choices");
 
@@ -99,5 +106,9 @@ export class NvidiaProvider implements LLMProvider {
       return sum + content.length;
     }, 0);
     return Math.ceil(totalChars / 4);
+  }
+
+  destroy(): void {
+    this.client = null as unknown as OpenAI;
   }
 }

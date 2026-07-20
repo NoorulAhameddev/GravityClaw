@@ -6,6 +6,8 @@
 import { createLogger } from "../../logger.ts";
 import { gunzipSync } from "node:zlib";
 import { writeFileSync } from "node:fs";
+import { config } from "../../config.ts";
+import { getActualPort } from "../../lib/runtime.ts";
 
 const log = createLogger("export-utils");
 
@@ -47,7 +49,7 @@ export function getDownloadUrl(exportResult: ExportResult): URL | null {
       )}&data=${encodeURIComponent(exportResult.data.base64)}&format=${
         exportResult.data.format
       }`,
-      `http://localhost:${process.env.PORT || 3000}`
+      `http://localhost:${getActualPort()}`
     );
 
     return url;

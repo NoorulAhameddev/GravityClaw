@@ -1,3 +1,4 @@
+import { config } from "./config.ts";
 import { db } from "./db.ts";
 import { createLogger } from "./logger.ts";
 import { calculateCost, formatCost, getModelPricing } from "./llm/pricing.ts";
@@ -293,5 +294,49 @@ export function formatPeriodUsage(sessionId?: string): string {
   output += `├─ Tokens: ${periods.allTime.totalTokens.toLocaleString()}\n`;
   output += `└─ Cost: ${formatCost(periods.allTime.totalCost)}\n`;
   
+  
   return output;
+}
+
+export interface DailyLimitStatus {
+  allowed: boolean;
+  reason?: string;
+}
+
+/**
+ * Check if the session has exceeded its daily token or credit limit
+ */
+export function checkSessionDailyLimits(sessionId: string): DailyLimitStatus {
+  // If no limits are configured, always allow
+  if (config.LLM_DAILY_CREDIT_LIMIT === undefined && config.LLM_DAILY_TOKEN_LIMIT === undefined) {
+    return { allowed: true };
+  }
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  // Calculate today's usage
+  const todayStats = getUsageStats(sessionId, todayStart);
+  
+  // Check credit limit
+  if (config.LLM_DAILY_CREDIT_LIMIT !== undefined) {
+    if (todayStats.totalCost >= config.LLM_DAILY_CREDIT_LIMIT) {
+      return {
+        allowed: false,
+        reason: `Exceeded daily credit limit of ${formatCost(config.LLM_DAILY_CREDIT_LIMIT)} (current usage: ${formatCost(todayStats.totalCost)})`
+      };
+    }
+  }
+  
+  // Check token limit
+  if (config.LLM_DAILY_TOKEN_LIMIT !== undefined) {
+    if (todayStats.totalTokens >= config.LLM_DAILY_TOKEN_LIMIT) {
+      return {
+        allowed: false,
+        reason: `Exceeded daily token limit of ${config.LLM_DAILY_TOKEN_LIMIT.toLocaleString()} (current usage: ${todayStats.totalTokens.toLocaleString()})`
+      };
+    }
+  }
+  
+  return { allowed: true };
 }

@@ -40,6 +40,10 @@ export class BackupManager {
         }
     }
 
+    getBackupDir(): string {
+        return this.backupDir;
+    }
+
     /**
      * Create a backup of the database
      */

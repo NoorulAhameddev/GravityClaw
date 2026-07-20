@@ -67,9 +67,21 @@ export function getGroupSessionId(platform: string, groupId: string): string {
  * Get group settings
  */
 export function getGroupSettings(platform: string, groupId: string): GroupSettings {
+  interface GroupSettingsRow {
+    platform: string;
+    group_id: string;
+    bot_username: string | null;
+    voice_mode: string | null;
+    thinking_level: string | null;
+    tts_provider: string | null;
+    enabled_tools: string | null;
+    disabled_tools: string | null;
+    settings_json: string | null;
+  }
+
   const row = db
     .prepare("SELECT * FROM group_settings WHERE platform = ? AND group_id = ?")
-    .get(platform, groupId) as any;
+    .get(platform, groupId) as GroupSettingsRow | undefined;
 
   if (!row) {
     // Return defaults
@@ -88,10 +100,10 @@ export function getGroupSettings(platform: string, groupId: string): GroupSettin
   return {
     platform: row.platform,
     groupId: row.group_id,
-    botUsername: row.bot_username,
-    voiceMode: row.voice_mode || "off",
-    thinkingLevel: row.thinking_level || "medium",
-    ttsProvider: row.tts_provider || "openai",
+    ...(row.bot_username ? { botUsername: row.bot_username } : {}),
+    voiceMode: (row.voice_mode || "off") as GroupSettings["voiceMode"],
+    thinkingLevel: (row.thinking_level || "medium") as GroupSettings["thinkingLevel"],
+    ttsProvider: (row.tts_provider || "openai") as GroupSettings["ttsProvider"],
     enabledTools: JSON.parse(row.enabled_tools || "[]"),
     disabledTools: JSON.parse(row.disabled_tools || "[]"),
     settingsJson: JSON.parse(row.settings_json || "{}"),

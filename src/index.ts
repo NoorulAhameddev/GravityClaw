@@ -3,22 +3,19 @@ import "./config.ts"; // validate env first — exits if misconfigured
 import { enforceAirGap } from "./airgap/enforcement.ts";
 import { registry, registerBuiltInTools } from "./tools/index.ts";
 import { bootstrap } from "./bootstrap.ts";
-import { initializeBackupSystem, stopBackupScheduler, DEFAULT_BACKUP_CONFIG } from "./backup/index.ts";
+import { initializeBackupSystem, stopBackupScheduler, createBackup, verifyBackup, DEFAULT_BACKUP_CONFIG } from "./backup/index.ts";
 import { EVENING_RECAP_PROMPT, buildEveningRecap } from "./recap/index.ts";
 import { startDailyRecommendations } from "./recommendations/index.ts";
 import { startAutoDreamScheduler } from "./memory/autoDream.ts";
 import { runAgent } from "./agent.ts";
+import { destroyProvider } from "./llm/index.ts";
 import { ChannelRouter } from "./channels/router.ts";
+import type { Channel } from "./types/channels.js";
 import { TelegramChannel } from "./channels/telegram.ts";
-import { WhatsAppChannel } from "./channels/whatsapp.ts";
 import { WebChatChannel } from "./channels/webchat.ts";
-import { DiscordChannel } from "./channels/discord.ts";
-import { SlackChannel } from "./channels/slack.ts";
-import { SignalChannel } from "./channels/signal.ts";
-import { MobileChannel } from "./channels/mobile.ts";
-import { mobileGateway } from "./gateway/mobile.ts";
 import { createLogger } from "./logger.ts";
 import { db } from "./db.ts";
+import { stopServer } from "./server.ts";
 import path from "path";
 import { fileURLToPath } from "url";
 import { validateSecurityConfiguration } from "./security/startup-validation.ts";
@@ -29,16 +26,15 @@ import {
 } from "./performance/index.ts";
 import { initializePlugins, pluginRegistry } from "./plugins/registry.ts";
 import { mcpClient } from "./mcp/index.ts";
+import { destroyAllPools } from "./mcp/pool.ts";
 import { skillsManager } from "./skills/index.ts";
 import { registerTaskExecutionHandler } from "./scheduler/index.ts";
 import { isHeartbeatTask, isHeartbeatEnabledForSession, markHeartbeatRun, isHeartbeatResponseNoteworthy } from "./heartbeat/index.ts";
-import { withSpanAsync, injectTraceContext } from "./lib/telemetry/tracer.js";
 import { telemetryLogger } from "./lib/telemetry/logger.js";
-import { context } from "@opentelemetry/api";
-import { recordWorkerJob } from "./lib/telemetry/metrics.js";
-import { computeBackoff, getTaskQueue, getTask, isRetryableError } from "./queue/index.ts";
-import { setWhatsAppChannel } from "./server.ts";
+import { getTaskQueue } from "./queue/index.ts";
+import { startBackgroundWorker } from "./queue/worker.ts";
 import { config } from "./config.ts";
+import { closePgPool } from "./db-pg.ts";
 import { runWithConcurrencyLimit } from "./concurrency.ts";
 
 // Initialize OpenTelemetry early (before any other imports that might be instrumented)
@@ -50,8 +46,22 @@ const dbPath = path.join(__dirname, "../gravity.db");
 
 const log = createLogger("main");
 
+import * as Sentry from "@sentry/node";
+import { nodeProfilingIntegration } from "@sentry/profiling-node";
+
 // SECTION 8.2 — Global Error Handlers
+if (config.SENTRY_DSN) {
+    Sentry.init({
+        dsn: config.SENTRY_DSN,
+        integrations: [nodeProfilingIntegration()],
+        tracesSampleRate: 0.1,
+        profilesSampleRate: 0.1,
+        environment: process.env.NODE_ENV || "development",
+    });
+}
+
 process.on("uncaughtException", (err: Error) => {
+    if (config.SENTRY_DSN) Sentry.captureException(err);
     log.error("UNCAUGHT EXCEPTION", {
         message: err.message,
         stack: err.stack,
@@ -66,6 +76,7 @@ process.on("uncaughtException", (err: Error) => {
 });
 
 process.on("unhandledRejection", (reason: unknown, promise: Promise<unknown>) => {
+    if (config.SENTRY_DSN) Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason)));
     const reasonMessage = reason instanceof Error ? reason.message : String(reason);
     const reasonStack = reason instanceof Error ? reason.stack : undefined;
     log.error("UNHANDLED REJECTION", {
@@ -98,7 +109,7 @@ async function main() {
         await enforceAirGap();
     } catch (err) {
         log.error("Air-gap enforcement failed", err);
-        process.exit(1);
+        throw err;
     }
 
     // Validate security configuration
@@ -106,13 +117,22 @@ async function main() {
         validateSecurityConfiguration();
     } catch (err) {
         log.error("Security validation failed", err);
-        process.exit(1);
+        throw err;
     }
 
-    // Warn about API_KEY
+    // Enforce API_KEY in all environments
     if (!config.API_KEY) {
-        log.warn('⚠️  API_KEY not set - API endpoints are UNPROTECTED');
-        log.warn('   Generate one: openssl rand -hex 32');
+        const isDev = process.env.NODE_ENV !== "production";
+        const msg = isDev
+            ? '⚠️  API_KEY not set - API endpoints are UNPROTECTED. Generate one: openssl rand -hex 32'
+            : '❌ API_KEY is required in production. Generate one: openssl rand -hex 32';
+        
+        if (isDev) {
+            log.warn(msg);
+        } else {
+            log.error(msg);
+            throw new Error(msg);
+        }
     } else if (config.API_KEY.length < 32) {
         log.warn('⚠️  API_KEY is weak (< 32 chars) - use: openssl rand -hex 32');
     }
@@ -152,76 +172,12 @@ async function main() {
         // Do not exit - backup is optional
     }
 
-    // Initialize background task queue if enabled
+    // Initialize background worker
     if (config.QUEUE_ENABLED) {
+        log.info("Initializing task queue worker...");
         try {
-            const queue = getTaskQueue();
-            if (queue.startWorker) {
-                queue.startWorker(async (task) => {
-                    return await context.with(context.active(), async () => {
-                        return await withSpanAsync("worker.job", async (span) => {
-                            span.setAttribute("job.id", task.id);
-                            span.setAttribute("job.tool", task.toolName);
-
-                            try {
-                                telemetryLogger.info("worker started", { job_id: task.id, tool: task.toolName });
-                                log.info(`Processing queued task: ${task.id} - ${task.toolName}`);
-                                let result: unknown;
-                                if (task.toolName === "__run_agent") {
-                                    const message = String(task.input["message"] ?? "");
-                                    if (!message.trim()) {
-                                        throw new Error("Queued agent task missing message");
-                                    }
-                                    result = await runAgent({
-                                        message,
-                                        sessionId: task.sessionId,
-                                        userId: task.userId,
-                                        platform: task.platform,
-                                        groupId: task.groupId,
-                                        isGroup: task.isGroup,
-                                        dependencies: container,
-                                    });
-                                } else {
-                                    const execution = await container.toolExecutor.execute({
-                                        toolName: task.toolName,
-                                        input: task.input,
-                                        context: {
-                                            sessionId: task.sessionId,
-                                            userId: task.userId,
-                                            platform: task.platform,
-                                            groupId: task.groupId,
-                                            isGroup: task.isGroup,
-                                            source: "queue",
-                                        },
-                                    });
-                                    if (!execution.success) {
-                                        throw new Error(`${execution.error?.type ?? "execution"}: ${execution.error?.message ?? "Tool execution failed"}`);
-                                    }
-                                    result = execution.result;
-                                }
-                                await queue.markSucceeded(task.id, result);
-                                span.setAttribute("job.success", true);
-                                recordWorkerJob("default", task.toolName, true);
-                            } catch (err) {
-                                span.setAttribute("job.success", false);
-                                span.recordException(err as Error);
-                                const message = err instanceof Error ? err.message : String(err);
-                                if (task.attempt < task.maxRetries && isRetryableError(err)) {
-                                    const delay = computeBackoff(task.attempt);
-                                    await queue.retry(task.id, delay);
-                                    telemetryLogger.warn("worker retry scheduled", { job_id: task.id, delay_ms: delay, error: message });
-                                } else {
-                                    await queue.markFailed(task.id, message);
-                                    telemetryLogger.error("worker failed", { job_id: task.id, error: message });
-                                }
-                                recordWorkerJob("default", task.toolName, false);
-                                throw err;
-                            }
-                        });
-                    });
-                }, config.QUEUE_CONCURRENCY);
-                log.info("✅ Background task queue initialized");
-            }
+            startBackgroundWorker(container);
+            log.info("✅ Background task queue initialized");
         } catch (err) {
             log.error("⚠️  Warning: Queue initialization failed", err);
         }
@@ -237,27 +193,18 @@ async function main() {
 
     const router = new ChannelRouter();
     
-    // Dynamic channel registration swarm
-    const channelClasses = [
+    // Register only Telegram and WebChat channels
+    const channelClasses: Array<{ create(): Channel | null; name: string }> = [
         TelegramChannel,
-        WhatsAppChannel,
         WebChatChannel,
-        DiscordChannel,
-        SlackChannel,
-        SignalChannel,
-        MobileChannel
     ];
 
     for (const ChannelClass of channelClasses) {
         try {
-            const instance = (ChannelClass as any).create();
+            const instance = ChannelClass.create();
             if (instance) {
                 router.register(instance);
                 log.info(`✅ Registered channel: ${instance.id}`);
-                // Special case for WhatsApp needed for the server to serve QR code
-                if (instance.id === "whatsapp") {
-                    setWhatsAppChannel(instance);
-                }
             }
         } catch (err: any) {
             log.warn(`⚠️ Failed to register channel ${ChannelClass.name}:`, err);
@@ -340,12 +287,52 @@ async function main() {
 
     // Graceful shutdown
     const shutdown = async (signal: string) => {
-        log.info(`${signal} received — stopping router…`);
+        log.info(`${signal} received — stopping services…`);
         recommendationsRuntime.stop();
         stopBackupScheduler();
+
+        try {
+            const backupFilename = await createBackup(db as unknown as Database.Database, dbPath);
+            const backupPath = path.join(DEFAULT_BACKUP_CONFIG.backupDir, backupFilename);
+            const result = verifyBackup(backupPath);
+            if (result.valid) {
+                log.info(`Final backup verified: ${backupFilename} (${result.size} bytes)`);
+            } else {
+                log.warn(`Final backup verification issues: ${result.errors.join("; ")}`);
+            }
+        } catch (err) {
+            log.error("Failed to create or verify final backup", err);
+        }
+        
+        try {
+            await stopServer();
+        } catch (err) {
+            log.error("Error stopping server", err);
+        }
+        
+        if (config.QUEUE_ENABLED) {
+            getTaskQueue().stopWorker?.();
+        }
+        
         await router.stopAll();
+        destroyProvider();
         await mcpClient.shutdown();
+        await destroyAllPools();
         await skillsManager.shutdown();
+        
+        try {
+            await closePgPool();
+        } catch (err) {
+            log.error("Error closing PostgreSQL pool", err);
+        }
+
+        try {
+            db.close?.();
+            log.info("Database connection closed");
+        } catch (err) {
+            log.error("Error closing database", err);
+        }
+        
         process.exit(0);
     };
 

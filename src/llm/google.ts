@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
-import type { Content, Part, Tool as GeminiTool, FunctionDeclaration } from "@google/generative-ai";
+import type { Content, Part, Tool as GeminiTool, FunctionDeclaration, ModelParams, GenerateContentRequest } from "@google/generative-ai";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions.js";
 import type OpenAI from "openai";
 import type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
@@ -35,10 +35,12 @@ export class GoogleProvider implements LLMProvider {
     const { systemInstruction, contents } = this.convertMessages(messages);
     const tools = this.convertTools(toolDefinitions);
 
-    const modelParams: any = {
+    const modelParams: ModelParams = {
       model: modelName,
-      systemInstruction,
     };
+    if (systemInstruction !== undefined) {
+      modelParams.systemInstruction = systemInstruction;
+    }
 
     if (tools.length > 0) {
       modelParams.tools = tools;
@@ -46,7 +48,7 @@ export class GoogleProvider implements LLMProvider {
 
     const model: GenerativeModel = this.client.getGenerativeModel(modelParams);
 
-    const generationConfig: any = {
+    const generationConfig: GenerateContentRequest["generationConfig"] = {
       maxOutputTokens: options?.maxTokens ?? 2000,
     };
     
@@ -60,7 +62,7 @@ export class GoogleProvider implements LLMProvider {
     const result = await model.generateContent({
       contents,
       generationConfig,
-    });
+    }, { signal: AbortSignal.timeout(120000) });
 
     const response = result.response;
     const candidate = response.candidates?.[0];
@@ -76,15 +78,16 @@ export class GoogleProvider implements LLMProvider {
 
     for (const part of candidate.content.parts) {
       // Capture signature if present in any part (often bundled with functionCall)
-      const partSignature = (part as any).thoughtSignature || (part as any).thought_signature;
+      const partRecord = part as unknown as Record<string, unknown>;
+      const partSignature = partRecord.thoughtSignature || partRecord.thought_signature;
       if (partSignature) {
-        thoughtSignature = partSignature;
+        thoughtSignature = String(partSignature);
       }
 
       if (part.text) {
         text += part.text;
-      } else if ((part as any).thought) {
-        thought = (part as any).thought;
+      } else if (partRecord.thought) {
+        thought = String(partRecord.thought);
       } else if (part.functionCall) {
         toolCalls.push({
           id: `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -128,7 +131,7 @@ export class GoogleProvider implements LLMProvider {
     let systemInstruction: string | undefined;
     const contents: Content[] = [];
 
-    for (const msg of (messages as any[])) {
+    for (const msg of (messages as Array<ChatCompletionMessageParam & { thought?: string; thoughtSignature?: string; name?: string }>)) {
       if (msg.role === "system") {
         systemInstruction = typeof msg.content === "string" ? msg.content : "";
       } else if (msg.role === "user") {
@@ -201,5 +204,9 @@ export class GoogleProvider implements LLMProvider {
     }));
 
     return [{ functionDeclarations }];
+  }
+
+  destroy(): void {
+    (this as any).client = null;
   }
 }

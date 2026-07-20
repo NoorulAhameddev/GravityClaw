@@ -12,7 +12,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { createLogger } from '../logger.ts';
-import { UNRESTRICTED_ACCESS } from '../config.ts';
+import { config } from '../config.ts';
+
+const UNRESTRICTED_ACCESS = config.UNRESTRICTED_ACCESS;
 
 const logger = createLogger('path-validator');
 

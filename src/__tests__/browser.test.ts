@@ -155,7 +155,7 @@ describe("Browser Automation Tools", () => {
       const parsed = JSON.parse(result);
 
       expect(parsed.success).toBe(false);
-      expect(parsed.error).toContain("protocol");
+      expect(parsed.error).toContain("Invalid URL");
     });
 
     it("should handle navigation errors", async () => {

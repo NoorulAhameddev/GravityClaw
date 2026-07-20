@@ -19,11 +19,13 @@ describe("Session Settings", () => {
   beforeEach(() => {
     // Clean up test sessions before each test
     db.prepare("DELETE FROM memory WHERE session_id IN (?, ?)").run(testSessionId1, testSessionId2);
+    db.prepare("DELETE FROM session_settings WHERE session_id IN (?, ?)").run(testSessionId1, testSessionId2);
   });
 
   afterEach(() => {
     // Clean up test sessions after each test
     db.prepare("DELETE FROM memory WHERE session_id IN (?, ?)").run(testSessionId1, testSessionId2);
+    db.prepare("DELETE FROM session_settings WHERE session_id IN (?, ?)").run(testSessionId1, testSessionId2);
   });
 
   describe("getSessionSettings", () => {
@@ -33,17 +35,15 @@ describe("Session Settings", () => {
     });
 
     it("should return stored settings", () => {
-      // Create a message with settings
       const testSettings: SessionSettings = {
         provider: "anthropic",
         model: "claude-3-5-sonnet",
       };
-      
-      db.prepare("INSERT INTO memory (session_id, message_json, settings) VALUES (?, ?, ?)")
-        .run(testSessionId1, JSON.stringify({ role: "user", content: "test" }), JSON.stringify(testSettings));
+
+      setSessionSettings(testSessionId1, testSettings);
 
       const settings = getSessionSettings(testSessionId1);
-      expect(settings).toEqual(testSettings);
+      expect(settings).toMatchObject(testSettings);
     });
   });
 
@@ -62,21 +62,17 @@ describe("Session Settings", () => {
     });
 
     it("should update existing settings", () => {
-      // Create initial message
-      db.prepare("INSERT INTO memory (session_id, message_json, settings) VALUES (?, ?, ?)")
-        .run(testSessionId1, JSON.stringify({ role: "user", content: "test" }), JSON.stringify({ provider: "openai" }));
+      setSessionSettings(testSessionId1, { provider: "openai" });
 
-      // Update settings
       const newSettings: SessionSettings = {
         provider: "anthropic",
         model: "claude-3-5-sonnet",
       };
-      
+
       setSessionSettings(testSessionId1, newSettings);
 
-      // Verify all rows were updated
       const settings = getSessionSettings(testSessionId1);
-      expect(settings).toEqual(newSettings);
+      expect(settings).toMatchObject(newSettings);
     });
 
     it("should update all messages in session", () => {
@@ -89,14 +85,8 @@ describe("Session Settings", () => {
       const newSettings: SessionSettings = { provider: "groq" };
       setSessionSettings(testSessionId1, newSettings);
 
-      // Check all rows have updated settings
-      const rows = db.prepare("SELECT settings FROM memory WHERE session_id = ?")
-        .all(testSessionId1) as { settings: string }[];
-      
-      expect(rows.length).toBe(2);
-      rows.forEach(row => {
-        expect(JSON.parse(row.settings)).toEqual(newSettings);
-      });
+      const settings = getSessionSettings(testSessionId1);
+      expect(settings).toMatchObject(newSettings);
     });
   });
 
@@ -241,16 +231,11 @@ describe("Session Settings", () => {
     });
 
     it("should not affect other sessions when updating", () => {
-      // Create messages for both sessions
-      db.prepare("INSERT INTO memory (session_id, message_json, settings) VALUES (?, ?, ?)")
-        .run(testSessionId1, JSON.stringify({ role: "user", content: "test1" }), JSON.stringify({ provider: "openai" }));
-      db.prepare("INSERT INTO memory (session_id, message_json, settings) VALUES (?, ?, ?)")
-        .run(testSessionId2, JSON.stringify({ role: "user", content: "test2" }), JSON.stringify({ provider: "anthropic" }));
+      setSessionSettings(testSessionId1, { provider: "openai" });
+      setSessionSettings(testSessionId2, { provider: "anthropic" });
 
-      // Update session 1
       updateSessionSetting(testSessionId1, "model", "gpt-4");
 
-      // Verify session 2 unchanged
       const settings2 = getSessionSettings(testSessionId2);
       expect(settings2.provider).toBe("anthropic");
       expect(settings2.model).toBeUndefined();

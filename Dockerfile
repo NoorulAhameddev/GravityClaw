@@ -1,65 +1,30 @@
-# Use official Node.js 20 image as base
-FROM node:20-slim
+# Build stage
+FROM node:20-slim AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
 
-# Install system dependencies for better-sqlite3 and playwright
-RUN apt-get update && apt-get install -y \
-    python3 \
-    make \
-    g++ \
-    curl \
-    libnss3 \
-    libnspr4 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    libpangocairo-1.0-0 \
-    libpango-1.0-0 \
-    libcairo2 \
-    libxshmfence1 \
+# Runtime stage
+FROM node:20-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tini \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
 
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm install --production
-
-# Install Playwright browsers (only for automation tools)
-RUN npx playwright install --with-deps chromium
-
-# Copy project files
-COPY . .
-
-# Set environment to production
-ENV NODE_ENV=production
-ENV NODE_OPTIONS="--max-old-space-size=512"
-
-# Create non-root user for security
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup && \
-    chown -R appuser:appgroup /app
-
-# Switch to non-root user
+# Create non-root user
+RUN groupadd -r appgroup && useradd -r -g appgroup -d /app -s /sbin/nologin appuser
+RUN chown -R appuser:appgroup /app
 USER appuser
 
-# Expose ports (3000 for webhooks/canvas, etc.)
 EXPOSE 3000
-
-# Health check - verify API responds
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:3000/api/health || exit 1
+    CMD node -e "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-# Start command
-CMD ["npm", "start"]
+ENTRYPOINT ["tini", "--"]
+CMD ["node", "--max-old-space-size=512", "dist/index.js"]

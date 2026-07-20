@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as enforcement from "../airgap/enforcement.js";
 import { localTextToSpeech, getLocalTTSBackend } from "../voice/local-tts.js";
 import { localTranscribe } from "../voice/local-transcription.js";
-import * as config from "../config.js";
+import { config } from "../config.js";
 
 describe("Air-Gapped Mode", () => {
   describe("Config AIR_GAPPED Setting", () => {

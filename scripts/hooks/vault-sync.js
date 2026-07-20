@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 
-const DEFAULT_VAULT_ROOT = "C:\\Users\\Noorul_Ahamed\\OneDrive\\Documents\\Zed";
+const DEFAULT_VAULT_ROOT = "D:\\Projects\\Zed";
 const DEFAULT_PROJECT_SLUG = "gravityclaw";
 const DEFAULT_PROJECT_NAME = "GravityClaw";
 

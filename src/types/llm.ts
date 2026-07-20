@@ -36,6 +36,8 @@ export interface LLMResponse {
   };
 }
 
+export type StreamCallback = (token: string, done: boolean) => void;
+
 export interface LLMProvider {
   readonly name: string;
   chat(
@@ -43,8 +45,14 @@ export interface LLMProvider {
     toolDefinitions: ChatCompletionTool[],
     options?: LLMChatOptions
   ): Promise<LLMResponse>;
+  chatStream?(
+    messages: ChatCompletionMessageParam[],
+    toolDefinitions: ChatCompletionTool[],
+    options?: LLMChatOptions & { onToken?: (token: string, done: boolean) => void }
+  ): Promise<LLMResponse>;
   listModels?(): Promise<string[]>;
   countTokens?(messages: ChatCompletionMessageParam[]): number;
+  destroy?(): void;
 }
 
 export interface LLMChatOptions {

@@ -96,7 +96,7 @@ export async function applyMicrocompact(
         const role = message.role;
 
         if (role === "tool") {
-            const toolName = (message as any).toolName ?? (message as any).name ?? "unknown";
+            const toolName = message.name ?? "unknown";
             if (!shouldCompactTool(toolName)) {
                 resultMessages.push(message);
                 continue;

@@ -1,7 +1,10 @@
 import * as cron from "node-cron";
+import path from "path";
 import { BackupManager } from "./backup.ts";
 import { createLogger } from "../logger.ts";
 import Database from "better-sqlite3";
+import { verifyBackup } from "./verify.ts";
+import type { VerificationResult } from "./verify.ts";
 
 const log = createLogger("backup:scheduler");
 
@@ -105,6 +108,15 @@ export class BackupScheduler {
             });
 
             log.info(`Backup completed: ${filename}`);
+
+            // Verify backup integrity
+            const backupPath = path.join(this.backupManager.getBackupDir(), filename);
+            const verification: VerificationResult = verifyBackup(backupPath);
+            if (verification.valid) {
+                log.info(`Backup verification PASSED for ${filename}: ${verification.size} bytes`);
+            } else {
+                log.error(`Backup verification FAILED for ${filename}: ${verification.errors.join("; ")}`);
+            }
 
             // Cleanup old backups
             const deletedCount = this.backupManager.cleanupOldBackups(retentionDays);

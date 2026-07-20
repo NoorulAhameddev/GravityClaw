@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { InProcessTaskQueue } from "../queue/backends/in-process.ts";
+import { SqliteTaskQueue } from "../queue/backends/sqlite.ts";
 
 describe("queue lifecycle", () => {
   it("claims queued tasks once and persists completion", async () => {
-    const queue = new InProcessTaskQueue();
+    const queue = new SqliteTaskQueue();
     const sessionId = `queue-test-${Date.now()}-${Math.random()}`;
     const task = await queue.enqueueToolTask({
       taskId: "queued-tool",

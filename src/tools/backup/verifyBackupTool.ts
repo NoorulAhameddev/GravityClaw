@@ -1,5 +1,5 @@
 import type { Tool } from "../../types/tools.js";
-import { verifyBackup, listBackups } from "../../backup/index.ts";
+import { verifyBackupByName, listBackups } from "../../backup/index.ts";
 import { createLogger } from "../../logger.ts";
 
 const log = createLogger("tool:verify-backup");
@@ -39,7 +39,7 @@ export const verifyBackupTool: Tool = {
             }
 
             // Verify integrity
-            const result = verifyBackup(filename);
+            const result = verifyBackupByName(filename);
 
             return JSON.stringify({
                 success: result.valid,

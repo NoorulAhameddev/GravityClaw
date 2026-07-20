@@ -2,17 +2,27 @@ import "dotenv/config";
 import { z } from "zod";
 
 const envSchema = z.object({
+    SENTRY_DSN: z.string().optional(),
     TELEGRAM_BOT_TOKEN: z
         .string()
-        .min(1, "TELEGRAM_BOT_TOKEN is required — get one from @BotFather"),
+        .optional()
+        .describe("Telegram bot token from @BotFather. If not set, Telegram integration is disabled."),
     TELEGRAM_ALLOWED_USER_ID: z
         .string()
-        .min(1, "TELEGRAM_ALLOWED_USER_ID is required — get it from @userinfobot")
+        .optional()
         .transform((val) => {
+            if (!val) return undefined;
             const id = parseInt(val, 10);
             if (isNaN(id)) throw new Error("TELEGRAM_ALLOWED_USER_ID must be a numeric ID");
             return id;
-        }),
+        })
+        .describe("Your Telegram user ID from @userinfobot. Required if TELEGRAM_BOT_TOKEN is set."),
+    TELEGRAM_ENABLED: z
+        .string()
+        .optional()
+        .default("false")
+        .transform(val => val === "true" || val === "1")
+        .describe("Set to 'true' to enable Telegram integration (requires TELEGRAM_BOT_TOKEN)."),
     
     // LLM Provider Configuration
     LLM_PROVIDER: z
@@ -73,6 +83,18 @@ const envSchema = z.object({
         .string()
         .optional()
         .default("text-embedding-3-small"),
+    
+    // Daily Rate Limits
+    LLM_DAILY_CREDIT_LIMIT: z
+        .string()
+        .optional()
+        .transform((val) => (val ? parseFloat(val) : undefined))
+        .describe("Maximum daily cost in USD (e.g., 5.0)"),
+    LLM_DAILY_TOKEN_LIMIT: z
+        .string()
+        .optional()
+        .transform((val) => (val ? parseInt(val, 10) : undefined))
+        .describe("Maximum daily tokens (e.g., 100000)"),
     
     // ElevenLabs Voice Configuration
     ELEVENLABS_API_KEY: z
@@ -160,6 +182,37 @@ const envSchema = z.object({
         }, {
             message: "API_KEY must be at least 32 characters in production"
         }),
+    
+    // Health Check Authentication
+    HEALTH_API_KEY: z
+        .string()
+        .optional()
+        .describe("Separate API key for health check endpoints (allows Docker HEALTHCHECK, k8s probes)"),
+    HEALTH_REQUIRE_AUTH: z
+        .string()
+        .optional()
+        .default("false")
+        .transform(val => val === "true" || val === "1")
+        .describe("Require authentication for health check endpoints"),
+
+    // Environment
+    SAML_ENABLED: z.string().optional(),
+    SAML_ENTRY_POINT: z.string().optional(),
+    SAML_ISSUER: z.string().optional(),
+    SAML_CALLBACK_URL: z.string().optional(),
+    SAML_CERT: z.string().optional(),
+    OIDC_ENABLED: z.string().optional(),
+    OIDC_ISSUER: z.string().optional(),
+    OIDC_CLIENT_ID: z.string().optional(),
+    OIDC_CLIENT_SECRET: z.string().optional(),
+    OIDC_CALLBACK_URL: z.string().optional(),
+
+    NODE_ENV: z
+        .enum(["development", "test", "production"])
+        .default("development"),
+    VITEST: z
+        .string()
+        .optional(),
     
     // External Services
     DISCORD_BOT_TOKEN: z
@@ -283,62 +336,6 @@ const envSchema = z.object({
         .string()
         .optional()
         .describe("Comma-separated list of allowed email addresses (only these senders will be processed)"),
-
-    MOBILE_CHANNEL_ENABLED: z
-        .string()
-        .optional()
-        .default("true")
-        .transform((val) => val === "true" || val === "1")
-        .describe("Enable mobile companion channel (iOS/Android)"),
-    MOBILE_REQUIRE_AUTH: z
-        .string()
-        .optional()
-        .default("true")
-        .transform((val) => val === "true" || val === "1")
-        .describe("Require authentication for mobile endpoints"),
-    MOBILE_ALLOWED_DEVICES: z
-        .string()
-        .optional()
-        .describe("Comma-separated list of allowed device IDs (leave empty for open registration)"),
-    MOBILE_WS_PORT: z
-        .string()
-        .optional()
-        .default("3001")
-        .transform((val) => parseInt(val, 10))
-        .describe("WebSocket port for mobile companion connections"),
-    MOBILE_UPLOAD_DIR: z
-        .string()
-        .optional()
-        .default("data/mobile-uploads")
-        .describe("Directory for storing mobile camera/screen recordings"),
-    MOBILE_FCM_ENABLED: z
-        .string()
-        .optional()
-        .default("false")
-        .transform((val) => val === "true" || val === "1")
-        .describe("Enable Firebase Cloud Messaging for push notifications"),
-    MOBILE_FCM_CREDENTIALS: z
-        .string()
-        .optional()
-        .describe("Path to FCM service account JSON file"),
-    MOBILE_APNS_ENABLED: z
-        .string()
-        .optional()
-        .default("false")
-        .transform((val) => val === "true" || val === "1")
-        .describe("Enable Apple Push Notification service"),
-    MOBILE_APNS_KEY_ID: z
-        .string()
-        .optional()
-        .describe("Apple Push Notification Key ID"),
-    MOBILE_APNS_TEAM_ID: z
-        .string()
-        .optional()
-        .describe("Apple Developer Team ID"),
-    MOBILE_APNS_PRIVATE_KEY: z
-        .string()
-        .optional()
-        .describe("Apple Push Notification private key (base64 encoded)"),
 
     AGENT_MAX_ITERATIONS: z
         .string()
@@ -499,6 +496,55 @@ const envSchema = z.object({
         .optional()
         .describe("Custom memory directory path (default: ./memory)"),
 
+    PG_ENABLED: z
+        .string()
+        .optional()
+        .default("false")
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable PostgreSQL connection pool"),
+
+    PG_HOST: z
+        .string()
+        .optional()
+        .default("localhost")
+        .describe("PostgreSQL host"),
+
+    PG_PORT: z
+        .string()
+        .optional()
+        .default("5432")
+        .transform(val => parseInt(val, 10))
+        .describe("PostgreSQL port"),
+
+    PG_DATABASE: z
+        .string()
+        .optional()
+        .default("gravityclaw")
+        .describe("PostgreSQL database name"),
+
+    PG_USER: z
+        .string()
+        .optional()
+        .default("postgres")
+        .describe("PostgreSQL user"),
+
+    PG_PASSWORD: z
+        .string()
+        .optional()
+        .describe("PostgreSQL password"),
+
+    PG_CONNECTION_STRING: z
+        .string()
+        .optional()
+        .describe("PostgreSQL connection string (overrides individual fields)"),
+
+    PG_POOL_SIZE: z
+        .string()
+        .optional()
+        .default("10")
+        .transform(val => parseInt(val, 10))
+        .describe("PostgreSQL pool size"),
+
     LOG_LEVEL: z
         .string()
         .optional()
@@ -524,6 +570,20 @@ const envSchema = z.object({
         .default("3000")
         .transform(val => parseInt(val, 10))
         .describe("Port for the server"),
+
+    LLM_CACHE_ENABLED: z
+        .string()
+        .optional()
+        .default("false")
+        .transform(val => val === "true" || val === "1")
+        .describe("Enable LLM response caching"),
+
+    LLM_CACHE_TTL_MS: z
+        .string()
+        .optional()
+        .default("60000")
+        .transform(val => parseInt(val, 10))
+        .describe("TTL for cached LLM responses in milliseconds"),
 
     PATH_ALLOWLIST: z
         .string()
@@ -751,7 +811,7 @@ if (!parsed.success) {
         console.error(`  • ${field}: ${issue.message}`);
     }
     console.error("\n→ Copy .env.example to .env and fill in all required values.\n");
-    process.exit(1);
+    throw new Error(`Invalid configuration:\n${parsed.error.issues.map(i => `  • ${i.path.join(".")}: ${i.message}`).join("\n")}`);
 }
 
 export const config = parsed.data;
@@ -761,142 +821,27 @@ if (process.env.NODE_ENV === "production" && config.UNRESTRICTED_ACCESS) {
     console.error("  • UNRESTRICTED_ACCESS cannot be enabled in production (NODE_ENV=production).");
     console.error("  • This flag bypasses path validation and allows unauthenticated reads/writes to any system file.");
     console.error("\n→ Disable UNRESTRICTED_ACCESS in your .env to start the server in production.\n");
-    process.exit(1);
+    throw new Error("UNRESTRICTED_ACCESS cannot be enabled in production. It bypasses path validation and allows unauthenticated reads/writes to any system file.");
 }
 
-// Destructure commonly used values for convenience
-export const {
-    TELEGRAM_BOT_TOKEN,
-    TELEGRAM_ALLOWED_USER_ID,
-    LLM_PROVIDER,
-    LLM_MODEL,
-    OPENCODEZEN_API_KEY,
-    OPENCODEZEN_BASE_URL,
-    OPENAI_API_KEY,
-    NVIDIA_API_KEY,
-    AGENT_MAX_ITERATIONS,
-    AGENT_MAX_TOOLS_PER_ITERATION,
-    AGENT_MAX_TOOLS_TOTAL,
-    AGENT_TOOL_TIMEOUT_MS,
-    AGENT_MAX_CONCURRENT,
-    TOKEN_BUDGET_ENABLED,
-    TOKEN_BUDGET_MAX,
-    TOKEN_BUDGET_DIMINISHING_THRESHOLD,
-    LLM_MAX_TOKENS,
-    LLM_COST_LIMIT_PER_SESSION,
-    AUTO_DREAM_ENABLED,
-    AUTO_DREAM_MIN_HOURS,
-    AUTO_DREAM_MIN_SESSIONS,
-    ENABLE_MICROCOMPACT,
-    MICROCOMPACT_MAX_TOOL_RESULT_CHARS,
-    MICROCOMPACT_MAX_TOOLS,
-    RETRY_MAX_RETRIES,
-    RETRY_MAX_DELAY_MS,
-    RETRY_ENABLE_EXPONENTIAL_BACKOFF,
-    ENABLE_MEMORY_EXTRACTION,
-    MEMORY_EXTRACTION_MIN_TURNS,
-    MEMORY_DIRECTORY_ENABLED,
-    MEMORY_DIRECTORY_PATH,
-    LOG_LEVEL,
-    LOG_FORMAT,
-    ENABLE_CALLER_INFO,
-    PORT,
-    WAKE_WORD_PHRASE,
-    WAKE_WORD_THRESHOLD,
-    WAKE_WORD_ENABLED,
-    PATH_ALLOWLIST,
-    SEARCH_PROVIDER,
-    SERPAPI_API_KEY,
-    BRAVE_SEARCH_KEY,
-    SEARCH_CACHE_TTL_MINUTES,
-    AIR_GAPPED,
-    ENABLE_METRICS,
-    ENABLE_METRICS_PERSISTENCE,
-    METRICS_RETENTION_HOURS,
-    CORRELATION_ID_HEADER,
-    ENABLE_TRACING,
-    OTEL_ENABLED,
-    OTEL_EXPORTER_OTLP_ENDPOINT,
-    SECRET_ROTATION_DAYS,
-    SECRET_CLEANUP_DAYS,
-    SAFE_DIRECTORIES,
-    SECURITY_AUDIT_ENABLED,
-    UNRESTRICTED_ACCESS,
-    FILE_ACCESS_LOG_RETENTION_DAYS,
-    API_KEY,
-    DISCORD_BOT_TOKEN,
-    DISCORD_GUILD_ID,
-    SLACK_BOT_TOKEN,
-    SLACK_SIGNING_SECRET,
-    SLACK_APP_ID,
-    GOOGLE_CALENDAR_API_KEY,
-    GOOGLE_CREDENTIALS_PATH,
-    NOTION_API_KEY,
-    NOTION_DATABASE_ID,
-    SIGNAL_PHONE_NUMBER,
-    SIGNAL_GROUP_IDS,
-    SIGNAL_RECIPIENTS,
-    APPROVAL_ENABLED,
-    APPROVAL_TIMEOUT_MINUTES,
-    APPROVAL_REQUIRED_TOOLS,
-    EMAIL_SMTP_HOST,
-    EMAIL_SMTP_PORT,
-    EMAIL_SMTP_USER,
-    EMAIL_SMTP_PASS,
-    EMAIL_IMAP_HOST,
-    EMAIL_IMAP_PORT,
-    EMAIL_IMAP_USER,
-    EMAIL_IMAP_PASS,
-    EMAIL_FROM_ADDRESS,
-    EMAIL_ALLOWED_SENDERS,
-    PLANNING_MODE,
-    PLANNING_MESSAGE_LENGTH_THRESHOLD,
-    RETRIEVAL_MEMORY_LIMIT,
-    RETRIEVAL_MEMORY_MAX_CHARS,
-    QUEUE_ENABLED,
-    REDIS_URL,
-    QUEUE_CONCURRENCY,
-    WHATSAPP_ENABLED,
-    RECAP_HOUR_LOCAL,
-    RECOMMENDATIONS_DAILY_CRON,
-    CHROMA_URL,
-    WEBHOOK_BASE_URL,
-    BACKUP_DIR,
-    BACKUP_CRON,
-    BACKUP_RETENTION_DAYS,
-    BACKUP_ENABLED,
-    BACKUP_ENCRYPT,
-    BACKUP_COMPRESS,
-    BACKUP_MASTER_KEY,
-    AUTH_TRUSTED_CIDRS,
-    AUTH_ALLOW_LOCALHOST,
-    MOBILE_CHANNEL_ENABLED,
-    MOBILE_REQUIRE_AUTH,
-    MOBILE_ALLOWED_DEVICES,
-    MOBILE_WS_PORT,
-    MOBILE_UPLOAD_DIR,
-    MOBILE_FCM_ENABLED,
-    MOBILE_FCM_CREDENTIALS,
-    MOBILE_APNS_ENABLED,
-    MOBILE_APNS_KEY_ID,
-    MOBILE_APNS_TEAM_ID,
-    MOBILE_APNS_PRIVATE_KEY,
-} = config;
+// Config namespace export.
+// Import via: import { config } from "./config.ts";
+// Access values as: config.LLM_PROVIDER, config.API_KEY, etc.
 
 // Helper: Get allowed paths as array
 export function getAllowedPaths(): string[] {
-    if (!PATH_ALLOWLIST || PATH_ALLOWLIST.trim() === '') {
+    if (!config.PATH_ALLOWLIST || config.PATH_ALLOWLIST.trim() === '') {
         // Default to workspace directory only
         return [process.cwd()];
     }
-    return PATH_ALLOWLIST.split(',').map(p => p.trim()).filter(p => p.length > 0);
+    return config.PATH_ALLOWLIST.split(',').map(p => p.trim()).filter(p => p.length > 0);
 }
 
 // Helper: Get safe directories as array
 export function getSafeDirectories(): string[] {
-    if (!SAFE_DIRECTORIES || SAFE_DIRECTORIES.trim() === '') {
+    if (!config.SAFE_DIRECTORIES || config.SAFE_DIRECTORIES.trim() === '') {
         // Default to workspace directory only
         return [process.cwd()];
     }
-    return SAFE_DIRECTORIES.split(',').map(p => p.trim()).filter(p => p.length > 0);
+    return config.SAFE_DIRECTORIES.split(',').map(p => p.trim()).filter(p => p.length > 0);
 }

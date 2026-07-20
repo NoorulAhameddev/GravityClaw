@@ -17,7 +17,7 @@ import {
   logSecretAccess,
 } from '../../secrets.ts';
 import { validatePathAccess } from '../../security/path-validator.ts';
-import { config, getSafeDirectories, SECRET_ROTATION_DAYS, SECURITY_AUDIT_ENABLED } from '../../config.ts';
+import { config, getSafeDirectories } from '../../config.ts';
 import { db } from '../../db.ts';
 import * as path from 'path';
 
@@ -202,7 +202,7 @@ Example: getSecurityStatus()`,
       let expiringSecretsCount = 0;
 
       try {
-        const expiring = await getExpiringSecrets(secretsPath, SECRET_ROTATION_DAYS);
+        const expiring = await getExpiringSecrets(secretsPath, config.SECRET_ROTATION_DAYS);
         expiringSecretsCount = expiring.length;
       } catch (err) {
         // Secrets file might not exist
@@ -223,9 +223,9 @@ Example: getSecurityStatus()`,
         success: true,
         status: {
           master_key_set: !!process.env.MASTER_KEY,
-          security_audit_enabled: SECURITY_AUDIT_ENABLED,
+          security_audit_enabled: config.SECURITY_AUDIT_ENABLED,
           safe_directories: getSafeDirectories(),
-          secret_rotation_days: SECRET_ROTATION_DAYS,
+          secret_rotation_days: config.SECRET_ROTATION_DAYS,
           expiring_secrets_count: expiringSecretsCount,
           recent_security_events: recentEvents,
         },
@@ -272,7 +272,7 @@ Example: rotateSecrets({ maxAgeDays: 90, autoCleanup: true })`,
   async execute(args: Record<string, unknown>): Promise<string> {
     try {
       const secretsPath = path.join(process.cwd(), 'secrets.enc.json');
-      const maxAgeDays = (args.maxAgeDays as number) || SECRET_ROTATION_DAYS;
+      const maxAgeDays = (args.maxAgeDays as number) || config.SECRET_ROTATION_DAYS;
       const autoCleanup = (args.autoCleanup as boolean) || false;
 
       // Get expiring secrets

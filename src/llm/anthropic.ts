@@ -17,7 +17,7 @@ export class AnthropicProvider implements LLMProvider {
   private defaultModel: string;
 
   constructor(apiKey: string, defaultModel: string = "claude-sonnet-4-20250514") {
-    this.client = new Anthropic({ apiKey });
+    this.client = new Anthropic({ apiKey, maxRetries: 3 });
     this.defaultModel = defaultModel;
     log.info(`Anthropic provider initialized with model: ${defaultModel}`);
   }
@@ -50,7 +50,7 @@ export class AnthropicProvider implements LLMProvider {
       params.tools = anthropicTools;
     }
 
-    const response = await this.client.messages.create(params);
+    const response = await this.client.messages.create(params, { signal: AbortSignal.timeout(120000) });
 
     // Convert back to OpenAI format
     const text = response.content
@@ -128,7 +128,7 @@ export class AnthropicProvider implements LLMProvider {
               caller: {
                 type: "internal" as const,
                 tool_id: toolCall.id,
-              } as any,
+              } as { type: "internal"; tool_id: string },
             } as Anthropic.ToolUseBlock);
           }
         }
@@ -161,5 +161,9 @@ export class AnthropicProvider implements LLMProvider {
         ...(tool.function.parameters as Record<string, unknown>),
       } as Anthropic.Tool.InputSchema,
     }));
+  }
+
+  destroy(): void {
+    this.client = null as unknown as Anthropic;
   }
 }

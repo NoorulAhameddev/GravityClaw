@@ -36,7 +36,7 @@ function listSessionsTouchedSince(timestamp: number): string[] {
     return rows.map((r) => r.session_id);
 }
 
-export function getAllSessionIds(): string[] {
+function getAllSessionIds(): string[] {
     const rows = db
         .prepare(
             `SELECT DISTINCT session_id FROM memory ORDER BY timestamp DESC LIMIT 100`

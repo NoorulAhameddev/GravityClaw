@@ -5,7 +5,7 @@ import { db } from "../db.ts";
 import type { Channel, UnifiedMessage } from "../types/channels.js";
 import { createTranscriptionService } from "../voice/transcription.ts";
 import { createTTSService } from "../voice/tts.ts";
-import { createElevenLabsService } from "../voice/elevenlabs.ts";
+import { createElevenLabsService, type ElevenLabsVoiceId } from "../voice/elevenlabs.ts";
 import { getVoiceSettings } from "../tools/voice/voice-settings.ts";
 import { writeFileSync, unlinkSync, readFileSync } from "fs";
 import { tmpdir } from "os";
@@ -38,14 +38,14 @@ export class TelegramChannel implements Channel {
     private botUsername: string = "";
 
     static create(): TelegramChannel | null {
-        if (!config.TELEGRAM_BOT_TOKEN) {
+        if (!config.TELEGRAM_ENABLED || !config.TELEGRAM_BOT_TOKEN) {
             return null;
         }
         return new TelegramChannel();
     }
 
     constructor() {
-        this.bot = new Bot(config.TELEGRAM_BOT_TOKEN);
+        this.bot = new Bot(config.TELEGRAM_BOT_TOKEN!);
 
         // Initialize transcription service if OpenAI API key is available
         if (config.OPENAI_API_KEY) {
@@ -55,7 +55,7 @@ export class TelegramChannel implements Channel {
 
         // Initialize ElevenLabs TTS service if API key is available
         if (config.ELEVENLABS_API_KEY) {
-            const voiceId = (config.ELEVENLABS_VOICE_ID || "bella") as any;
+            const voiceId = (config.ELEVENLABS_VOICE_ID || "bella") as ElevenLabsVoiceId;
             this.elevenLabsTTSService = createElevenLabsService(config.ELEVENLABS_API_KEY, voiceId);
         }
     }
@@ -114,7 +114,8 @@ export class TelegramChannel implements Channel {
                 throw new Error("No file_path returned from Telegram");
             }
 
-            const url = `https://api.telegram.org/file/bot${config.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+const url = 
+`https://api.telegram.org/file/bot${config.TELEGRAM_BOT_TOKEN!}/${file.file_path}`;
             const response = await fetch(url);
 
             if (!response.ok) {
@@ -155,10 +156,11 @@ export class TelegramChannel implements Channel {
 
             // Use ElevenLabs if configured and enabled
             if (voiceSettings.ttsProvider === 'elevenlabs' && this.elevenLabsTTSService) {
-                const voiceId = (voiceSettings as any).voiceId || 'bella';
+                const vs = voiceSettings as { mode: 'off' | 'transcribe-only' | 'full-voice'; ttsProvider: 'openai' | 'elevenlabs'; voiceId?: string };
+                const voiceId = vs.voiceId || 'bella';
                 log.info(`Converting text to speech using ElevenLabs (${voiceId})`);
-                if ((voiceSettings as any).voiceId) {
-                    this.elevenLabsTTSService.setVoice((voiceSettings as any).voiceId as any);
+                if (vs.voiceId) {
+                    this.elevenLabsTTSService.setVoice(vs.voiceId as ElevenLabsVoiceId);
                 }
                 return await this.elevenLabsTTSService.textToSpeech(text);
             }
@@ -184,7 +186,7 @@ export class TelegramChannel implements Channel {
             const chatType = ctx.chat?.type;
 
             // For private chats, enforce whitelist
-            if (chatType === "private" && userId !== config.TELEGRAM_ALLOWED_USER_ID) {
+            if (chatType === "private" && config.TELEGRAM_ALLOWED_USER_ID && userId !== config.TELEGRAM_ALLOWED_USER_ID) {
                 log.warn(`Blocked update from user ID: ${userId ?? "unknown"}`);
                 return; // silently ignore
             }
@@ -312,7 +314,7 @@ export class TelegramChannel implements Channel {
                 }
 
                 updateGroupSettings("telegram", chatId.toString(), {
-                    voiceMode: mode as any,
+                    voiceMode: mode as 'off' | 'transcribe-only' | 'full-voice',
                 });
 
                 const emoji = mode === "off" ? "🔇" : mode === "transcribe-only" ? "🎤" : "🔊";
@@ -333,7 +335,7 @@ export class TelegramChannel implements Channel {
                 }
 
                 updateGroupSettings("telegram", chatId.toString(), {
-                    thinkingLevel: level as any,
+                    thinkingLevel: level as 'off' | 'low' | 'medium' | 'high',
                 });
 
                 await ctx.reply(`🧠 Group thinking level set to: ${level}`);
@@ -353,7 +355,7 @@ export class TelegramChannel implements Channel {
                 }
 
                 updateGroupSettings("telegram", chatId.toString(), {
-                    ttsProvider: provider as any,
+                    ttsProvider: provider as 'openai' | 'elevenlabs',
                 });
 
                 await ctx.reply(`🎙️ Group TTS provider set to: ${provider}`);
@@ -388,7 +390,7 @@ export class TelegramChannel implements Channel {
                 // Store voice mode in context for this chat
                 const chatId = ctx.chat.id.toString();
                 if (!this.voiceModesPerChat) this.voiceModesPerChat = new Map();
-                this.voiceModesPerChat.set(chatId, mode as any);
+                this.voiceModesPerChat.set(chatId, mode as 'off' | 'transcribe-only' | 'full-voice');
 
                 const emoji = mode === "off" ? "🔇" : mode === "transcribe-only" ? "🎤" : "🔊";
                 await ctx.reply(`${emoji} Voice mode set to: ${mode}`);
@@ -409,7 +411,7 @@ export class TelegramChannel implements Channel {
 
                 const chatId = ctx.chat.id.toString();
                 if (!this.ttsProviersPerChat) this.ttsProviersPerChat = new Map();
-                this.ttsProviersPerChat.set(chatId, provider as any);
+                this.ttsProviersPerChat.set(chatId, provider as 'openai' | 'elevenlabs');
 
                 await ctx.reply(`🎙️ TTS provider set to: ${provider}`);
                 return;

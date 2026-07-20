@@ -1,7 +1,9 @@
+import jwt from 'jsonwebtoken';
 import { IncomingMessage } from 'http';
 import { URL } from 'url';
 import { config } from '../config.ts';
 import { createLogger } from '../logger.ts';
+import { constantTimeEquals } from './auth.ts';
 import crypto from 'crypto';
 
 const logger = createLogger('websocket-auth');
@@ -34,8 +36,7 @@ export function validateWebSocketAuth(
   logger.info(`WebSocket auth attempt from IP: "${clientIp}", isLocalhost: ${isLocalhost}`);
    
   // Try multiple authentication methods
-  const apiKey = url.searchParams.get('api_key') || 
-                 request.headers['x-api-key'] as string;
+  const apiKey = request.headers['x-api-key'] as string;
   const sessionToken = url.searchParams.get('token') || 
                       request.headers['authorization']?.replace('Bearer ', '');
    
@@ -99,16 +100,11 @@ export function validateWebSocketAuth(
   };
 }
 
-function constantTimeEquals(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return result === 0;
-}
+
+
+const JWT_ALGORITHM = 'HS256';
+const JWT_EXPIRY = '24h';
+const JWT_ISSUER = 'gravityclaw';
 
 /**
  * Validate session token (JWT format)
@@ -118,50 +114,20 @@ function validateSessionToken(token: string): {
   userId?: string;
   platform?: string;
 } {
-  // Simple JWT-like validation
   try {
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      throw new Error('Invalid token format');
-    }
-    
-    const headerPart = parts[0];
-    const payloadPart = parts[1];
-    const signaturePart = parts[2];
-    
-    if (!headerPart || !payloadPart || !signaturePart) {
-      throw new Error('Invalid token format');
-    }
-    
-    const header = JSON.parse(atob(headerPart));
-    const payload = JSON.parse(atob(payloadPart));
-    
-    // Verify signature (constant-time comparison not needed here since we're checking equality)
     const apiKey = config.API_KEY || 'default_key_for_validation';
-    const expectedSignature = crypto
-      .createHmac('sha256', apiKey)
-      .update(headerPart + '.' + payloadPart)
-      .digest('base64url');
+    const payload = jwt.verify(token, apiKey, {
+      algorithms: [JWT_ALGORITHM],
+      issuer: JWT_ISSUER,
+    }) as jwt.JwtPayload;
     
-    if (signaturePart !== expectedSignature) {
-      throw new Error('Invalid signature');
-    }
-    
-    // Check expiration
-    if (payload.exp && payload.exp < Date.now() / 1000) {
-      throw new Error('Token expired');
-    }
-    
-    // Check issuer
-    if (payload.iss !== 'gravityclaw') {
-      throw new Error('Invalid issuer');
-    }
-    
-    return {
-      sessionId: payload.sid,
-      userId: payload.uid,
-      platform: payload.plt
+    const result: { sessionId: string; userId?: string; platform?: string } = {
+      sessionId: payload.sid as string,
     };
+    if (payload.uid) result.userId = payload.uid as string;
+    if (payload.plt) result.platform = payload.plt as string;
+    
+    return result;
   } catch (err) {
     throw new Error(`Token validation failed: ${err}`);
   }
@@ -175,25 +141,19 @@ export function createSessionToken(
   userId?: string,
   platform?: string
 ): string {
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const payload = {
-    sid: sessionId,
-    uid: userId,
-    plt: platform,
-    iss: 'gravityclaw',
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + 86400 // 24 hours
-  };
-  
-  const headerPart = btoa(JSON.stringify(header));
-  const payloadPart = btoa(JSON.stringify(payload));
-  
-  // Signature using API key (must match validation format)
   const apiKey = config.API_KEY || 'default_key_for_validation';
-  const signature = crypto
-    .createHmac('sha256', apiKey)
-    .update(headerPart + '.' + payloadPart)
-    .digest('base64url');
   
-  return `${headerPart}.${payloadPart}.${signature}`;
+  return jwt.sign(
+    { 
+      sid: sessionId, 
+      uid: userId, 
+      plt: platform 
+    },
+    apiKey,
+    {
+      algorithm: JWT_ALGORITHM,
+      expiresIn: JWT_EXPIRY,
+      issuer: JWT_ISSUER
+    }
+  );
 }

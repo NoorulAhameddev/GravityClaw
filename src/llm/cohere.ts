@@ -125,4 +125,8 @@ export class CohereProvider implements LLMProvider {
       return [];
     }
   }
+
+  destroy(): void {
+    this.client = null as unknown as CohereClient;
+  }
 }

@@ -3,18 +3,28 @@ import { runAgent } from "../agent.ts";
 import { runWithConcurrencyLimit } from "../concurrency.ts";
 import { createLogger } from "../logger.ts";
 import { db } from "../db.ts";
-import { getProvider, FailoverProvider, OpenRouterProvider } from "../llm/index.ts";
-import { getSessionSettings, updateSessionSetting, getSessionStats, listSessions } from "../session.ts";
+import { getProvider } from "../llm/index.ts";
+import { getSessionSettings, getSessionStats, listSessions } from "../session.ts";
 import { config } from "../config.ts";
-import { pluginRegistry } from "../plugins/registry.ts";
-import { pruneContext, getPruningStatus, formatPruningResult, isContextNearLimit } from "../memory/pruning.ts";
-import { queryGraph, formatGraphAsMermaid } from "../memory/graph.ts";
-import { getHeartbeatStatus, setHeartbeatEnabled } from "../heartbeat/index.ts";
-import { ensureEveningRecapTask, buildEveningRecap } from "../recap/index.ts";
-import { getRecommendationsStatus, setRecommendationsEnabled } from "../recommendations/index.ts";
+import { ensureEveningRecapTask } from "../recap/index.ts";
+import { generateRequestId } from "../telemetry/requestId.ts";
 import { container } from "../bootstrap.ts";
-import * as fs from "fs";
-import * as os from "os";
+import type { CommandContext } from "./commands/index.ts";
+import {
+  handleFailover,
+  handleHeartbeat,
+  handleRecap,
+  handleRecommendations,
+  handleStatus,
+  handleNew,
+  handleCompact,
+  handleUsage,
+  handleGraph,
+  handleThink,
+  handlePlugins,
+  handleShutdown,
+} from "./commands/handlers.ts";
+import { handleModel, handleModels } from "./commands/model.ts";
 
 const log = createLogger("router");
 
@@ -111,533 +121,44 @@ export class ChannelRouter {
             log.warn(`Failed to ensure recap task for ${key}: ${err}`);
         }
 
-        // Command to clear history (could be intercepted at channel level too, but helpful here)
+        // Command to clear history
         if (msg.text.trim() === "/reset") {
             this.clearHistory(msg.channelId, msg.chatId);
-            await channel.sendMessage(msg.chatId, "🔄 Conversation history cleared.");
+            await channel.sendMessage(msg.chatId, "Conversation history cleared.");
             return;
         }
 
-        // Command to view failover provider status
-        if (msg.text.trim() === "/failover" || msg.text.trim() === "/failover status") {
-            const provider = getProvider();
-            
-            if (!(provider instanceof FailoverProvider)) {
-                await channel.sendMessage(
-                    msg.chatId,
-                    "ℹ️ Failover mode is not currently enabled.\n\nTo enable failover, set `LLM_PROVIDER=failover` in your .env file and configure `LLM_FAILOVER_LIST` with comma-separated provider names (e.g., `openai,anthropic,openrouter`)."
-                );
-                return;
+        // Build command context and run dispatch table
+        const ctx: CommandContext = { msg, channel, sessionId: key };
+        const cmds: [RegExp, (c: CommandContext) => Promise<boolean>][] = [
+            [/^\/failover/, handleFailover],
+            [/^\/model(?:\s|$)/, handleModel],
+            [/^\/models(?:\s|$)/, handleModels],
+            [/^\/heartbeat/, handleHeartbeat],
+            [/^\/recap now$/, handleRecap],
+            [/^\/recommendations/, handleRecommendations],
+            [/^\/status$/, handleStatus],
+            [/^\/new(?:\s|$)/, handleNew],
+            [/^\/compact$/, handleCompact],
+            [/^\/usage/, handleUsage],
+            [/^\/graph/, handleGraph],
+            [/^\/think/, handleThink],
+            [/^\/plugins$/, handlePlugins],
+            [/^\/shutdown$/, handleShutdown],
+        ];
+
+        const text = msg.text.trim();
+        for (const [pattern, handler] of cmds) {
+            if (pattern.test(text)) {
+                const handled = await handler(ctx);
+                if (handled) return;
             }
-
-            const health = provider.getHealthStatus();
-            
-            // Build status message
-            let statusMsg = "🔄 **Failover Provider Status**\n\n";
-            
-            for (const h of health) {
-                const statusIcon = h.isCircuitOpen ? "🔴 CIRCUIT OPEN" : "🟢 Available";
-                const successRate = h.totalCalls > 0 
-                    ? ((h.totalSuccesses / h.totalCalls) * 100).toFixed(1)
-                    : "N/A";
-                
-                statusMsg += `**${h.name}**: ${statusIcon}\n`;
-                statusMsg += `├─ Total calls: ${h.totalCalls}\n`;
-                statusMsg += `├─ Successes: ${h.totalSuccesses}\n`;
-                statusMsg += `├─ Failures: ${h.totalFailures}\n`;
-                statusMsg += `├─ Success rate: ${successRate}%\n`;
-                statusMsg += `├─ Consecutive failures: ${h.consecutiveFailures}\n`;
-                
-                if (h.isCircuitOpen && h.lastFailureTime > 0) {
-                    const timeSinceFailure = Date.now() - h.lastFailureTime;
-                    const secondsAgo = Math.floor(timeSinceFailure / 1000);
-                    statusMsg += `└─ Circuit will reset in ${Math.max(0, 60 - secondsAgo)}s\n`;
-                } else {
-                    statusMsg += `└─ Status: Healthy\n`;
-                }
-                
-                statusMsg += "\n";
-            }
-            
-            await channel.sendMessage(msg.chatId, statusMsg.trim());
-            return;
-        }
-
-        // Command to switch model: /model <provider> <model-name> or /model <model-name>
-        if (msg.text.trim().startsWith("/model")) {
-            const parts = msg.text.trim().split(/\s+/).slice(1); // Remove "/model" part
-            const sessionId = `${msg.channelId}:${msg.chatId}`;
-            
-            // No arguments - show current model
-            if (parts.length === 0) {
-                const settings = getSessionSettings(sessionId);
-                const currentProvider = settings.provider || "<default>";
-                const currentModel = settings.model || "<default>";
-                
-                await channel.sendMessage(
-                    msg.chatId,
-                    `🤖 **Current Model Configuration**\n\n` +
-                    `Provider: ${currentProvider}\n` +
-                    `Model: ${currentModel}\n\n` +
-                    `To change: \`/model <provider> <model-name>\`\n` +
-                    `Example: \`/model anthropic claude-3-5-sonnet-20241022\`\n\n` +
-                    `Available providers: openrouter, anthropic, openai, google, groq, deepseek, ollama, opencodezen\n` +
-                    `Use \`/models openrouter\` to see available OpenRouter models.`
-                );
-                return;
-            }
-            
-            let provider: string;
-            let model: string;
-            
-            // Check if first arg is a provider name or a model name
-            const validProviders = ["openrouter", "anthropic", "openai", "google", "groq", "deepseek", "ollama", "opencodezen"];
-            
-            if (parts.length === 1) {
-                // Only model name provided - keep current provider
-                const settings = getSessionSettings(sessionId);
-                provider = settings.provider || "openrouter";
-                model = parts[0]!;
-            } else if (parts.length >= 2 && validProviders.includes(parts[0]!.toLowerCase())) {
-                // Provider and model provided
-                provider = parts[0]!.toLowerCase();
-                model = parts.slice(1).join(" ").trim(); // Support model names with spaces
-            } else {
-                // Treat all as model name
-                const settings = getSessionSettings(sessionId);
-                provider = settings.provider || "openrouter";
-                model = parts.join(" ").trim();
-            }
-            
-            // Save to session settings
-            updateSessionSetting(sessionId, "provider", provider);
-            updateSessionSetting(sessionId, "model", model);
-            
-            await channel.sendMessage(
-                msg.chatId,
-                `✅ Model switched!\n\n` +
-                `Provider: **${provider}**\n` +
-                `Model: **${model}**\n\n` +
-                `This setting applies only to this conversation. To change the global default, update your .env file.`
-            );
-            return;
-        }
-
-        // Command to list available models
-        if (msg.text.trim().startsWith("/models")) {
-            const parts = msg.text.trim().split(/\s+/);
-            const providerArg = parts[1]?.toLowerCase();
-
-            // Default to openrouter if no provider specified
-            const targetProvider = providerArg || "openrouter";
-
-            if (targetProvider === "openrouter") {
-                // Check if current provider is OpenRouter or if we can create one
-                const provider = getProvider();
-                let openRouterProvider: OpenRouterProvider;
-
-                if (provider instanceof OpenRouterProvider) {
-                    openRouterProvider = provider;
-                } else if (provider instanceof FailoverProvider) {
-                    // Try to find OpenRouter in failover list
-                    const failoverHealth = provider.getHealthStatus();
-                    const hasOpenRouter = failoverHealth.some(h => h.name === "openrouter");
-                    
-                    if (!hasOpenRouter) {
-                        await channel.sendMessage(
-                            msg.chatId,
-                            "ℹ️ OpenRouter is not available in the current configuration.\n\nTo view OpenRouter models, set `LLM_PROVIDER=openrouter` or include `openrouter` in `LLM_FAILOVER_LIST`."
-                        );
-                        return;
-                    }
-                    
-                    // Create temporary OpenRouter provider for model listing
-                    const { config } = await import("../config.ts");
-                    if (!config.OPENROUTER_API_KEY) {
-                        await channel.sendMessage(
-                            msg.chatId,
-                            "❌ OPENROUTER_API_KEY not configured."
-                        );
-                        return;
-                    }
-                    openRouterProvider = new OpenRouterProvider(config.OPENROUTER_API_KEY);
-                } else {
-                    await channel.sendMessage(
-                        msg.chatId,
-                        "ℹ️ OpenRouter is not the current provider. Use `/models openrouter` to view OpenRouter models specifically."
-                    );
-                    return;
-                }
-
-                try {
-                    await channel.sendMessage(msg.chatId, "🔍 Fetching OpenRouter models...");
-                    const modelsText = await openRouterProvider.formatModelsForDisplay(20);
-                    await channel.sendMessage(msg.chatId, modelsText);
-                } catch (error) {
-                    log.error("Error fetching OpenRouter models", error);
-                    await channel.sendMessage(
-                        msg.chatId,
-                        "❌ Failed to fetch models from OpenRouter. Check your API key and connection."
-                    );
-                }
-                return;
-            } else {
-                await channel.sendMessage(
-                    msg.chatId,
-                    `ℹ️ Model listing for provider '${targetProvider}' is not yet implemented.\n\nCurrently supported: \`/models openrouter\``
-                );
-                return;
-            }
-        }
-
-        // Command: /heartbeat status|enable|disable
-        if (msg.text.trim().startsWith("/heartbeat")) {
-            const parts = msg.text.trim().split(/\s+/);
-            const subcommand = parts[1]?.toLowerCase() || "status";
-            const sessionId = `${msg.channelId}:${msg.chatId}`;
-
-            if (subcommand === "enable") {
-                const result = setHeartbeatEnabled(sessionId, true);
-                if (!result.success) {
-                    await channel.sendMessage(msg.chatId, `❌ Failed to enable heartbeat: ${result.error}`);
-                    return;
-                }
-
-                await channel.sendMessage(
-                    msg.chatId,
-                    `✅ Heartbeat enabled (${result.affected} prompt task${result.affected === 1 ? "" : "s"} active).`
-                );
-                return;
-            }
-
-            if (subcommand === "disable") {
-                const result = setHeartbeatEnabled(sessionId, false);
-                if (!result.success) {
-                    await channel.sendMessage(msg.chatId, `❌ Failed to disable heartbeat: ${result.error}`);
-                    return;
-                }
-
-                await channel.sendMessage(
-                    msg.chatId,
-                    `⏸️ Heartbeat disabled (${result.affected} prompt task${result.affected === 1 ? "" : "s"} paused).`
-                );
-                return;
-            }
-
-            if (subcommand !== "status") {
-                await channel.sendMessage(
-                    msg.chatId,
-                    "Usage: `/heartbeat status`, `/heartbeat enable`, or `/heartbeat disable`"
-                );
-                return;
-            }
-
-            const status = getHeartbeatStatus(sessionId);
-            await channel.sendMessage(
-                msg.chatId,
-                `💓 **Heartbeat Status**\n\n` +
-                `- Enabled: ${status.enabled ? "yes" : "no"}\n` +
-                `- Interval (minutes): ${status.intervalMinutes}\n` +
-                `- Total prompts: ${status.taskCount}\n` +
-                `- Active prompts: ${status.activeTaskCount}\n` +
-                `- Last run: ${status.lastRun || "never"}\n` +
-                `- Next run: ${status.nextRun || "n/a"}`
-            );
-            return;
-        }
-
-        // Command: /recap now
-        if (msg.text.trim() === "/recap now") {
-            const sessionId = `${msg.channelId}:${msg.chatId}`;
-            const recap = buildEveningRecap(sessionId, "manual");
-
-            if (!recap.success || !recap.reportMarkdown) {
-                await channel.sendMessage(msg.chatId, `❌ Failed to generate recap: ${recap.error || "unknown error"}`);
-                return;
-            }
-
-            await channel.sendMessage(msg.chatId, recap.reportMarkdown);
-            return;
-        }
-
-        // Command: /recommendations [on|off]
-        if (msg.text.trim().startsWith("/recommendations")) {
-            const parts = msg.text.trim().split(/\s+/);
-            const subcommand = parts[1]?.toLowerCase();
-            const sessionId = `${msg.channelId}:${msg.chatId}`;
-
-            if (subcommand === "off") {
-                setRecommendationsEnabled(sessionId, false);
-                await channel.sendMessage(msg.chatId, "🛑 Smart recommendations disabled for this session.");
-                return;
-            }
-
-            if (subcommand === "on") {
-                setRecommendationsEnabled(sessionId, true);
-                await channel.sendMessage(msg.chatId, "✅ Smart recommendations enabled for this session.");
-                return;
-            }
-
-            const status = getRecommendationsStatus(sessionId);
-            await channel.sendMessage(
-                msg.chatId,
-                `💡 **Recommendations**\n\n` +
-                `- Enabled: ${status.enabled ? "yes" : "no"}\n` +
-                `- Last sent: ${status.lastSentDate || "never"}\n\n` +
-                `Use \`/recommendations on\` or \`/recommendations off\`.`
-            );
-            return;
-        }
-
-        // Command: /status - Show system status
-        if (msg.text.trim() === "/status") {
-            const sessionId = `${msg.channelId}:${msg.chatId}`;
-            const stats = getSessionStats(sessionId);
-            const allSessions = listSessions();
-            const currentProvider = getProvider();
-            
-            // Get uptime
-            const uptimeSeconds = process.uptime();
-            const uptimeHours = Math.floor(uptimeSeconds / 3600);
-            const uptimeMinutes = Math.floor((uptimeSeconds % 3600) / 60);
-            
-            // Get database size
-            let dbSize = "unknown";
-            try {
-                if (fs.existsSync("gravity.db")) {
-                    const fileStats = fs.statSync("gravity.db");
-                    const sizeKB = (fileStats.size / 1024).toFixed(2);
-                    dbSize = `${sizeKB} KB`;
-                }
-            } catch (err) {
-                const errMsg = err instanceof Error ? err.message : String(err);
-                log.warn(`Could not read DB file size: ${errMsg}`);
-            }
-            
-            // Get memory usage
-            const memUsage = process.memoryUsage();
-            const memoryMB = (memUsage.heapUsed / 1024 / 1024).toFixed(2);
-            
-            let statusMsg = "📊 **System Status**\n\n";
-            statusMsg += `🔹 **Current Session**\n`;
-            statusMsg += `├─ Messages: ${stats.messageCount}\n`;
-            statusMsg += `├─ User messages: ${stats.userMessages}\n`;
-            statusMsg += `├─ Assistant messages: ${stats.assistantMessages}\n`;
-            statusMsg += `└─ Provider: ${stats.settings.provider || config.LLM_PROVIDER || "openrouter"}\n\n`;
-            
-            statusMsg += `🔹 **Global Stats**\n`;
-            statusMsg += `├─ Active sessions: ${allSessions.length}\n`;
-            statusMsg += `├─ Database size: ${dbSize}\n`;
-            statusMsg += `├─ Memory usage: ${memoryMB} MB\n`;
-            statusMsg += `├─ Uptime: ${uptimeHours}h ${uptimeMinutes}m\n`;
-            statusMsg += `└─ Provider: ${currentProvider.name}\n`;
-            
-            await channel.sendMessage(msg.chatId, statusMsg);
-            return;
-        }
-
-        // Command: /new - Create new conversation branch
-        if (msg.text.trim().startsWith("/new")) {
-            const baseSessionId = `${msg.channelId}:${msg.chatId}`;
-            
-            // Find next branch number
-            const allSessions = listSessions();
-            const existingBranches = allSessions.filter(s => s.startsWith(baseSessionId));
-            let branchNum = 1;
-            while (existingBranches.includes(`${baseSessionId}-branch-${branchNum}`)) {
-                branchNum++;
-            }
-            
-            const newSessionId = `${baseSessionId}-branch-${branchNum}`;
-            
-            // Copy current session settings to new branch (if any)
-            const currentSettings = getSessionSettings(baseSessionId);
-            if (Object.keys(currentSettings).length > 0) {
-                const { setSessionSettings } = await import("../session.ts");
-                setSessionSettings(newSessionId, currentSettings);
-            }
-            
-            await channel.sendMessage(
-                msg.chatId,
-                `✨ **New conversation branch created!**\n\n` +
-                `Branch ID: \`${newSessionId}\`\n\n` +
-                `This is a fresh conversation with the same settings as your current session. ` +
-                `To return to the main thread, use \`/reset\` (note: this will clear the current history).`
-            );
-            
-            // Note: The session ID is still based on channelId:chatId, so this is more of a
-            // conceptual branch. In a real implementation, you'd need to modify the session
-            // resolution logic to support explicit branch switching.
-            log.info(`Created new branch: ${newSessionId}`);
-            return;
-        }
-
-        // Command: /compact - Trigger context pruning
-        if (msg.text.trim() === "/compact") {
-            try {
-                const sessionSettings = getSessionSettings(msg.chatId);
-                const modelName = sessionSettings.model || config.LLM_MODEL;
-                const status = getPruningStatus(msg.chatId, modelName);
-
-                await channel.sendMessage(
-                    msg.chatId,
-                    `📊 **Context Status**\n\n` +
-                    `• Messages: ${status.messageCount}\n` +
-                    `• Model: ${status.modelName}\n` +
-                    `• Context window: ${status.contextWindow.toLocaleString()} tokens\n` +
-                    `• Current usage: ${status.contextUsagePercent}%\n` +
-                    `• Estimated tokens used: ${status.estimatedTokensUsed.toLocaleString()}\n\n` +
-                    `${status.isNearLimit ? "⚠️ **Approaching limit!** Pruning context..." : "✅ Context usage healthy."}`
-                );
-
-                if (status.isNearLimit && status.messageCount >= 20) {
-                    // Trigger automatic pruning
-                    const result = await pruneContext(msg.chatId, modelName);
-                    await channel.sendMessage(msg.chatId, formatPruningResult(result));
-                } else {
-                    await channel.sendMessage(
-                        msg.chatId,
-                        `No pruning needed yet. Pruning activates at 80% context usage.`
-                    );
-                }
-            } catch (err) {
-                const errMsg = err instanceof Error ? err.message : String(err);
-                log.error(`Error in /compact command: ${errMsg}`);
-                await channel.sendMessage(msg.chatId, `❌ Error: ${errMsg}`);
-            }
-            return;
-        }
-
-        // Command: /usage - Show token usage stats
-        if (msg.text.trim().startsWith("/usage")) {
-            const parts = msg.text.trim().split(/\s+/);
-            const subcommand = parts[1]?.toLowerCase();
-            
-            const sessionId = `${msg.channelId}:${msg.chatId}`;
-            
-            // Import usage functions
-            const { formatPeriodUsage, formatUsageStats, getUsageStats } = await import("../usage.ts");
-            
-            if (subcommand === "detail" || subcommand === "details") {
-                // Show detailed stats for this session
-                const stats = getUsageStats(sessionId);
-                const formatted = formatUsageStats(stats, "Session Usage Details");
-                await channel.sendMessage(msg.chatId, formatted);
-                return;
-            }
-            
-            if (subcommand === "global") {
-                // Show global stats across all sessions
-                const stats = getUsageStats();
-                const formatted = formatUsageStats(stats, "Global Usage Statistics");
-                await channel.sendMessage(msg.chatId, formatted);
-                return;
-            }
-            
-            // Default: Show period breakdown (today/week/month/all-time)
-            const formatted = formatPeriodUsage(sessionId);
-            await channel.sendMessage(msg.chatId, formatted);
-            return;
-        }
-
-        // Command: /graph <entity> [depth] - Query knowledge graph and render Mermaid
-        if (msg.text.trim().startsWith("/graph")) {
-            const parts = msg.text.trim().split(/\s+/).slice(1);
-            const sessionId = `${msg.channelId}:${msg.chatId}`;
-
-            if (parts.length === 0) {
-                await channel.sendMessage(
-                    msg.chatId,
-                    "🕸️ **Knowledge Graph**\n\n" +
-                    "Usage: `/graph <entity-name> [depth]`\n" +
-                    "Example: `/graph GravityClaw 2`"
-                );
-                return;
-            }
-
-            const maybeDepth = Number(parts[parts.length - 1]);
-            const hasDepth = Number.isFinite(maybeDepth);
-            const depth = hasDepth ? Math.max(1, Math.min(5, Math.floor(maybeDepth))) : 2;
-            const entityName = (hasDepth ? parts.slice(0, -1) : parts).join(" ").trim();
-
-            if (!entityName) {
-                await channel.sendMessage(msg.chatId, "❌ Please provide an entity name.");
-                return;
-            }
-
-            const result = queryGraph(sessionId, entityName, depth);
-            if (!result) {
-                await channel.sendMessage(
-                    msg.chatId,
-                    `ℹ️ No graph data found for entity: **${entityName}**\n\n` +
-                    "Tip: Save nodes with `save_entity` and edges with `save_relationship`."
-                );
-                return;
-            }
-
-            const mermaid = formatGraphAsMermaid(result);
-            await channel.sendMessage(
-                msg.chatId,
-                `🕸️ **Graph for ${result.rootEntity.name}**\n` +
-                `Depth: ${result.depth}\n` +
-                `Entities: ${result.entities.length}\n` +
-                `Relationships: ${result.relationships.length}\n\n` +
-                `\`\`\`mermaid\n${mermaid}\n\`\`\``
-            );
-            return;
-        }
-
-        // Command: /think - Set thinking level
-        if (msg.text.trim().startsWith("/think")) {
-            const parts = msg.text.trim().split(/\s+/);
-            const level = parts[1]?.toLowerCase();
-            
-            // Import thinking module
-            const { isValidThinkingLevel, formatThinkingLevelsForDisplay, getThinkingConfig } = await import("../thinking.ts");
-            
-            if (!level) {
-                // Show current level and available options
-                const sessionId = `${msg.channelId}:${msg.chatId}`;
-                const settings = getSessionSettings(sessionId);
-                const currentLevel = settings.thinkingLevel || "off";
-                
-                const levelsDisplay = formatThinkingLevelsForDisplay();
-                await channel.sendMessage(
-                    msg.chatId,
-                    `🧠 **Current Thinking Level**: ${currentLevel}\n\n` +
-                    levelsDisplay
-                );
-                return;
-            }
-            
-            if (!isValidThinkingLevel(level)) {
-                await channel.sendMessage(
-                    msg.chatId,
-                    `❌ Invalid thinking level: "${level}"\n\n` +
-                    `Valid levels: off, low, medium, high\n\n` +
-                    `Use \`/think\` with no arguments to see all options.`
-                );
-                return;
-            }
-            
-            // Store setting
-            const sessionId = `${msg.channelId}:${msg.chatId}`;
-            updateSessionSetting(sessionId, "thinkingLevel", level);
-            
-            const config = getThinkingConfig(level);
-            await channel.sendMessage(
-                msg.chatId,
-                `✅ Thinking level set to: **${level}** (${config.name})\n\n` +
-                `${config.description}\n\n` +
-                `This setting applies to this conversation only.`
-            );
-            return;
         }
 
         // Command: /mesh <goal> - Start a mesh workflow
-        if (msg.text.trim().startsWith("/mesh")) {
+        if (text.startsWith("/mesh")) {
             const sessionId = `${msg.channelId}:${msg.chatId}`;
-            const goal = msg.text.trim().slice(5).trim();
+            const goal = text.slice(5).trim();
 
             if (!goal) {
                 await channel.sendMessage(
@@ -744,54 +265,6 @@ export class ChannelRouter {
             return;
         }
 
-        // Command: /plugins - List loaded plugins
-        if (msg.text.trim() === "/plugins") {
-            try {
-                const allPlugins = pluginRegistry.listPlugins();
-                
-                if (allPlugins.length === 0) {
-                    await channel.sendMessage(
-                        msg.chatId,
-                        `🔌 **Plugins**\n\n` +
-                        `No plugins currently loaded.\n\n` +
-                        `To add plugins, create plugin packages in the \`plugins/\` directory ` +
-                        `with a \`plugin.json\` manifest file.`
-                    );
-                    return;
-                }
-                
-                let pluginMsg = `🔌 **Loaded Plugins** (${allPlugins.length})\n\n`;
-                
-                for (const plugin of allPlugins) {
-                    pluginMsg += `**${plugin.name}** v${plugin.version}\n`;
-                    if (plugin.description) {
-                        pluginMsg += `  ${plugin.description}\n`;
-                    }
-                    
-                    // Show traits
-                    if (plugin.traits && plugin.traits.length > 0) {
-                        const traitNames = plugin.traits
-                            .map((t: string) => t.charAt(0).toUpperCase() + t.slice(1))
-                            .join(", ");
-                        pluginMsg += `  Traits: ${traitNames}\n`;
-                    }
-                    
-                    pluginMsg += "\n";
-                }
-                
-                pluginMsg += `\nUse \`/help plugins\` for more information about the plugin system.`;
-                
-                await channel.sendMessage(msg.chatId, pluginMsg);
-            } catch (err) {
-                log.error("Error listing plugins", err);
-                await channel.sendMessage(
-                    msg.chatId,
-                    `❌ Error loading plugin list. Check logs for details.`
-                );
-            }
-            return;
-        }
-
         // Command: /swarm <goal> - Trigger agent swarm orchestration
         if (msg.text.trim().startsWith("/swarm")) {
             const goal = msg.text.trim().substring(6).trim();
@@ -880,58 +353,6 @@ export class ChannelRouter {
         }
 
 
-        // Command: /shutdown - Emergency process termination
-        if (msg.text.trim() === "/shutdown") {
-            // Only allow from TELEGRAM_ALLOWED_USER_ID if on Telegram
-            if (msg.channelId === "telegram" && msg.userId !== String(config.TELEGRAM_ALLOWED_USER_ID)) {
-                await channel.sendMessage(msg.chatId, "❌ Unauthorized: You do not have permission to shutdown the system.");
-                return;
-            }
-
-            await channel.sendMessage(msg.chatId, "⚠️ **System Shutdown Initiated**\n\nClearing sessions and exiting process...");
-            
-            const { clearSessions } = await import("../concurrency.ts");
-            clearSessions();
-
-            // Delay exit to allow message delivery
-            setTimeout(() => {
-                log.warn(`Emergency shutdown triggered by user ${msg.userId}`);
-                process.exit(0);
-            }, 1500);
-            return;
-        }
-
-        // Command: /reset - Clear state and sessions
-        if (msg.text.trim() === "/reset") {
-            if (msg.channelId === "telegram" && msg.userId !== String(config.TELEGRAM_ALLOWED_USER_ID)) {
-                await channel.sendMessage(msg.chatId, "❌ Unauthorized: You do not have permission to reset the system.");
-                return;
-            }
-
-            await channel.sendMessage(msg.chatId, "🔄 **System Reset Initiated**\n\nPurging abandoned workflows and clearing active sessions...");
-
-            try {
-                const { clearSessions } = await import("../concurrency.ts");
-                clearSessions();
-
-                // Clear DB tables
-                const tables = ["workflows", "workflow_tasks", "agent_swarms", "execution_plans", "background_tasks"];
-                for (const table of tables) {
-                    try {
-                        db.prepare(`DELETE FROM ${table}`).run();
-                    } catch (e) {
-                        log.error(`Failed to clear table ${table}:`, e);
-                    }
-                }
-
-                await channel.sendMessage(msg.chatId, "✅ **System Reset Complete**\n\nAll stalled workflows cleared. You can now start new tasks.");
-            } catch (err) {
-                log.error("Reset failed:", err);
-                await channel.sendMessage(msg.chatId, `❌ **Reset Failed**: ${err instanceof Error ? err.message : String(err)}`);
-            }
-            return;
-        }
-
         log.info(`Message received via router — channel: ${msg.channelId}, chat: ${msg.chatId}`);
 
         if (channel.sendTyping) await channel.sendTyping(msg.chatId);
@@ -944,9 +365,11 @@ export class ChannelRouter {
         }
 
         try {
+            const requestId = generateRequestId();
             const result = await runWithConcurrencyLimit(key, () => runAgent({
                 message: msg.text,
                 sessionId: key,
+                requestId,
                 userId: msg.userId,
                 platform: msg.platform,
                 groupId: msg.groupId,

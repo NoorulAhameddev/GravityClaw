@@ -20,18 +20,63 @@ const log = createLogger("mcp");
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const MCP_SAFE_ENV_VARS = [
+    "PATH",
+    "HOME",
+    "USERPROFILE",
+    "NODE_PATH",
+    "TMPDIR",
+    "TEMP",
+    "TMP",
+    "LANG",
+    "LC_ALL",
+    "SystemRoot",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "COMSPEC",
+    "PATHEXT",
+];
+
+function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, string> {
+    const env: Record<string, string> = {};
+
+    for (const key of MCP_SAFE_ENV_VARS) {
+        if (process.env[key]) {
+            env[key] = process.env[key]!;
+        }
+    }
+
+    if (serverConfig.env) {
+        Object.assign(env, serverConfig.env);
+    }
+
+    return env;
+}
+
 /**
- * MCP Client Manager
- * Manages connections to MCP servers and routes tool calls
- * Includes automatic reconnection for crashed servers
- */
-export class MCPClient {
+   * MCP Client Manager
+   * Manages connections to MCP servers and routes tool calls
+   * Includes automatic reconnection for crashed servers
+   */
+  export class MCPClient {
   private servers: Map<string, MCPServer> = new Map();
   private requestId = 0;
   private pendingRequests: Map<
     number,
     { resolve: (value: any) => void; reject: (error: any) => void }
   > = new Map();
+  private activeRequests = 0;
+  private explicitConfigs: MCPServerConfig[] | null = null;
+
+  constructor(opts?: { configs?: MCPServerConfig[] }) {
+    if (opts?.configs && opts.configs.length > 0) {
+      this.explicitConfigs = opts.configs;
+    }
+  }
+
+  getActiveRequestCount(): number {
+    return this.activeRequests;
+  }
 
   // Track failed servers for reconnection with exponential backoff
   private failedServers: Map<string, { 
@@ -49,6 +94,22 @@ export class MCPClient {
    * Initialize MCP client and connect to all configured servers
    */
   async initialize(): Promise<void> {
+    if (this.explicitConfigs) {
+      for (let i = 0; i < this.explicitConfigs.length; i++) {
+        const sc = this.explicitConfigs[i];
+        if (!sc) continue;
+        const name = `pool-${i}`;
+        try {
+          await this.connectServer(name, sc);
+        } catch (error) {
+          log.error(`Failed to connect MCP pool server "${name}": ${error}`);
+          this.scheduleReconnect(name, sc);
+        }
+      }
+      log.info(`MCP pool client initialized with ${this.servers.size} server(s)`);
+      return;
+    }
+
     const config = this.loadConfig();
 
     if (!config || Object.keys(config.mcpServers).length === 0) {
@@ -196,7 +257,7 @@ export class MCPClient {
 
     // Spawn the MCP server process
     const serverProcess = spawn(config.command, config.args, {
-      env: { ...process.env, ...config.env },
+      env: createMCPServerEnv(config) as NodeJS.ProcessEnv,
       stdio: ["pipe", "pipe", "pipe"],
       shell: process.platform === "win32",
     });
@@ -418,6 +479,7 @@ export class MCPClient {
       `Calling MCP tool "${toolName}" on server "${targetServer.name}"`
     );
 
+    this.activeRequests++;
     try {
       const result = await this.sendRequest(targetServer, "tools/call", {
         name: toolName,
@@ -430,6 +492,8 @@ export class MCPClient {
         `Error calling tool "${toolName}" on ${targetServer.name}: ${error}`
       );
       throw error;
+    } finally {
+      this.activeRequests--;
     }
   }
 

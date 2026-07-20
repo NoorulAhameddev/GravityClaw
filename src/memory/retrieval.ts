@@ -195,7 +195,7 @@ export async function retrieveRelevantMemories(
         .filter(r => !isTrivialContent(r.content))
         .filter(r => isContextuallyRelevant(r.content, latestUserMessage, r.similarity))
         .map(r => {
-            const memType = (r as any).memoryType || "conversation";
+            const memType = ((r as SemanticSearchResult & { memoryType?: "fact" | "conversation" }).memoryType || "conversation") as "fact" | "conversation";
             return {
                 id: r.id,
                 sessionId: r.sessionId,

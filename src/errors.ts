@@ -1,0 +1,92 @@
+export const ErrorCodes = {
+  // Config & Startup
+  CONFIG_INVALID: "CONFIG_INVALID",
+  CONFIG_MISSING_REQUIRED: "CONFIG_MISSING_REQUIRED",
+  STARTUP_FAILED: "STARTUP_FAILED",
+
+  // Auth & Security
+  AUTH_INVALID_KEY: "AUTH_INVALID_KEY",
+  AUTH_UNAUTHORIZED: "AUTH_UNAUTHORIZED",
+  AUTH_FORBIDDEN: "AUTH_FORBIDDEN",
+  RATE_LIMITED: "RATE_LIMITED",
+  SANDBOX_VIOLATION: "SANDBOX_VIOLATION",
+
+  // LLM / Provider
+  LLM_PROVIDER_UNAVAILABLE: "LLM_PROVIDER_UNAVAILABLE",
+  LLM_RATE_LIMITED: "LLM_RATE_LIMITED",
+  LLM_TIMEOUT: "LLM_TIMEOUT",
+  LLM_INVALID_RESPONSE: "LLM_INVALID_RESPONSE",
+  LLM_CONTEXT_TOO_LARGE: "LLM_CONTEXT_TOO_LARGE",
+  LLM_TOKEN_BUDGET_EXCEEDED: "LLM_TOKEN_BUDGET_EXCEEDED",
+  LLM_DAILY_CREDIT_EXCEEDED: "LLM_DAILY_CREDIT_EXCEEDED",
+
+  // Agent
+  AGENT_MAX_ITERATIONS: "AGENT_MAX_ITERATIONS",
+  AGENT_MAX_TOOL_CALLS: "AGENT_MAX_TOOL_CALLS",
+  AGENT_DEPTH_EXCEEDED: "AGENT_DEPTH_EXCEEDED",
+  AGENT_CYCLE_DETECTED: "AGENT_CYCLE_DETECTED",
+
+  // Tool Execution
+  TOOL_NOT_FOUND: "TOOL_NOT_FOUND",
+  TOOL_EXECUTION_FAILED: "TOOL_EXECUTION_FAILED",
+  TOOL_TIMEOUT: "TOOL_TIMEOUT",
+  TOOL_INVALID_INPUT: "TOOL_INVALID_INPUT",
+  TOOL_UNAUTHORIZED: "TOOL_UNAUTHORIZED",
+
+  // Database
+  DB_CONNECTION_FAILED: "DB_CONNECTION_FAILED",
+  DB_QUERY_FAILED: "DB_QUERY_FAILED",
+  DB_MIGRATION_FAILED: "DB_MIGRATION_FAILED",
+
+  // Memory
+  MEMORY_RETRIEVAL_FAILED: "MEMORY_RETRIEVAL_FAILED",
+  MEMORY_STORE_FAILED: "MEMORY_STORE_FAILED",
+  MEMORY_VECTOR_UNAVAILABLE: "MEMORY_VECTOR_UNAVAILABLE",
+
+  // Channels
+  CHANNEL_START_FAILED: "CHANNEL_START_FAILED",
+  CHANNEL_SEND_FAILED: "CHANNEL_SEND_FAILED",
+  CHANNEL_INVALID_MESSAGE: "CHANNEL_INVALID_MESSAGE",
+
+  // Network
+  NETWORK_TIMEOUT: "NETWORK_TIMEOUT",
+  NETWORK_DNS_FAILED: "NETWORK_DNS_FAILED",
+  NETWORK_CONNECTION_REFUSED: "NETWORK_CONNECTION_REFUSED",
+
+  // Plugin / MCP
+  PLUGIN_LOAD_FAILED: "PLUGIN_LOAD_FAILED",
+  PLUGIN_INVALID_MANIFEST: "PLUGIN_INVALID_MANIFEST",
+  MCP_CONNECTION_FAILED: "MCP_CONNECTION_FAILED",
+  MCP_TOOL_NOT_FOUND: "MCP_TOOL_NOT_FOUND",
+
+  // Internal
+  INTERNAL_ERROR: "INTERNAL_ERROR",
+  NOT_IMPLEMENTED: "NOT_IMPLEMENTED",
+  ASSERTION_FAILED: "ASSERTION_FAILED",
+} as const;
+
+export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
+
+export class AppError extends Error {
+  readonly code: ErrorCode;
+  readonly statusCode: number;
+  readonly details: Record<string, unknown> | undefined;
+
+  constructor(code: ErrorCode, message: string, options?: { statusCode?: number; details?: Record<string, unknown>; cause?: unknown }) {
+    super(message);
+    this.name = "AppError";
+    this.code = code;
+    this.statusCode = options?.statusCode ?? 500;
+    this.details = options?.details;
+    this.cause = options?.cause;
+  }
+
+  toJSON(): { code: ErrorCode; message: string; statusCode: number; details: Record<string, unknown> | undefined } {
+    return {
+      code: this.code,
+      message: this.message,
+      statusCode: this.statusCode,
+      details: this.details,
+    };
+  }
+}
