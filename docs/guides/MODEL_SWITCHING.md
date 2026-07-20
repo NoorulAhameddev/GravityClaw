@@ -147,7 +147,7 @@ getSessionStats(sessionId: string): {
 
 ### LLM Integration
 
-`src/llm.ts` checks session settings before calling the LLM provider:
+`src/llm/orchestrator.ts` checks session settings before calling the LLM provider:
 
 ```typescript
 export async function callClaude(
@@ -357,7 +357,7 @@ When setting settings for a brand new session with no messages, a placeholder sy
 ## Related Files
 
 - **Core Implementation**: `src/session.ts`
-- **LLM Integration**: `src/llm.ts`
+- **LLM Integration**: `src/llm/orchestrator.ts`
 - **Command Handler**: `src/channels/router.ts`
 - **Database Schema**: `src/db.ts`
 - **Tests**: `src/__tests__/session.test.ts`

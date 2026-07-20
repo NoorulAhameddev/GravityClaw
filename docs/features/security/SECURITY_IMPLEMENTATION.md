@@ -428,3 +428,9 @@ validatePathAccess({ path: './data/file.txt', action: 'read' });
 - [Secrets Management](src/secrets.ts)
 - [Secret Manager CLI](scripts/secret-manager.ts)
 - [Security Tools](src/tools/security/index.ts)
+
+
+### Access Control & Auditing
+
+GravityClaw now includes robust RBAC, SSO, and Audit Logging capabilities.
+Please refer to the [Auth & Audit Guide](AUTH_AND_AUDIT.md) for full configuration and integration details.
