@@ -22,14 +22,14 @@
 curl -f http://localhost:3000/api/live
 curl -f http://localhost:3000/api/ready
 
-# Check Docker service logs
-docker service logs gravityclaw_app --tail 100
+# Check Docker logs
+docker compose logs app --tail 100
 
 # Check resource usage
 docker stats $(docker ps -q)
 
 # Restart if needed
-docker service update --force gravityclaw_app
+docker compose restart app
 ```
 
 ### 2. High Latency
@@ -42,18 +42,17 @@ curl http://localhost:3000/api/metrics/prometheus | grep gravityclaw
 # OpenAI: https://status.openai.com
 
 # Scale up
-docker service scale gravityclaw_app=5
+docker compose up -d --scale app=5
 ```
 
 ### 3. Database Issues
 ```bash
-# Check Redis
-redis-cli -h redis ping
-redis-cli -h redis info | grep used_memory
-
-# Check SQLite
+# Check SQLite disk usage
 # Verify disk space
 df -h /data
+
+# Run integrity check
+sqlite3 data/gravity.db "PRAGMA integrity_check;"
 
 # Check connection count
 lsof -i :3000 | wc -l

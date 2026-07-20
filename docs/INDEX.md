@@ -11,8 +11,8 @@ New to GravityClaw? Start here:
 | Document | Description | Priority |
 |----------|-------------|----------|
 | [README](../README.md) | Project overview, quick start, features | ⭐⭐⭐ Required |
-| [CLI Guide](CLI.md) | Command-line interface reference | ⭐⭐⭐ Essential |
-| [Deployment Guide](DEPLOYMENT.md) | Local, VPS, and Docker deployment | ⭐⭐ Recommended |
+| [CLI Guide](guides/CLI.md) | Command-line interface reference | ⭐⭐⭐ Essential |
+| [Deployment Guide](guides/DEPLOYMENT.md) | Local, VPS, and Docker deployment | ⭐⭐ Recommended |
 
 ---
 
@@ -22,8 +22,8 @@ Understand the architecture and design:
 
 | Document | Description |
 |----------|-------------|
-| [Architecture Overview](../ARCHITECTURE_OVERVIEW.md) | Complete system architecture |
-| [Architecture Details](ARCHITECTURE.md) | Detailed technical design, data flow |
+| [Architecture Overview](architecture/ARCHITECTURE_OVERVIEW.md) | Complete system architecture |
+| [Architecture Details](architecture/ARCHITECTURE.md) | Detailed technical design, data flow |
 | [Request Flow](#) | How messages flow through the system |
 | [Database Schema](#) | SQLite schema and table structure |
 
@@ -50,15 +50,15 @@ Understand the architecture and design:
 | Document | Description | Topics Covered |
 |----------|-------------|----------------|
 | [**Proactive Features**](PROACTIVE_FEATURES.md) | Heartbeat, recommendations, recaps  | Scheduled check-ins, daily suggestions, evening summaries |
-| [Live Canvas (A2UI)](CANVAS.md) | Push rich HTML/JS widgets to users | Canvas protocol, examples, WebSocket integration |
-| [Model Switching](MODEL_SWITCHING.md) | Dynamic provider/model selection | Per-session overrides, failover, cost optimization |
+| [Live Canvas (A2UI)](features/canvas/CANVAS.md) | Push rich HTML/JS widgets to users | Canvas protocol, examples, WebSocket integration |
+| [Model Switching](guides/MODEL_SWITCHING.md) | Dynamic provider/model selection | Per-session overrides, failover, cost optimization |
 | [Export Functionality](EXPORT_FUNCTIONALITY.md) | Data export tools | Chat history, memory, usage stats, knowledge graph |
 
 ### Development & Automation
 
 | Document | Description | Topics Covered |
 |----------|-------------|----------------|
-| [Webhooks](API.md#webhooks) | External integrations via webhooks | Creating webhooks, triggering, history |
+| [Webhooks](guides/API.md#webhooks) | External integrations via webhooks | Creating webhooks, triggering, history |
 | [Scheduler](TOOLS_REFERENCE.md#scheduler-tools) | Cron-based task scheduling | Natural language schedules, task management |
 | [Browser Automation](TOOLS_REFERENCE.md#browser-automation) | Headless browser tools | Navigation, scraping, form filling |
 
@@ -71,24 +71,24 @@ Understand the architecture and design:
 | Document | Description | Topics Covered |
 |----------|-------------|----------------|
 | [**Security Policy**](../SECURITY.md) | Vulnerability reporting, features | Security features, best practices, contact info |
-| [Air-Gapped Mode](AIRGAP.md) | Complete offline operation | Setup, enforcement, local models |
+| [Air-Gapped Mode](features/airgap/AIRGAP.md) | Complete offline operation | Setup, enforcement, local models |
 | [Encrypted Secrets](ENCRYPTED_SECRETS.md) | AES-256-GCM secret management | Encryption, rotation, audit logging |
-| [Security Implementation](SECURITY_IMPLEMENTATION.md) | Security features in depth | Allowlisting, validation, audit trails |
-| [Security Setup Guide](SECURITY_SETUP.md) | Step-by-step security configuration | Initial setup, hardening, production checklist |
+| [Security Implementation](features/security/SECURITY_IMPLEMENTATION.md) | Security features in depth | Allowlisting, validation, audit trails |
+| [Security Setup Guide](features/security/SECURITY_SETUP.md) | Step-by-step security configuration | Initial setup, hardening, production checklist |
 
 ### Backup & Data Management
 
 | Document | Description | Topics Covered |
 |----------|-------------|----------------|
-| [**Backup & Restore System**](BACKUP_RESTORE_SYSTEM.md) | Complete backup guide | Automated backups, encryption, restoration, scheduling |
+| [**Backup & Restore System**](features/backup/BACKUP_RESTORE_SYSTEM.md) | Complete backup guide | Automated backups, encryption, restoration, scheduling |
 
 ### Monitoring & Performance
 
 | Document | Description | Topics Covered |
 |----------|-------------|----------------|
-| [**Observability**](OBSERVABILITY.md) | Logging, metrics, tracing | Structured logging, Prometheus metrics, distributed tracing, correlation |
-| [Performance Optimization](PERFORMANCE.md) | Speed and efficiency tuning | Agent optimization, memory tuning, caching strategies |
-| [Rate Limiting](RATE_LIMITING.md) | API rate limiting system | Configuration, tiers, monitoring, bypass |
+| [**Observability**](features/observability/OBSERVABILITY.md) | Logging, metrics, tracing | Structured logging, Prometheus metrics, distributed tracing, correlation |
+| [Performance Optimization](features/performance/PERFORMANCE.md) | Speed and efficiency tuning | Agent optimization, memory tuning, caching strategies |
+| [Rate Limiting](features/rate-limiting/RATE_LIMITING.md) | API rate limiting system | Configuration, tiers, monitoring, bypass |
 
 ---
 
@@ -96,7 +96,7 @@ Understand the architecture and design:
 
 | Document | Description | Topics Covered |
 |----------|-------------|----------------|
-| [**API Reference**](API.md) | Complete API documentation | REST endpoints, WebSocket protocol, tool APIs, authentication |
+| [**API Reference**](guides/API.md) | Complete API documentation | REST endpoints, WebSocket protocol, tool APIs, authentication |
 | [Tools Reference](TOOLS_REFERENCE.md#tool-api-reference) | Tool interface specification | Input schemas, context injection, error handling |
 
 ---
@@ -125,9 +125,9 @@ Understand the architecture and design:
 
 | Document | Description |
 |----------|-------------|
-| [Observability Quick Reference](OBSERVABILITY.md#quick-start) | Fast lookup for logging, metrics, tracing |
-| [Rate Limiting At-a-Glance](RATE_LIMITING.md#configuration-quick-reference) | Fast lookup for rate limit configuration |
-| [Security Quick Reference](SECURITY_QUICK_REFERENCE.md) | Security features and commands |
+| [Observability Quick Reference](features/observability/OBSERVABILITY.md#quick-start) | Fast lookup for logging, metrics, tracing |
+| [Rate Limiting At-a-Glance](features/rate-limiting/RATE_LIMITING.md#configuration-quick-reference) | Fast lookup for rate limit configuration |
+| [Security Quick Reference](features/security/SECURITY_QUICK_REFERENCE.md) | Security features and commands |
 
 ---
 
@@ -137,9 +137,9 @@ Understand the architecture and design:
 
 #### Set Up & Deploy
 1. [README Quick Start](../README.md#quick-start) - 5-minute setup
-2. [Deployment Guide](DEPLOYMENT.md) - Production deployment
-3. [Security Setup](SECURITY_SETUP.md) - Secure your installation
-4. [Air-Gapped Mode](AIRGAP.md) - Offline operation
+2. [Deployment Guide](guides/DEPLOYMENT.md) - Production deployment
+3. [Security Setup](features/security/SECURITY_SETUP.md) - Secure your installation
+4. [Air-Gapped Mode](features/airgap/AIRGAP.md) - Offline operation
 
 #### Extend Functionality
 1. [Tools Reference](TOOLS_REFERENCE.md#tool-development) - Create custom tools
@@ -148,22 +148,22 @@ Understand the architecture and design:
 4. [Multi-Agent Systems](MULTI_AGENT_SYSTEMS.md) - Coordinate multiple agents
 
 #### Integrate with External Systems
-1. [API Reference](API.md) - REST and WebSocket APIs
-2. [Webhooks](API.md#webhooks) - Incoming webhook integration
+1. [API Reference](guides/API.md) - REST and WebSocket APIs
+2. [Webhooks](guides/API.md#webhooks) - Incoming webhook integration
 3. [MCP Bridge](TOOLS_REFERENCE.md#mcp-bridge-tools) - Model Context Protocol
-4. [Canvas Integration](CANVAS.md) - Push rich UIs to users
+4. [Canvas Integration](features/canvas/CANVAS.md) - Push rich UIs to users
 
 #### Monitor & Optimize
-1. [Observability](OBSERVABILITY.md) - Logging, metrics, and tracing
-2. [Performance Optimization](PERFORMANCE.md) - Speed and efficiency
-3. [Backup System](BACKUP_RESTORE_SYSTEM.md) - Data protection
-4. [Rate Limiting](RATE_LIMITING.md) - Resource management
+1. [Observability](features/observability/OBSERVABILITY.md) - Logging, metrics, and tracing
+2. [Performance Optimization](features/performance/PERFORMANCE.md) - Speed and efficiency
+3. [Backup System](features/backup/BACKUP_RESTORE_SYSTEM.md) - Data protection
+4. [Rate Limiting](features/rate-limiting/RATE_LIMITING.md) - Resource management
 
 #### Secure & Protect
 1. [Security Policy](../SECURITY.md) - Overview of security features
 2. [Encrypted Secrets](ENCRYPTED_SECRETS.md) - Credential management
-3. [Security Implementation](SECURITY_IMPLEMENTATION.md) - Feature details
-4. [Air-Gapped Mode](AIRGAP.md) - Network isolation
+3. [Security Implementation](features/security/SECURITY_IMPLEMENTATION.md) - Feature details
+4. [Air-Gapped Mode](features/airgap/AIRGAP.md) - Network isolation
 
 ---
 
@@ -232,7 +232,7 @@ Found an error in the docs? Please:
 
 Missing docs for a feature? Check:
 1. [Tools Reference](TOOLS_REFERENCE.md) - Comprehensive tool catalog
-2. [API Reference](API.md) - API endpoints
+2. [API Reference](guides/API.md) - API endpoints
 3. Source code comments - Often the most current info
 4. [Open issues](https://github.com/noorulahamed/gravityclaw/issues) - May be planned
 

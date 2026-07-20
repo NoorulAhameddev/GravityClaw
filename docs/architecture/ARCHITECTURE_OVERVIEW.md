@@ -1092,10 +1092,10 @@ src/index.ts                    # Entry point
 - **Main README**: [`README.md`](README.md)
 - **Security Policy**: [`SECURITY.md`](SECURITY.md)
 - **Contributing**: [`CONTRIBUTING.md`](CONTRIBUTING.md)
-- **CLI Documentation**: [`docs/CLI.md`](docs/CLI.md)
-- **Architecture Details**: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-- **Deployment Guide**: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
-- **API Reference**: [`docs/API.md`](docs/API.md)
+- **CLI Documentation**: [`docs/guides/CLI.md`](docs/guides/CLI.md)
+- **Architecture Details**: [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md)
+- **Deployment Guide**: [`docs/guides/DEPLOYMENT.md`](docs/guides/DEPLOYMENT.md)
+- **API Reference**: [`docs/guides/API.md`](docs/guides/API.md)
 
 ---
 
@@ -1127,3 +1127,8 @@ MIT License — See [`LICENSE`](LICENSE) for details.
 **Last Updated**: March 5, 2026  
 **Maintainer**: Noorul Ahamed  
 **Repository**: [github.com/noorulahamed/gravityclaw](https://github.com/noorulahamed/gravityclaw)
+
+
+
+7. **Memory Persistence**: Writing to graph and relational memory.
+

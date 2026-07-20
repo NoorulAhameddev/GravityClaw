@@ -18,7 +18,7 @@ Thank you for your interest in contributing to Gravity Claw! We welcome contribu
 3. **Set Up Environment**
    - Copy `.env.example` to `.env`
    - Add your API keys (OpenAI, Anthropic, etc.) or use Ollama for air-gapped mode
-   - See [docs/AIRGAP.md](docs/AIRGAP.md) for local-only setup
+   - See [docs/features/airgap/AIRGAP.md](docs/features/airgap/AIRGAP.md) for local-only setup
 
 4. **Run Development Server**
    ```bash
@@ -103,9 +103,9 @@ Thank you for your interest in contributing to Gravity Claw! We welcome contribu
 
 **New Tool**: Add to appropriate subdirectory in `src/tools/`, export in `index.ts`
 
-**New LLM Provider**: Extend `BaseLLMProvider` in `src/llm/`, add to `orchestrator.ts`
+**New LLM Provider**: Implement `LLMProvider` interface in `src/llm/`, add to `createSingleProvider()` in `src/llm/index.ts`
 
-**New Channel**: Extend `BaseChannel` in `src/channels/`, register in `router.ts`
+**New Channel**: Extend `Channel` interface in `src/channels/`, register in `ChannelRouter`
 
 **New Skill**: Create markdown file in `skills/`, follow existing format
 
