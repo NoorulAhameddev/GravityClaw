@@ -1,68 +1,80 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { db } from "../db.ts";
-import { config } from "../config.ts";
-import { addUserMessage, addAssistantMessage } from "../llm/index.ts";
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { db } from '../db.ts';
+import { config } from '../config.ts';
+import { addUserMessage, addAssistantMessage } from '../llm/index.ts';
 import {
   searchMemorySemantic,
   setSupabaseMemoryAdapterForTests,
   syncMessageToSupabase,
   type SemanticSearchResult,
-} from "../memory/supabase.ts";
+} from '../memory/supabase.ts';
 
-const SESSION_ID = "supabase:test";
+vi.mock('openai', () => {
+  return {
+    default: class OpenAI {
+      embeddings = {
+        create: vi.fn().mockResolvedValue({
+          data: [{ embedding: Array.from({ length: 64 }, () => 0.1) }],
+        }),
+      };
+    },
+  };
+});
+
+const SESSION_ID = 'supabase:test';
 const testDeps = { db, config };
 
-describe("Supabase + pgvector Memory", () => {
+describe('Supabase + pgvector Memory', () => {
   beforeEach(() => {
-    db.prepare("DELETE FROM memory WHERE session_id = ?").run(SESSION_ID);
+    db.prepare('DELETE FROM memory WHERE session_id = ?').run(SESSION_ID);
     setSupabaseMemoryAdapterForTests(null);
   });
 
   afterEach(() => {
-    db.prepare("DELETE FROM memory WHERE session_id = ?").run(SESSION_ID);
+    db.prepare('DELETE FROM memory WHERE session_id = ?').run(SESSION_ID);
     setSupabaseMemoryAdapterForTests(null);
   });
 
-  it("falls back to local semantic search when Supabase is not configured", async () => {
-    addUserMessage(SESSION_ID, "I prefer concise TypeScript responses with examples", testDeps);
-    addAssistantMessage(SESSION_ID, "Understood, I will keep responses concise.", testDeps);
-    addUserMessage(SESSION_ID, "Use pgvector semantic search for memory recall", testDeps);
+  it('falls back to local semantic search when Supabase is not configured', async () => {
+    addUserMessage(SESSION_ID, 'I prefer concise TypeScript responses with examples', testDeps);
+    addAssistantMessage(SESSION_ID, 'Understood, I will keep responses concise.', testDeps);
+    addUserMessage(SESSION_ID, 'Use pgvector semantic search for memory recall', testDeps);
 
-    const matches = await searchMemorySemantic(SESSION_ID, "semantic memory search", 3);
+    const matches = await searchMemorySemantic(SESSION_ID, 'semantic memory search', 3);
 
     expect(matches.length).toBeGreaterThan(0);
     expect(matches[0]?.sessionId).toBe(SESSION_ID);
-    expect(matches.some((m) => m.content.toLowerCase().includes("semantic"))).toBe(true);
+    expect(matches.some((m) => m.content.toLowerCase().includes('semantic'))).toBe(true);
   });
 
-  it("uses adapter semantic search when provided", async () => {
+  it('uses adapter semantic search when provided', async () => {
     const adapterResults: SemanticSearchResult[] = [
       {
-        id: "m1",
+        id: 'm1',
         sessionId: SESSION_ID,
-        role: "user",
-        content: "adapter result",
+        role: 'user',
+        content: 'adapter result',
         timestamp: new Date().toISOString(),
         similarity: 0.99,
       },
     ];
 
     setSupabaseMemoryAdapterForTests({
-      async upsertSession() { },
-      async insertMessage() { },
+      async upsertSession() {},
+      async insertMessage() {},
       async semanticSearch() {
         return adapterResults;
       },
     });
 
-    const matches = await searchMemorySemantic(SESSION_ID, "anything", 5);
+    const matches = await searchMemorySemantic(SESSION_ID, 'anything', 5);
 
     expect(matches).toHaveLength(1);
-    expect(matches[0]?.content).toBe("adapter result");
+    expect(matches[0]?.content).toBe('adapter result');
     expect(matches[0]?.similarity).toBeCloseTo(0.99, 3);
   });
 
-  it("syncMessageToSupabase sends session and message payload via adapter", async () => {
+  it('syncMessageToSupabase sends session and message payload via adapter', async () => {
     let sessionUpserted = false;
     let messageInserted = false;
 
@@ -71,7 +83,7 @@ describe("Supabase + pgvector Memory", () => {
         sessionUpserted = payload.id === SESSION_ID;
       },
       async insertMessage(payload) {
-        messageInserted = payload.session_id === SESSION_ID && payload.content.includes("hello");
+        messageInserted = payload.session_id === SESSION_ID && payload.content.includes('hello');
       },
       async semanticSearch() {
         return [];
@@ -80,8 +92,8 @@ describe("Supabase + pgvector Memory", () => {
 
     const synced = await syncMessageToSupabase({
       sessionId: SESSION_ID,
-      role: "user",
-      content: "hello from sync",
+      role: 'user',
+      content: 'hello from sync',
     });
 
     expect(synced).toBe(true);
@@ -89,8 +101,8 @@ describe("Supabase + pgvector Memory", () => {
     expect(messageInserted).toBe(true);
   });
 
-  it("returns empty results for blank semantic query", async () => {
-    const matches = await searchMemorySemantic(SESSION_ID, "   ", 5);
+  it('returns empty results for blank semantic query', async () => {
+    const matches = await searchMemorySemantic(SESSION_ID, '   ', 5);
     expect(matches).toEqual([]);
   });
 });

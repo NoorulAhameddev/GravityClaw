@@ -15,7 +15,10 @@ export class BridgeClient {
   private config: BridgeClientConfig;
   private ws: WebSocket | null = null;
   private requestId = 0;
-  private pendingRequests: Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }> = new Map();
+  private pendingRequests: Map<
+    number,
+    { resolve: (v: unknown) => void; reject: (e: Error) => void }
+  > = new Map();
   private connected = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -68,9 +71,13 @@ export class BridgeClient {
     });
   }
 
-  private handleResponse(response: { id: number; result?: unknown; error?: { code: number; message: string } }): void {
+  private handleResponse(response: {
+    id: number;
+    result?: unknown;
+    error?: { code: number; message: string };
+  }): void {
     const pending = this.pendingRequests.get(response.id);
-    
+
     if (!pending) {
       log.warn(`Received response for unknown request: ${response.id}`);
       return;
@@ -109,12 +116,14 @@ export class BridgeClient {
       const id = ++this.requestId;
       this.pendingRequests.set(id, { resolve, reject });
 
-      this.ws.send(JSON.stringify({
-        jsonrpc: '2.0',
-        id,
-        method,
-        params,
-      }));
+      this.ws.send(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id,
+          method,
+          params,
+        }),
+      );
 
       setTimeout(() => {
         if (this.pendingRequests.has(id)) {
@@ -141,8 +150,14 @@ export class BridgeClient {
     return this.sendRequest('session.list') as Promise<SessionInfo[]>;
   }
 
-  async sendToSession(sessionId: string, message: string): Promise<{ success: boolean; response?: string }> {
-    return this.sendRequest('session.send', { sessionId, message }) as Promise<{ success: boolean; response?: string }>;
+  async sendToSession(
+    sessionId: string,
+    message: string,
+  ): Promise<{ success: boolean; response?: string }> {
+    return this.sendRequest('session.send', { sessionId, message }) as Promise<{
+      success: boolean;
+      response?: string;
+    }>;
   }
 
   async ping(): Promise<{ pong: boolean }> {

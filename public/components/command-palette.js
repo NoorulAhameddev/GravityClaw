@@ -22,7 +22,7 @@ class CommandPalette {
         category: 'Navigation',
         icon: '💬',
         handler: () => this.navigateToChat(),
-        description: 'Open the chat interface'
+        description: 'Open the chat interface',
       },
       {
         id: 'nav-dashboard',
@@ -30,7 +30,7 @@ class CommandPalette {
         category: 'Navigation',
         icon: '📊',
         handler: () => this.navigateToDashboard(),
-        description: 'Open the analytics dashboard'
+        description: 'Open the analytics dashboard',
       },
       {
         id: 'nav-memory',
@@ -38,7 +38,7 @@ class CommandPalette {
         category: 'Navigation',
         icon: '🧠',
         handler: () => this.navigateToMemory(),
-        description: 'View knowledge graph and facts'
+        description: 'View knowledge graph and facts',
       },
       {
         id: 'nav-tools',
@@ -46,7 +46,7 @@ class CommandPalette {
         category: 'Navigation',
         icon: '🔧',
         handler: () => this.navigateToTools(),
-        description: 'Manage tools and plugins'
+        description: 'Manage tools and plugins',
       },
       {
         id: 'nav-scheduler',
@@ -54,7 +54,7 @@ class CommandPalette {
         category: 'Navigation',
         icon: '⏱️',
         handler: () => this.navigateToScheduler(),
-        description: 'Schedule and manage tasks'
+        description: 'Schedule and manage tasks',
       },
 
       // Settings Commands
@@ -64,7 +64,7 @@ class CommandPalette {
         category: 'Settings',
         icon: '🎤',
         handler: () => this.toggleVoiceMode(),
-        description: 'Enable/disable voice input and output'
+        description: 'Enable/disable voice input and output',
       },
       {
         id: 'settings-tts',
@@ -72,7 +72,7 @@ class CommandPalette {
         category: 'Settings',
         icon: '🔊',
         handler: () => this.changeTTSProvider(),
-        description: 'Select text-to-speech provider'
+        description: 'Select text-to-speech provider',
       },
       {
         id: 'settings-notifications',
@@ -80,7 +80,7 @@ class CommandPalette {
         category: 'Settings',
         icon: '🔔',
         handler: () => this.toggleNotifications(),
-        description: 'Enable/disable notifications'
+        description: 'Enable/disable notifications',
       },
       {
         id: 'settings-open',
@@ -88,7 +88,7 @@ class CommandPalette {
         category: 'Settings',
         icon: '⚙️',
         handler: () => this.openSettings(),
-        description: 'Open full settings panel'
+        description: 'Open full settings panel',
       },
 
       // Dashboard Commands
@@ -99,7 +99,7 @@ class CommandPalette {
         icon: '🔄',
         handler: () => this.refreshDashboard(),
         description: 'Reload all dashboard data',
-        isAsync: true
+        isAsync: true,
       },
       {
         id: 'dashboard-export',
@@ -108,7 +108,7 @@ class CommandPalette {
         icon: '📥',
         handler: () => this.exportData(),
         description: 'Export dashboard data as JSON/CSV',
-        isAsync: true
+        isAsync: true,
       },
       {
         id: 'dashboard-clear-cache',
@@ -117,7 +117,7 @@ class CommandPalette {
         icon: '🗑️',
         handler: () => this.clearCache(),
         description: 'Clear browser cache and localStorage',
-        isAsync: true
+        isAsync: true,
       },
 
       // System Commands
@@ -127,7 +127,7 @@ class CommandPalette {
         category: 'System',
         icon: '❓',
         handler: () => this.showHelp(),
-        description: 'Display help and documentation'
+        description: 'Display help and documentation',
       },
       {
         id: 'system-shortcuts',
@@ -135,7 +135,7 @@ class CommandPalette {
         category: 'System',
         icon: '⌨️',
         handler: () => this.showShortcuts(),
-        description: 'View keyboard shortcuts cheat sheet'
+        description: 'View keyboard shortcuts cheat sheet',
       },
       {
         id: 'system-bug',
@@ -143,7 +143,7 @@ class CommandPalette {
         category: 'System',
         icon: '🐛',
         handler: () => this.reportBug(),
-        description: 'Open bug report form'
+        description: 'Open bug report form',
       },
       {
         id: 'system-theme',
@@ -151,8 +151,8 @@ class CommandPalette {
         category: 'System',
         icon: '🌙',
         handler: () => this.toggleDarkMode(),
-        description: 'Switch between light and dark theme'
-      }
+        description: 'Switch between light and dark theme',
+      },
     ];
 
     this.setupKeyboardListener();
@@ -383,10 +383,7 @@ class CommandPalette {
   updateFilter() {
     const searchInput = document.getElementById('cmd-search');
     this.searchQuery = searchInput.value;
-    this.filteredCommands = this.fuzzySearch(
-      this.searchQuery,
-      this.allCommands
-    );
+    this.filteredCommands = this.fuzzySearch(this.searchQuery, this.allCommands);
     this.selectedIndex = 0;
     this.renderCommands();
   }

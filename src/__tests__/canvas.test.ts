@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { WebSocket } from "ws";
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { WebSocket } from 'ws';
 import {
   registerCanvasClient,
   pushCanvas,
   getConnectedCanvasClients,
   hasCanvasClient,
   canvasPushTool,
-} from "../canvas/index.ts";
+} from '../canvas/index.ts';
 
 // Mock WebSocket
 class MockWebSocket {
@@ -32,13 +32,13 @@ class MockWebSocket {
 
   close() {
     this.readyState = 3; // WebSocket.CLOSED
-    this.emit("close");
+    this.emit('close');
   }
 }
 
-describe("Live Canvas", () => {
+describe('Live Canvas', () => {
   let mockWs: MockWebSocket;
-  const testSessionId = "test-canvas-session";
+  const testSessionId = 'test-canvas-session';
 
   beforeEach(() => {
     mockWs = new MockWebSocket();
@@ -48,24 +48,24 @@ describe("Live Canvas", () => {
     // we'll work with fresh session IDs
   });
 
-  describe("registerCanvasClient", () => {
-    it("should register a canvas client", () => {
+  describe('registerCanvasClient', () => {
+    it('should register a canvas client', () => {
       registerCanvasClient(testSessionId, mockWs as any);
 
       expect(hasCanvasClient(testSessionId)).toBe(true);
       expect(getConnectedCanvasClients()).toContain(testSessionId);
     });
 
-    it("should send a welcome message on connect", () => {
+    it('should send a welcome message on connect', () => {
       registerCanvasClient(testSessionId, mockWs as any);
 
       expect(mockWs.messages.length).toBeGreaterThan(0);
       const welcomeMsg = JSON.parse(mockWs.messages[0]!);
-      expect(welcomeMsg.type).toBe("connected");
+      expect(welcomeMsg.type).toBe('connected');
       expect(welcomeMsg.sessionId).toBe(testSessionId);
     });
 
-    it("should handle client disconnect", () => {
+    it('should handle client disconnect', () => {
       registerCanvasClient(testSessionId, mockWs as any);
       expect(hasCanvasClient(testSessionId)).toBe(true);
 
@@ -75,162 +75,158 @@ describe("Live Canvas", () => {
       expect(hasCanvasClient(testSessionId)).toBe(false);
     });
 
-    it("should handle incoming messages from client", () => {
+    it('should handle incoming messages from client', () => {
       registerCanvasClient(testSessionId, mockWs as any);
 
       // Simulate a ping message
-      const pingMessage = JSON.stringify({ type: "ping" });
-      mockWs.emit("message", Buffer.from(pingMessage));
+      const pingMessage = JSON.stringify({ type: 'ping' });
+      mockWs.emit('message', Buffer.from(pingMessage));
 
       // Should respond with pong
-      const messages = mockWs.messages
-        .slice(1)
-        .map((m) => JSON.parse(m)); // Skip welcome message
-      const pongMessage = messages.find((m) => m.type === "pong");
+      const messages = mockWs.messages.slice(1).map((m) => JSON.parse(m)); // Skip welcome message
+      const pongMessage = messages.find((m) => m.type === 'pong');
       expect(pongMessage).toBeDefined();
     });
   });
 
-  describe("pushCanvas", () => {
+  describe('pushCanvas', () => {
     beforeEach(() => {
       registerCanvasClient(testSessionId, mockWs as any);
       // Clear welcome message
       mockWs.messages = [];
     });
 
-    it("should push HTML content to connected client", async () => {
-      const html = "<div>Hello Canvas!</div>";
+    it('should push HTML content to connected client', async () => {
+      const html = '<div>Hello Canvas!</div>';
 
       const result = await pushCanvas(testSessionId, html);
 
-      expect(result).toBe("Canvas widget sent successfully");
+      expect(result).toBe('Canvas widget sent successfully');
       expect(mockWs.messages.length).toBe(1);
 
       const message = JSON.parse(mockWs.messages[0]!);
-      expect(message.type).toBe("canvas_push");
+      expect(message.type).toBe('canvas_push');
       expect(message.html).toBe(html);
-      expect(message.js).toBe("");
+      expect(message.js).toBe('');
     });
 
-    it("should push HTML and JavaScript content", async () => {
+    it('should push HTML and JavaScript content', async () => {
       const html = "<button id='btn'>Click me</button>";
       const js = "document.getElementById('btn').textContent = 'Clicked';";
 
       const result = await pushCanvas(testSessionId, html, js);
 
-      expect(result).toBe("Canvas widget sent successfully");
+      expect(result).toBe('Canvas widget sent successfully');
 
       const message = JSON.parse(mockWs.messages[0]!);
-      expect(message.type).toBe("canvas_push");
+      expect(message.type).toBe('canvas_push');
       expect(message.html).toBe(html);
       expect(message.js).toBe(js);
     });
 
-    it("should reject dangerous HTML patterns (external scripts)", async () => {
+    it('should reject dangerous HTML patterns (external scripts)', async () => {
       const dangerousHtml = '<script src="https://evil.com/hack.js"></script>';
 
       await expect(pushCanvas(testSessionId, dangerousHtml)).rejects.toThrow(
-        /Content validation failed/
+        /Content validation failed/,
       );
     });
 
-    it("should reject dangerous HTML patterns (inline events)", async () => {
+    it('should reject dangerous HTML patterns (inline events)', async () => {
       const dangerousHtml = '<button onclick="alert(\'xss\')">Click</button>';
 
       await expect(pushCanvas(testSessionId, dangerousHtml)).rejects.toThrow(
-        /Content validation failed/
+        /Content validation failed/,
       );
     });
 
-    it("should reject dangerous HTML patterns (javascript: protocol)", async () => {
+    it('should reject dangerous HTML patterns (javascript: protocol)', async () => {
       const dangerousHtml = '<a href="javascript:alert(\'xss\')">Link</a>';
 
       await expect(pushCanvas(testSessionId, dangerousHtml)).rejects.toThrow(
-        /Content validation failed/
+        /Content validation failed/,
       );
     });
 
-    it("should reject dangerous JavaScript patterns (eval)", async () => {
-      const html = "<div>Safe content</div>";
+    it('should reject dangerous JavaScript patterns (eval)', async () => {
+      const html = '<div>Safe content</div>';
       const dangerousJs = "eval('alert(1)')";
 
       await expect(pushCanvas(testSessionId, html, dangerousJs)).rejects.toThrow(
-        /Content validation failed/
+        /Content validation failed/,
       );
     });
 
-    it("should reject dangerous JavaScript patterns (fetch)", async () => {
-      const html = "<div>Safe content</div>";
+    it('should reject dangerous JavaScript patterns (fetch)', async () => {
+      const html = '<div>Safe content</div>';
       const dangerousJs = "fetch('https://evil.com/data')";
 
       await expect(pushCanvas(testSessionId, html, dangerousJs)).rejects.toThrow(
-        /Content validation failed/
+        /Content validation failed/,
       );
     });
 
-    it("should reject dangerous JavaScript patterns (XMLHttpRequest)", async () => {
-      const html = "<div>Safe content</div>";
-      const dangerousJs = "new XMLHttpRequest()";
+    it('should reject dangerous JavaScript patterns (XMLHttpRequest)', async () => {
+      const html = '<div>Safe content</div>';
+      const dangerousJs = 'new XMLHttpRequest()';
 
       await expect(pushCanvas(testSessionId, html, dangerousJs)).rejects.toThrow(
-        /Content validation failed/
+        /Content validation failed/,
       );
     });
 
-    it("should throw error for non-existent session", async () => {
-      const html = "<div>Test</div>";
+    it('should throw error for non-existent session', async () => {
+      const html = '<div>Test</div>';
 
-      await expect(pushCanvas("non-existent-session", html)).rejects.toThrow(
-        /No canvas client connected/
+      await expect(pushCanvas('non-existent-session', html)).rejects.toThrow(
+        /No canvas client connected/,
       );
     });
 
-    it("should handle WebSocket not ready state", async () => {
+    it('should handle WebSocket not ready state', async () => {
       mockWs.readyState = 0; // WebSocket.CONNECTING
 
-      const html = "<div>Test</div>";
+      const html = '<div>Test</div>';
 
-      await expect(pushCanvas(testSessionId, html)).rejects.toThrow(
-        /WebSocket not ready/
-      );
+      await expect(pushCanvas(testSessionId, html)).rejects.toThrow(/WebSocket not ready/);
     });
   });
 
-  describe("canvasPushTool", () => {
+  describe('canvasPushTool', () => {
     beforeEach(() => {
       registerCanvasClient(testSessionId, mockWs as any);
       mockWs.messages = [];
     });
 
-    it("should have correct tool definition", () => {
-      expect(canvasPushTool.name).toBe("canvas_push");
-      expect(canvasPushTool.description).toContain("Push an interactive HTML/JS widget");
-      expect(canvasPushTool.inputSchema.type).toBe("object");
-      expect(canvasPushTool.inputSchema.required).toContain("session_id");
-      expect(canvasPushTool.inputSchema.required).toContain("html");
+    it('should have correct tool definition', () => {
+      expect(canvasPushTool.name).toBe('canvas_push');
+      expect(canvasPushTool.description).toContain('Push an interactive HTML/JS widget');
+      expect(canvasPushTool.inputSchema.type).toBe('object');
+      expect(canvasPushTool.inputSchema.required).toContain('session_id');
+      expect(canvasPushTool.inputSchema.required).toContain('html');
     });
 
-    it("should execute successfully with valid input", async () => {
+    it('should execute successfully with valid input', async () => {
       const input = {
         session_id: testSessionId,
-        html: "<div>Test widget</div>",
+        html: '<div>Test widget</div>',
         js: "console.log('test')",
       };
 
       const result = await canvasPushTool.execute(input);
 
-      expect(result).toBe("Canvas widget sent successfully");
+      expect(result).toBe('Canvas widget sent successfully');
     });
 
-    it("should throw error for invalid input (missing session_id)", async () => {
+    it('should throw error for invalid input (missing session_id)', async () => {
       const input = {
-        html: "<div>Test</div>",
+        html: '<div>Test</div>',
       };
 
       await expect(canvasPushTool.execute(input)).rejects.toThrow();
     });
 
-    it("should throw error for invalid input (missing html)", async () => {
+    it('should throw error for invalid input (missing html)', async () => {
       const input = {
         session_id: testSessionId,
       };
@@ -238,22 +234,22 @@ describe("Live Canvas", () => {
       await expect(canvasPushTool.execute(input)).rejects.toThrow();
     });
 
-    it("should work with optional js parameter", async () => {
+    it('should work with optional js parameter', async () => {
       const input = {
         session_id: testSessionId,
-        html: "<div>Test widget</div>",
+        html: '<div>Test widget</div>',
       };
 
       const result = await canvasPushTool.execute(input);
 
-      expect(result).toBe("Canvas widget sent successfully");
+      expect(result).toBe('Canvas widget sent successfully');
     });
   });
 
-  describe("Canvas Client Management", () => {
-    it("should track multiple canvas clients", () => {
-      const session1 = "session-1";
-      const session2 = "session-2";
+  describe('Canvas Client Management', () => {
+    it('should track multiple canvas clients', () => {
+      const session1 = 'session-1';
+      const session2 = 'session-2';
       const ws1 = new MockWebSocket();
       const ws2 = new MockWebSocket();
 
@@ -267,9 +263,9 @@ describe("Live Canvas", () => {
       expect(hasCanvasClient(session2)).toBe(true);
     });
 
-    it("should remove only the disconnected client", () => {
-      const session1 = "session-a";
-      const session2 = "session-b";
+    it('should remove only the disconnected client', () => {
+      const session1 = 'session-a';
+      const session2 = 'session-b';
       const ws1 = new MockWebSocket();
       const ws2 = new MockWebSocket();
 
@@ -284,13 +280,13 @@ describe("Live Canvas", () => {
     });
   });
 
-  describe("Canvas Security", () => {
+  describe('Canvas Security', () => {
     beforeEach(() => {
       registerCanvasClient(testSessionId, mockWs as any);
       mockWs.messages = [];
     });
 
-    it("should allow safe HTML with common tags", async () => {
+    it('should allow safe HTML with common tags', async () => {
       const safeHtml = `
         <div class="container">
           <h1>Title</h1>
@@ -306,10 +302,10 @@ describe("Live Canvas", () => {
       `;
 
       const result = await pushCanvas(testSessionId, safeHtml);
-      expect(result).toBe("Canvas widget sent successfully");
+      expect(result).toBe('Canvas widget sent successfully');
     });
 
-    it("should allow safe JavaScript with DOM manipulation", async () => {
+    it('should allow safe JavaScript with DOM manipulation', async () => {
       const html = "<div id='target'>Original</div>";
       const safeJs = `
         const target = document.getElementById('target');
@@ -317,90 +313,82 @@ describe("Live Canvas", () => {
       `;
 
       const result = await pushCanvas(testSessionId, html, safeJs);
-      expect(result).toBe("Canvas widget sent successfully");
+      expect(result).toBe('Canvas widget sent successfully');
     });
 
-    it("should allow data: URLs in iframes", async () => {
+    it('should allow data: URLs in iframes', async () => {
       const html = '<iframe src="data:text/html,<h1>Test</h1>"></iframe>';
 
       const result = await pushCanvas(testSessionId, html);
-      expect(result).toBe("Canvas widget sent successfully");
+      expect(result).toBe('Canvas widget sent successfully');
     });
 
-    it("should allow about:blank iframes", async () => {
+    it('should allow about:blank iframes', async () => {
       const html = '<iframe src="about:blank"></iframe>';
 
       const result = await pushCanvas(testSessionId, html);
-      expect(result).toBe("Canvas widget sent successfully");
+      expect(result).toBe('Canvas widget sent successfully');
     });
 
-    it("should block external iframes", async () => {
+    it('should block external iframes', async () => {
       const html = '<iframe src="https://evil.com"></iframe>';
 
-      await expect(pushCanvas(testSessionId, html)).rejects.toThrow(
-        /Content validation failed/
-      );
+      await expect(pushCanvas(testSessionId, html)).rejects.toThrow(/Content validation failed/);
     });
 
-    it("should block object tags", async () => {
+    it('should block object tags', async () => {
       const html = '<object data="https://evil.com/file.pdf"></object>';
 
-      await expect(pushCanvas(testSessionId, html)).rejects.toThrow(
-        /Content validation failed/
-      );
+      await expect(pushCanvas(testSessionId, html)).rejects.toThrow(/Content validation failed/);
     });
 
-    it("should block embed tags", async () => {
+    it('should block embed tags', async () => {
       const html = '<embed src="https://evil.com/file.swf">';
 
-      await expect(pushCanvas(testSessionId, html)).rejects.toThrow(
-        /Content validation failed/
-      );
+      await expect(pushCanvas(testSessionId, html)).rejects.toThrow(/Content validation failed/);
     });
 
-    it("should block external stylesheets", async () => {
+    it('should block external stylesheets', async () => {
       const html = '<link rel="stylesheet" href="https://evil.com/style.css">';
 
-      await expect(pushCanvas(testSessionId, html)).rejects.toThrow(
-        /Content validation failed/
-      );
+      await expect(pushCanvas(testSessionId, html)).rejects.toThrow(/Content validation failed/);
     });
 
-    it("should block document.write", async () => {
-      const html = "<div>Test</div>";
+    it('should block document.write', async () => {
+      const html = '<div>Test</div>';
       const js = "document.write('<script>alert(1)</script>')";
 
       await expect(pushCanvas(testSessionId, html, js)).rejects.toThrow(
-        /Content validation failed/
+        /Content validation failed/,
       );
     });
 
-    it("should block innerHTML assignments", async () => {
-      const html = "<div>Test</div>";
+    it('should block innerHTML assignments', async () => {
+      const html = '<div>Test</div>';
       const js = "document.body.innerHTML = '<script>alert(1)</script>'";
 
       await expect(pushCanvas(testSessionId, html, js)).rejects.toThrow(
-        /Content validation failed/
+        /Content validation failed/,
       );
     });
 
-    it("should block Function constructor", async () => {
-      const html = "<div>Test</div>";
+    it('should block Function constructor', async () => {
+      const html = '<div>Test</div>';
       const js = "new Function('alert(1)')()";
 
       await expect(pushCanvas(testSessionId, html, js)).rejects.toThrow(
-        /Content validation failed/
+        /Content validation failed/,
       );
     });
   });
 
-  describe("Canvas Use Cases", () => {
+  describe('Canvas Use Cases', () => {
     beforeEach(() => {
       registerCanvasClient(testSessionId, mockWs as any);
       mockWs.messages = [];
     });
 
-    it("should support interactive forms", async () => {
+    it('should support interactive forms', async () => {
       const html = `
         <form id="myform">
           <label>Name: <input type="text" name="name"></label>
@@ -417,10 +405,10 @@ describe("Live Canvas", () => {
       `;
 
       const result = await pushCanvas(testSessionId, html, js);
-      expect(result).toBe("Canvas widget sent successfully");
+      expect(result).toBe('Canvas widget sent successfully');
     });
 
-    it("should support data tables", async () => {
+    it('should support data tables', async () => {
       const html = `
         <table border="1">
           <thead>
@@ -434,10 +422,10 @@ describe("Live Canvas", () => {
       `;
 
       const result = await pushCanvas(testSessionId, html);
-      expect(result).toBe("Canvas widget sent successfully");
+      expect(result).toBe('Canvas widget sent successfully');
     });
 
-    it("should support SVG charts", async () => {
+    it('should support SVG charts', async () => {
       const html = `
         <svg width="200" height="200">
           <rect x="10" y="10" width="50" height="50" fill="blue" />
@@ -446,10 +434,10 @@ describe("Live Canvas", () => {
       `;
 
       const result = await pushCanvas(testSessionId, html);
-      expect(result).toBe("Canvas widget sent successfully");
+      expect(result).toBe('Canvas widget sent successfully');
     });
 
-    it("should support custom widgets with CSS", async () => {
+    it('should support custom widgets with CSS', async () => {
       const html = `
         <style>
           .widget { padding: 20px; background: #f0f0f0; border-radius: 8px; }
@@ -462,7 +450,7 @@ describe("Live Canvas", () => {
       `;
 
       const result = await pushCanvas(testSessionId, html);
-      expect(result).toBe("Canvas widget sent successfully");
+      expect(result).toBe('Canvas widget sent successfully');
     });
   });
 });

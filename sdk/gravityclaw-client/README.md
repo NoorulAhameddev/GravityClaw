@@ -11,22 +11,22 @@ npm install @gravityclaw/client
 ## Usage
 
 ```typescript
-import { GravityClawClient } from "@gravityclaw/client";
+import { GravityClawClient } from '@gravityclaw/client';
 
 const client = new GravityClawClient({
-    baseUrl: "https://your-instance.gravityclaw.dev",
-    apiKey: "your-api-key",
+  baseUrl: 'https://your-instance.gravityclaw.dev',
+  apiKey: 'your-api-key',
 });
 
 // List sessions
 const sessions = await client.listSessions();
 
 // Chat
-const response = await client.chat("session-id", "Hello!");
+const response = await client.chat('session-id', 'Hello!');
 
 // Stream chat
-for await (const chunk of client.chatStream("session-id", "Tell me a story")) {
-    if (chunk.type === "text") console.log(chunk.content);
+for await (const chunk of client.chatStream('session-id', 'Tell me a story')) {
+  if (chunk.type === 'text') console.log(chunk.content);
 }
 ```
 

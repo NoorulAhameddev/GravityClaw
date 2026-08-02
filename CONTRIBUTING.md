@@ -5,12 +5,14 @@ Thank you for your interest in contributing to Gravity Claw! We welcome contribu
 ## Development Setup
 
 1. **Fork and Clone**
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/gravityclaw.git
    cd gravityclaw
    ```
 
 2. **Install Dependencies**
+
    ```bash
    npm install
    ```
@@ -21,6 +23,7 @@ Thank you for your interest in contributing to Gravity Claw! We welcome contribu
    - See [docs/features/airgap/AIRGAP.md](docs/features/airgap/AIRGAP.md) for local-only setup
 
 4. **Run Development Server**
+
    ```bash
    npm run dev
    ```
@@ -52,6 +55,7 @@ Thank you for your interest in contributing to Gravity Claw! We welcome contribu
 ## Pull Request Process
 
 1. **Create a Feature Branch**
+
    ```bash
    git checkout -b feat/your-feature-name
    ```
@@ -62,6 +66,7 @@ Thank you for your interest in contributing to Gravity Claw! We welcome contribu
    - Update documentation as needed
 
 3. **Push and Open PR**
+
    ```bash
    git push origin feat/your-feature-name
    ```

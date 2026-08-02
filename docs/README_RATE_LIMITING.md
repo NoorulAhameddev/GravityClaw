@@ -9,23 +9,26 @@ A **production-ready API rate limiting system** has been implemented for Gravity
 ✅ **Per-specific-tool limiting** (30 requests/min per tool)  
 ✅ **User-managed quotas** (tools to check and customize limits)  
 ✅ **Full audit trail** (SQLite persistence)  
-✅ **Zero breaking changes** (fully backward compatible)  
+✅ **Zero breaking changes** (fully backward compatible)
 
 ---
 
 ## 📦 What Was Delivered
 
 ### 1. Core Implementation (1000+ lines)
+
 - **`src/middleware/rate-limit.ts`** - Token bucket algorithm with storage
 - **`src/tools/system/rate-limit-tools.ts`** - User-facing tools
 - **`src/types/rate-limit.ts`** - TypeScript definitions
 - **Integration** in `src/agent.ts` and `src/channels/webchat.ts`
 
 ### 2. Testing & Validation (400+ lines)
+
 - **`src/__tests__/rate-limit.test.ts`** - 40+ test cases
 - Full coverage of algorithm, categories, and edge cases
 
 ### 3. Documentation (2000+ lines)
+
 - **`RATE_LIMITING.md`** - Comprehensive guide
 - **`RATE_LIMITING_QUICK_REFERENCE.md`** - Quick start
 - **`RATE_LIMITING_CONFIG.ts`** - Configuration guide
@@ -39,6 +42,7 @@ A **production-ready API rate limiting system** has been implemented for Gravity
 ## 🚀 Key Features
 
 ### Token Bucket Algorithm
+
 ```
 [Initial State]
 Session has 10 tokens (burst size)
@@ -56,19 +60,19 @@ Rate limited - must wait for refill
 
 ### Rate Limit Categories
 
-| Category | Limit | Burst | Reason |
-|----------|-------|-------|--------|
-| Session | 100/min | 10 | Overall quota |
-| Voice | 50/min | 5 | TTS is expensive |
-| Memory | 200/min | 20 | Storage intensive |
-| System | 500/min | 50 | Local operations |
-| Per-Tool | 30/min | 3 | Individual guard |
+| Category | Limit   | Burst | Reason            |
+| -------- | ------- | ----- | ----------------- |
+| Session  | 100/min | 10    | Overall quota     |
+| Voice    | 50/min  | 5     | TTS is expensive  |
+| Memory   | 200/min | 20    | Storage intensive |
+| System   | 500/min | 50    | Local operations  |
+| Per-Tool | 30/min  | 3     | Individual guard  |
 
 ### User-Facing Tools
 
 ```typescript
 // Check quota
-get_rate_limit_status() 
+get_rate_limit_status()
 → { tokensAvailable: 87, limit: 100, requestsThisMinute: 13 }
 
 // Customize limit (lower only)
@@ -85,17 +89,19 @@ get_rate_limit_history()
 ## 💻 Developer Usage
 
 ### Check Rate Limits
-```typescript
-import { rateLimiter } from "./middleware/rate-limit.ts";
 
-const status = rateLimiter.checkRateLimit(sessionId, "save_fact");
+```typescript
+import { rateLimiter } from './middleware/rate-limit.ts';
+
+const status = rateLimiter.checkRateLimit(sessionId, 'save_fact');
 if (!status.allowed) {
-    return { error: "Rate limit exceeded", retryAfter: 15 };
+  return { error: 'Rate limit exceeded', retryAfter: 15 };
 }
 // Execute tool...
 ```
 
 ### Monitor Usage
+
 ```typescript
 const status = rateLimiter.getStatus(sessionId);
 console.log(`${status.tokensAvailable} requests available`);
@@ -105,13 +111,14 @@ console.log(`${history.length} total checks`);
 ```
 
 ### Admin Actions
+
 ```typescript
 // Reset a user's limits
 rateLimiter.resetSessionLimits(sessionId);
 
 // Get development mode
 if (rateLimiter.isDevelopmentMode()) {
-    console.log("10x limits active - testing mode!");
+  console.log('10x limits active - testing mode!');
 }
 ```
 
@@ -135,18 +142,18 @@ NODE_ENV=development npm run dev
 ✅ **Tool Categorization** - Expensive operations limited more  
 ✅ **Audit Trail** - Full SQLite history for compliance  
 ✅ **User Validation** - Custom limits can only be lowered  
-✅ **Automatic Cleanup** - Expired buckets removed every 5 minutes  
+✅ **Automatic Cleanup** - Expired buckets removed every 5 minutes
 
 ---
 
 ## 📈 Performance
 
-| Metric | Value |
-|--------|-------|
-| Rate limit check time | <1ms |
-| Space per session | ~1KB |
-| Cleanup interval | 5 minutes |
-| Storage (month of history) | ~50MB |
+| Metric                     | Value     |
+| -------------------------- | --------- |
+| Rate limit check time      | <1ms      |
+| Space per session          | ~1KB      |
+| Cleanup interval           | 5 minutes |
+| Storage (month of history) | ~50MB     |
 
 ---
 
@@ -215,6 +222,7 @@ npx vitest run src/__tests__/rate-limit.test.ts
 ## 🎯 Quick Start
 
 ### For Users
+
 ```
 Q: "How many requests do I have left?"
 A: "You have 87 requests available out of 100 per minute"
@@ -227,6 +235,7 @@ A: [Shows last 20 checks with timestamps]
 ```
 
 ### For Developers
+
 ```typescript
 // Three simple steps:
 1. Import: import { rateLimiter } from "./middleware/rate-limit.ts"
@@ -235,6 +244,7 @@ A: [Shows last 20 checks with timestamps]
 ```
 
 ### For Admins
+
 ```bash
 # Enable development mode for testing
 NODE_ENV=development npm run dev
@@ -250,14 +260,14 @@ sqlite3 gravity.db "SELECT session_id, COUNT(*) as hits FROM rate_limit_history 
 
 ## 📚 Documentation Map
 
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [RATE_LIMITING.md](./RATE_LIMITING.md) | Complete guide | Everyone |
-| [RATE_LIMITING_QUICK_REFERENCE.md](./RATE_LIMITING_QUICK_REFERENCE.md) | Quick answers | Developers |
-| [RATE_LIMITING_CONFIG.ts](./RATE_LIMITING_CONFIG.ts) | Configuration | Admins |
-| [examples/rate-limiting-examples.ts](./examples/rate-limiting-examples.ts) | Code examples | Developers |
-| [RATE_LIMITING_VALIDATION.ts](./RATE_LIMITING_VALIDATION.ts) | Validation | QA/DevOps |
-| [RATE_LIMITING_CHANGES.ts](./RATE_LIMITING_CHANGES.ts) | What changed | Reviewers |
+| Document                                                                   | Purpose        | Audience   |
+| -------------------------------------------------------------------------- | -------------- | ---------- |
+| [RATE_LIMITING.md](./RATE_LIMITING.md)                                     | Complete guide | Everyone   |
+| [RATE_LIMITING_QUICK_REFERENCE.md](./RATE_LIMITING_QUICK_REFERENCE.md)     | Quick answers  | Developers |
+| [RATE_LIMITING_CONFIG.ts](./RATE_LIMITING_CONFIG.ts)                       | Configuration  | Admins     |
+| [examples/rate-limiting-examples.ts](./examples/rate-limiting-examples.ts) | Code examples  | Developers |
+| [RATE_LIMITING_VALIDATION.ts](./RATE_LIMITING_VALIDATION.ts)               | Validation     | QA/DevOps  |
+| [RATE_LIMITING_CHANGES.ts](./RATE_LIMITING_CHANGES.ts)                     | What changed   | Reviewers  |
 
 ---
 
@@ -293,18 +303,21 @@ sqlite3 gravity.db "SELECT session_id, COUNT(*) as hits FROM rate_limit_history 
 ## 🚀 Next Steps
 
 ### To Start Using
+
 1. Deploy code (no breaking changes)
 2. Run database migrations (automatic)
 3. Register tools (automatic)
 4. Start enforcing limits (automatic)
 
 ### To Customize
+
 1. Edit `DEFAULT_CONFIGS` in `rate-limit.ts`
 2. Add new tool categories in `TOOL_CATEGORIES`
 3. Implement Redis backend for distributed systems
 4. Add dashboard widget for visual display
 
 ### To Monitor
+
 1. Query `rate_limit_history` table
 2. Watch logs for "Rate limit exceeded" messages
 3. Set up alerts for high violation rates

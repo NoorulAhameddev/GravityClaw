@@ -30,6 +30,7 @@ This skill provides weather information using the OpenWeather API.
 ## Setup
 
 Set your API key in environment:
+
 ```bash
 export OPENWEATHER_API_KEY="your-api-key-here"
 ```
@@ -62,5 +63,6 @@ curl -s "https://api.openweathermap.org/data/2.5/forecast?q=${location}&appid=${
 ## Example Usage
 
 Ask the agent:
+
 - "What's the weather in London?"
 - "Get me a 5-day forecast for Tokyo"

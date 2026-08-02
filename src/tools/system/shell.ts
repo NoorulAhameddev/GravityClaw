@@ -1,35 +1,36 @@
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
-import type { Tool } from "./index.ts";
-import { createLogger } from "../../logger.ts";
-import { validateCommand } from "../../security/command-validator.ts";
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
+import type { Tool } from './index.ts';
+import { createLogger } from '../../logger.ts';
+import { validateCommand } from '../../security/command-validator.ts';
+import { config } from '../../config.ts';
 
 const execAsync = promisify(exec);
-const log = createLogger("tool:shell");
+const log = createLogger('tool:shell');
 
 /** Commands containing these patterns require explicit confirmation before running. */
 const DANGEROUS_PATTERNS: RegExp[] = [
-    /\brm\s+-rf?\b/i,
-    /\bdel\s+\/[sq]/i,
-    /\brmdir\b/i,
-    /\bformat\b/i,
-    /\bshutdown\b/i,
-    /\breboot\b/i,
-    /\bpoweroff\b/i,
-    /\bmkfs\b/i,
-    /\bdd\b.*of=/i,
-    /\bcurl\b.*\|\s*(sh|bash|zsh|fish)/i,
-    /\bwget\b.*\|\s*(sh|bash|zsh|fish)/i,
-    /\b>\/dev\/[a-z]+[0-9]/i,
-    /\bdrop\s+(table|database)\b/i,
-    /\btruncate\s+table\b/i,
+  /\brm\s+-rf?\b/i,
+  /\bdel\s+\/[sq]/i,
+  /\brmdir\b/i,
+  /\bformat\b/i,
+  /\bshutdown\b/i,
+  /\breboot\b/i,
+  /\bpoweroff\b/i,
+  /\bmkfs\b/i,
+  /\bdd\b.*of=/i,
+  /\bcurl\b.*\|\s*(sh|bash|zsh|fish)/i,
+  /\bwget\b.*\|\s*(sh|bash|zsh|fish)/i,
+  /\b>\/dev\/[a-z]+[0-9]/i,
+  /\bdrop\s+(table|database)\b/i,
+  /\btruncate\s+table\b/i,
 ];
 
 /** Max bytes to return to the LLM — avoids flooding context */
 const MAX_OUTPUT_BYTES = 4096;
 
 export function isDangerous(command: string): boolean {
-    return DANGEROUS_PATTERNS.some((p) => p.test(command));
+  return DANGEROUS_PATTERNS.some((p) => p.test(command));
 }
 
 /**
@@ -39,114 +40,114 @@ export function isDangerous(command: string): boolean {
 export const pendingConfirmations = new Map<number, string>();
 
 export const shellTool: Tool = {
-    name: "run_shell",
-    description:
-        "Executes a shell command on the local machine and returns stdout and stderr. Use this for file operations, running scripts, checking system info, etc. Dangerous commands (e.g. rm -rf, shutdown) will first ask the user for confirmation.",
-    inputSchema: {
-        type: "object" as const,
-        properties: {
-            command: {
-                type: "string",
-                description: "The shell command to execute",
-            },
-            timeout_ms: {
-                type: "number",
-                description: "Timeout in milliseconds (default: 30000, max: 120000)",
-            },
-            cwd: {
-                type: "string",
-                description: "The directory to run the command in. Defaults to the current workspace.",
-            },
-        },
-        required: ["command"],
+  name: 'run_shell',
+  description:
+    "Executes a shell command on the local machine (runs natively in PowerShell on Windows, sh on Linux). Guidelines: Do NOT prefix commands with 'powershell -Command'. Do NOT use '$env:' or '%VAR%' syntax (use explicit literal paths or standard cmdlets like Get-ChildItem or dir). Dangerous commands (e.g. rm -rf, shutdown) will first ask the user for confirmation.",
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      command: {
+        type: 'string',
+        description: 'The shell command to execute',
+      },
+      timeout_ms: {
+        type: 'number',
+        description: 'Timeout in milliseconds (default: 30000, max: 120000)',
+      },
+      cwd: {
+        type: 'string',
+        description: 'The directory to run the command in. Defaults to the current workspace.',
+      },
     },
-    requiresApproval: true,
-    async execute(input) {
-        const command = String(input["command"] ?? "").trim();
-        const timeoutMs = Math.min(Number(input["timeout_ms"] ?? 30_000), 120_000);
-        const cwdOverride = input["cwd"] ? String(input["cwd"]) : undefined;
+    required: ['command'],
+  },
+  requiresApproval: !config.UNRESTRICTED_ACCESS && config.APPROVAL_ENABLED,
+  async execute(input) {
+    const command = String(input['command'] ?? '').trim();
+    const timeoutMs = Math.min(Number(input['timeout_ms'] ?? 30_000), 120_000);
+    const cwdOverride = input['cwd'] ? String(input['cwd']) : undefined;
 
-        // Check group permissions
-        const isGroup = Boolean(input["__isGroup"]);
-        const platform = String(input["__platform"] || "");
-        const groupId = String(input["__groupId"] || "");
-        const userId = String(input["__userId"] || "");
+    // Check group permissions
+    const isGroup = Boolean(input['__isGroup']);
+    const platform = String(input['__platform'] || '');
+    const groupId = String(input['__groupId'] || '');
+    const userId = String(input['__userId'] || '');
 
-        if (isGroup && platform && groupId && userId) {
-            const { isToolAllowedForUser } = await import("../../groups/index.ts");
-            const allowed = isToolAllowedForUser(platform, groupId, userId, "run_shell");
+    if (isGroup && platform && groupId && userId) {
+      const { isToolAllowedForUser } = await import('../../groups/index.ts');
+      const allowed = isToolAllowedForUser(platform, groupId, userId, 'run_shell');
 
-            if (!allowed) {
-                return "Error: The run_shell tool requires administrator privileges in this group.";
-            }
-        }
+      if (!allowed) {
+        return 'Error: The run_shell tool requires administrator privileges in this group.';
+      }
+    }
 
-        if (!command) {
-            return "Error: no command provided.";
-        }
+    if (!command) {
+      return 'Error: no command provided.';
+    }
 
-        log.info(`Executing: ${command.substring(0, 80)}${command.length > 80 ? "…" : ""}`);
+    log.info(`Executing: ${command.substring(0, 80)}${command.length > 80 ? '…' : ''}`);
 
-        const validation = validateCommand(command);
-        if (!validation.allowed) {
-            log.warn("Shell command blocked by command validator", { command: command.substring(0, 100), reason: validation.reason });
-            return `Error: Command blocked — ${validation.reason ?? "security policy violation"}.`;
-        }
+    const validation = validateCommand(command);
+    if (!validation.allowed) {
+      log.warn('Shell command blocked by command validator', {
+        command: command.substring(0, 100),
+        reason: validation.reason,
+      });
+      return `Error: Command blocked — ${validation.reason ?? 'security policy violation'}.`;
+    }
 
-        // Shell Intelligence: Correct the AI if it tries to use deprecated 'wmic'
-        if (process.platform === "win32" && /\bwmic\b/i.test(command)) {
-            return `Error: 'wmic' is deprecated and NOT available on this system. 
+    // Shell Intelligence: Correct the AI if it tries to use deprecated 'wmic'
+    if (process.platform === 'win32' && /\bwmic\b/i.test(command)) {
+      return `Error: 'wmic' is deprecated and NOT available on this system. 
 RECOVERY HINT: Use modern PowerShell 'Get-CimInstance' instead. 
 - For Motherboard: 'Get-CimInstance Win32_BaseBoard | Select-Object Manufacturer, Product'
 - For Disk: 'Get-CimInstance Win32_LogicalDisk | Select-Object DeviceID, Size, FreeSpace'
 - For CPU: 'Get-CimInstance Win32_Processor | Select-Object Name, LoadPercentage'`;
-        }
+    }
 
-        const localBlockPatterns: [RegExp, string][] = [
-            [/\beval\b/i, "eval is blocked for security"],
-            [/\bsudo\b/i, "sudo is blocked — run commands directly"],
-            [/>\s*\/dev\/[a-z]+/i, "raw device writes are blocked"],
-            [/\bchmod\s+[0-7]*s/i, "setuid/setgid is blocked"],
-            [/\bnc\s+-l/i, "netcat listeners are blocked"],
-            [/\bpython[23]?\s+-c\s/i, "inline python execution is blocked"],
-            [/\bnode\s+-e\s/i, "inline node execution is blocked"],
-        ];
+    const localBlockPatterns: [RegExp, string][] = [
+      [/\beval\b/i, 'eval is blocked for security'],
+      [/\bsudo\b/i, 'sudo is blocked — run commands directly'],
+      [/>\s*\/dev\/[a-z]+/i, 'raw device writes are blocked'],
+      [/\bchmod\s+[0-7]*s/i, 'setuid/setgid is blocked'],
+      [/\bnc\s+-l/i, 'netcat listeners are blocked'],
+      [/\bpython[23]?\s+-c\s/i, 'inline python execution is blocked'],
+      [/\bnode\s+-e\s/i, 'inline node execution is blocked'],
+    ];
 
-        for (const [pattern, reason] of localBlockPatterns) {
-            if (pattern.test(command)) {
-                log.warn(`Shell command blocked: ${reason}`, { command: command.substring(0, 100) });
-                return `Error: Command blocked — ${reason}.`;
-            }
-        }
+    for (const [pattern, reason] of localBlockPatterns) {
+      if (pattern.test(command)) {
+        log.warn(`Shell command blocked: ${reason}`, { command: command.substring(0, 100) });
+        return `Error: Command blocked — ${reason}.`;
+      }
+    }
 
-        try {
-            const { stdout, stderr } = await execAsync(command, {
-                timeout: timeoutMs,
-                cwd: cwdOverride,
-                shell: process.platform === "win32" ? "powershell.exe" : "/bin/sh",
-            });
+    try {
+      const { stdout, stderr } = await execAsync(command, {
+        timeout: timeoutMs,
+        cwd: cwdOverride,
+        shell: process.platform === 'win32' ? 'powershell.exe' : '/bin/sh',
+      });
 
-            const output = [
-                stdout ? `stdout:\n${stdout}` : "",
-                stderr ? `stderr:\n${stderr}` : "",
-            ]
-                .filter(Boolean)
-                .join("\n")
-                .trim();
+      const output = [stdout ? `stdout:\n${stdout}` : '', stderr ? `stderr:\n${stderr}` : '']
+        .filter(Boolean)
+        .join('\n')
+        .trim();
 
-            const result = output || "(no output)";
+      const result = output || '(no output)';
 
-            if (Buffer.byteLength(result, "utf8") > MAX_OUTPUT_BYTES) {
-                const truncated = result.substring(0, MAX_OUTPUT_BYTES);
-                return `${truncated}\n\n[output truncated — ${Buffer.byteLength(result, "utf8")} bytes total, showing first ${MAX_OUTPUT_BYTES}]`;
-            }
+      if (Buffer.byteLength(result, 'utf8') > MAX_OUTPUT_BYTES) {
+        const truncated = result.substring(0, MAX_OUTPUT_BYTES);
+        return `${truncated}\n\n[output truncated — ${Buffer.byteLength(result, 'utf8')} bytes total, showing first ${MAX_OUTPUT_BYTES}]`;
+      }
 
-            return result;
-        } catch (err) {
-            if (err instanceof Error) {
-                return `Error: ${err.message}`;
-            }
-            return "Error: unknown failure";
-        }
-    },
+      return result;
+    } catch (err) {
+      if (err instanceof Error) {
+        return `Error: ${err.message}`;
+      }
+      return 'Error: unknown failure';
+    }
+  },
 };

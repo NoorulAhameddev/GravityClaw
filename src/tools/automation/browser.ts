@@ -1,12 +1,12 @@
 import type { Tool } from './index.js';
-import { chromium } from "playwright";
-import type { Browser, BrowserContext, Page } from "playwright";
-import { createLogger } from "../../logger.ts";
-import { config } from "../../config.ts";
-import { checkAirGapTool } from "../../airgap/enforcement.ts";
-import { validateUrl } from "../../security/url-validator.ts";
+import { chromium } from 'playwright';
+import type { Browser, BrowserContext, Page } from 'playwright';
+import { createLogger } from '../../logger.ts';
+import { config } from '../../config.ts';
+import { checkAirGapTool } from '../../airgap/enforcement.ts';
+import { validateUrl } from '../../security/url-validator.ts';
 
-const logger = createLogger("browser");
+const logger = createLogger('browser');
 
 /**
  * Browser session manager for maintaining browser context across tool calls
@@ -23,10 +23,10 @@ class BrowserSessionManager {
    */
   async getBrowser(): Promise<Browser> {
     if (!this.browser || !this.browser.isConnected()) {
-      logger.info("Launching new browser instance");
+      logger.info('Launching new browser instance');
       this.browser = await chromium.launch({
         headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
       });
     }
     return this.browser;
@@ -41,7 +41,7 @@ class BrowserSessionManager {
       this.context = await browser.newContext({
         viewport: { width: 1280, height: 720 },
         userAgent:
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       });
     }
     this.lastActivityTime = Date.now();
@@ -75,7 +75,7 @@ class BrowserSessionManager {
         await this.browser.close();
       }
     } catch (error) {
-      logger.error("Error closing browser session", { error });
+      logger.error('Error closing browser session', { error });
     } finally {
       this.page = null;
       this.context = null;
@@ -89,7 +89,7 @@ class BrowserSessionManager {
   async checkIdleTimeout(): Promise<void> {
     const idleTime = Date.now() - this.lastActivityTime;
     if (idleTime > this.sessionTimeoutMs && this.browser) {
-      logger.info("Browser session idle timeout, closing");
+      logger.info('Browser session idle timeout, closing');
       await this.close();
     }
   }
@@ -104,7 +104,7 @@ let browserIdleTimer: ReturnType<typeof setInterval> | null = null;
 function startBrowserIdleCheck(): void {
   browserIdleTimer = setInterval(() => {
     sessionManager.checkIdleTimeout().catch((err) => {
-      logger.error("Error checking browser idle timeout", { error: err });
+      logger.error('Error checking browser idle timeout', { error: err });
     });
   }, 60 * 1000);
 }
@@ -122,26 +122,26 @@ startBrowserIdleCheck();
  * Navigate to a URL
  */
 const browserNavigate: Tool = {
-  name: "browser_navigate",
+  name: 'browser_navigate',
   description:
-    "Navigate to a URL in the browser. Returns page title and URL after navigation. Maintains browser session for subsequent operations.",
+    'Navigate to a URL in the browser. Returns page title and URL after navigation. Maintains browser session for subsequent operations.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       url: {
-        type: "string",
-        description: "The URL to navigate to (must include protocol, e.g., https://)",
+        type: 'string',
+        description: 'The URL to navigate to (must include protocol, e.g., https://)',
       },
       waitUntil: {
-        type: "string",
-        enum: ["load", "domcontentloaded", "networkidle"],
+        type: 'string',
+        enum: ['load', 'domcontentloaded', 'networkidle'],
         description:
           "When to consider navigation succeeded (default: load). 'load' waits for load event, 'domcontentloaded' waits for DOMContentLoaded, 'networkidle' waits for no network activity.",
       },
     },
-    required: ["url"],
+    required: ['url'],
   },
-  execute: async ({ url, waitUntil = "load" }: { url: string; waitUntil?: string }) => {
+  execute: async ({ url, waitUntil = 'load' }: { url: string; waitUntil?: string }) => {
     try {
       // Check air-gap mode
       if (config.AIR_GAPPED) {
@@ -161,7 +161,7 @@ const browserNavigate: Tool = {
 
       // Navigate with timeout
       await page.goto(url, {
-        waitUntil: waitUntil as "load" | "domcontentloaded" | "networkidle",
+        waitUntil: waitUntil as 'load' | 'domcontentloaded' | 'networkidle',
         timeout: 30000,
       });
 
@@ -175,10 +175,10 @@ const browserNavigate: Tool = {
         message: `Navigated to ${title} (${finalUrl})`,
       });
     } catch (error: any) {
-      logger.error("Browser navigation error", { url, error });
+      logger.error('Browser navigation error', { url, error });
       return JSON.stringify({
         success: false,
-        error: error.message || "Navigation failed",
+        error: error.message || 'Navigation failed',
       });
     }
   },
@@ -188,30 +188,38 @@ const browserNavigate: Tool = {
  * Take a screenshot of the current page or a specific URL
  */
 const browserScreenshot: Tool = {
-  name: "browser_screenshot",
+  name: 'browser_screenshot',
   description:
-    "Take a screenshot of a webpage. Can navigate to a new URL or capture the current page. Returns base64-encoded PNG image.",
+    'Take a screenshot of a webpage. Can navigate to a new URL or capture the current page. Returns base64-encoded PNG image.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       url: {
-        type: "string",
+        type: 'string',
         description:
-          "URL to navigate to before taking screenshot (optional, uses current page if omitted)",
+          'URL to navigate to before taking screenshot (optional, uses current page if omitted)',
       },
       fullPage: {
-        type: "boolean",
-        description: "Capture full scrollable page (default: false, captures viewport only)",
+        type: 'boolean',
+        description: 'Capture full scrollable page (default: false, captures viewport only)',
       },
       selector: {
-        type: "string",
+        type: 'string',
         description:
-          "CSS selector to capture specific element only (optional, captures whole page if omitted)",
+          'CSS selector to capture specific element only (optional, captures whole page if omitted)',
       },
     },
     required: [],
   },
-  execute: async ({ url, fullPage = false, selector }: { url?: string; fullPage?: boolean; selector?: string }) => {
+  execute: async ({
+    url,
+    fullPage = false,
+    selector,
+  }: {
+    url?: string;
+    fullPage?: boolean;
+    selector?: string;
+  }) => {
     try {
       // Check air-gap mode
       if (config.AIR_GAPPED) {
@@ -230,11 +238,11 @@ const browserScreenshot: Tool = {
           });
         }
         try {
-          await page.goto(url, { waitUntil: "load", timeout: 30000 });
+          await page.goto(url, { waitUntil: 'load', timeout: 30000 });
         } catch {
           return JSON.stringify({
             success: false,
-            error: "Failed to navigate to URL",
+            error: 'Failed to navigate to URL',
           });
         }
       }
@@ -249,16 +257,16 @@ const browserScreenshot: Tool = {
             error: `Element not found: ${selector}`,
           });
         }
-        screenshot = await element.screenshot({ type: "png" });
+        screenshot = await element.screenshot({ type: 'png' });
       } else {
         screenshot = await page.screenshot({
-          type: "png",
+          type: 'png',
           fullPage,
           timeout: 30000,
         });
       }
 
-      const base64 = screenshot.toString("base64");
+      const base64 = screenshot.toString('base64');
       const currentUrl = page.url();
       const title = await page.title();
 
@@ -267,15 +275,15 @@ const browserScreenshot: Tool = {
         url: currentUrl,
         title,
         image: base64,
-        encoding: "base64",
-        type: "image/png",
+        encoding: 'base64',
+        type: 'image/png',
         message: `Screenshot captured from ${title}`,
       });
     } catch (error: any) {
-      logger.error("Browser screenshot error", { error });
+      logger.error('Browser screenshot error', { error });
       return JSON.stringify({
         success: false,
-        error: error.message || "Screenshot failed",
+        error: error.message || 'Screenshot failed',
       });
     }
   },
@@ -285,25 +293,31 @@ const browserScreenshot: Tool = {
  * Click an element on the page
  */
 const browserClick: Tool = {
-  name: "browser_click",
+  name: 'browser_click',
   description:
-    "Click an element on the current page using a CSS selector. Use after browser_navigate to interact with page elements.",
+    'Click an element on the current page using a CSS selector. Use after browser_navigate to interact with page elements.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       selector: {
-        type: "string",
+        type: 'string',
         description: "CSS selector for the element to click (e.g., '#submit-button', '.nav-link')",
       },
       waitForNavigation: {
-        type: "boolean",
+        type: 'boolean',
         description:
-          "Wait for navigation after click (default: false). Use for submit buttons or links.",
+          'Wait for navigation after click (default: false). Use for submit buttons or links.',
       },
     },
-    required: ["selector"],
+    required: ['selector'],
   },
-  execute: async ({ selector, waitForNavigation = false }: { selector: string; waitForNavigation?: boolean }) => {
+  execute: async ({
+    selector,
+    waitForNavigation = false,
+  }: {
+    selector: string;
+    waitForNavigation?: boolean;
+  }) => {
     try {
       // Check air-gap mode
       if (config.AIR_GAPPED) {
@@ -347,10 +361,10 @@ const browserClick: Tool = {
         message: `Clicked element: ${selector}`,
       });
     } catch (error: any) {
-      logger.error("Browser click error", { selector, error });
+      logger.error('Browser click error', { selector, error });
       return JSON.stringify({
         success: false,
-        error: error.message || "Click failed",
+        error: error.message || 'Click failed',
       });
     }
   },
@@ -360,28 +374,36 @@ const browserClick: Tool = {
  * Type text into an input field
  */
 const browserType: Tool = {
-  name: "browser_type",
+  name: 'browser_type',
   description:
-    "Type text into an input field on the current page using a CSS selector. Clears existing content before typing.",
+    'Type text into an input field on the current page using a CSS selector. Clears existing content before typing.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       selector: {
-        type: "string",
+        type: 'string',
         description: "CSS selector for the input field (e.g., '#search-box', 'input[name=email]')",
       },
       text: {
-        type: "string",
-        description: "Text to type into the field",
+        type: 'string',
+        description: 'Text to type into the field',
       },
       pressEnter: {
-        type: "boolean",
-        description: "Press Enter after typing (default: false). Useful for search boxes.",
+        type: 'boolean',
+        description: 'Press Enter after typing (default: false). Useful for search boxes.',
       },
     },
-    required: ["selector", "text"],
+    required: ['selector', 'text'],
   },
-  execute: async ({ selector, text, pressEnter = false }: { selector: string; text: string; pressEnter?: boolean }) => {
+  execute: async ({
+    selector,
+    text,
+    pressEnter = false,
+  }: {
+    selector: string;
+    text: string;
+    pressEnter?: boolean;
+  }) => {
     try {
       // Check air-gap mode
       if (config.AIR_GAPPED) {
@@ -401,16 +423,16 @@ const browserType: Tool = {
 
       // Focus and clear
       await element.click();
-      await page.keyboard.press("Control+A");
-      await page.keyboard.press("Backspace");
+      await page.keyboard.press('Control+A');
+      await page.keyboard.press('Backspace');
 
       // Type text
       await element.type(text, { delay: 50 }); // Human-like typing
 
       // Press Enter if requested
       if (pressEnter) {
-        await page.keyboard.press("Enter");
-        await page.waitForLoadState("networkidle", { timeout: 30000 }).catch(() => {
+        await page.keyboard.press('Enter');
+        await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {
           // Network might not settle, that's ok
         });
       }
@@ -427,10 +449,10 @@ const browserType: Tool = {
         message: `Typed '${text}' into ${selector}`,
       });
     } catch (error: any) {
-      logger.error("Browser type error", { selector, error });
+      logger.error('Browser type error', { selector, error });
       return JSON.stringify({
         success: false,
-        error: error.message || "Type operation failed",
+        error: error.message || 'Type operation failed',
       });
     }
   },
@@ -440,39 +462,52 @@ const browserType: Tool = {
  * Extract content from page using CSS selector
  */
 const browserExtract: Tool = {
-  name: "browser_extract",
+  name: 'browser_extract',
   description:
-    "Extract text content, HTML, or attributes from elements on the current page or a specific URL using CSS selectors.",
+    'Extract text content, HTML, or attributes from elements on the current page or a specific URL using CSS selectors.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       url: {
-        type: "string",
-        description: "URL to navigate to before extracting (optional, uses current page if omitted)",
+        type: 'string',
+        description:
+          'URL to navigate to before extracting (optional, uses current page if omitted)',
       },
       selector: {
-        type: "string",
+        type: 'string',
         description: "CSS selector for elements to extract (e.g., 'h1', '.article-content', 'a')",
       },
       extract: {
-        type: "string",
-        enum: ["text", "html", "attribute"],
+        type: 'string',
+        enum: ['text', 'html', 'attribute'],
         description:
           "What to extract: 'text' for innerText, 'html' for innerHTML, 'attribute' for attribute value (default: text)",
       },
       attribute: {
-        type: "string",
+        type: 'string',
         description: "Attribute name to extract when extract='attribute' (e.g., 'href', 'src')",
       },
       multiple: {
-        type: "boolean",
+        type: 'boolean',
         description:
-          "Extract from all matching elements (default: false, extracts from first match only)",
+          'Extract from all matching elements (default: false, extracts from first match only)',
       },
     },
-    required: ["selector"],
+    required: ['selector'],
   },
-  execute: async ({ url, selector, extract = "text", attribute, multiple = false }: { url?: string; selector: string; extract?: string; attribute?: string; multiple?: boolean }) => {
+  execute: async ({
+    url,
+    selector,
+    extract = 'text',
+    attribute,
+    multiple = false,
+  }: {
+    url?: string;
+    selector: string;
+    extract?: string;
+    attribute?: string;
+    multiple?: boolean;
+  }) => {
     try {
       // Check air-gap mode
       if (config.AIR_GAPPED) {
@@ -491,11 +526,11 @@ const browserExtract: Tool = {
           });
         }
         try {
-          await page.goto(url, { waitUntil: "load", timeout: 30000 });
+          await page.goto(url, { waitUntil: 'load', timeout: 30000 });
         } catch {
           return JSON.stringify({
             success: false,
-            error: "Failed to navigate to URL",
+            error: 'Failed to navigate to URL',
           });
         }
       }
@@ -514,13 +549,13 @@ const browserExtract: Tool = {
 
         const results: string[] = [];
         for (const element of elements) {
-          if (extract === "text") {
+          if (extract === 'text') {
             const text = await element.innerText();
             results.push(text.trim());
-          } else if (extract === "html") {
+          } else if (extract === 'html') {
             const html = await element.innerHTML();
             results.push(html.trim());
-          } else if (extract === "attribute") {
+          } else if (extract === 'attribute') {
             if (!attribute) {
               return JSON.stringify({
                 success: false,
@@ -542,11 +577,11 @@ const browserExtract: Tool = {
           });
         }
 
-        if (extract === "text") {
+        if (extract === 'text') {
           content = (await element.innerText()).trim();
-        } else if (extract === "html") {
+        } else if (extract === 'html') {
           content = (await element.innerHTML()).trim();
-        } else if (extract === "attribute") {
+        } else if (extract === 'attribute') {
           if (!attribute) {
             return JSON.stringify({
               success: false,
@@ -562,7 +597,7 @@ const browserExtract: Tool = {
           }
           content = value;
         } else {
-          content = "";
+          content = '';
         }
       }
 
@@ -580,10 +615,10 @@ const browserExtract: Tool = {
         message: `Extracted ${extract} from ${selector}`,
       });
     } catch (error: any) {
-      logger.error("Browser extract error", { selector, error });
+      logger.error('Browser extract error', { selector, error });
       return JSON.stringify({
         success: false,
-        error: error.message || "Extract operation failed",
+        error: error.message || 'Extract operation failed',
       });
     }
   },
@@ -593,11 +628,11 @@ const browserExtract: Tool = {
  * Close the browser session
  */
 const browserClose: Tool = {
-  name: "browser_close",
+  name: 'browser_close',
   description:
-    "Close the browser session and clean up resources. The browser will automatically close after 5 minutes of inactivity, but you can use this to close it immediately.",
+    'Close the browser session and clean up resources. The browser will automatically close after 5 minutes of inactivity, but you can use this to close it immediately.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {},
     required: [],
   },
@@ -606,13 +641,13 @@ const browserClose: Tool = {
       await sessionManager.close();
       return JSON.stringify({
         success: true,
-        message: "Browser session closed successfully",
+        message: 'Browser session closed successfully',
       });
     } catch (error: any) {
-      logger.error("Browser close error", { error });
+      logger.error('Browser close error', { error });
       return JSON.stringify({
         success: false,
-        error: error.message || "Failed to close browser",
+        error: error.message || 'Failed to close browser',
       });
     }
   },

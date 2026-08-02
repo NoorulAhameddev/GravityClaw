@@ -1,22 +1,22 @@
-import OpenAI from "openai";
-import { db } from "../db.ts";
-import { config } from "../config.ts";
-import { createLogger } from "../logger.ts";
+import OpenAI from 'openai';
+import { db } from '../db.ts';
+import { config } from '../config.ts';
+import { createLogger } from '../logger.ts';
 import type {
   AttachmentType,
   AttachmentInput,
   AttachmentRecord,
   ImageAnalysisOptions,
-} from "../types/memory.js";
+} from '../types/memory.js';
 
 export type {
   AttachmentType,
   AttachmentInput,
   AttachmentRecord,
   ImageAnalysisOptions,
-} from "../types/memory.js";
+} from '../types/memory.js';
 
-const log = createLogger("multimodal");
+const log = createLogger('multimodal');
 
 // Multimodal memory schema initialization is handled by src/db/migrations/schema.ts
 
@@ -43,10 +43,10 @@ function mapAttachmentRow(row: {
 
 export function saveAttachment(sessionId: string, input: AttachmentInput): AttachmentRecord {
   if (!sessionId.trim()) {
-    throw new Error("sessionId is required");
+    throw new Error('sessionId is required');
   }
   if (!input.type) {
-    throw new Error("attachment type is required");
+    throw new Error('attachment type is required');
   }
 
   const result = db
@@ -54,14 +54,14 @@ export function saveAttachment(sessionId: string, input: AttachmentInput): Attac
       `
       INSERT INTO attachments (session_id, type, url, base64_data, extracted_text)
       VALUES (?, ?, ?, ?, ?)
-      `
+      `,
     )
     .run(
       sessionId,
       input.type,
       input.url ?? null,
       input.base64Data ?? null,
-      input.extractedText ?? null
+      input.extractedText ?? null,
     );
 
   const row = db
@@ -69,7 +69,7 @@ export function saveAttachment(sessionId: string, input: AttachmentInput): Attac
       `
       SELECT id, session_id, type, url, base64_data, extracted_text, timestamp
       FROM attachments WHERE id = ?
-      `
+      `,
     )
     .get(result.lastInsertRowid) as {
     id: number;
@@ -86,10 +86,10 @@ export function saveAttachment(sessionId: string, input: AttachmentInput): Attac
 
 async function analyzeImageWithOpenAI(
   input: { url?: string; base64Data?: string },
-  model = "gpt-4o-mini"
+  model = 'gpt-4o-mini',
 ): Promise<string> {
   if (!config.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not configured");
+    throw new Error('OPENAI_API_KEY is not configured');
   }
 
   const imageUrl = input.url
@@ -99,7 +99,7 @@ async function analyzeImageWithOpenAI(
       : undefined;
 
   if (!imageUrl) {
-    throw new Error("No image input provided");
+    throw new Error('No image input provided');
   }
 
   const client = new OpenAI({ apiKey: config.OPENAI_API_KEY });
@@ -108,14 +108,14 @@ async function analyzeImageWithOpenAI(
     max_tokens: 400,
     messages: [
       {
-        role: "user",
+        role: 'user',
         content: [
           {
-            type: "text",
-            text: "Describe this image and extract any visible text (OCR). Return concise plain text.",
+            type: 'text',
+            text: 'Describe this image and extract any visible text (OCR). Return concise plain text.',
           },
           {
-            type: "image_url",
+            type: 'image_url',
             image_url: { url: imageUrl },
           },
         ],
@@ -123,15 +123,15 @@ async function analyzeImageWithOpenAI(
     ],
   });
 
-  return response.choices[0]?.message?.content?.trim() || "No visual details extracted.";
+  return response.choices[0]?.message?.content?.trim() || 'No visual details extracted.';
 }
 
 export async function analyzeAndStoreImageAttachment(
   sessionId: string,
   input: { url?: string; base64Data?: string },
-  options?: ImageAnalysisOptions
+  options?: ImageAnalysisOptions,
 ): Promise<AttachmentRecord> {
-  let extractedText = "";
+  let extractedText = '';
 
   try {
     if (options?.analyzer) {
@@ -140,15 +140,15 @@ export async function analyzeAndStoreImageAttachment(
       extractedText = await analyzeImageWithOpenAI(input, options?.model);
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : "unknown error";
+    const message = err instanceof Error ? err.message : 'unknown error';
     log.warn(`Image analysis failed, storing fallback text: ${message}`);
     extractedText = input.url
       ? `Image attachment stored (analysis unavailable). URL: ${input.url}`
-      : "Image attachment stored (analysis unavailable).";
+      : 'Image attachment stored (analysis unavailable).';
   }
 
   const attachment: AttachmentInput = {
-    type: "image",
+    type: 'image',
     extractedText,
   };
 
@@ -165,7 +165,7 @@ export async function analyzeAndStoreImageAttachment(
 export function searchAttachments(
   sessionId: string,
   query: string,
-  limit = 10
+  limit = 10,
 ): AttachmentRecord[] {
   const cleanedQuery = query.trim();
   if (!cleanedQuery) {
@@ -188,7 +188,7 @@ export function searchAttachments(
         )
       ORDER BY timestamp DESC, id DESC
       LIMIT ?
-      `
+      `,
     )
     .all(sessionId, like, like, like, effectiveLimit) as Array<{
     id: number;
@@ -203,11 +203,7 @@ export function searchAttachments(
   return rows.map(mapAttachmentRow);
 }
 
-export function getRecentAttachmentContext(
-  sessionId: string,
-  limit = 5,
-  maxChars = 2500
-): string {
+export function getRecentAttachmentContext(sessionId: string, limit = 5, maxChars = 2500): string {
   const effectiveLimit = Math.max(1, Math.min(20, Math.floor(limit)));
 
   const rows = db
@@ -218,7 +214,7 @@ export function getRecentAttachmentContext(
       WHERE session_id = ?
       ORDER BY timestamp DESC, id DESC
       LIMIT ?
-      `
+      `,
     )
     .all(sessionId, effectiveLimit) as Array<{
     id: number;
@@ -231,21 +227,21 @@ export function getRecentAttachmentContext(
   }>;
 
   if (rows.length === 0) {
-    return "";
+    return '';
   }
 
   const parts = rows.map((row) => {
-    const summary = row.extracted_text?.trim() || "(no extracted text)";
+    const summary = row.extracted_text?.trim() || '(no extracted text)';
     const shortSummary = summary.length > 300 ? `${summary.slice(0, 300)}...` : summary;
-    const source = row.url ? ` url=${row.url}` : "";
+    const source = row.url ? ` url=${row.url}` : '';
     return `- [${row.type}]${source} :: ${shortSummary}`;
   });
 
-  const full = parts.join("\n");
+  const full = parts.join('\n');
   if (full.length <= maxChars) {
     return full;
   }
 
-  const suffix = "\n... [attachment context truncated]";
+  const suffix = '\n... [attachment context truncated]';
   return full.slice(0, Math.max(0, maxChars - suffix.length)) + suffix;
 }

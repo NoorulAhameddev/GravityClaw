@@ -3,9 +3,11 @@
 ## Files Created/Modified
 
 ### Configuration (Extended)
+
 - ✅ **src/config.ts** - Added `AIR_GAPPED` boolean config field (default: false)
 
 ### Core Air-Gap Enforcement
+
 - ✅ **src/airgap/enforcement.ts** (NEW)
   - `enforceAirGap()` - Called at startup to validate Ollama and block external APIs
   - `getAirGapProvider()` - Always returns "ollama" when air-gapped
@@ -14,6 +16,7 @@
   - Ollama health check with clear error messages
 
 ### Local Voice Alternatives
+
 - ✅ **src/voice/local-tts.ts** (NEW)
   - `localTextToSpeech()` - Local TTS with fallbacks: piper-tts → espeak → text-only
   - `getLocalTTSBackend()` - Reports available TTS backend
@@ -25,6 +28,7 @@
   - Clear setup instructions in errors
 
 ### Tool Blocking (Modified)
+
 - ✅ **src/tools/search.ts** - Added AIR_GAPPED check in web_search execute()
 - ✅ **src/tools/browser.ts** - Added AIR_GAPPED checks to:
   - browser_navigate
@@ -34,10 +38,12 @@
   - browser_extract
 
 ### Application Entry Point (Modified)
+
 - ✅ **src/index.ts** - Added enforceAirGap() call at startup
 
 ### Tests
-- ✅ **src/__tests__/airgap.test.ts** (NEW) - 20+ test cases covering:
+
+- ✅ **src/**tests**/airgap.test.ts** (NEW) - 20+ test cases covering:
   - Config validation
   - Fetch interception
   - Tool blocking
@@ -46,6 +52,7 @@
   - Error messages with guidance
 
 ### Documentation
+
 - ✅ **docs/AIRGAP.md** (NEW) - Comprehensive guide covering:
   - Quick start setup
   - Ollama installation & models
@@ -59,6 +66,7 @@
 ## Implementation Details
 
 ### Configuration Flow
+
 ```
 1. User sets AIR_GAPPED=true in .env
 2. config.ts loads and validates (already working)
@@ -71,6 +79,7 @@
 ```
 
 ### Tool Blocking
+
 ```
 When AIR_GAPPED=true:
 - web_search → throws error
@@ -87,6 +96,7 @@ Learn more: docs/AIRGAP.md"
 ```
 
 ### Fetch Interception
+
 ```javascript
 // Global fetch override intercepts all HTTP calls
 // Allowed: localhost, 127.0.0.1, ports 11434, 5000, 3000, 8000, 8080, 9000
@@ -98,6 +108,7 @@ fetch('https://api.openai.com/...')
 ```
 
 ### Ollama Health Check
+
 ```
 curl http://localhost:11434/api/tags
 
@@ -117,6 +128,7 @@ To fix:
 ## Testing Strategy
 
 ### Test Coverage (20+ tests)
+
 ```
 ✓ Config AIR_GAPPED Setting (2 tests)
 ✓ Air-Gap Enforcement (7 tests)
@@ -129,6 +141,7 @@ To fix:
 ```
 
 ### Mock Support
+
 ```
 - Mocks Ollama responses
 - Tests without actual Ollama running
@@ -145,18 +158,21 @@ To fix:
 ## Feature Verification Checklist
 
 ### Startup Behavior
+
 - ✅ enforceAirGap() called before plugins/MCP init
 - ✅ Clear log message when air-gapped
 - ✅ Ollama health check with timeout
 - ✅ Error message with setup instructions if Ollama missing
 
 ### Tool Blocking
+
 - ✅ web_search blocking implemented
 - ✅ All browser_* tools blocking implemented
 - ✅ Clear error messages with docs link
 - ✅ No partial execution (fails immediately)
 
 ### API Call Interception
+
 - ✅ Global fetch override installed
 - ✅ Localhost (127.0.0.1, localhost) allowed
 - ✅ Ollama port (11434) in whitelist
@@ -164,12 +180,14 @@ To fix:
 - ✅ Error message guides users
 
 ### Local Alternatives
+
 - ✅ localTextToSpeech() with piper/espeak/text fallbacks
 - ✅ localTranscribe() with whisper.cpp support
 - ✅ Both handle missing backends gracefully
 - ✅ Setup instructions in error messages
 
 ### Documentation
+
 - ✅ Quick start guide
 - ✅ Ollama setup & models
 - ✅ TTS options with install instructions
@@ -182,11 +200,13 @@ To fix:
 ## Performance Impact
 
 ### When AIR_GAPPED=false (Default)
+
 - ✅ Zero performance impact
 - ✅ No fetch override active
 - ✅ Normal operation
 
 ### When AIR_GAPPED=true
+
 - ~100ms startup check for Ollama health
 - <1ms fetch interception overhead per call
 - Local LLM inference: 20-100 tokens/second (depends on model)
@@ -194,16 +214,19 @@ To fix:
 ## Security Highlights
 
 ✅ **Zero External Data Leakage**
+
 - All API calls to external services blocked
 - No user prompts sent to OpenAI, Anthropic, etc.
 - No searches sent to Google, DuckDuckGo, etc.
 
 ✅ **Complete Data Locality**
+
 - SQLite conversations local only
 - Memory stored in markdown files locally
 - No cloud sync available
 
 ✅ **Compliance Ready**
+
 - HIPAA compatible
 - GDPR compliant (no data export)
 - CCPA compliant (user owns data)
@@ -259,6 +282,7 @@ curl http://localhost:3000/health
 ## Files Summary
 
 ### Created (4 files)
+
 1. `src/airgap/enforcement.ts` - Core enforcement (220 lines)
 2. `src/voice/local-tts.ts` - Local TTS alternatives (190 lines)
 3. `src/voice/local-transcription.ts` - Local STT (180 lines)
@@ -266,12 +290,14 @@ curl http://localhost:3000/health
 5. `docs/AIRGAP.md` - Full documentation (350 lines)
 
 ### Modified (3 files)
+
 1. `src/config.ts` - Added AIR_GAPPED field
 2. `src/tools/search.ts` - Added AIR_GAPPED check
 3. `src/tools/browser.ts` - Added AIR_GAPPED checks (5 tools)
 4. `src/index.ts` - Added enforceAirGap() call
 
 ### Total New Lines of Code
+
 - Implementation: ~600 lines
 - Tests: ~210 lines
 - Documentation: ~350 lines

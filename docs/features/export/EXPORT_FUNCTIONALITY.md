@@ -16,7 +16,7 @@ The export tools allow you to download your conversation history, knowledge grap
 ### Using the Dashboard
 
 1. Navigate to the **Dashboard** or **Settings** section
-2. Scroll to the **📦 Data Export** section  
+2. Scroll to the **📦 Data Export** section
 3. Click the export button for the data type you want
 4. Choose the export format
 5. Optionally enable compression (gzip)
@@ -28,29 +28,29 @@ The export tools allow you to download your conversation history, knowledge grap
 // Export chat history
 const result = await callTool('exportChatHistory', {
   sessionId: 'my-session',
-  format: 'json',      // 'json' or 'markdown'
-  compress: true       // optional, default true
+  format: 'json', // 'json' or 'markdown'
+  compress: true, // optional, default true
 });
 
 // Export memory
 const result = await callTool('exportMemory', {
   sessionId: 'my-session',
-  format: 'markdown',  // 'json' or 'markdown'
-  limit: 500           // optional, max items
+  format: 'markdown', // 'json' or 'markdown'
+  limit: 500, // optional, max items
 });
 
 // Export usage stats
 const result = await callTool('exportUsageStats', {
   sessionId: 'my-session',
-  format: 'csv',       // 'json' or 'csv'
-  dateFrom: '2024-01-01',  // optional ISO date
-  dateTo: '2024-12-31'     // optional ISO date
+  format: 'csv', // 'json' or 'csv'
+  dateFrom: '2024-01-01', // optional ISO date
+  dateTo: '2024-12-31', // optional ISO date
 });
 
 // Export knowledge graph
 const result = await callTool('exportGraph', {
   sessionId: 'my-session',
-  format: 'json'       // 'json' or 'graphml'
+  format: 'json', // 'json' or 'graphml'
 });
 ```
 
@@ -78,9 +78,11 @@ curl -G http://localhost:3000/api/export/download \
 ## Export Tools
 
 ### exportChatHistory
+
 Export conversation messages and metadata.
 
 **Input:**
+
 - `sessionId` (string, required): Session to export
 - `format` (string): 'json' or 'markdown' (default: 'json')
 - `limit` (number): Maximum messages (default: 1000)
@@ -88,6 +90,7 @@ Export conversation messages and metadata.
 - `compress` (boolean): Enable gzip (default: true)
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -104,6 +107,7 @@ Export conversation messages and metadata.
 ```
 
 **Markdown Format:**
+
 ```markdown
 # Chat History Export
 
@@ -114,14 +118,16 @@ Export conversation messages and metadata.
 ---
 
 ## User
-*Mon, Mar 4, 10:30 AM*
+
+_Mon, Mar 4, 10:30 AM_
 
 Hello, how are you?
 
 ---
 
 ## Assistant
-*Mon, Mar 4, 10:30 AM*
+
+_Mon, Mar 4, 10:30 AM_
 
 I'm doing well, thank you for asking!
 
@@ -129,15 +135,18 @@ I'm doing well, thank you for asking!
 ```
 
 ### exportMemory
+
 Export facts, entities, and relationships from the knowledge graph.
 
 **Input:**
+
 - `sessionId` (string, required): Session to export
 - `format` (string): 'json' or 'markdown' (default: 'json')
 - `limit` (number): Maximum items per category (default: 500)
 - `compress` (boolean): Enable gzip (default: true)
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -157,6 +166,7 @@ Export facts, entities, and relationships from the knowledge graph.
 ```
 
 **JSON Structure:**
+
 ```json
 {
   "metadata": {
@@ -209,9 +219,11 @@ Export facts, entities, and relationships from the knowledge graph.
 ```
 
 ### exportUsageStats
+
 Export token usage and cost analytics.
 
 **Input:**
+
 - `sessionId` (string, optional): Filter by session
 - `format` (string): 'json' or 'csv' (default: 'json')
 - `dateFrom` (string): ISO date from (optional)
@@ -220,6 +232,7 @@ Export token usage and cost analytics.
 - `compress` (boolean): Enable gzip (default: true)
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -238,7 +251,7 @@ Export token usage and cost analytics.
           "model": "gpt-4",
           "calls": 45,
           "tokens": 20000,
-          "cost": 1.200
+          "cost": 1.2
         }
       ]
     },
@@ -251,6 +264,7 @@ Export token usage and cost analytics.
 ```
 
 **CSV Format:**
+
 ```csv
 # Usage Export Report
 # Export Date: 2024-03-04T10:30:00.000Z
@@ -263,14 +277,17 @@ Timestamp,Session ID,Model,Prompt Tokens,Completion Tokens,Total Tokens,Cost,Lat
 ```
 
 ### exportGraph
+
 Export knowledge graph in various formats.
 
 **Input:**
+
 - `sessionId` (string, required): Session to export
 - `format` (string): 'json' or 'graphml' (default: 'json')
 - `compress` (boolean): Enable gzip (default: true)
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -299,18 +316,19 @@ Export knowledge graph in various formats.
 ```
 
 **GraphML Format:**
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <graphml xmlns="http://graphml.graphdrawing.org/xmlformat/graphml/1.0/graphml.xsd">
   <graph id="KnowledgeGraph" edgedefault="directed">
     <data key="sessionId">my-session</data>
     <data key="exportDate">2024-03-04T10:30:00.000Z</data>
-    
+
     <node id="node_1" label="Alice">
       <data key="type">person</data>
       <data key="accessCount">5</data>
     </node>
-    
+
     <edge id="edge_1" source="node_1" target="node_2" label="knows: Alice → Bob">
       <data key="relationType">knows</data>
     </edge>
@@ -321,12 +339,14 @@ Export knowledge graph in various formats.
 ## Data Formats
 
 ### JSON Format
+
 - Structured data with metadata
 - Perfect for data analysis and re-import
 - Includes comprehensive statistics
 - Human-readable when not compressed
 
 ### Markdown Format
+
 - Human-readable text documents
 - Organized with headers by category
 - Suitable for documentation and sharing
@@ -334,6 +354,7 @@ Export knowledge graph in various formats.
 - Can be converted to other formats
 
 ### CSV Format
+
 - Spreadsheet-compatible
 - One record per line
 - Includes headers
@@ -341,6 +362,7 @@ Export knowledge graph in various formats.
 - Good for data visualization
 
 ### GraphML Format
+
 - Standard graph format
 - Compatible with Gephi, yEd, Cytoscape
 - Edit and visualize knowledge graphs
@@ -349,6 +371,7 @@ Export knowledge graph in various formats.
 ## Compression
 
 All exports support optional gzip compression:
+
 - Reduces file size by ~80-90%
 - Files saved as `.gz` extension
 - Browser automatically handles decompression
@@ -357,38 +380,42 @@ All exports support optional gzip compression:
 ## Examples
 
 ### Export conversation as markdown for documentation
+
 ```javascript
 const result = await callTool('exportChatHistory', {
   sessionId: 'meeting-2024-03-04',
-  format: 'markdown'
+  format: 'markdown',
 });
 // Download and convert to PDF for sharing
 ```
 
 ### Analyze usage costs over time
+
 ```javascript
 const result = await callTool('exportUsageStats', {
   format: 'csv',
   dateFrom: '2024-01-01',
-  dateTo: '2024-03-31'
+  dateTo: '2024-03-31',
 });
 // Open in Google Sheets and create charts
 ```
 
 ### Backup knowledge graph
+
 ```javascript
 const result = await callTool('exportGraph', {
   sessionId: 'my-session',
-  format: 'json'
+  format: 'json',
 });
 // Store in version control or backup storage
 ```
 
 ### Visualize entity relationships
+
 ```javascript
 const result = await callTool('exportGraph', {
   sessionId: 'my-session',
-  format: 'graphml'
+  format: 'graphml',
 });
 // Import into Gephi for visualization
 ```
@@ -398,7 +425,7 @@ const result = await callTool('exportGraph', {
 The export tools come with utility functions:
 
 ```typescript
-import { 
+import {
   getDownloadUrl,
   decodeExportData,
   parseExportJSON,
@@ -406,7 +433,7 @@ import {
   formatExportSummary,
   summarizeMemoryExport,
   summarizeUsageExport,
-  summarizeChatExport 
+  summarizeChatExport,
 } from './src/tools/export/utils.ts';
 
 // Generate a download link
@@ -427,6 +454,7 @@ console.log(`Exported ${summary.facts} facts`);
 ## API Endpoints
 
 ### POST /api/tools/execute
+
 Execute any registered tool via HTTP.
 
 ```bash
@@ -443,6 +471,7 @@ curl -X POST http://localhost:3000/api/tools/execute \
 ```
 
 ### GET /api/export/download
+
 Download exported file.
 
 ```bash
@@ -468,33 +497,37 @@ curl -G http://localhost:3000/api/export/download \
 ## Troubleshooting
 
 ### Export is empty or has warning
+
 - Session may not have data for that export type
 - Check session ID is correct
 - Verify memory/entities are saved
 
 ### File won't download
+
 - Check browser download settings
 - Ensure sufficient disk space
 - Try without compression if file is corrupted
 
 ### Data looks truncated
+
 - Increase `limit` parameter
 - Use pagination with `offset`
 - Check file size matches download
 
 ### Encoding issues in imports
+
 - Ensure UTF-8 encoding compatibility
 - Decode base64 data first
 - Check decompression if using gzip
 
 ## Format Support
 
-| Format | Tools | Use Case |
-|--------|-------|----------|
-| JSON | History, Memory, Usage, Graph | Data analysis, re-import, backup |
-| Markdown | History, Memory | Documentation, sharing, version control |
-| CSV | Usage | Spreadsheets, analytics, visualization |
-| GraphML | Graph | Visualization, graph tools, analysis |
+| Format   | Tools                         | Use Case                                |
+| -------- | ----------------------------- | --------------------------------------- |
+| JSON     | History, Memory, Usage, Graph | Data analysis, re-import, backup        |
+| Markdown | History, Memory               | Documentation, sharing, version control |
+| CSV      | Usage                         | Spreadsheets, analytics, visualization  |
+| GraphML  | Graph                         | Visualization, graph tools, analysis    |
 
 ## File Size Estimates
 

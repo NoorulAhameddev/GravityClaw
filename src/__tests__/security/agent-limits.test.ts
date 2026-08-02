@@ -16,7 +16,9 @@ const mockToolRegistry = {
   get: vi.fn().mockReturnValue({
     name: 'test_tool',
     inputSchema: { type: 'object', additionalProperties: true },
-    execute: vi.fn().mockImplementation(async () => `Success: no errors. Result: ${Date.now()}-${Math.random()}`),
+    execute: vi
+      .fn()
+      .mockImplementation(async () => `Success: no errors. Result: ${Date.now()}-${Math.random()}`),
   }),
 };
 
@@ -46,13 +48,15 @@ vi.mock('../../llm/index.ts', () => ({
 vi.mock('ajv', () => {
   return {
     default: class MockAjv {
-      compile() { 
+      compile() {
         const validate = () => true;
         (validate as any).errors = [];
         return validate;
       }
-      errorsText() { return 'mock error'; }
-    }
+      errorsText() {
+        return 'mock error';
+      }
+    },
   };
 });
 
@@ -70,7 +74,12 @@ vi.mock('../../performance/tool-optimization.ts', () => ({
 }));
 
 vi.mock('../../lib/telemetry/tracer.js', () => {
-  const mockSpan = { setAttribute: vi.fn(), setStatus: vi.fn(), recordException: vi.fn(), end: vi.fn() };
+  const mockSpan = {
+    setAttribute: vi.fn(),
+    setStatus: vi.fn(),
+    recordException: vi.fn(),
+    end: vi.fn(),
+  };
   return {
     withSpanAsync: vi.fn().mockImplementation(async (name, fn) => await fn(mockSpan)),
     withSpan: vi.fn().mockImplementation((name, fn) => fn(mockSpan)),
@@ -99,12 +108,16 @@ describe('Agent Loop Security Limits', () => {
     mockConfig.AGENT_MAX_ITERATIONS = 3;
     mockConfig.AGENT_MAX_TOOLS_PER_ITERATION = 2;
     mockConfig.AGENT_MAX_TOOLS_TOTAL = 5;
-    
+
     // Reset tool registry mock
     mockToolRegistry.get.mockReturnValue({
       name: 'test_tool',
       inputSchema: { type: 'object', additionalProperties: true },
-      execute: vi.fn().mockImplementation(async () => `Success: no errors. Result: ${Date.now()}-${Math.random()}`),
+      execute: vi
+        .fn()
+        .mockImplementation(
+          async () => `Success: no errors. Result: ${Date.now()}-${Math.random()}`,
+        ),
     });
   });
 
@@ -137,16 +150,14 @@ describe('Agent Loop Security Limits', () => {
 
   it('should respect total tool call limit', async () => {
     mockConfig.AGENT_MAX_TOOLS_TOTAL = 3;
-    
+
     // Mock LLM to return tool calls each iteration
     let callCount = 0;
     mockCallClaude.mockImplementation(async () => {
       callCount++;
       return {
         text: 'Tool call iteration',
-        toolCalls: [
-          { id: `call-${callCount}`, function: { name: 'test_tool', arguments: '{}' } },
-        ],
+        toolCalls: [{ id: `call-${callCount}`, function: { name: 'test_tool', arguments: '{}' } }],
       };
     });
 
@@ -163,7 +174,7 @@ describe('Agent Loop Security Limits', () => {
   it('should return hitLimit=true when limits exceeded', async () => {
     mockConfig.AGENT_MAX_ITERATIONS = 1;
     mockConfig.AGENT_MAX_TOOLS_PER_ITERATION = 1;
-    
+
     // Mock LLM to return 2 tool calls in first iteration
     mockCallClaude.mockResolvedValue({
       text: 'Multiple tools',
@@ -188,7 +199,7 @@ describe('Agent Loop Security Limits', () => {
   it('should set hitLimit when total limit reached during iteration', async () => {
     mockConfig.AGENT_MAX_TOOLS_TOTAL = 2;
     mockConfig.AGENT_MAX_TOOLS_PER_ITERATION = 10; // high per-iteration limit
-    
+
     // Mock LLM to return 3 tool calls in first iteration
     mockCallClaude.mockResolvedValue({
       text: 'Many tools',
@@ -214,16 +225,14 @@ describe('Agent Loop Security Limits', () => {
   it('should stop after max iterations even with available tool calls', async () => {
     mockConfig.AGENT_MAX_ITERATIONS = 2;
     mockConfig.AGENT_MAX_TOOLS_TOTAL = 100; // high total limit
-    
+
     // Mock LLM to always return a tool call
     let iteration = 0;
     mockCallClaude.mockImplementation(async () => {
       iteration++;
       return {
         text: `Iteration ${iteration}`,
-        toolCalls: [
-          { id: `call-${iteration}`, function: { name: 'test_tool', arguments: '{}' } },
-        ],
+        toolCalls: [{ id: `call-${iteration}`, function: { name: 'test_tool', arguments: '{}' } }],
       };
     });
 
@@ -241,12 +250,10 @@ describe('Agent Loop Security Limits', () => {
 
   it('should handle unknown tools gracefully', async () => {
     mockToolRegistry.get.mockReturnValue(undefined);
-    
+
     mockCallClaude.mockResolvedValue({
       text: 'Unknown tool',
-      toolCalls: [
-        { id: '1', function: { name: 'unknown_tool', arguments: '{}' } },
-      ],
+      toolCalls: [{ id: '1', function: { name: 'unknown_tool', arguments: '{}' } }],
     });
 
     const result = await runAgent({
@@ -263,16 +270,14 @@ describe('Agent Loop Security Limits', () => {
     mockConfig.AGENT_MAX_ITERATIONS = 5;
     mockConfig.AGENT_MAX_TOOLS_PER_ITERATION = 1;
     mockConfig.AGENT_MAX_TOOLS_TOTAL = 3;
-    
+
     // Mock LLM to return 1 tool call each iteration
     let iteration = 0;
     mockCallClaude.mockImplementation(async () => {
       iteration++;
       return {
         text: `Iteration ${iteration}`,
-        toolCalls: [
-          { id: `call-${iteration}`, function: { name: 'test_tool', arguments: '{}' } },
-        ],
+        toolCalls: [{ id: `call-${iteration}`, function: { name: 'test_tool', arguments: '{}' } }],
       };
     });
 

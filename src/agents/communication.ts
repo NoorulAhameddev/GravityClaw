@@ -11,11 +11,11 @@
  * - Automatic permissions for parent-child agent relationships
  */
 
-import { db } from "../db.ts";
-import { createLogger } from "../logger.ts";
-import { randomUUID } from "crypto";
+import { db } from '../db.ts';
+import { createLogger } from '../logger.ts';
+import { randomUUID } from 'crypto';
 
-const log = createLogger("agent-communication");
+const log = createLogger('agent-communication');
 
 /**
  * Represents a message permission grant
@@ -71,8 +71,8 @@ export class AgentMessaging {
   static sendMessage(fromSessionId: string, toSessionId: string, message: string): void {
     // Ensure both sessions exist to satisfy foreign key constraints
     try {
-      db.prepare("INSERT OR IGNORE INTO sessions (id) VALUES (?)").run(fromSessionId);
-      db.prepare("INSERT OR IGNORE INTO sessions (id) VALUES (?)").run(toSessionId);
+      db.prepare('INSERT OR IGNORE INTO sessions (id) VALUES (?)').run(fromSessionId);
+      db.prepare('INSERT OR IGNORE INTO sessions (id) VALUES (?)').run(toSessionId);
     } catch (err) {
       log.debug(`Non-fatal error ensuring sessions exist: ${err}`);
       // Continue anyway, if FK fails it will be caught in next step
@@ -83,10 +83,12 @@ export class AgentMessaging {
 
     // If not globally allowed, check for explicit permission or relationship
     if (!allowsPublic) {
-      if (!this.hasPermission(fromSessionId, toSessionId, "write")) {
+      if (!this.hasPermission(fromSessionId, toSessionId, 'write')) {
         // Allow if sender and receiver have parent-child relationship
         if (!this.hasAgentRelationship(fromSessionId, toSessionId)) {
-          throw new Error(`Session ${toSessionId} does not allow messages and no permission exists from ${fromSessionId}`);
+          throw new Error(
+            `Session ${toSessionId} does not allow messages and no permission exists from ${fromSessionId}`,
+          );
         }
       }
     }
@@ -97,7 +99,7 @@ export class AgentMessaging {
     try {
       db.prepare(
         `INSERT INTO messages (id, from_session_id, to_session_id, content, timestamp)
-         VALUES (?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?)`,
       ).run(messageId, fromSessionId, toSessionId, message, timestamp.toISOString());
 
       log.info(`Message ${messageId} sent from ${fromSessionId} to ${toSessionId}`);
@@ -175,12 +177,12 @@ export class AgentMessaging {
   static grantPermission(
     sessionId: string,
     targetSessionId: string,
-    permission: Omit<MessagePermission, "grantedAt" | "grantedBy">
+    permission: Omit<MessagePermission, 'grantedAt' | 'grantedBy'>,
   ): void {
     // Ensure sessions exist in sessions table for FK constraints
     try {
-      db.prepare("INSERT OR IGNORE INTO sessions (id) VALUES (?)").run(sessionId);
-      db.prepare("INSERT OR IGNORE INTO sessions (id) VALUES (?)").run(targetSessionId);
+      db.prepare('INSERT OR IGNORE INTO sessions (id) VALUES (?)').run(sessionId);
+      db.prepare('INSERT OR IGNORE INTO sessions (id) VALUES (?)').run(targetSessionId);
     } catch (err) {
       log.debug(`Non-fatal: Error ensuring sessions for grantPermission: ${err}`);
     }
@@ -191,8 +193,15 @@ export class AgentMessaging {
     try {
       db.prepare(
         `INSERT INTO permissions (id, session_id, target_session_id, can_read, can_write, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      ).run(permissionId, sessionId, targetSessionId, permission.canRead ? 1 : 0, permission.canWrite ? 1 : 0, now.toISOString());
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run(
+        permissionId,
+        sessionId,
+        targetSessionId,
+        permission.canRead ? 1 : 0,
+        permission.canWrite ? 1 : 0,
+        now.toISOString(),
+      );
 
       log.info(`Permission ${permissionId} granted from ${sessionId} to ${targetSessionId}`);
     } catch (err) {
@@ -219,7 +228,7 @@ export class AgentMessaging {
         FROM memory
         GROUP BY session_id
         ORDER BY MAX(timestamp) DESC
-      `
+      `,
         )
         .all() as Array<{
         id: string;
@@ -255,9 +264,15 @@ export class AgentMessaging {
       const existing = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(sessionId);
 
       if (!existing) {
-        db.prepare(`INSERT INTO sessions (id, allow_messages) VALUES (?, ?)`).run(sessionId, allow ? 1 : 0);
+        db.prepare(`INSERT INTO sessions (id, allow_messages) VALUES (?, ?)`).run(
+          sessionId,
+          allow ? 1 : 0,
+        );
       } else {
-        db.prepare(`UPDATE sessions SET allow_messages = ? WHERE id = ?`).run(allow ? 1 : 0, sessionId);
+        db.prepare(`UPDATE sessions SET allow_messages = ? WHERE id = ?`).run(
+          allow ? 1 : 0,
+          sessionId,
+        );
       }
 
       log.info(`Set allow_messages=${allow} for session ${sessionId}`);
@@ -277,8 +292,7 @@ export class AgentMessaging {
   static canReceiveMessages(sessionId: string): boolean {
     try {
       const row = db.prepare(`SELECT allow_messages FROM sessions WHERE id = ?`).get(sessionId) as
-        | { allow_messages: number }
-        | undefined;
+        { allow_messages: number } | undefined;
       return (row?.allow_messages ?? 0) === 1;
     } catch (err) {
       log.debug(`Error checking allow_messages for ${sessionId}: ${err}`);
@@ -294,13 +308,17 @@ export class AgentMessaging {
    * @param type - Type of permission: 'read' or 'write'
    * @returns true if permission is granted
    */
-  private static hasPermission(sessionId: string, targetSessionId: string, type: "read" | "write"): boolean {
+  private static hasPermission(
+    sessionId: string,
+    targetSessionId: string,
+    type: 'read' | 'write',
+  ): boolean {
     try {
-      const column = type === "read" ? "can_read" : "can_write";
+      const column = type === 'read' ? 'can_read' : 'can_write';
       const row = db
         .prepare(
           `SELECT ${column} FROM permissions
-           WHERE session_id = ? AND target_session_id = ?`
+           WHERE session_id = ? AND target_session_id = ?`,
         )
         .get(sessionId, targetSessionId) as { [key: string]: number } | undefined;
 
@@ -325,7 +343,7 @@ export class AgentMessaging {
         .prepare(
           `SELECT id FROM agent_swarms
            WHERE (parent_session_id = ? AND child_session_id = ?)
-              OR (parent_session_id = ? AND child_session_id = ?)`
+              OR (parent_session_id = ? AND child_session_id = ?)`,
         )
         .get(toSessionId, fromSessionId, fromSessionId, toSessionId);
 

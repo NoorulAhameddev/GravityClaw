@@ -1,16 +1,16 @@
 /**
  * Live Canvas - A2UI Protocol Implementation
- * 
+ *
  * Enables agents to push interactive HTML/JS widgets to web clients.
  * Supports the A2UI pattern: Agent generates UI → User interacts → Agent updates
  */
 
-import { WebSocket } from "ws";
-import { createLogger } from "../logger.ts";
-import type { Tool } from "../tools/index.ts";
-import { z } from "zod";
+import { WebSocket } from 'ws';
+import { createLogger } from '../logger.ts';
+import type { Tool } from '../tools/index.ts';
+import { z } from 'zod';
 
-const log = createLogger("canvas");
+const log = createLogger('canvas');
 
 // Canvas client management
 interface CanvasClient {
@@ -26,21 +26,21 @@ const canvasClients = new Map<string, CanvasClient>();
  */
 export function registerCanvasClient(sessionId: string, ws: WebSocket): void {
   log.info(`Canvas client connected for session: ${sessionId}`);
-  
+
   canvasClients.set(sessionId, {
     ws,
     sessionId,
     connectedAt: new Date(),
   });
-  
+
   // Clean up on disconnect
-  ws.on("close", () => {
+  ws.on('close', () => {
     log.info(`Canvas client disconnected for session: ${sessionId}`);
     canvasClients.delete(sessionId);
   });
-  
+
   // Handle incoming messages from canvas client (user interactions)
-  ws.on("message", (data) => {
+  ws.on('message', (data) => {
     try {
       const message = JSON.parse(data.toString());
       handleCanvasMessage(sessionId, message);
@@ -48,13 +48,15 @@ export function registerCanvasClient(sessionId: string, ws: WebSocket): void {
       log.error(`Error parsing canvas message: ${err}`);
     }
   });
-  
+
   // Send a welcome message
-  ws.send(JSON.stringify({
-    type: "connected",
-    sessionId,
-    timestamp: new Date().toISOString(),
-  }));
+  ws.send(
+    JSON.stringify({
+      type: 'connected',
+      sessionId,
+      timestamp: new Date().toISOString(),
+    }),
+  );
 }
 
 /**
@@ -62,28 +64,28 @@ export function registerCanvasClient(sessionId: string, ws: WebSocket): void {
  */
 function handleCanvasMessage(sessionId: string, message: any): void {
   log.info(`Canvas message from ${sessionId}: ${JSON.stringify(message)}`);
-  
+
   // Handle different message types
   switch (message.type) {
-    case "interaction":
+    case 'interaction':
       // User interacted with a widget (button click, form submit, etc.)
       // Store this for the agent to process
       log.info(`Widget interaction: ${JSON.stringify(message.data)}`);
       break;
-    
-    case "error":
+
+    case 'error':
       // Canvas client reported an error
       log.error(`Canvas client error: ${message.error}`);
       break;
-    
-    case "ping":
+
+    case 'ping':
       // Heartbeat
       const client = canvasClients.get(sessionId);
       if (client) {
-        client.ws.send(JSON.stringify({ type: "pong" }));
+        client.ws.send(JSON.stringify({ type: 'pong' }));
       }
       break;
-    
+
     default:
       log.warn(`Unknown canvas message type: ${message.type}`);
   }
@@ -104,13 +106,13 @@ function validateContent(html: string, js?: string): { valid: boolean; reason?: 
     /<embed/i, // Embed tags
     /<link[^>]*href=/i, // External stylesheets
   ];
-  
+
   for (const pattern of dangerousPatterns) {
     if (pattern.test(html)) {
       return { valid: false, reason: `Dangerous pattern detected in HTML: ${pattern}` };
     }
   }
-  
+
   // Check JavaScript if provided
   if (js) {
     const dangerousJsPatterns = [
@@ -121,14 +123,14 @@ function validateContent(html: string, js?: string): { valid: boolean; reason?: 
       /\.innerHTML\s*=/i, // Prevent innerHTML assignments (use textContent instead)
       /document\.write/i,
     ];
-    
+
     for (const pattern of dangerousJsPatterns) {
       if (pattern.test(js)) {
         return { valid: false, reason: `Dangerous pattern detected in JavaScript: ${pattern}` };
       }
     }
   }
-  
+
   return { valid: true };
 }
 
@@ -137,30 +139,30 @@ function validateContent(html: string, js?: string): { valid: boolean; reason?: 
  */
 export async function pushCanvas(sessionId: string, html: string, js?: string): Promise<string> {
   const client = canvasClients.get(sessionId);
-  
+
   if (!client) {
     throw new Error(`No canvas client connected for session: ${sessionId}`);
   }
-  
+
   // Validate content
   const validation = validateContent(html, js);
   if (!validation.valid) {
     throw new Error(`Content validation failed: ${validation.reason}`);
   }
-  
+
   // Prepare the canvas push message
   const message = {
-    type: "canvas_push",
+    type: 'canvas_push',
     html,
-    js: js || "",
+    js: js || '',
     timestamp: new Date().toISOString(),
   };
-  
+
   // Send to client
   if (client.ws.readyState === WebSocket.OPEN) {
     client.ws.send(JSON.stringify(message));
     log.info(`Canvas pushed to session ${sessionId}`);
-    return "Canvas widget sent successfully";
+    return 'Canvas widget sent successfully';
   } else {
     throw new Error(`WebSocket not ready for session: ${sessionId}`);
   }
@@ -182,22 +184,22 @@ export function hasCanvasClient(sessionId: string): boolean {
 
 // Input schema for canvas_push tool
 const canvasPushInputSchema = {
-  type: "object" as const,
+  type: 'object' as const,
   properties: {
     session_id: {
-      type: "string",
-      description: "Session ID of the canvas client to push to",
+      type: 'string',
+      description: 'Session ID of the canvas client to push to',
     },
     html: {
-      type: "string",
-      description: "HTML content to render in the canvas (validated for security)",
+      type: 'string',
+      description: 'HTML content to render in the canvas (validated for security)',
     },
     js: {
-      type: "string",
-      description: "Optional JavaScript code to execute in the canvas sandbox",
+      type: 'string',
+      description: 'Optional JavaScript code to execute in the canvas sandbox',
     },
   },
-  required: ["session_id", "html"],
+  required: ['session_id', 'html'],
 };
 
 /**
@@ -205,7 +207,7 @@ const canvasPushInputSchema = {
  * Push an interactive HTML/JS widget to a canvas client
  */
 export const canvasPushTool: Tool = {
-  name: "canvas_push",
+  name: 'canvas_push',
   description: `Push an interactive HTML/JS widget to a canvas client. 
     Use this to create rich, interactive visualizations, forms, charts, or custom UI components.
     The HTML will be rendered in a sandboxed iframe with strict CSP.
@@ -228,9 +230,9 @@ export const canvasPushTool: Tool = {
       html: z.string(),
       js: z.string().optional(),
     });
-    
+
     const parsed = schema.parse(input);
-    
+
     try {
       const result = await pushCanvas(parsed.session_id, parsed.html, parsed.js);
       return result;

@@ -1,6 +1,6 @@
 /**
  * Talk Mode - Continuous Voice Conversation
- * 
+ *
  * Provides hands-free voice interaction loop:
  * 1. Wait for wake word
  * 2. Record audio until silence detected (VAD)
@@ -8,7 +8,7 @@
  * 4. Process with LLM
  * 5. Speak response with TTS
  * 6. Return to step 1
- * 
+ *
  * Desktop/local only - requires microphone and speaker
  */
 
@@ -85,7 +85,7 @@ const DEFAULT_CONFIG: TalkModeConfig = {
  * Create a talk mode handler
  */
 export function createTalkModeHandler(
-  initialConfig: Partial<TalkModeConfig> = {}
+  initialConfig: Partial<TalkModeConfig> = {},
 ): TalkModeHandler {
   let config: TalkModeConfig = { ...DEFAULT_CONFIG, ...initialConfig };
   let isRunning = false;
@@ -149,7 +149,9 @@ export function createTalkModeHandler(
 
                 // Start silence timer
                 silenceTimer = setTimeout(() => {
-                  logger.info(`Silence duration reached (${config.silenceDuration}ms), stopping recording`);
+                  logger.info(
+                    `Silence duration reached (${config.silenceDuration}ms), stopping recording`,
+                  );
                   stopCurrentRecording(resolve);
                 }, config.silenceDuration);
               }
@@ -161,7 +163,9 @@ export function createTalkModeHandler(
                   clearTimeout(silenceTimer);
                   silenceTimer = null;
                 }
-                logger.debug(`Sound detected (energy: ${normalizedEnergy.toFixed(3)}), continuing recording`);
+                logger.debug(
+                  `Sound detected (energy: ${normalizedEnergy.toFixed(3)}), continuing recording`,
+                );
               }
             }
           });
@@ -179,7 +183,6 @@ export function createTalkModeHandler(
           logger.info(`Max recording duration reached (${config.maxRecordingDuration}s), stopping`);
           stopCurrentRecording(resolve);
         }, config.maxRecordingDuration * 1000);
-
       } catch (error) {
         const err = error as Error;
         logger.error('Failed to start recording:', err);
@@ -205,7 +208,9 @@ export function createTalkModeHandler(
       currentCallbacks.onRecordingStop?.();
 
       const audioBuffer = Buffer.concat(audioChunks);
-      logger.info(`Recording complete: ${audioBuffer.length} bytes (${(audioBuffer.length / config.sampleRate / 2).toFixed(2)}s)`);
+      logger.info(
+        `Recording complete: ${audioBuffer.length} bytes (${(audioBuffer.length / config.sampleRate / 2).toFixed(2)}s)`,
+      );
       resolve(audioBuffer);
     }
   }
@@ -244,7 +249,6 @@ export function createTalkModeHandler(
 
       logger.info(`Transcription: "${transcription}"`);
       currentCallbacks.onTranscription?.(transcription);
-
     } catch (error) {
       const err = error as Error;
       logger.error('Audio processing error:', err);
@@ -260,7 +264,7 @@ export function createTalkModeHandler(
       try {
         // Wait for wake word (this blocks until wake word detected or stopped)
         logger.info('Waiting for wake word...');
-        
+
         const wakeWordPromise = new Promise<string>((resolve, reject) => {
           if (!wakeWordDetector) {
             reject(new Error('Wake word detector not initialized'));
@@ -297,14 +301,13 @@ export function createTalkModeHandler(
 
         // Note: LLM processing and TTS are handled by the callback
         // The caller (tool) will receive onTranscription and handle the rest
-
       } catch (error) {
         const err = error as Error;
         logger.error('Talk loop error:', err);
         currentCallbacks.onError?.(err);
-        
+
         // Wait a bit before retrying to avoid tight error loop
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
@@ -390,12 +393,12 @@ export function createTalkModeHandler(
  */
 function createWavHeader(dataLength: number, sampleRate: number, channels: number): Buffer {
   const header = Buffer.alloc(44);
-  
+
   // RIFF header
   header.write('RIFF', 0);
   header.writeUInt32LE(36 + dataLength, 4);
   header.write('WAVE', 8);
-  
+
   // fmt chunk
   header.write('fmt ', 12);
   header.writeUInt32LE(16, 16); // fmt chunk size
@@ -405,11 +408,10 @@ function createWavHeader(dataLength: number, sampleRate: number, channels: numbe
   header.writeUInt32LE(sampleRate * channels * 2, 28); // byte rate
   header.writeUInt16LE(channels * 2, 32); // block align
   header.writeUInt16LE(16, 34); // bits per sample
-  
+
   // data chunk
   header.write('data', 36);
   header.writeUInt32LE(dataLength, 40);
-  
+
   return header;
 }
-

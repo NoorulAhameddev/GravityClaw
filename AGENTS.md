@@ -20,11 +20,13 @@ npm run test:coverage # Run with coverage report
 ```
 
 **Running a single test:**
+
 ```bash
 npx vitest run --config config/vitest.config.ts src/__tests__/agent.test.ts
 ```
 
 Additional commands:
+
 ```bash
 npm run cli                  # Run CLI
 npm run bench:load           # Load test (50 clients, 100 messages, 60s)
@@ -40,6 +42,7 @@ npm run secret:add           # Add a secret
 **Request flow:** Channel (Telegram/WhatsApp/WebChat) → `ChannelRouter` → `runAgent()` → `callClaude()` (LLM orchestrator) → Tool execution → repeat until no tool calls.
 
 **Key files:**
+
 - `src/agent.ts` — Agentic loop (`runAgent()`). Executes tool calls, feeds results back, respects `AGENT_MAX_ITERATIONS`.
 - `src/llm/orchestrator.ts` — `callClaude()`: persists history to SQLite, resolves per-session provider/model overrides, injects memory facts and attachment context.
 - `src/tools/index.ts` — `ToolRegistry` (Map-based). All tools registered at startup in `src/index.ts`.
@@ -61,6 +64,7 @@ The agent loop has configurable limits to prevent resource exhaustion:
 - `AGENT_MAX_TOOLS_TOTAL` (default: 50): Maximum total tool calls per agent run
 
 These limits are enforced in `src/agent.ts:runAgent()` and help prevent:
+
 - Infinite loops via recursive tool calls
 - Resource exhaustion with unlimited tool calls
 - Rate limiting bypass at session level
@@ -71,56 +75,65 @@ When limits are reached, the agent returns an error to the LLM and logs telemetr
 ## Code Style Guidelines
 
 ### TypeScript Config
+
 - **Target:** ES2022 | **Module:** ESNext | **Resolution:** bundler
 - **Strict mode:** Enabled | **noUncheckedIndexedAccess:** Enabled | **noImplicitOverride:** Enabled
 - **verbatimModuleSyntax:** true (use `.js` for type-only exports)
 
 ### Imports
+
 Source files use `.ts` extensions, type re-exports use `.js`:
+
 ```typescript
-import { foo } from "./bar.ts"
-export type { Foo } from "../types/foo.js"
+import { foo } from './bar.ts';
+export type { Foo } from '../types/foo.js';
 ```
 
 ### Naming Conventions
+
 - **Files:** kebab-case (`my-module.ts`)
 - **Classes/Interfaces:** PascalCase (`AgentConfig`)
 - **Functions/variables:** camelCase (`runAgent`)
 - **Constants:** SCREAMING_SNAKE_CASE (`MAX_RETRIES`)
 
 ### Config Access
+
 Import `config` from `src/config.ts`. **Do not read `process.env` directly.**
 
 ```typescript
-import { config } from "./config.ts"
-const apiKey = config.openaiApiKey
+import { config } from './config.ts';
+const apiKey = config.openaiApiKey;
 ```
 
 ### Logging
+
 Use `createLogger(prefix)` from `src/logger.ts` — never `console.log`. Log level controlled by `LOG_LEVEL` env var.
 
 ```typescript
-const log = createLogger("my-module")
-log.info("Starting operation")
+const log = createLogger('my-module');
+log.info('Starting operation');
 ```
 
 ### Error Handling
+
 - Use try/catch for all async operations
 - Return structured responses: `JSON.stringify({ success: true, data: ... })`
 - Log errors with context before rethrowing
 
 ### Comments
+
 **Do NOT add comments** unless explicitly requested by the user.
 
 ## Tool Interface
 
 Every tool must satisfy:
+
 ```typescript
 interface Tool {
   name: string;
   description: string;
-  inputSchema: { type: "object"; properties?: Record<string, unknown>; required?: string[] };
-  execute(input: Record<string, unknown>): Promise<string>;  // always returns string
+  inputSchema: { type: 'object'; properties?: Record<string, unknown>; required?: string[] };
+  execute(input: Record<string, unknown>): Promise<string>; // always returns string
 }
 ```
 
@@ -155,19 +168,23 @@ Register in `src/index.ts` and export from category's `index.ts`.
 To prevent resource exhaustion and excessive token consumption (especially when using expensive tools like `browser_subagent`), agents MUST follow these rules:
 
 ### 1. Avoid Redundant Verification
+
 - Once a fix is verified (e.g., via logs, terminal output, or a clear screenshot), do NOT run additional verification steps "just to be sure."
 - Trust the evidence obtained. If a screenshot shows a "Live" status, do not launch another browser subagent to click a button unless explicitly requested by the USER for interaction testing.
 
 ### 2. Browser Usage (High Cost)
+
 - **The browser consumes a massive amount of tokens.** Use it only when necessary.
 - Prefer `curl`, `fetch`, or internal health check APIs for verifying connectivity rather than launching a full browser session.
 - If a browser subagent task fails, analyze the error deeply before retrying. Do NOT repeat the exact same task if the failure reason is obvious (e.g., process not running).
 
 ### 3. Trust the Logs
+
 - If the terminal/server logs confirm a process is listening on a port, assume it is accessible locally unless there is evidence of firewall/binding issues.
 - Use `netstat` or `ps` to verify process state instead of visual verification when possible.
 
 ### 4. Sequential Execution
+
 - Avoid launching multiple subagents or parallel tasks that overlap in purpose.
 - If a task requires visual confirmation, take a single screenshot and analyze it thoroughly rather than taking multiple shots in a loop.
 

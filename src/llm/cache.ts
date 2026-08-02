@@ -1,9 +1,12 @@
-import type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
-import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions.js";
-import crypto from "crypto";
-import { createLogger } from "../logger.ts";
+import type { LLMProvider, LLMResponse, LLMChatOptions } from '../types/llm.js';
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+} from 'openai/resources/chat/completions.js';
+import crypto from 'crypto';
+import { createLogger } from '../logger.ts';
 
-const log = createLogger("llm-cache");
+const log = createLogger('llm-cache');
 
 interface CacheEntry {
   response: LLMResponse;
@@ -29,10 +32,14 @@ export class CachedLLMProvider implements LLMProvider {
     this.maxMemoryBytes = 100 * 1024 * 1024;
   }
 
-  private cacheKey(messages: ChatCompletionMessageParam[], toolDefinitions: ChatCompletionTool[], options?: LLMChatOptions): string {
-    const hash = crypto.createHash("sha256");
+  private cacheKey(
+    messages: ChatCompletionMessageParam[],
+    toolDefinitions: ChatCompletionTool[],
+    options?: LLMChatOptions,
+  ): string {
+    const hash = crypto.createHash('sha256');
     hash.update(JSON.stringify({ messages, toolDefinitions, options }));
-    return hash.digest("hex");
+    return hash.digest('hex');
   }
 
   private evictLru(): void {
@@ -49,7 +56,7 @@ export class CachedLLMProvider implements LLMProvider {
   async chat(
     messages: ChatCompletionMessageParam[],
     toolDefinitions: ChatCompletionTool[],
-    options?: LLMChatOptions
+    options?: LLMChatOptions,
   ): Promise<LLMResponse> {
     const key = this.cacheKey(messages, toolDefinitions, options);
     const cached = this.cache.get(key);
@@ -67,7 +74,10 @@ export class CachedLLMProvider implements LLMProvider {
 
     const response = await this.provider.chat(messages, toolDefinitions, options);
 
-    while (this.cache.size >= this.maxEntries || this.currentMemoryBytes + JSON.stringify(response).length * 2 > this.maxMemoryBytes) {
+    while (
+      this.cache.size >= this.maxEntries ||
+      this.currentMemoryBytes + JSON.stringify(response).length * 2 > this.maxMemoryBytes
+    ) {
       this.evictLru();
     }
 
@@ -86,7 +96,7 @@ export class CachedLLMProvider implements LLMProvider {
   chatStream?(
     messages: ChatCompletionMessageParam[],
     toolDefinitions: ChatCompletionTool[],
-    options?: LLMChatOptions & { onToken?: (token: string, done: boolean) => void }
+    options?: LLMChatOptions & { onToken?: (token: string, done: boolean) => void },
   ): Promise<LLMResponse> {
     if (this.provider.chatStream) {
       return this.provider.chatStream(messages, toolDefinitions, options);

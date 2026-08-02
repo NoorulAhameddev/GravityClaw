@@ -3,92 +3,96 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 type WSState = 'connecting' | 'connected' | 'disconnected' | 'error';
 
 interface WSMessage {
-    type?: string;
-    text?: string;
-    role?: string;
-    isBot?: boolean;
-    [key: string]: unknown;
+  type?: string;
+  text?: string;
+  role?: string;
+  isBot?: boolean;
+  [key: string]: unknown;
 }
 
 export function useWebSocket(url: string) {
-    const [status, setStatus] = useState<WSState>('disconnected');
-    const [messages, setMessages] = useState<WSMessage[]>([]);
-    const ws = useRef<WebSocket | null>(null);
-    const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const reconnectDelay = useRef(1000);
-    const connectRef = useRef<() => void>(() => {});
-    const isConnecting = useRef(false);
+  const [status, setStatus] = useState<WSState>('disconnected');
+  const [messages, setMessages] = useState<WSMessage[]>([]);
+  const ws = useRef<WebSocket | null>(null);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectDelay = useRef(1000);
+  const connectRef = useRef<() => void>(() => {});
+  const isConnecting = useRef(false);
 
-    const connect = useCallback(() => {
-        if (!url || url === 'ws://' || url === 'wss://') {
-            setStatus('disconnected');
-            return;
-        }
-        if (ws.current?.readyState === WebSocket.OPEN || ws.current?.readyState === WebSocket.CONNECTING || isConnecting.current) {
-            return;
-        }
-        isConnecting.current = true;
-        
-        if (ws.current) ws.current.close();
-        ws.current = null;
+  const connect = useCallback(() => {
+    if (!url || url === 'ws://' || url === 'wss://') {
+      setStatus('disconnected');
+      return;
+    }
+    if (
+      ws.current?.readyState === WebSocket.OPEN ||
+      ws.current?.readyState === WebSocket.CONNECTING ||
+      isConnecting.current
+    ) {
+      return;
+    }
+    isConnecting.current = true;
 
-        setStatus('connecting');
-        const socket = new WebSocket(url);
-        ws.current = socket;
+    if (ws.current) ws.current.close();
+    ws.current = null;
 
-        socket.onopen = () => {
-            isConnecting.current = false;
-            setStatus('connected');
-            reconnectDelay.current = 1000;
-        };
+    setStatus('connecting');
+    const socket = new WebSocket(url);
+    ws.current = socket;
 
-        socket.onmessage = (event) => {
-            try {
-                const msg = JSON.parse(event.data) as WSMessage;
-                setMessages((prev) => [...prev, msg]);
-            } catch (e) {
-                console.error('WS parse error:', e);
-            }
-        };
+    socket.onopen = () => {
+      isConnecting.current = false;
+      setStatus('connected');
+      reconnectDelay.current = 1000;
+    };
 
-        socket.onerror = () => {
-            isConnecting.current = false;
-            setStatus('error');
-        };
+    socket.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data) as WSMessage;
+        setMessages((prev) => [...prev, msg]);
+      } catch (e) {
+        console.error('WS parse error:', e);
+      }
+    };
 
-        socket.onclose = () => {
-            isConnecting.current = false;
-            if (!reconnectTimer.current) {
-                setStatus('disconnected');
-                const delayMs = reconnectDelay.current;
-                reconnectDelay.current = Math.min(reconnectDelay.current * 1.5, 10000);
-                reconnectTimer.current = setTimeout(() => {
-                    reconnectTimer.current = null;
-                    connectRef.current();
-                }, delayMs);
-            }
-        };
-    }, [url]);
+    socket.onerror = () => {
+      isConnecting.current = false;
+      setStatus('error');
+    };
 
-    useEffect(() => {
-        connectRef.current = connect;
-    }, [connect]);
+    socket.onclose = () => {
+      isConnecting.current = false;
+      if (!reconnectTimer.current) {
+        setStatus('disconnected');
+        const delayMs = reconnectDelay.current;
+        reconnectDelay.current = Math.min(reconnectDelay.current * 1.5, 10000);
+        reconnectTimer.current = setTimeout(() => {
+          reconnectTimer.current = null;
+          connectRef.current();
+        }, delayMs);
+      }
+    };
+  }, [url]);
 
-    useEffect(() => {
-        connect();
-        return () => {
-            if (ws.current) ws.current.close();
-            ws.current = null;
-            if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-            reconnectTimer.current = null;
-        };
-    }, [connect]);
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
-    const sendMessage = useCallback((msg: WSMessage) => {
-        if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-            ws.current.send(JSON.stringify(msg));
-        }
-    }, []);
+  useEffect(() => {
+    connect();
+    return () => {
+      if (ws.current) ws.current.close();
+      ws.current = null;
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = null;
+    };
+  }, [connect]);
 
-    return { status, messages, sendMessage };
+  const sendMessage = useCallback((msg: WSMessage) => {
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify(msg));
+    }
+  }, []);
+
+  return { status, messages, sendMessage };
 }

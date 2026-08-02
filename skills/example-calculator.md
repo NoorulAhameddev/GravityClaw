@@ -71,7 +71,7 @@ try:
         eq = sp.sympify(left.strip()) - sp.sympify(right.strip())
     else:
         eq = sp.sympify(equation_str)
-    
+
     solutions = sp.solve(eq, x)
     print(json.dumps({"success": True, "solutions": [str(s) for s in solutions]}))
 except Exception as e:

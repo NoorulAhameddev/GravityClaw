@@ -24,7 +24,7 @@ interface Tool {
   name: string;
   description: string;
   inputSchema: {
-    type: "object";
+    type: 'object';
     properties?: Record<string, unknown>;
     required?: string[];
   };
@@ -57,6 +57,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Supported Formats**: mp3, mp4, mpeg, mpga, m4a, wav, webm (max 25MB)
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -75,6 +76,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Request**:
+
 ```json
 {
   "file_path": "/path/to/audio.mp3",
@@ -83,6 +85,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response** (Success):
+
 ```json
 {
   "success": true,
@@ -93,6 +96,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response** (Error):
+
 ```json
 {
   "error": "File not found: /path/to/audio.mp3"
@@ -106,6 +110,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Description**: Convert text to speech and play audio (or save to file)
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -132,6 +137,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Request**:
+
 ```json
 {
   "text": "The quick brown fox jumps over the lazy dog",
@@ -141,6 +147,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response** (Success):
+
 ```json
 {
   "success": true,
@@ -157,6 +164,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Description**: Enable/disable voice mode for current session
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -172,6 +180,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response** (Success):
+
 ```json
 {
   "success": true,
@@ -189,6 +198,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Description**: List available text-to-speech voices
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -203,6 +213,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -232,6 +243,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Description**: Save a fact to the session's memory vault
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -250,6 +262,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Request**:
+
 ```json
 {
   "content": "User prefers dark mode interfaces",
@@ -258,6 +271,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -273,6 +287,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Description**: Retrieve saved facts for the current session
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -290,6 +305,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -312,6 +328,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Description**: Save an entity (person, place, etc.) to the knowledge graph
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -338,6 +355,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Request**:
+
 ```json
 {
   "name": "Alice",
@@ -351,6 +369,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -366,6 +385,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Description**: Create a relationship between two entities in the knowledge graph
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -392,6 +412,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -407,6 +428,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Description**: Query the knowledge graph for entities and relationships
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -424,6 +446,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -452,6 +475,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Description**: Semantic search over session memory and facts
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -474,6 +498,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -498,6 +523,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Description**: Get current date/time in ISO 8601 and Unix formats
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -506,6 +532,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response**:
+
 ```json
 {
   "iso": "2024-01-15T10:30:45.123Z",
@@ -521,6 +548,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Description**: Execute shell commands (with safeguards)
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -543,6 +571,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Request**:
+
 ```json
 {
   "command": "ls -la /path/to/directory",
@@ -551,6 +580,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response** (Success):
+
 ```json
 {
   "success": true,
@@ -561,6 +591,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response** (Error):
+
 ```json
 {
   "success": false,
@@ -577,6 +608,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Description**: List all groups where the user is an admin
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -591,6 +623,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -618,6 +651,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Description**: Retrieve settings for a specific group
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -636,6 +670,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -662,6 +697,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Description**: List all active agent sessions
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -670,6 +706,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -693,6 +730,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Description**: Read message history from another session (with permission)
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -711,6 +749,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -728,6 +767,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Error Response**:
+
 ```json
 {
   "success": false,
@@ -744,6 +784,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 **Description**: Get current state for dashboard refresh
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -752,6 +793,7 @@ __isGroup?: boolean       // Whether this is a group conversation
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -789,6 +831,7 @@ Client sends a chat message to the agent.
 **Direction**: Client → Server
 
 **Payload**:
+
 ```json
 {
   "type": "message",
@@ -797,6 +840,7 @@ Client sends a chat message to the agent.
 ```
 
 **Server Response** (when processed):
+
 ```json
 {
   "type": "message",
@@ -814,6 +858,7 @@ Server notifies client that the agent is thinking/processing.
 **Direction**: Server → Client
 
 **Payload**:
+
 ```json
 {
   "type": "typing"
@@ -831,6 +876,7 @@ Client can directly invoke a tool via WebSocket (for advanced clients).
 **Direction**: Client → Server
 
 **Payload**:
+
 ```json
 {
   "type": "tool_call",
@@ -849,6 +895,7 @@ Server returns the result of a tool execution.
 **Direction**: Server → Client
 
 **Payload** (Success):
+
 ```json
 {
   "type": "tool_response",
@@ -861,6 +908,7 @@ Server returns the result of a tool execution.
 ```
 
 **Payload** (Error):
+
 ```json
 {
   "type": "tool_response",
@@ -919,20 +967,25 @@ Server returns the result of a tool execution.
 ### Example: Chat Flow
 
 **Step 1: Connect**
+
 ```javascript
 const ws = new WebSocket('ws://localhost:3000');
 ws.onopen = () => console.log('Connected');
 ```
 
 **Step 2: Send message**
+
 ```javascript
-ws.send(JSON.stringify({
-  type: 'message',
-  text: 'What time is it?'
-}));
+ws.send(
+  JSON.stringify({
+    type: 'message',
+    text: 'What time is it?',
+  }),
+);
 ```
 
 **Step 3: Receive typing indicator**
+
 ```javascript
 ws.onmessage = (e) => {
   const msg = JSON.parse(e.data);
@@ -943,6 +996,7 @@ ws.onmessage = (e) => {
 ```
 
 **Step 4: Receive response**
+
 ```javascript
 ws.onmessage = (e) => {
   const msg = JSON.parse(e.data);
@@ -965,6 +1019,7 @@ All REST endpoints are served on `http://localhost:PORT/api/*` (default PORT=300
 **Description**: Server health check
 
 **Response**:
+
 ```json
 {
   "status": "ok",
@@ -987,6 +1042,7 @@ All REST endpoints are served on `http://localhost:PORT/api/*` (default PORT=300
 **Description**: List all registered tools with names and descriptions
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -1017,10 +1073,12 @@ All REST endpoints are served on `http://localhost:PORT/api/*` (default PORT=300
 **Description**: Get conversation history and session information
 
 **Query Parameters**:
+
 - `session` (optional): Session ID to filter by
 - `limit` (optional, default: 50, max: 200): Number of records to return
 
 **Response** (all sessions):
+
 ```json
 {
   "success": true,
@@ -1035,6 +1093,7 @@ All REST endpoints are served on `http://localhost:PORT/api/*` (default PORT=300
 ```
 
 **Response** (specific session):
+
 ```json
 {
   "success": true,
@@ -1058,6 +1117,7 @@ All REST endpoints are served on `http://localhost:PORT/api/*` (default PORT=300
 **Description**: Get token usage statistics across all sessions
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -1105,6 +1165,7 @@ All REST endpoints are served on `http://localhost:PORT/api/*` (default PORT=300
 **Description**: Dashboard statistics — counts of key resources
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -1129,9 +1190,11 @@ All REST endpoints are served on `http://localhost:PORT/api/*` (default PORT=300
 **Description**: List all sessions with message counts
 
 **Query Parameters**:
+
 - `limit` (optional, default: 100): Max sessions to return
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -1156,6 +1219,7 @@ All REST endpoints are served on `http://localhost:PORT/api/*` (default PORT=300
 **Description**: List scheduled tasks
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -1181,6 +1245,7 @@ All REST endpoints are served on `http://localhost:PORT/api/*` (default PORT=300
 **Description**: List registered webhooks (secrets masked)
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -1205,6 +1270,7 @@ All REST endpoints are served on `http://localhost:PORT/api/*` (default PORT=300
 **Description**: Receives webhook payloads from external services
 
 **Headers** (if webhook has secret):
+
 ```
 X-Webhook-Signature: hmac_sha256_signature
 ```
@@ -1212,6 +1278,7 @@ X-Webhook-Signature: hmac_sha256_signature
 **Body**: Any JSON payload
 
 **Response** (Success):
+
 ```json
 {
   "success": true,
@@ -1225,6 +1292,7 @@ X-Webhook-Signature: hmac_sha256_signature
 ```
 
 **Status Codes**:
+
 - `200 OK` - Webhook accepted
 - `404 Not Found` - Webhook not found
 - `401 Unauthorized` - Invalid signature
@@ -1237,6 +1305,7 @@ X-Webhook-Signature: hmac_sha256_signature
 **Description**: List agent swarms
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -1262,6 +1331,7 @@ X-Webhook-Signature: hmac_sha256_signature
 **Description**: List workflows and their progress
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -1288,6 +1358,7 @@ X-Webhook-Signature: hmac_sha256_signature
 **Description**: List heartbeat tasks
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -1313,6 +1384,7 @@ X-Webhook-Signature: hmac_sha256_signature
 **Description**: Diagnostic info about WebSocket server (internal use)
 
 **Response**:
+
 ```json
 {
   "status": "ok",
@@ -1333,15 +1405,15 @@ X-Webhook-Signature: hmac_sha256_signature
 
 ### HTTP Status Codes
 
-| Code | Meaning | Example |
-|------|---------|---------|
-| `200` | Success | Tool executed, data retrieved |
-| `400` | Bad Request | Missing required parameters |
-| `401` | Unauthorized | Invalid webhook signature |
-| `404` | Not Found | Hook/session doesn't exist |
-| `429` | Too Many Requests | Rate limit exceeded |
-| `500` | Server Error | Tool execution failed |
-| `503` | Service Unavailable | External API down |
+| Code  | Meaning             | Example                       |
+| ----- | ------------------- | ----------------------------- |
+| `200` | Success             | Tool executed, data retrieved |
+| `400` | Bad Request         | Missing required parameters   |
+| `401` | Unauthorized        | Invalid webhook signature     |
+| `404` | Not Found           | Hook/session doesn't exist    |
+| `429` | Too Many Requests   | Rate limit exceeded           |
+| `500` | Server Error        | Tool execution failed         |
+| `503` | Service Unavailable | External API down             |
 
 ---
 
@@ -1368,23 +1440,23 @@ All tool errors follow this pattern:
 #### Tool Execution Errors
 
 ```typescript
-"TOOL_NOT_FOUND"           // Tool doesn't exist
-"INVALID_INPUT"            // Schema validation failed
-"MISSING_PARAMETER"        // Required field missing
-"EXECUTION_TIMEOUT"        // Tool took too long
-"FILE_NOT_FOUND"           // File operation failed
-"PERMISSION_DENIED"        // File path not in allowlist
-"API_ERROR"                // External API failed
-"INVALID_SIGNATURE"        // Webhook signature invalid
+'TOOL_NOT_FOUND'; // Tool doesn't exist
+'INVALID_INPUT'; // Schema validation failed
+'MISSING_PARAMETER'; // Required field missing
+'EXECUTION_TIMEOUT'; // Tool took too long
+'FILE_NOT_FOUND'; // File operation failed
+'PERMISSION_DENIED'; // File path not in allowlist
+'API_ERROR'; // External API failed
+'INVALID_SIGNATURE'; // Webhook signature invalid
 ```
 
 #### Agent Errors
 
 ```typescript
-"MAX_ITERATIONS_EXCEEDED"  // Hit AGENT_MAX_ITERATIONS limit
-"NO_VALID_RESPONSE"        // LLM returned empty response
-"SESSION_NOT_FOUND"        // Session ID invalid
-"MEMORY_CORRUPTED"         // Conversation history corrupted
+'MAX_ITERATIONS_EXCEEDED'; // Hit AGENT_MAX_ITERATIONS limit
+'NO_VALID_RESPONSE'; // LLM returned empty response
+'SESSION_NOT_FOUND'; // Session ID invalid
+'MEMORY_CORRUPTED'; // Conversation history corrupted
 ```
 
 ---
@@ -1405,7 +1477,7 @@ Tools have these timeout defaults:
 async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  
+
   try {
     const response = await fetch(url, { ...options, signal: controller.signal });
     return response;
@@ -1439,13 +1511,13 @@ async function retryWithBackoff(fn, maxRetries = 3) {
       if (error.status === 429) {
         const delayMs = Math.pow(2, i) * 1000; // Exponential backoff
         console.log(`Rate limited. Retrying in ${delayMs}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       } else {
         throw error;
       }
     }
   }
-  
+
   throw new Error(`Failed after ${maxRetries} retries`);
 }
 
@@ -1479,12 +1551,12 @@ await retryWithBackoff(() => fetch('/api/memory'));
 Sessions are identified by a compound key derived from the **channel** and **chat**:
 
 ```typescript
-sessionId = `${channelId}:${chatId}`
+sessionId = `${channelId}:${chatId}`;
 
 // Examples:
-"telegram:123456789"        // Telegram user
-"whatsapp:1-5551234567"     // WhatsApp contact
-"webchat-session"           // Web chat (global session)
+('telegram:123456789'); // Telegram user
+('whatsapp:1-5551234567'); // WhatsApp contact
+('webchat-session'); // Web chat (global session)
 ```
 
 The agent maintains a **conversation history per session** stored in SQLite:
@@ -1508,18 +1580,18 @@ Settings are stored as JSON in the `memory` table's `settings` column and contro
 
 ```typescript
 interface SessionSettings {
-  provider?: string;           // LLM provider (openai, anthropic, etc.)
-  model?: string;              // Model name
-  thinkingLevel?: "off" | "low" | "medium" | "high";
-  voiceMode?: "off" | "transcribe" | "full";
-  ttsProvider?: "openai" | "elevenlabs";
-  temperature?: number;        // 0.0 - 2.0
+  provider?: string; // LLM provider (openai, anthropic, etc.)
+  model?: string; // Model name
+  thinkingLevel?: 'off' | 'low' | 'medium' | 'high';
+  voiceMode?: 'off' | 'transcribe' | 'full';
+  ttsProvider?: 'openai' | 'elevenlabs';
+  temperature?: number; // 0.0 - 2.0
   maxTokens?: number;
-  heartbeatInterval?: number;  // minutes
+  heartbeatInterval?: number; // minutes
   heartbeatEnabled?: boolean;
-  recapHourLocal?: number;     // 0-23
+  recapHourLocal?: number; // 0-23
   customSystemPrompt?: string;
-  [key: string]: unknown;      // Additional custom settings
+  [key: string]: unknown; // Additional custom settings
 }
 ```
 
@@ -1528,8 +1600,8 @@ interface SessionSettings {
 ```typescript
 import { getSessionSettings } from './session.ts';
 
-const settings = getSessionSettings("telegram:123456");
-console.log(settings.model);  // e.g., "claude-3-5-sonnet-20241022"
+const settings = getSessionSettings('telegram:123456');
+console.log(settings.model); // e.g., "claude-3-5-sonnet-20241022"
 ```
 
 **Updating settings**:
@@ -1538,13 +1610,13 @@ console.log(settings.model);  // e.g., "claude-3-5-sonnet-20241022"
 import { updateSessionSetting } from './session.ts';
 
 // Single setting
-updateSessionSetting("telegram:123456", "model", "gpt-4");
+updateSessionSetting('telegram:123456', 'model', 'gpt-4');
 
 // Multiple settings
-setSessionSettings("telegram:123456", {
-  provider: "openai",
-  model: "gpt-4-turbo",
-  temperature: 0.7
+setSessionSettings('telegram:123456', {
+  provider: 'openai',
+  model: 'gpt-4-turbo',
+  temperature: 0.7,
 });
 ```
 
@@ -1585,11 +1657,11 @@ When a tool is called, these fields are automatically added to the input:
 // Automatically injected by agent.runAgent()
 const toolInput = {
   ...userSuppliedInput,
-  __sessionId: "telegram:123456",
-  __userId: "user_123",          // If available
-  __platform: "telegram",
-  __groupId: "-1001234567890",   // If group chat
-  __isGroup: true
+  __sessionId: 'telegram:123456',
+  __userId: 'user_123', // If available
+  __platform: 'telegram',
+  __groupId: '-1001234567890', // If group chat
+  __isGroup: true,
 };
 ```
 
@@ -1599,7 +1671,7 @@ Tools can access context to customize behavior:
 execute(input: Record<string, unknown>) {
   const sessionId = input.__sessionId as string;
   const isGroup = input.__isGroup as boolean;
-  
+
   if (isGroup) {
     // Different behavior for group chats
   }
@@ -1626,7 +1698,7 @@ Time window:         1 minute
 Each request costs tokens based on input + output size:
   Input:  1 token per 4 characters
   Output: 1 token per 4 characters
-  
+
 If bucket depleted → HTTP 429 (Too Many Requests)
 Retry-After header:  Time until next refill
 ```
@@ -1635,13 +1707,13 @@ Retry-After header:  Time until next refill
 
 ### Current Rate Limits
 
-| Resource | Limit | Window | Notes |
-|----------|-------|--------|-------|
-| Requests/session | 100 | 1 minute | Soft limit; advisory |
-| Tokens/session | 100,000 | 1 day | Across all models |
-| File upload | 25 MB | Per request | Audio format |
-| Concurrent WS | 1000 | Server-wide | Per server instance |
-| Tool calls/request | `AGENT_MAX_ITERATIONS` | Per request | Default: 10 |
+| Resource           | Limit                  | Window      | Notes                |
+| ------------------ | ---------------------- | ----------- | -------------------- |
+| Requests/session   | 100                    | 1 minute    | Soft limit; advisory |
+| Tokens/session     | 100,000                | 1 day       | Across all models    |
+| File upload        | 25 MB                  | Per request | Audio format         |
+| Concurrent WS      | 1000                   | Server-wide | Per server instance  |
+| Tool calls/request | `AGENT_MAX_ITERATIONS` | Per request | Default: 10          |
 
 ---
 
@@ -1669,11 +1741,11 @@ PORT=3000
 
 ```typescript
 recordUsage({
-  sessionId: "telegram:123456",
-  model: "gpt-4-turbo",
+  sessionId: 'telegram:123456',
+  model: 'gpt-4-turbo',
   promptTokens: 450,
   completionTokens: 230,
-  latency: 1234
+  latency: 1234,
 });
 ```
 
@@ -1683,7 +1755,7 @@ recordUsage({
 {
   "byPeriod": {
     "today": {
-      "tokens": 45678,     // Current day usage
+      "tokens": 45678, // Current day usage
       "cost": 0.45
     }
   }
@@ -1723,13 +1795,13 @@ async function handleRateLimit(error) {
   if (error.status === 429) {
     const retryAfter = error.headers.get('Retry-After');
     const delayMs = parseInt(retryAfter) * 1000;
-    
+
     console.log(`Rate limited. Retrying in ${delayMs}ms...`);
-    await new Promise(r => setTimeout(r, delayMs));
-    
+    await new Promise((r) => setTimeout(r, delayMs));
+
     return retryRequest();
   }
-  
+
   throw error;
 }
 ```
@@ -1742,7 +1814,7 @@ Old usage records are periodically purged:
 
 ```sql
 -- Archive/delete records older than 90 days
-DELETE FROM usage 
+DELETE FROM usage
 WHERE timestamp < datetime('now', '-90 days');
 ```
 
@@ -1762,36 +1834,36 @@ curl http://localhost:3000/api/usage | jq '.data.byPeriod'
 
 ```typescript
 export const myTool: Tool = {
-  name: "my_tool",
-  description: "...",
-  inputSchema: { /* ... */ },
+  name: 'my_tool',
+  description: '...',
+  inputSchema: {/* ... */},
   async execute(input: Record<string, unknown>): Promise<string> {
     try {
       const requiredField = input.required_field;
       if (!requiredField) {
         return JSON.stringify({
           success: false,
-          error: "Missing required_field parameter"
+          error: 'Missing required_field parameter',
         });
       }
-      
+
       // Do work
       const result = await someAsyncWork(requiredField);
-      
+
       return JSON.stringify({
         success: true,
-        data: result
+        data: result,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`my_tool failed: ${message}`);
-      
+
       return JSON.stringify({
         success: false,
-        error: message
+        error: message,
       });
     }
-  }
+  },
 };
 ```
 
@@ -1801,20 +1873,20 @@ export const myTool: Tool = {
 
 ```typescript
 export const sessionAwareTool: Tool = {
-  name: "session_aware",
-  description: "...",
-  inputSchema: { /* ... */ },
+  name: 'session_aware',
+  description: '...',
+  inputSchema: {/* ... */},
   async execute(input: Record<string, unknown>): Promise<string> {
     const sessionId = input.__sessionId as string;
     const settings = getSessionSettings(sessionId);
-    
+
     // Use session context
     const model = settings.model || 'default-model';
-    
+
     // ... tool logic using context
-    
-    return JSON.stringify({ success: true, /* ... */ });
-  }
+
+    return JSON.stringify({ success: true /* ... */ });
+  },
 };
 ```
 
@@ -1826,20 +1898,20 @@ export const sessionAwareTool: Tool = {
 ws.onmessage = async (event) => {
   try {
     const message = JSON.parse(event.data);
-    
+
     switch (message.type) {
       case 'message':
         await handleChatMessage(message.text);
         break;
-      
+
       case 'tool_call':
         await handleToolCall(message.id, message.tool, message.args);
         break;
-      
+
       case 'typing':
         console.log('Agent is typing...');
         break;
-      
+
       default:
         console.warn(`Unknown message type: ${message.type}`);
     }
@@ -1856,42 +1928,40 @@ ws.onmessage = async (event) => {
 ```typescript
 async function fetchWithRetry(url, options = {}, maxRetries = 3) {
   let lastError;
-  
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const response = await fetch(url, options);
-      
+
       if (response.ok) {
         return response;
       }
-      
+
       if (response.status === 429) {
         const retryAfter = parseInt(response.headers.get('Retry-After') || '1');
         throw { status: 429, retryAfter };
       }
-      
+
       if (response.status >= 500) {
         throw { status: response.status, retry: true };
       }
-      
+
       throw { status: response.status, retry: false };
     } catch (error) {
       lastError = error;
-      
+
       if (!error.retry && error.status !== 429) {
         throw error; // Don't retry permanent errors
       }
-      
+
       if (attempt < maxRetries - 1) {
-        const delayMs = error.retryAfter 
-          ? error.retryAfter * 1000
-          : Math.pow(2, attempt) * 1000;
-        
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        const delayMs = error.retryAfter ? error.retryAfter * 1000 : Math.pow(2, attempt) * 1000;
+
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     }
   }
-  
+
   throw lastError;
 }
 ```

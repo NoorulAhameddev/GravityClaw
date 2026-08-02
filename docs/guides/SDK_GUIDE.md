@@ -25,7 +25,7 @@ async function main() {
 
   const response = await client.chat.sendMessage({
     message: 'Hello, world!',
-    sessionId: 'user-session-123'
+    sessionId: 'user-session-123',
   });
 
   console.log(response.text);
@@ -49,7 +49,7 @@ async function streamChat() {
 
   const stream = await client.chat.streamMessage({
     message: 'Write a poem about the sea.',
-    sessionId: 'user-session-456'
+    sessionId: 'user-session-456',
   });
 
   for await (const chunk of stream) {

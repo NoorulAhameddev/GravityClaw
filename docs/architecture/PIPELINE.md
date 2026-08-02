@@ -7,6 +7,7 @@ The GravityClaw pipeline provides a highly modular and extensible framework for 
 When a message is received from any channel, it is routed to the `Orchestrator`, which manages the state transition between various pipeline stages.
 
 The core stages are:
+
 1. **Input Validation (`inputValidator.ts`)**: Ensures the payload conforms to the expected schema and sanitizes inputs to prevent injection attacks.
 2. **Context Building (`contextBuilder.ts`)**: Injects long-term memory, short-term session history, and skill configurations into the prompt context.
 3. **Tool Selection (`toolPicker.ts`)**: Determines which tools are applicable for the current user and context based on RBAC permissions.
@@ -24,6 +25,7 @@ The core stages are:
 ## Adding a New Stage
 
 To add a new stage to the pipeline:
+
 1. Implement the stage function in `src/pipeline/`. It should adhere to the `PipelineStage` type defined in `src/pipeline/types.ts`.
 2. Register the stage in the `Orchestrator`'s execution flow in `src/pipeline/orchestrator.ts`.
 3. Add appropriate logging and error handling.

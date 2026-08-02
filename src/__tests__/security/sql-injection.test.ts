@@ -28,7 +28,7 @@ describe('SQL Injection Prevention', () => {
   describe('Parameterized Queries', () => {
     it('should use parameterized queries for limit', () => {
       getSecretAccessLog({ limit: 10 });
-      
+
       const query = mockPrepare.mock.calls[0]?.[0];
       const params = mockAll.mock.calls[0];
       expect(query).toContain('LIMIT ?');
@@ -38,7 +38,7 @@ describe('SQL Injection Prevention', () => {
 
     it('should use parameterized queries for days', () => {
       getSecretAccessLog({ days: 7 });
-      
+
       const query = mockPrepare.mock.calls[0]?.[0];
       const params = mockAll.mock.calls[0];
       expect(query).toContain('?');
@@ -47,7 +47,7 @@ describe('SQL Injection Prevention', () => {
 
     it('should use parameterized queries for secret_name', () => {
       getSecretAccessLog({ secret_name: 'test_secret' });
-      
+
       const query = mockPrepare.mock.calls[0]?.[0];
       const params = mockAll.mock.calls[0];
       expect(query).toContain('secret_name = ?');
@@ -56,7 +56,7 @@ describe('SQL Injection Prevention', () => {
 
     it('should use parameterized queries for action', () => {
       getSecretAccessLog({ action: 'read' });
-      
+
       const query = mockPrepare.mock.calls[0]?.[0];
       const params = mockAll.mock.calls[0];
       expect(query).toContain('action = ?');
@@ -92,14 +92,14 @@ describe('SQL Injection Prevention', () => {
   describe('Default Values', () => {
     it('should apply default limit of 100', () => {
       getSecretAccessLog();
-      
+
       const params = mockAll.mock.calls[0];
       expect(params).toContain(100);
     });
 
     it('should not include optional filters when not provided', () => {
       getSecretAccessLog();
-      
+
       const query = mockPrepare.mock.calls[0]?.[0];
       expect(query).toContain('WHERE 1=1');
       expect(query).not.toContain('secret_name =');
@@ -112,7 +112,7 @@ describe('SQL Injection Prevention', () => {
     it('should not allow SQL injection via secret_name', () => {
       const malicious = "'; DROP TABLE secret_access_log; --";
       getSecretAccessLog({ secret_name: malicious });
-      
+
       const query = mockPrepare.mock.calls[0]?.[0];
       const params = mockAll.mock.calls[0];
       expect(query).toContain('secret_name = ?');
@@ -135,7 +135,7 @@ describe('SQL Injection Prevention', () => {
     it('should reject null/undefined filters', () => {
       const result = getSecretAccessLog(undefined);
       expect(result).toBeDefined();
-      
+
       expect(getSecretAccessLog(null as any)).toEqual([]);
     });
   });
@@ -146,7 +146,7 @@ describe('SQL Injection Prevention', () => {
         getSecretAccessLog();
       }
       expect(mockPrepare).toHaveBeenCalledTimes(10);
-      
+
       const rateLimitedResult = getSecretAccessLog();
       expect(rateLimitedResult).toEqual([]);
       expect(mockPrepare).toHaveBeenCalledTimes(10); // 11th call should not hit db
@@ -156,12 +156,11 @@ describe('SQL Injection Prevention', () => {
       for (let i = 0; i < 10; i++) {
         getSecretAccessLog();
       }
-      
+
       resetRateLimitForTesting();
-      
+
       expect(getSecretAccessLog()).toBeDefined();
       expect(mockPrepare).toHaveBeenCalledTimes(11);
     });
   });
 });
-

@@ -1,3 +1,3 @@
-export type { Tool } from "../index.js";
+export type { Tool } from '../index.js';
 
-export * from "./browser.js";
+export * from './browser.js';

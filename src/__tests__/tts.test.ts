@@ -1,6 +1,20 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { createTTSService } from '../voice/tts.js';
 import { textToSpeechTool, textToSpeechStreamingTool } from '../tools/voice/tts.js';
+
+vi.mock('openai', () => {
+  return {
+    default: class MockOpenAI {
+      audio = {
+        speech: {
+          create: vi.fn(async () => ({
+            arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
+          })),
+        },
+      };
+    },
+  };
+});
 
 describe('Text-to-Speech (TTS)', () => {
   let service: ReturnType<typeof createTTSService>;
@@ -254,26 +268,20 @@ describe('Text-to-Speech (TTS)', () => {
   });
 
   describe('Text Chunking', () => {
-    it.skip('should split text into appropriate chunks', async () => {
+    it('should split text into appropriate chunks', async () => {
       const longText = 'Hello. World. How are you? I am fine. ' + 'Test. '.repeat(50);
-      
-      try {
-        await service.textToSpeechStreaming(longText, 50);
-        expect(true).toBe(true); // API key likely missing, but chunking logic ran
-      } catch (error) {
-        // Expected if no API key
-        expect((error as Error).message).toBeDefined();
-      }
+
+      const buffers = await service.textToSpeechStreaming(longText, 50);
+
+      // Long text should produce multiple chunks
+      expect(buffers.length).toBeGreaterThan(1);
+      // Each buffer should be an audio buffer
+      expect(buffers[0]).toBeInstanceOf(Buffer);
     });
 
     it('should handle single chunk text', async () => {
-      try {
-        await service.textToSpeechStreaming('Short text', 1000);
-        expect(true).toBe(true);
-      } catch (error) {
-        // Expected if no API key
-        expect((error as Error).message).toBeDefined();
-      }
+      const buffers = await service.textToSpeechStreaming('Short text', 1000);
+      expect(buffers.length).toBe(1);
     });
   });
 });

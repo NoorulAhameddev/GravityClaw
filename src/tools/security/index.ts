@@ -1,6 +1,6 @@
 /**
  * Security Management Tools
- * 
+ *
  * Provides dashboard access to security features including:
  * - Security audit logs (secrets and files)
  * - Secret rotation management
@@ -107,10 +107,10 @@ Example: getSecurityAuditLog({ type: 'all', days: 30, limit: 100 })`,
         if (secretLogs && Array.isArray(secretLogs)) {
           let filtered = secretLogs;
           if (user) {
-            filtered = filtered.filter(log => log.user === user);
+            filtered = filtered.filter((log) => log.user === user);
           }
           if (status) {
-            filtered = filtered.filter(log => log.status === status);
+            filtered = filtered.filter((log) => log.status === status);
           }
           logs.push(...filtered);
         }
@@ -209,7 +209,9 @@ Example: getSecurityStatus()`,
       }
 
       // Get recent security events
-      const recentEvents = db.prepare(`
+      const recentEvents = db
+        .prepare(
+          `
         SELECT COUNT(*) as count, status
         FROM (
           SELECT status FROM secret_access_log WHERE timestamp > datetime('now', '-24 hours')
@@ -217,7 +219,9 @@ Example: getSecurityStatus()`,
           SELECT status FROM file_access_log WHERE timestamp > datetime('now', '-24 hours')
         )
         GROUP BY status
-      `).all();
+      `,
+        )
+        .all();
 
       return JSON.stringify({
         success: true,
@@ -289,7 +293,7 @@ Example: rotateSecrets({ maxAgeDays: 90, autoCleanup: true })`,
         'rotate',
         'system',
         'success',
-        `Checked ${expiring.length} expiring secrets`
+        `Checked ${expiring.length} expiring secrets`,
       );
 
       return JSON.stringify({

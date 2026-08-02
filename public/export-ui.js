@@ -8,18 +8,19 @@
  * Show export dialog with format options
  */
 function showExportDialog(exportType) {
-  const title = {
-    'chat-history': '📥 Export Chat History',
-    'memory': '📥 Export Memory',
-    'usage': '📥 Export Usage Stats',
-    'graph': '📥 Export Knowledge Graph',
-  }[exportType] || 'Export Data';
+  const title =
+    {
+      'chat-history': '📥 Export Chat History',
+      memory: '📥 Export Memory',
+      usage: '📥 Export Usage Stats',
+      graph: '📥 Export Knowledge Graph',
+    }[exportType] || 'Export Data';
 
   const formats = {
     'chat-history': ['json', 'markdown'],
-    'memory': ['json', 'markdown'],
-    'usage': ['json', 'csv'],
-    'graph': ['json', 'graphml'],
+    memory: ['json', 'markdown'],
+    usage: ['json', 'csv'],
+    graph: ['json', 'graphml'],
   }[exportType] || ['json'];
 
   const html = `
@@ -30,7 +31,7 @@ function showExportDialog(exportType) {
         <div style="margin-bottom: 20px;">
           <label style="display: block; margin-bottom: 8px; color: var(--muted); font-size: 13px;">Format:</label>
           <select id="export-format-select" style="width: 100%; padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; font-size: 14px;">
-            ${formats.map(f => `<option value="${f}">${f.toUpperCase()}</option>`).join('')}
+            ${formats.map((f) => `<option value="${f}">${f.toUpperCase()}</option>`).join('')}
           </select>
         </div>
 
@@ -101,7 +102,7 @@ function createToastContainer() {
   box.id = 'toasts';
   box.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 9998;';
   document.body.appendChild(box);
-  
+
   const style = document.createElement('style');
   style.textContent = `
     @keyframes slideIn {
@@ -110,7 +111,7 @@ function createToastContainer() {
     }
   `;
   document.head.appendChild(style);
-  
+
   return box;
 }
 
@@ -119,10 +120,14 @@ function createToastContainer() {
  */
 async function callExportTool(toolName, params) {
   // Try WebSocket first (app.js interface)
-  if (typeof callTool === 'function' && typeof ws !== 'undefined' && ws?.readyState === WebSocket.OPEN) {
+  if (
+    typeof callTool === 'function' &&
+    typeof ws !== 'undefined' &&
+    ws?.readyState === WebSocket.OPEN
+  ) {
     return await callTool(toolName, params);
   }
-  
+
   // Fallback to API endpoint for server-side execution
   try {
     const response = await fetch('/api/tools/execute', {
@@ -135,11 +140,11 @@ async function callExportTool(toolName, params) {
         input: params,
       }),
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
-    
+
     return await response.json();
   } catch (err) {
     console.error('API call failed:', err);
@@ -166,9 +171,9 @@ async function executeExport(exportType) {
 
     const toolName = {
       'chat-history': 'exportChatHistory',
-      'memory': 'exportMemory',
-      'usage': 'exportUsageStats',
-      'graph': 'exportGraph',
+      memory: 'exportMemory',
+      usage: 'exportUsageStats',
+      graph: 'exportGraph',
     }[exportType];
 
     const params = {
@@ -212,7 +217,8 @@ async function executeExport(exportType) {
     if (data.recordCount !== undefined) details.push(`${data.recordCount} records`);
     if (data.stats?.facts !== undefined) details.push(`${data.stats.facts} facts`);
     if (data.stats?.entities !== undefined) details.push(`${data.stats.entities} entities`);
-    if (data.summary?.totalRecords !== undefined) details.push(`$${data.summary.totalCost?.toFixed(2) || '0'} cost`);
+    if (data.summary?.totalRecords !== undefined)
+      details.push(`$${data.summary.totalCost?.toFixed(2) || '0'} cost`);
 
     const message = `✅ Downloaded ${data.filename}${details.length > 0 ? ` • ${details.join(' • ')}` : ''}`;
     showToast(message, 'ok');
@@ -229,7 +235,7 @@ async function executeExport(exportType) {
  */
 function downloadFile(base64Data, filename) {
   try {
-    const buffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+    const buffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
     const blob = new Blob([buffer], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

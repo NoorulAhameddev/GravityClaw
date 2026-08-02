@@ -1,9 +1,9 @@
-import { db } from "./db.ts";
-import { createLogger } from "./logger.ts";
-import { safeJsonParse } from "./utils/json.ts";
-import type { DbProvider } from "./db/provider.ts";
+import { db } from './db.ts';
+import { createLogger } from './logger.ts';
+import { safeJsonParse } from './utils/json.ts';
+import type { DbProvider } from './db/provider.ts';
 
-const log = createLogger("session");
+const log = createLogger('session');
 
 // Ensure the session_settings table exists (idempotent — safe if migrations already ran)
 try {
@@ -15,7 +15,9 @@ try {
     )
   `);
 } catch (err) {
-  log.warn("Could not create session_settings table (may already exist via migrations)", { error: err instanceof Error ? err.message : String(err) });
+  log.warn('Could not create session_settings table (may already exist via migrations)', {
+    error: err instanceof Error ? err.message : String(err),
+  });
 }
 
 /**
@@ -24,9 +26,9 @@ try {
 export interface SessionSettings {
   provider?: string;
   model?: string;
-  thinkingLevel?: "off" | "low" | "medium" | "high";
-  voiceMode?: "off" | "transcribe" | "full";
-  ttsProvider?: "openai" | "elevenlabs";
+  thinkingLevel?: 'off' | 'low' | 'medium' | 'high';
+  voiceMode?: 'off' | 'transcribe' | 'full';
+  ttsProvider?: 'openai' | 'elevenlabs';
   heartbeatInterval?: number;
   heartbeatEnabled?: boolean;
   recapHourLocal?: number;
@@ -46,9 +48,9 @@ export interface SessionSettings {
  */
 export function getSessionSettings(sessionId: string): SessionSettings {
   try {
-    const row = db.prepare(
-      "SELECT settings_json FROM session_settings WHERE session_id = ?",
-    ).get(sessionId) as { settings_json: string } | undefined;
+    const row = db
+      .prepare('SELECT settings_json FROM session_settings WHERE session_id = ?')
+      .get(sessionId) as { settings_json: string } | undefined;
 
     if (!row || !row.settings_json) {
       return {};
@@ -57,7 +59,7 @@ export function getSessionSettings(sessionId: string): SessionSettings {
     const parseResult = safeJsonParse<SessionSettings>(
       row.settings_json,
       {} as SessionSettings,
-      "session settings",
+      'session settings',
     );
     const settings = parseResult.success && parseResult.data ? parseResult.data : {};
     return settings;
@@ -65,6 +67,23 @@ export function getSessionSettings(sessionId: string): SessionSettings {
     const errMsg = err instanceof Error ? err.message : String(err);
     log.error(`Error loading session settings for ${sessionId}: ${errMsg}`);
     return {};
+  }
+}
+
+/**
+ * Ensures a session exists in the sessions table to satisfy foreign key constraints.
+ */
+export function ensureSession(sessionId: string): void {
+  try {
+    db.prepare(
+      `
+      INSERT OR IGNORE INTO sessions (id, allow_messages) 
+      VALUES (?, 1)
+    `,
+    ).run(sessionId);
+  } catch (err) {
+    log.error(`Error ensuring session ${sessionId}`, err);
+    // Don't throw, let it fail at foreign key level if it's a real issue
   }
 }
 
@@ -78,13 +97,15 @@ export function setSessionSettings(sessionId: string, settings: SessionSettings)
   const settingsJson = JSON.stringify(settings);
 
   try {
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO session_settings (session_id, settings_json, updated_at)
       VALUES (?, ?, datetime('now'))
       ON CONFLICT(session_id) DO UPDATE SET
         settings_json = excluded.settings_json,
         updated_at = datetime('now')
-    `).run(sessionId, settingsJson);
+    `,
+    ).run(sessionId, settingsJson);
     log.info(`Saved settings for session ${sessionId}`);
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
@@ -124,7 +145,7 @@ export function getSessionSetting<T>(
  */
 export function deleteSessionSettings(sessionId: string): void {
   try {
-    db.prepare("DELETE FROM session_settings WHERE session_id = ?").run(sessionId);
+    db.prepare('DELETE FROM session_settings WHERE session_id = ?').run(sessionId);
     log.info(`Deleted session settings for ${sessionId}`);
   } catch (err) {
     log.error(`Error deleting session settings for ${sessionId}`, err);
@@ -138,7 +159,7 @@ export function deleteSessionSettings(sessionId: string): void {
  */
 export function deleteSession(sessionId: string): boolean {
   try {
-    const result = db.prepare("DELETE FROM memory WHERE session_id = ?").run(sessionId);
+    const result = db.prepare('DELETE FROM memory WHERE session_id = ?').run(sessionId);
     log.info(`Deleted session ${sessionId} (${result.changes} rows removed)`);
     return (result.changes ?? 0) > 0;
   } catch (err) {
@@ -152,13 +173,13 @@ export function deleteSession(sessionId: string): boolean {
  */
 export function listSessions(): string[] {
   try {
-    const rows = db.prepare(
-      "SELECT DISTINCT session_id FROM memory ORDER BY session_id",
-    ).all() as Array<{ session_id: string }>;
+    const rows = db
+      .prepare('SELECT DISTINCT session_id FROM memory ORDER BY session_id')
+      .all() as Array<{ session_id: string }>;
 
     return rows.map((row) => row.session_id);
   } catch (err) {
-    log.error("Error listing sessions", err);
+    log.error('Error listing sessions', err);
     return [];
   }
 }
@@ -172,18 +193,24 @@ export function getSessionStats(sessionId: string): {
   settings: SessionSettings;
 } {
   try {
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT
         COUNT(*) as count,
         MIN(timestamp) as first_msg,
         MAX(timestamp) as last_msg
       FROM memory
       WHERE session_id = ?
-    `).get(sessionId) as {
-      count: number;
-      first_msg: string | null;
-      last_msg: string | null;
-    } | undefined;
+    `,
+      )
+      .get(sessionId) as
+      | {
+          count: number;
+          first_msg: string | null;
+          last_msg: string | null;
+        }
+      | undefined;
 
     if (!row) {
       return {
@@ -196,16 +223,22 @@ export function getSessionStats(sessionId: string): {
       };
     }
 
-    const roleCounts = db.prepare(`
+    const roleCounts = db
+      .prepare(
+        `
       SELECT
         SUM(CASE WHEN json_extract(message_json, '$.role') = 'user' THEN 1 ELSE 0 END) as user_count,
         SUM(CASE WHEN json_extract(message_json, '$.role') = 'assistant' THEN 1 ELSE 0 END) as assistant_count
       FROM memory
       WHERE session_id = ?
-    `).get(sessionId) as {
-      user_count: number;
-      assistant_count: number;
-    } | undefined;
+    `,
+      )
+      .get(sessionId) as
+      | {
+          user_count: number;
+          assistant_count: number;
+        }
+      | undefined;
 
     return {
       messageCount: row.count,

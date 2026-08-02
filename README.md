@@ -17,18 +17,18 @@ Gravity Claw routes messages from any channel (Telegram, Discord, Slack, WhatsAp
 
 ## Features
 
-| Category | Capabilities |
-|----------|-------------|
-| **Intelligent Agent Loop** | Iterative tool execution with configurable limits, approval gates, and safety bounds |
-| **Multi-Channel** | Telegram, Discord, Slack, WhatsApp, Signal, Email, WebChat — unified agent backend |
-| **Hybrid Memory** | SQLite + Vector embeddings (ChromaDB) + Knowledge Graph + Markdown facts + Supabase sync |
-| **Multi-Agent Orchestration** | Role-based Swarms and DAG-based Mesh workflows |
-| **Proactive Engine** | Heartbeat check-ins, daily recaps, recommendations, automated memory consolidation |
-| **Live Canvas (A2UI)** | Push rich HTML/JS widgets to users via WebSockets |
-| **Plugin System** | Runtime extensibility without restarts (providers, channels, tools, memory) |
-| **Enterprise Security** | Air-gap mode, AES-256-GCM encryption, user/path allowlisting, audit logging |
-| **LLM Flexibility** | OpenAI, Anthropic (Claude), Google AI, Groq, DeepSeek, Cohere, Mistral, NVIDIA, Ollama, OpenRouter, failover chains |
-| **85+ Built-in Tools** | Browser automation, sandboxed code execution, file operations, calendar, Notion, search, web scraping |
+| Category                      | Capabilities                                                                                                        |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **Intelligent Agent Loop**    | Iterative tool execution with configurable limits, approval gates, and safety bounds                                |
+| **Multi-Channel**             | Telegram, Discord, Slack, WhatsApp, Signal, Email, WebChat — unified agent backend                                  |
+| **Hybrid Memory**             | SQLite + Vector embeddings (ChromaDB) + Knowledge Graph + Markdown facts + Supabase sync                            |
+| **Multi-Agent Orchestration** | Role-based Swarms and DAG-based Mesh workflows                                                                      |
+| **Proactive Engine**          | Heartbeat check-ins, daily recaps, recommendations, automated memory consolidation                                  |
+| **Live Canvas (A2UI)**        | Push rich HTML/JS widgets to users via WebSockets                                                                   |
+| **Plugin System**             | Runtime extensibility without restarts (providers, channels, tools, memory)                                         |
+| **Enterprise Security**       | Air-gap mode, AES-256-GCM encryption, user/path allowlisting, audit logging                                         |
+| **LLM Flexibility**           | OpenAI, Anthropic (Claude), Google AI, Groq, DeepSeek, Cohere, Mistral, NVIDIA, Ollama, OpenRouter, failover chains |
+| **85+ Built-in Tools**        | Browser automation, sandboxed code execution, file operations, calendar, Notion, search, web scraping               |
 
 ---
 
@@ -50,18 +50,18 @@ See [docs/environment.md](docs/environment.md) for complete configuration refere
 
 ## CLI Commands
 
-| Command | Purpose |
-|---------|---------|
-| `npm run dev` | Development server with hot reload |
-| `npm start` | Production server |
-| `npm run cli -- chat` | Interactive chat REPL |
-| `npm run cli -- doctor` | Health checks and diagnostics |
-| `npm run cli -- config` | View current configuration |
-| `npm run cli -- tools` | List all available tools |
-| `npm run cli -- sessions` | Manage conversation sessions |
-| `npm run typecheck` | TypeScript type checking |
-| `npm run test:run` | Run test suite |
-| `npm run test:coverage` | Generate coverage report |
+| Command                   | Purpose                            |
+| ------------------------- | ---------------------------------- |
+| `npm run dev`             | Development server with hot reload |
+| `npm start`               | Production server                  |
+| `npm run cli -- chat`     | Interactive chat REPL              |
+| `npm run cli -- doctor`   | Health checks and diagnostics      |
+| `npm run cli -- config`   | View current configuration         |
+| `npm run cli -- tools`    | List all available tools           |
+| `npm run cli -- sessions` | Manage conversation sessions       |
+| `npm run typecheck`       | TypeScript type checking           |
+| `npm run test:run`        | Run test suite                     |
+| `npm run test:coverage`   | Generate coverage report           |
 
 Full CLI reference: [docs/guides/CLI.md](docs/guides/CLI.md)
 
@@ -81,16 +81,16 @@ Tool Registry (85+ tools across 15+ categories)
 Memory System (SQLite + Vector + Knowledge Graph + Markdown)
 ```
 
-| Component | Location |
-|-----------|----------|
-| Agent Loop | `src/agent.ts` |
-| LLM Orchestrator | `src/llm/orchestrator.ts` |
-| Tool Registry (85+ tools) | `src/tools/` |
-| Memory Engine | `src/memory/` |
-| Multi-Agent (Swarms & Mesh) | `src/agents/` |
-| Plugin System | `src/plugins/` |
-| Channel Adapters | `src/channels/` |
-| Configuration (Zod-validated) | `src/config.ts` |
+| Component                     | Location                  |
+| ----------------------------- | ------------------------- |
+| Agent Loop                    | `src/agent.ts`            |
+| LLM Orchestrator              | `src/llm/orchestrator.ts` |
+| Tool Registry (85+ tools)     | `src/tools/`              |
+| Memory Engine                 | `src/memory/`             |
+| Multi-Agent (Swarms & Mesh)   | `src/agents/`             |
+| Plugin System                 | `src/plugins/`            |
+| Channel Adapters              | `src/channels/`           |
+| Configuration (Zod-validated) | `src/config.ts`           |
 
 See [docs/architecture/ARCHITECTURE_OVERVIEW.md](docs/architecture/ARCHITECTURE_OVERVIEW.md) for detailed design.
 
@@ -98,15 +98,15 @@ See [docs/architecture/ARCHITECTURE_OVERVIEW.md](docs/architecture/ARCHITECTURE_
 
 ## Security & Privacy
 
-| Feature | Description |
-|---------|-------------|
-| Air-Gapped Mode | Full local operation via Ollama; zero external network calls |
-| Encrypted Secrets | AES-256-GCM for API keys, independent of environment variables |
-| User Allowlisting | Strict user/group ID filtering across all channels |
-| Path Allowlisting | File operations restricted to safe directories |
-| Approval Middleware | Human-in-the-loop gates for dangerous operations |
-| Audit Logging | Complete file access and tool execution tracking |
-| Rate Limiting | Per-endpoint API and WebSocket rate limits |
+| Feature             | Description                                                    |
+| ------------------- | -------------------------------------------------------------- |
+| Air-Gapped Mode     | Full local operation via Ollama; zero external network calls   |
+| Encrypted Secrets   | AES-256-GCM for API keys, independent of environment variables |
+| User Allowlisting   | Strict user/group ID filtering across all channels             |
+| Path Allowlisting   | File operations restricted to safe directories                 |
+| Approval Middleware | Human-in-the-loop gates for dangerous operations               |
+| Audit Logging       | Complete file access and tool execution tracking               |
+| Rate Limiting       | Per-endpoint API and WebSocket rate limits                     |
 
 **Report vulnerabilities:** See [SECURITY.md](SECURITY.md) for private reporting.
 
@@ -140,14 +140,14 @@ See [docs/guides/DEPLOYMENT.md](docs/guides/DEPLOYMENT.md) and [docs/infrastruct
 
 ## Documentation
 
-| Category | Documents |
-|----------|-----------|
-| **Getting Started** | [Environment Reference](docs/environment.md) &bull; [Quick Start](docs/guides/CLI.md) &bull; [API Reference](docs/guides/API.md) |
-| **Architecture** | [Overview](docs/architecture/ARCHITECTURE_OVERVIEW.md) &bull; [Details](docs/architecture/ARCHITECTURE.md) &bull; [Pipeline](docs/architecture/PIPELINE.md) |
-| **Features** | [Multi-Agent Systems](docs/MULTI_AGENT_SYSTEMS.md) &bull; [Skills](docs/SKILLS_GUIDE.md) &bull; [Proactive Features](docs/PROACTIVE_FEATURES.md) &bull; [Live Canvas](docs/features/canvas/CANVAS.md) &bull; [Model Switching](docs/guides/MODEL_SWITCHING.md) |
-| **Security** | [Policy](SECURITY.md) &bull; [Air-Gap](docs/features/airgap/AIRGAP.md) &bull; [Encrypted Secrets](docs/ENCRYPTED_SECRETS.md) &bull; [Security Assessment](docs/security-assessment.md) |
-| **Operations** | [Deployment](docs/guides/DEPLOYMENT.md) &bull; [Infrastructure](docs/infrastructure.md) &bull; [Backup & Restore](docs/features/backup/BACKUP_RESTORE_SYSTEM.md) &bull; [Observability](docs/features/observability/OBSERVABILITY.md) &bull; [Runbook](docs/operations/runbook.md) |
-| **Development** | [Contributing](CONTRIBUTING.md) &bull; [Tools Reference](docs/TOOLS_REFERENCE.md) &bull; [Plugin System](src/plugins/README.md) &bull; [Architecture Decisions](adr/) |
+| Category            | Documents                                                                                                                                                                                                                                                                          |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Getting Started** | [Environment Reference](docs/environment.md) &bull; [Quick Start](docs/guides/CLI.md) &bull; [API Reference](docs/guides/API.md)                                                                                                                                                   |
+| **Architecture**    | [Overview](docs/architecture/ARCHITECTURE_OVERVIEW.md) &bull; [Details](docs/architecture/ARCHITECTURE.md) &bull; [Pipeline](docs/architecture/PIPELINE.md)                                                                                                                        |
+| **Features**        | [Multi-Agent Systems](docs/MULTI_AGENT_SYSTEMS.md) &bull; [Skills](docs/SKILLS_GUIDE.md) &bull; [Proactive Features](docs/PROACTIVE_FEATURES.md) &bull; [Live Canvas](docs/features/canvas/CANVAS.md) &bull; [Model Switching](docs/guides/MODEL_SWITCHING.md)                     |
+| **Security**        | [Policy](SECURITY.md) &bull; [Air-Gap](docs/features/airgap/AIRGAP.md) &bull; [Encrypted Secrets](docs/ENCRYPTED_SECRETS.md) &bull; [Security Assessment](docs/security-assessment.md)                                                                                             |
+| **Operations**      | [Deployment](docs/guides/DEPLOYMENT.md) &bull; [Infrastructure](docs/infrastructure.md) &bull; [Backup & Restore](docs/features/backup/BACKUP_RESTORE_SYSTEM.md) &bull; [Observability](docs/features/observability/OBSERVABILITY.md) &bull; [Runbook](docs/operations/runbook.md) |
+| **Development**     | [Contributing](CONTRIBUTING.md) &bull; [Tools Reference](docs/TOOLS_REFERENCE.md) &bull; [Plugin System](src/plugins/README.md) &bull; [Architecture Decisions](adr/)                                                                                                              |
 
 Complete index: [docs/INDEX.md](docs/INDEX.md)
 

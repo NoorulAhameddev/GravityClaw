@@ -1,21 +1,28 @@
-import OpenAI from "openai";
-import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions.js";
-import type { LLMProvider, LLMResponse, LLMChatOptions, StreamCallback } from "../types/llm.js";
-import { createLogger } from "../logger.ts";
+import OpenAI from 'openai';
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+} from 'openai/resources/chat/completions.js';
+import type { LLMProvider, LLMResponse, LLMChatOptions, StreamCallback } from '../types/llm.js';
+import { createLogger } from '../logger.ts';
 
-const log = createLogger("llm:openai");
+const log = createLogger('llm:openai');
 
 /**
  * OpenAI Provider (Native)
  * Direct access to OpenAI's models (GPT-4, GPT-4 Turbo, etc.)
  */
 export class OpenAIProvider implements LLMProvider {
-  readonly name = "openai";
+  readonly name = 'openai';
   private client: OpenAI;
   private defaultModel: string;
 
-  constructor(apiKey: string, defaultModel: string = "gpt-4o") {
-    this.client = new OpenAI({ apiKey, timeout: 120000 });
+  constructor(apiKey: string, defaultModel: string = 'gpt-4o') {
+    this.client = new OpenAI({
+      apiKey,
+      baseURL: process.env.OPENAI_BASE_URL || undefined,
+      timeout: 120000,
+    });
     this.defaultModel = defaultModel;
     log.info(`OpenAI provider initialized with model: ${defaultModel}`);
   }
@@ -23,32 +30,42 @@ export class OpenAIProvider implements LLMProvider {
   async chat(
     messages: ChatCompletionMessageParam[],
     toolDefinitions: ChatCompletionTool[],
-    options?: LLMChatOptions
+    options?: LLMChatOptions,
   ): Promise<LLMResponse> {
     const model = options?.model ?? this.defaultModel;
     const maxTokens = options?.maxTokens ?? 2000;
     const hasTools = toolDefinitions.length > 0;
 
-    log.debug(`Calling OpenAI — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`);
+    log.debug(
+      `Calling OpenAI — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`,
+    );
 
     const params = hasTools
-      ? { model, max_tokens: maxTokens, tools: toolDefinitions, tool_choice: "auto" as const, messages }
+      ? {
+          model,
+          max_tokens: maxTokens,
+          tools: toolDefinitions,
+          tool_choice: 'auto' as const,
+          messages,
+        }
       : { model, max_tokens: maxTokens, messages };
 
-    const response = await this.client.chat.completions.create(params, { signal: AbortSignal.timeout(120000) });
+    const response = await this.client.chat.completions.create(params, {
+      signal: AbortSignal.timeout(120000),
+    });
     const choice = response.choices[0];
-    if (!choice) throw new Error("OpenAI returned no choices");
+    if (!choice) throw new Error('OpenAI returned no choices');
 
     const msg = choice.message;
-    const text = msg.content ?? "";
+    const text = msg.content ?? '';
     const toolCalls = msg.tool_calls ?? [];
 
     log.debug(
-      `OpenAI response — stop: ${choice.finish_reason}, text: ${text.length} chars, tools: ${toolCalls.length}`
+      `OpenAI response — stop: ${choice.finish_reason}, text: ${text.length} chars, tools: ${toolCalls.length}`,
     );
 
     const result: LLMResponse = {
-      stopReason: choice.finish_reason ?? "stop",
+      stopReason: choice.finish_reason ?? 'stop',
       text,
       toolCalls,
     };
@@ -67,24 +84,38 @@ export class OpenAIProvider implements LLMProvider {
   async chatStream(
     messages: ChatCompletionMessageParam[],
     toolDefinitions: ChatCompletionTool[],
-    options?: LLMChatOptions & { onToken?: StreamCallback }
+    options?: LLMChatOptions & { onToken?: StreamCallback },
   ): Promise<LLMResponse> {
     const model = options?.model ?? this.defaultModel;
     const maxTokens = options?.maxTokens ?? 2000;
     const hasTools = toolDefinitions.length > 0;
     const onToken = options?.onToken;
 
-    log.debug(`Streaming OpenAI — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`);
+    log.debug(
+      `Streaming OpenAI — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`,
+    );
 
     const params = hasTools
-      ? { model, max_tokens: maxTokens, tools: toolDefinitions, tool_choice: "auto" as const, messages, stream: true as const }
+      ? {
+          model,
+          max_tokens: maxTokens,
+          tools: toolDefinitions,
+          tool_choice: 'auto' as const,
+          messages,
+          stream: true as const,
+        }
       : { model, max_tokens: maxTokens, messages, stream: true as const };
 
-    const stream = await this.client.chat.completions.create(params, { signal: AbortSignal.timeout(120000) });
+    const stream = await this.client.chat.completions.create(params, {
+      signal: AbortSignal.timeout(120000),
+    });
 
     const textParts: string[] = [];
-    let stopReason = "stop";
-    const accumulatedToolCalls: Map<number, { id: string; type: "function"; function: { name: string; arguments: string } }> = new Map();
+    let stopReason = 'stop';
+    const accumulatedToolCalls: Map<
+      number,
+      { id: string; type: 'function'; function: { name: string; arguments: string } }
+    > = new Map();
 
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta;
@@ -101,8 +132,8 @@ export class OpenAIProvider implements LLMProvider {
           if (!accumulatedToolCalls.has(index)) {
             accumulatedToolCalls.set(index, {
               id: tc.id ?? `stream-call-${index}`,
-              type: "function",
-              function: { name: "", arguments: "" },
+              type: 'function',
+              function: { name: '', arguments: '' },
             });
           }
           const existing = accumulatedToolCalls.get(index)!;
@@ -117,12 +148,14 @@ export class OpenAIProvider implements LLMProvider {
       }
     }
 
-    onToken?.("", true);
+    onToken?.('', true);
 
-    const text = textParts.join("");
+    const text = textParts.join('');
     const toolCalls = Array.from(accumulatedToolCalls.values());
 
-    log.debug(`Streaming complete — stop: ${stopReason}, text: ${text.length} chars, tools: ${toolCalls.length}`);
+    log.debug(
+      `Streaming complete — stop: ${stopReason}, text: ${text.length} chars, tools: ${toolCalls.length}`,
+    );
 
     const result: LLMResponse = {
       stopReason,
@@ -138,7 +171,7 @@ export class OpenAIProvider implements LLMProvider {
       const models = await this.client.models.list();
       return models.data.map((model) => model.id);
     } catch (err) {
-      log.error("Error fetching OpenAI models", err);
+      log.error('Error fetching OpenAI models', err);
       return [];
     }
   }

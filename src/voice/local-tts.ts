@@ -1,10 +1,10 @@
-import { execSync, spawn } from "child_process";
-import { createLogger } from "../logger.js";
-import { writeFileSync, unlinkSync, readFileSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
+import { execSync, execFileSync, spawn } from 'child_process';
+import { createLogger } from '../logger.js';
+import { writeFileSync, unlinkSync, readFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
-const log = createLogger("voice:local-tts");
+const log = createLogger('voice:local-tts');
 
 /**
  * Local TTS options for air-gapped mode
@@ -20,7 +20,7 @@ export interface LocalTTSOptions {
  */
 function isPiperAvailable(): boolean {
   try {
-    execSync("where piper > nul 2>&1 || which piper > /dev/null 2>&1", {
+    execSync('where piper > nul 2>&1 || which piper > /dev/null 2>&1', {
       timeout: 2000,
     });
     return true;
@@ -34,7 +34,7 @@ function isPiperAvailable(): boolean {
  */
 function isEspeakAvailable(): boolean {
   try {
-    execSync("where espeak > nul 2>&1 || which espeak > /dev/null 2>&1", {
+    execSync('where espeak > nul 2>&1 || which espeak > /dev/null 2>&1', {
       timeout: 2000,
     });
     return true;
@@ -59,20 +59,20 @@ async function piperTextToSpeech(text: string): Promise<Buffer | null> {
     const tmpFile = join(tmpdir(), `piper-${Date.now()}.wav`);
 
     try {
-      const piper = spawn("piper", ["--output-file", tmpFile], {
-        stdio: ["pipe", "pipe", "pipe"],
+      const piper = spawn('piper', ['--output-file', tmpFile], {
+        stdio: ['pipe', 'pipe', 'pipe'],
       });
 
-      let stdErr = "";
+      let stdErr = '';
 
       piper.stdin!.write(text);
       piper.stdin!.end();
 
-      piper.stderr!.on("data", (data) => {
+      piper.stderr!.on('data', (data) => {
         stdErr += data.toString();
       });
 
-      piper.on("close", (code) => {
+      piper.on('close', (code) => {
         try {
           if (code !== 0) {
             log.error(`Piper exited with code ${code}: ${stdErr}`);
@@ -91,7 +91,7 @@ async function piperTextToSpeech(text: string): Promise<Buffer | null> {
         }
       });
 
-      piper.on("error", (err) => {
+      piper.on('error', (err) => {
         log.debug(`Piper spawn error: ${err.message}`);
         resolve(null);
       });
@@ -127,12 +127,7 @@ async function espeakTextToSpeech(text: string): Promise<Buffer | null> {
     const tmpFile = join(tmpdir(), `espeak-${Date.now()}.wav`);
 
     try {
-      // espeak can output to file directly
-      const command = process.platform === "win32" 
-        ? `espeak "${text.replace(/"/g, '\\"')}" -w "${tmpFile}"`
-        : `espeak "${text.replace(/"/g, '\\"')}" -w "${tmpFile}"`;
-
-      execSync(command, { timeout: 10000, stdio: "pipe" });
+      execFileSync('espeak', [text, '-w', tmpFile], { timeout: 10000, stdio: 'pipe' });
 
       const buffer = readFileSync(tmpFile);
       unlinkSync(tmpFile); // Clean up
@@ -151,7 +146,7 @@ async function espeakTextToSpeech(text: string): Promise<Buffer | null> {
  */
 export async function localTextToSpeech(
   text: string,
-  options: LocalTTSOptions = {}
+  options: LocalTTSOptions = {},
 ): Promise<Buffer | null> {
   const { fallbackToText = true } = options;
 
@@ -165,7 +160,7 @@ export async function localTextToSpeech(
   try {
     const piperResult = await piperTextToSpeech(text);
     if (piperResult) {
-      log.info("✓ Generated audio via piper-tts");
+      log.info('✓ Generated audio via piper-tts');
       return piperResult;
     }
   } catch (err) {
@@ -176,7 +171,7 @@ export async function localTextToSpeech(
   try {
     const espeakResult = await espeakTextToSpeech(text);
     if (espeakResult) {
-      log.info("✓ Generated audio via espeak");
+      log.info('✓ Generated audio via espeak');
       return espeakResult;
     }
   } catch (err) {
@@ -185,14 +180,12 @@ export async function localTextToSpeech(
 
   // No TTS available
   if (fallbackToText) {
-    log.warn("⚠️  No local TTS available (piper/espeak not found) — using text-only mode");
-    log.warn("Install piper-tts: pip install piper-tts");
-    log.warn("Or espeak: apt-get install espeak (Linux) / brew install espeak (macOS)");
+    log.warn('⚠️  No local TTS available (piper/espeak not found) — using text-only mode');
+    log.warn('Install piper-tts: pip install piper-tts');
+    log.warn('Or espeak: apt-get install espeak (Linux) / brew install espeak (macOS)');
     return null; // Text-only fallback
   } else {
-    throw new Error(
-      "No local TTS available. Install piper-tts or espeak. See docs/AIRGAP.md"
-    );
+    throw new Error('No local TTS available. Install piper-tts or espeak. See docs/AIRGAP.md');
   }
 }
 
@@ -200,7 +193,7 @@ export async function localTextToSpeech(
  * Get current TTS backend (for logging/debugging)
  */
 export function getLocalTTSBackend(): string {
-  if (isPiperAvailable()) return "piper-tts";
-  if (isEspeakAvailable()) return "espeak";
-  return "text-only (no audio)";
+  if (isPiperAvailable()) return 'piper-tts';
+  if (isEspeakAvailable()) return 'espeak';
+  return 'text-only (no audio)';
 }

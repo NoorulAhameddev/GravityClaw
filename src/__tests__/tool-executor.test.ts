@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
-import type { Tool } from "../types/tools.js";
-import { ToolExecutor } from "../tools/executor.ts";
+import { describe, expect, it } from 'vitest';
+import type { Tool } from '../types/tools.js';
+import { ToolExecutor } from '../tools/executor.ts';
 
 function createExecutor(tool: Tool) {
   return new ToolExecutor({
@@ -8,18 +8,18 @@ function createExecutor(tool: Tool) {
   });
 }
 
-describe("ToolExecutor", () => {
-  it("rejects invalid input before executing a tool", async () => {
+describe('ToolExecutor', () => {
+  it('rejects invalid input before executing a tool', async () => {
     let executed = false;
     const tool: Tool = {
-      name: "needs_value",
-      description: "test tool",
+      name: 'needs_value',
+      description: 'test tool',
       inputSchema: {
-        type: "object",
+        type: 'object',
         properties: {
-          value: { type: "string" },
+          value: { type: 'string' },
         },
-        required: ["value"],
+        required: ['value'],
       },
       async execute() {
         executed = true;
@@ -28,81 +28,81 @@ describe("ToolExecutor", () => {
     };
 
     const result = await createExecutor(tool).execute({
-      toolName: "needs_value",
+      toolName: 'needs_value',
       input: {},
-      context: { sessionId: "test:executor" },
+      context: { sessionId: 'test:executor' },
     });
 
     expect(result.success).toBe(false);
-    expect(result.error?.type).toBe("validation");
+    expect(result.error?.type).toBe('validation');
     expect(executed).toBe(false);
   });
 
-  it("requires explicit approval for tools marked requiresApproval", async () => {
+  it('requires explicit approval for tools marked requiresApproval', async () => {
     let executed = false;
     const tool: Tool = {
-      name: "dangerous_test_tool",
-      description: "test tool",
-      inputSchema: { type: "object", properties: {}, required: [] },
+      name: 'dangerous_test_tool',
+      description: 'test tool',
+      inputSchema: { type: 'object', properties: {}, required: [] },
       requiresApproval: true,
       async execute() {
         executed = true;
-        return "executed";
+        return 'executed';
       },
     };
 
     const result = await createExecutor(tool).execute({
-      toolName: "dangerous_test_tool",
+      toolName: 'dangerous_test_tool',
       input: {},
-      context: { sessionId: "test:executor" },
+      context: { sessionId: 'test:executor' },
     });
 
     expect(result.success).toBe(false);
-    expect(result.error?.type).toBe("approval_required");
+    expect(result.error?.type).toBe('approval_required');
     expect(executed).toBe(false);
   });
 
-  it("blocks unsafe shell commands even when approval is present", async () => {
+  it('blocks unsafe shell commands even when approval is present', async () => {
     let executed = false;
     const tool: Tool = {
-      name: "run_shell",
-      description: "shell",
+      name: 'run_shell',
+      description: 'shell',
       inputSchema: {
-        type: "object",
+        type: 'object',
         properties: {
-          command: { type: "string" },
+          command: { type: 'string' },
         },
-        required: ["command"],
+        required: ['command'],
       },
       requiresApproval: true,
       async execute() {
         executed = true;
-        return "executed";
+        return 'executed';
       },
     };
 
     const result = await createExecutor(tool).execute({
-      toolName: "run_shell",
-      input: { command: "rm -rf /" },
-      context: { sessionId: "test:executor" },
-      approval: { approvedBy: "test", reason: "regression" },
+      toolName: 'run_shell',
+      input: { command: 'rm -rf /' },
+      context: { sessionId: 'test:executor' },
+      approval: { approvedBy: 'test', reason: 'regression' },
     });
 
     expect(result.success).toBe(false);
-    expect(result.error?.type).toBe("security_policy");
+    expect(result.error?.type).toBe('security_policy');
     expect(executed).toBe(false);
   });
 
-  it("executes approved valid tools and injects execution context", async () => {
+  it('executes approved valid tools and injects execution context', async () => {
     const tool: Tool = {
-      name: "approved_test_tool",
-      description: "test tool",
+      name: 'approved_test_tool',
+      description: 'test tool',
       inputSchema: {
-        type: "object",
+        type: 'object',
         properties: {
-          value: { type: "string" },
+          value: { type: 'string' },
         },
-        required: ["value"],
+        required: ['value'],
       },
       requiresApproval: true,
       async execute(input) {
@@ -115,21 +115,22 @@ describe("ToolExecutor", () => {
     };
 
     const result = await createExecutor(tool).execute({
-      toolName: "approved_test_tool",
-      input: { value: "ok" },
+      toolName: 'approved_test_tool',
+      input: { value: 'ok' },
       context: {
-        sessionId: "test:executor",
-        userId: "user-1",
+        sessionId: 'test:executor',
+        userId: 'user-1',
       },
-      approval: { approvedBy: "test", reason: "regression" },
+      approval: { approvedBy: 'test', reason: 'regression' },
     });
 
     expect(result.success).toBe(true);
-    expect(result.result).toBe(JSON.stringify({
-      value: "ok",
-      sessionId: "test:executor",
-      userId: "user-1",
-    }));
+    expect(result.result).toBe(
+      JSON.stringify({
+        value: 'ok',
+        sessionId: 'test:executor',
+        userId: 'user-1',
+      }),
+    );
   });
 });
-

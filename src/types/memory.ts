@@ -49,7 +49,7 @@ export interface FactAccessStat {
   importance: number;
 }
 
-export type AttachmentType = "image" | "audio" | "video" | "document" | "other";
+export type AttachmentType = 'image' | 'audio' | 'video' | 'document' | 'other';
 
 export interface AttachmentInput {
   type: AttachmentType;
@@ -98,7 +98,7 @@ export interface CategoryOrganizerInput {
 }
 
 export type CategoryOrganizer = (
-  groups: CategoryOrganizerInput[]
+  groups: CategoryOrganizerInput[],
 ) => Promise<Record<string, string>>;
 
 export interface PruningConfig {

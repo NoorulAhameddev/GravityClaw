@@ -1,7 +1,7 @@
-import { WebSocket } from "ws";
-import type { AuthenticatedSocket } from "../middleware/websocket-auth.js";
+import { WebSocket } from 'ws';
+import type { AuthenticatedSocket } from '../middleware/websocket-auth.js';
 
-declare module "ws" {
+declare module 'ws' {
   interface WebSocket {
     auth?: AuthenticatedSocket;
     isAlive?: boolean;

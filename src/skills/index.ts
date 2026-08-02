@@ -2,37 +2,36 @@
  * Skill management tools for gravyclaw46
  */
 
-import type { Tool } from "../tools/index.ts";
-import { skillsManager } from "./loader.ts";
-import { createLogger } from "../logger.ts";
+import type { Tool } from '../tools/index.ts';
+import { skillsManager } from './loader.ts';
+import { createLogger } from '../logger.ts';
 
-const log = createLogger("skills-tools");
+const log = createLogger('skills-tools');
 
 /**
  * Load a skill from file
  */
 const loadSkillTool: Tool = {
-  name: "load_skill",
+  name: 'load_skill',
   description:
     "Load a skill from a markdown file. Skills contain custom tools defined in markdown with executable code blocks. Provide either a skill name (e.g., 'weather') or a full file path.",
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       name_or_path: {
-        type: "string",
-        description:
-          "Skill name (without .md extension) or full path to skill file",
+        type: 'string',
+        description: 'Skill name (without .md extension) or full path to skill file',
       },
     },
-    required: ["name_or_path"],
+    required: ['name_or_path'],
   },
   execute: async (args: Record<string, unknown>) => {
     try {
       const nameOrPath = args.name_or_path;
-      if (typeof nameOrPath !== "string" || !nameOrPath.trim()) {
+      if (typeof nameOrPath !== 'string' || !nameOrPath.trim()) {
         return JSON.stringify({
           success: false,
-          error: "name_or_path is required and must be a non-empty string",
+          error: 'name_or_path is required and must be a non-empty string',
         });
       }
 
@@ -53,7 +52,7 @@ const loadSkillTool: Tool = {
         },
       });
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = error instanceof Error ? error.message : 'Unknown error';
       log.error(`[skills] Error in load_skill: ${message}`);
       return JSON.stringify({
         success: false,
@@ -67,11 +66,11 @@ const loadSkillTool: Tool = {
  * List all available skills
  */
 const listSkillsTool: Tool = {
-  name: "list_skills",
+  name: 'list_skills',
   description:
-    "List all available skills in the skills directory. Shows skill name, description, enabled status, and available tools.",
+    'List all available skills in the skills directory. Shows skill name, description, enabled status, and available tools.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {},
     required: [],
   },
@@ -91,7 +90,7 @@ const listSkillsTool: Tool = {
         })),
       });
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = error instanceof Error ? error.message : 'Unknown error';
       log.error(`[skills] Error in list_skills: ${message}`);
       return JSON.stringify({
         success: false,
@@ -105,26 +104,26 @@ const listSkillsTool: Tool = {
  * Disable a loaded skill
  */
 const disableSkillTool: Tool = {
-  name: "disable_skill",
+  name: 'disable_skill',
   description:
-    "Disable a currently loaded skill. This will remove its tools from availability. The skill can be re-enabled later with load_skill.",
+    'Disable a currently loaded skill. This will remove its tools from availability. The skill can be re-enabled later with load_skill.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       skill_name: {
-        type: "string",
-        description: "Name of the skill to disable",
+        type: 'string',
+        description: 'Name of the skill to disable',
       },
     },
-    required: ["skill_name"],
+    required: ['skill_name'],
   },
   execute: async (args: Record<string, unknown>) => {
     try {
       const skillName = args.skill_name;
-      if (typeof skillName !== "string" || !skillName.trim()) {
+      if (typeof skillName !== 'string' || !skillName.trim()) {
         return JSON.stringify({
           success: false,
-          error: "skill_name is required and must be a non-empty string",
+          error: 'skill_name is required and must be a non-empty string',
         });
       }
 
@@ -142,7 +141,7 @@ const disableSkillTool: Tool = {
         });
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = error instanceof Error ? error.message : 'Unknown error';
       log.error(`[skills] Error in disable_skill: ${message}`);
       return JSON.stringify({
         success: false,
@@ -156,11 +155,11 @@ const disableSkillTool: Tool = {
  * Reload all skills from disk
  */
 const reloadSkillsTool: Tool = {
-  name: "reload_skills",
+  name: 'reload_skills',
   description:
-    "Reload all skills from the skills directory. This is useful after modifying skill files to apply changes without restarting.",
+    'Reload all skills from the skills directory. This is useful after modifying skill files to apply changes without restarting.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {},
     required: [],
   },
@@ -182,7 +181,7 @@ const reloadSkillsTool: Tool = {
           })),
       });
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = error instanceof Error ? error.message : 'Unknown error';
       log.error(`[skills] Error in reload_skills: ${message}`);
       return JSON.stringify({
         success: false,
@@ -202,4 +201,4 @@ export const skillManagementTools: Tool[] = [
   reloadSkillsTool,
 ];
 
-export { skillsManager } from "./loader.ts";
+export { skillsManager } from './loader.ts';

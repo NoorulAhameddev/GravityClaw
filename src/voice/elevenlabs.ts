@@ -105,7 +105,7 @@ export class ElevenLabsTTSService {
 
         // Delay between requests
         if (i < chunks.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise((resolve) => setTimeout(resolve, 200));
         }
       }
 
@@ -210,7 +210,7 @@ export class ElevenLabsTTSService {
 export function createElevenLabsService(
   apiKey: string,
   voiceId?: ElevenLabsVoiceId,
-  model?: ElevenLabsModel
+  model?: ElevenLabsModel,
 ): ElevenLabsTTSService {
   const config: ElevenLabsConfig = { apiKey };
   if (voiceId !== undefined) {

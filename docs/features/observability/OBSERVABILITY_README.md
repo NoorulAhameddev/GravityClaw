@@ -17,7 +17,9 @@ This comprehensive observability package adds:
 ## 🚀 Quick Start (5 minutes)
 
 ### 1. Configuration
+
 Add to `.env`:
+
 ```bash
 LOG_FORMAT=pretty
 ENABLE_METRICS=true
@@ -25,6 +27,7 @@ ENABLE_TRACING=true
 ```
 
 ### 2. Test Endpoints
+
 ```bash
 # Health check (< 100ms)
 curl http://localhost:3000/api/health
@@ -37,50 +40,55 @@ curl http://localhost:3000/api/metrics
 ```
 
 ### 3. Start Using
-```typescript
-import { createLogger } from "./logger.ts";
-const log = createLogger("mymodule");
 
-log.info("Hello world", { correlationId: "..." });
+```typescript
+import { createLogger } from './logger.ts';
+const log = createLogger('mymodule');
+
+log.info('Hello world', { correlationId: '...' });
 ```
 
 ## 📚 Documentation
 
-| Document | Purpose | Time |
-|----------|---------|------|
-| **[OBSERVABILITY.md](./OBSERVABILITY.md)** | Overview & architecture | 10 min |
-| **[OBSERVABILITY_QUICK_REFERENCE.md](./OBSERVABILITY_QUICK_REFERENCE.md)** | Common patterns & API | 5 min |
-| **[OBSERVABILITY_EXAMPLES.md](./OBSERVABILITY_EXAMPLES.md)** | 6 complete code examples | 15 min |
-| **[OBSERVABILITY_INTEGRATION.md](./OBSERVABILITY_INTEGRATION.md)** | Step-by-step integration | 30 min |
+| Document                                                                                     | Purpose                  | Time         |
+| -------------------------------------------------------------------------------------------- | ------------------------ | ------------ |
+| **[OBSERVABILITY.md](./OBSERVABILITY.md)**                                                   | Overview & architecture  | 10 min       |
+| **[OBSERVABILITY_QUICK_REFERENCE.md](./OBSERVABILITY_QUICK_REFERENCE.md)**                   | Common patterns & API    | 5 min        |
+| **[OBSERVABILITY_EXAMPLES.md](./OBSERVABILITY_EXAMPLES.md)**                                 | 6 complete code examples | 15 min       |
+| **[OBSERVABILITY_INTEGRATION.md](./OBSERVABILITY_INTEGRATION.md)**                           | Step-by-step integration | 30 min       |
 | **[OBSERVABILITY_IMPLEMENTATION_CHECKLIST.md](./OBSERVABILITY_IMPLEMENTATION_CHECKLIST.md)** | Phase-by-phase checklist | Follow along |
-| **[OBSERVABILITY_DELIVERY.md](./OBSERVABILITY_DELIVERY.md)** | What was delivered | Reference |
+| **[OBSERVABILITY_DELIVERY.md](./OBSERVABILITY_DELIVERY.md)**                                 | What was delivered       | Reference    |
 
 ## 🎯 Core Features
 
 ### Logging
+
 ```typescript
-log.info("User action", {
-    userId: "user-123",
-    action: "login",
-    duration: 245
+log.info('User action', {
+  userId: 'user-123',
+  action: 'login',
+  duration: 245,
 });
 ```
 
 ### Correlation IDs
+
 ```typescript
 const { id } = startCorrelationContext();
 // All logs automatically include: correlationId = id
 ```
 
 ### Metrics
+
 ```typescript
-metrics_.recordToolExecution("search", 145, true);
-metrics_.recordMessageProcessing(234, true, "telegram");
+metrics_.recordToolExecution('search', 145, true);
+metrics_.recordMessageProcessing(234, true, 'telegram');
 ```
 
 ### Tracing
+
 ```typescript
-const span = startSpan("operation");
+const span = startSpan('operation');
 // ... do work ...
 endSpan(span); // Automatically tracks duration
 ```
@@ -106,24 +114,26 @@ The documentation covers integration into:
 ## 🏥 Health Endpoint
 
 **GET `/api/health`**
+
 ```json
 {
-    "status": "ok",
-    "uptime": 3600,
-    "metrics": {
-        "requestCount": 245,
-        "toolCallCount": 1203,
-        "toolSuccessRate": 98.9
-    },
-    "server": { "wsClients": 5 },
-    "database": { "status": "ok", "factsCount": 1250 },
-    "memory": { "heapUsed": 125, "rss": 380 }
+  "status": "ok",
+  "uptime": 3600,
+  "metrics": {
+    "requestCount": 245,
+    "toolCallCount": 1203,
+    "toolSuccessRate": 98.9
+  },
+  "server": { "wsClients": 5 },
+  "database": { "status": "ok", "factsCount": 1250 },
+  "memory": { "heapUsed": 125, "rss": 380 }
 }
 ```
 
 ## 📈 Metrics Endpoint
 
 **GET `/metrics`** (Prometheus format)
+
 ```
 requests_total{path="/api/agent"} 245
 tool_calls_total 1203
@@ -160,12 +170,14 @@ docs/
 ## 🎓 Learning Path
 
 ### For Quick Integration (1 hour)
+
 1. Read [OBSERVABILITY.md](./OBSERVABILITY.md)
 2. Use [OBSERVABILITY_QUICK_REFERENCE.md](./OBSERVABILITY_QUICK_REFERENCE.md)
 3. Update `.env` with logging/metrics config
 4. Try the `/api/health` endpoint
 
 ### For Full Integration (4 hours)
+
 1. Read main docs
 2. Follow [OBSERVABILITY_INTEGRATION.md](./OBSERVABILITY_INTEGRATION.md)
 3. Use [OBSERVABILITY_IMPLEMENTATION_CHECKLIST.md](./OBSERVABILITY_IMPLEMENTATION_CHECKLIST.md)
@@ -174,6 +186,7 @@ docs/
 6. Set up monitoring dashboard
 
 ### For Advanced Use (6+ hours)
+
 1. Complete full integration
 2. Set up Prometheus scraping
 3. Create Grafana dashboards
@@ -184,6 +197,7 @@ docs/
 ## 🔧 Configuration
 
 ### Logging
+
 ```bash
 LOG_LEVEL=debug                    # debug|info|warn|error
 LOG_FORMAT=pretty                  # pretty|json
@@ -191,6 +205,7 @@ ENABLE_CALLER_INFO=false           # Include file:line
 ```
 
 ### Metrics
+
 ```bash
 ENABLE_METRICS=true                # Enable collection
 ENABLE_METRICS_PERSISTENCE=false   # Persist to SQLite
@@ -198,12 +213,14 @@ METRICS_RETENTION_HOURS=24         # Data retention
 ```
 
 ### Correlation & Tracing
+
 ```bash
 CORRELATION_ID_HEADER=X-Correlation-ID
 ENABLE_TRACING=true
 ```
 
 ### OpenTelemetry (optional)
+
 ```bash
 OTEL_ENABLED=false
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
@@ -251,17 +268,20 @@ Agents can query system metrics:
 ## 🚨 Debugging
 
 ### Find logs for a user
+
 ```bash
 # With correlation ID
 grep "correlationId" application.log | grep "user-123"
 ```
 
 ### Check trace for a request
+
 ```bash
 curl http://localhost:3000/api/traces/corr-1234567890-abc123
 ```
 
 ### Monitor metrics in real-time
+
 ```bash
 # Watch Prometheus
 http://localhost:9090/graph
@@ -282,15 +302,19 @@ http://localhost:3000/d/...
 ## 🆘 Troubleshooting
 
 ### "Missing correlation IDs"
+
 → Verify `startCorrelationContext()` at request entry
 
 ### "High memory usage"
+
 → Reduce `METRICS_RETENTION_HOURS` or disable metrics
 
 ### "Health endpoint slow"
+
 → Check database connectivity, reduce scope
 
 ### "Traces not appearing"
+
 → Enable `ENABLE_TRACING=true`, check retention
 
 ## 🎓 Best Practices
@@ -322,17 +346,17 @@ http://localhost:3000/d/...
 
 ## 📦 What You Get
 
-| Component | Files | Lines | Status |
-|-----------|-------|-------|--------|
-| Enhanced Logger | 1 | 120 | ✅ Ready |
-| Correlation Module | 1 | 200 | ✅ Ready |
-| Metrics Module | 1 | 380 | ✅ Ready |
-| Tracing Module | 1 | 280 | ✅ Ready |
-| OTEL Integration | 1 | 210 | ✅ Ready |
-| HTTP Endpoints | 1 | 150 | ✅ Ready |
-| Agent Tool | 1 | 80 | ✅ Ready |
-| Documentation | 6 | 3000+ | ✅ Ready |
-| **Total** | **13** | **2000+** | ✅ **Complete** |
+| Component          | Files  | Lines     | Status          |
+| ------------------ | ------ | --------- | --------------- |
+| Enhanced Logger    | 1      | 120       | ✅ Ready        |
+| Correlation Module | 1      | 200       | ✅ Ready        |
+| Metrics Module     | 1      | 380       | ✅ Ready        |
+| Tracing Module     | 1      | 280       | ✅ Ready        |
+| OTEL Integration   | 1      | 210       | ✅ Ready        |
+| HTTP Endpoints     | 1      | 150       | ✅ Ready        |
+| Agent Tool         | 1      | 80        | ✅ Ready        |
+| Documentation      | 6      | 3000+     | ✅ Ready        |
+| **Total**          | **13** | **2000+** | ✅ **Complete** |
 
 ---
 

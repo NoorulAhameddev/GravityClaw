@@ -15,7 +15,7 @@ vi.mock('fs', () => ({
 
 // Mock path with simple implementations for testing
 vi.mock('path', () => ({
-  resolve: (...args: string[]) => args.filter(arg => arg).join('/'),
+  resolve: (...args: string[]) => args.filter((arg) => arg).join('/'),
   normalize: (p: string) => p,
   relative: (from: string, to: string) => {
     if (to.startsWith(from)) {

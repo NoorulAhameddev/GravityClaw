@@ -3,23 +3,23 @@
  * Parses Markdown-based skill definitions with YAML frontmatter
  */
 
-import fs from "fs";
-import path from "path";
-import { exec } from "child_process";
-import { promisify } from "util";
-import yaml from "yaml";
+import fs from 'fs';
+import path from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import yaml from 'yaml';
 import type {
   SkillFrontmatter,
   SkillCodeBlock,
   ParsedSkill,
   SkillExecutionResult,
   SkillStatus,
-} from "./types.ts";
-import { createLogger } from "../logger.ts";
-import type { Tool } from "../tools/index.ts";
+} from './types.ts';
+import { createLogger } from '../logger.ts';
+import type { Tool } from '../tools/index.ts';
 
 const execAsync = promisify(exec);
-const log = createLogger("skills");
+const log = createLogger('skills');
 
 /**
  * Skills manager class
@@ -30,8 +30,8 @@ export class SkillsManager {
   private skillsDbPath: string;
 
   constructor(skillsDir?: string) {
-    this.skillsDir = skillsDir || path.join(process.cwd(), "skills");
-    this.skillsDbPath = path.join(this.skillsDir, ".skills-state.json");
+    this.skillsDir = skillsDir || path.join(process.cwd(), 'skills');
+    this.skillsDbPath = path.join(this.skillsDir, '.skills-state.json');
   }
 
   /**
@@ -54,7 +54,7 @@ export class SkillsManager {
    */
   private async loadAllSkills(): Promise<void> {
     const files = fs.readdirSync(this.skillsDir);
-    const skillFiles = files.filter((f) => f.endsWith(".md"));
+    const skillFiles = files.filter((f) => f.endsWith('.md'));
 
     for (const file of skillFiles) {
       try {
@@ -65,7 +65,7 @@ export class SkillsManager {
         if (skill.frontmatter.enabled) {
           this.loadedSkills.set(skill.frontmatter.name, skill);
           log.info(
-            `[skills] Loaded skill: ${skill.frontmatter.name} (${skill.frontmatter.tools.length} tools)`
+            `[skills] Loaded skill: ${skill.frontmatter.name} (${skill.frontmatter.tools.length} tools)`,
           );
         }
       } catch (error) {
@@ -78,15 +78,15 @@ export class SkillsManager {
    * Parse a skill markdown file
    */
   private async parseSkillFile(filePath: string): Promise<ParsedSkill> {
-    const content = fs.readFileSync(filePath, "utf-8");
+    const content = fs.readFileSync(filePath, 'utf-8');
 
     // Extract frontmatter (between --- delimiters)
     const frontmatterMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
     if (!frontmatterMatch) {
-      throw new Error("No frontmatter found in skill file");
+      throw new Error('No frontmatter found in skill file');
     }
 
-    const frontmatterYaml = frontmatterMatch[1] ?? "";
+    const frontmatterYaml = frontmatterMatch[1] ?? '';
     const frontmatter = yaml.parse(frontmatterYaml) as SkillFrontmatter;
 
     // Extract markdown body (after frontmatter)
@@ -106,9 +106,7 @@ export class SkillsManager {
   /**
    * Extract code blocks from markdown and map them to tools
    */
-  private extractCodeBlocks(
-    markdown: string
-  ): Map<string, SkillCodeBlock> {
+  private extractCodeBlocks(markdown: string): Map<string, SkillCodeBlock> {
     const blocks = new Map<string, SkillCodeBlock>();
     const codeBlockRegex = /```(\w+)\n([\s\S]*?)```/g;
 
@@ -133,28 +131,28 @@ export class SkillsManager {
         }
 
         if (
-          language === "bash" ||
-          language === "sh" ||
-          language === "python" ||
-          language === "py" ||
-          language === "javascript" ||
-          language === "js" ||
-          language === "typescript" ||
-          language === "ts"
+          language === 'bash' ||
+          language === 'sh' ||
+          language === 'python' ||
+          language === 'py' ||
+          language === 'javascript' ||
+          language === 'js' ||
+          language === 'typescript' ||
+          language === 'ts'
         ) {
           const normalizedLang =
-            language === "sh"
-              ? "bash"
-              : language === "py"
-              ? "python"
-              : language === "js"
-              ? "javascript"
-              : language === "ts"
-              ? "typescript"
-              : language;
+            language === 'sh'
+              ? 'bash'
+              : language === 'py'
+                ? 'python'
+                : language === 'js'
+                  ? 'javascript'
+                  : language === 'ts'
+                    ? 'typescript'
+                    : language;
 
           blocks.set(toolName, {
-            language: normalizedLang as SkillCodeBlock["language"],
+            language: normalizedLang as SkillCodeBlock['language'],
             code,
             toolName,
           });
@@ -171,7 +169,7 @@ export class SkillsManager {
   async executeSkillTool(
     skillName: string,
     toolName: string,
-    args: Record<string, unknown>
+    args: Record<string, unknown>,
   ): Promise<SkillExecutionResult> {
     const skill = this.loadedSkills.get(skillName);
     if (!skill) {
@@ -192,19 +190,19 @@ export class SkillsManager {
     // Replace template variables in code
     let code = codeBlock.code;
     for (const [key, value] of Object.entries(args)) {
-      const regex = new RegExp(`\\$\\{${key}\\}`, "g");
+      const regex = new RegExp(`\\$\\{${key}\\}`, 'g');
       code = code.replace(regex, String(value));
     }
 
     const startTime = Date.now();
     const envArgs: Record<string, string> = Object.fromEntries(
-      Object.entries(args).map(([key, value]) => [key, String(value)])
+      Object.entries(args).map(([key, value]) => [key, String(value)]),
     );
 
     try {
       let result;
 
-      if (codeBlock.language === "bash") {
+      if (codeBlock.language === 'bash') {
         result = await execAsync(code, {
           env: {
             ...process.env,
@@ -213,9 +211,9 @@ export class SkillsManager {
           },
           timeout: 30000,
         });
-      } else if (codeBlock.language === "python") {
+      } else if (codeBlock.language === 'python') {
         // Execute Python code
-        const pythonCode = code.replace(/`/g, "\\`");
+        const pythonCode = code.replace(/`/g, '\\`');
         result = await execAsync(`python -c "${pythonCode}"`, {
           env: {
             ...process.env,
@@ -223,12 +221,9 @@ export class SkillsManager {
           },
           timeout: 30000,
         });
-      } else if (
-        codeBlock.language === "javascript" ||
-        codeBlock.language === "typescript"
-      ) {
+      } else if (codeBlock.language === 'javascript' || codeBlock.language === 'typescript') {
         // Execute Node.js code
-        const nodeCode = code.replace(/`/g, "\\`");
+        const nodeCode = code.replace(/`/g, '\\`');
         result = await execAsync(`node -e "${nodeCode}"`, {
           env: {
             ...process.env,
@@ -259,15 +254,15 @@ export class SkillsManager {
       const duration = Date.now() - startTime;
       const failureResult: SkillExecutionResult = {
         success: false,
-        error: e.message ?? "Skill execution failed",
+        error: e.message ?? 'Skill execution failed',
         duration,
       };
 
-      if (typeof e.stdout === "string") {
+      if (typeof e.stdout === 'string') {
         failureResult.output = e.stdout;
       }
 
-      if (typeof e.code === "number") {
+      if (typeof e.code === 'number') {
         failureResult.exitCode = e.code;
       }
 
@@ -284,7 +279,7 @@ export class SkillsManager {
     let filePath: string;
 
     // Check if it's a path or a name
-    if (nameOrPath.includes("/") || nameOrPath.includes("\\")) {
+    if (nameOrPath.includes('/') || nameOrPath.includes('\\')) {
       filePath = path.resolve(nameOrPath);
     } else {
       filePath = path.join(this.skillsDir, `${nameOrPath}.md`);
@@ -333,16 +328,16 @@ export class SkillsManager {
     const statuses: SkillStatus[] = [];
 
     const files = fs.readdirSync(this.skillsDir);
-    const skillFiles = files.filter((f) => f.endsWith(".md"));
+    const skillFiles = files.filter((f) => f.endsWith('.md'));
 
     for (const file of skillFiles) {
       try {
         const filePath = path.join(this.skillsDir, file);
-        const content = fs.readFileSync(filePath, "utf-8");
+        const content = fs.readFileSync(filePath, 'utf-8');
         const frontmatterMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
 
         if (frontmatterMatch) {
-          const frontmatter = yaml.parse(frontmatterMatch[1] ?? "") as SkillFrontmatter;
+          const frontmatter = yaml.parse(frontmatterMatch[1] ?? '') as SkillFrontmatter;
           const skill = this.loadedSkills.get(frontmatter.name);
 
           statuses.push({
@@ -388,16 +383,12 @@ export class SkillsManager {
           name: toolDef.name,
           description: `[Skill: ${skillName}] ${toolDef.description}`,
           inputSchema: {
-            type: "object",
+            type: 'object',
             properties,
             required,
           },
           execute: async (args: Record<string, unknown>) => {
-            const result = await this.executeSkillTool(
-              skillName,
-              toolDef.name,
-              args
-            );
+            const result = await this.executeSkillTool(skillName, toolDef.name, args);
 
             if (result.success) {
               return JSON.stringify({
@@ -438,7 +429,7 @@ export class SkillsManager {
    */
   async shutdown(): Promise<void> {
     this.saveSkillsState();
-    log.info("[skills] Skills manager shut down");
+    log.info('[skills] Skills manager shut down');
   }
 }
 

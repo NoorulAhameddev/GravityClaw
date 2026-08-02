@@ -3,55 +3,55 @@
  * Tests that all dashboard tools execute correctly
  */
 
-import "../src/config.ts";
-import { registry, toolExecutor } from "../src/tools/index.ts";
-import { dashboardTools } from "../src/tools/ui/index.ts";
-import { voiceSettingsTools } from "../src/tools/voice/index.ts";
-import { recordUsage } from "../src/usage.ts";
-import { setSessionSettings } from "../src/session.ts";
+import '../src/config.ts';
+import { registry, toolExecutor } from '../src/tools/index.ts';
+import { dashboardTools } from '../src/tools/ui/index.ts';
+import { voiceSettingsTools } from '../src/tools/voice/index.ts';
+import { recordUsage } from '../src/usage.ts';
+import { setSessionSettings } from '../src/session.ts';
 
 // Register tools
-dashboardTools.forEach(tool => registry.register(tool));
-voiceSettingsTools.forEach(tool => registry.register(tool));
+dashboardTools.forEach((tool) => registry.register(tool));
+voiceSettingsTools.forEach((tool) => registry.register(tool));
 
-const testSessionId = "test-dashboard-e2e-" + Date.now();
+const testSessionId = 'test-dashboard-e2e-' + Date.now();
 
 console.log(`🧪 Testing Dashboard Tools (Session: ${testSessionId})\n`);
 
 // Create some test data
-console.log("📝 Creating test data...");
+console.log('📝 Creating test data...');
 
 // Add usage records
 recordUsage({
   sessionId: testSessionId,
-  model: "gpt-4",
+  model: 'gpt-4',
   promptTokens: 100,
   completionTokens: 50,
   latency: 250,
-  provider: "openai"
+  provider: 'openai',
 });
 
 recordUsage({
   sessionId: testSessionId,
-  model: "claude-3-sonnet",
+  model: 'claude-3-sonnet',
   promptTokens: 200,
   completionTokens: 100,
   latency: 300,
-  provider: "anthropic"
+  provider: 'anthropic',
 });
 
 // Set session settings
 setSessionSettings(testSessionId, {
-  thinkingLevel: "medium",
-  voiceMode: "full",
+  thinkingLevel: 'medium',
+  voiceMode: 'full',
   notifications: {
     successNotifications: true,
     errorNotifications: true,
-    frequency: "realtime"
-  }
+    frequency: 'realtime',
+  },
 });
 
-console.log("✅ Test data created\n");
+console.log('✅ Test data created\n');
 
 // Test each tool
 async function testTool(toolName: string, input: Record<string, unknown>) {
@@ -60,22 +60,22 @@ async function testTool(toolName: string, input: Record<string, unknown>) {
     console.log(`❌ ${toolName} - Tool not found`);
     return false;
   }
-  
+
   try {
     const execution = await toolExecutor.execute({
       toolName,
       input,
       context: {
         sessionId: testSessionId,
-        source: "test",
+        source: 'test',
       },
     });
     if (!execution.success) {
-      console.log(`Tool ${toolName} failed: ${execution.error?.message || "Unknown error"}`);
+      console.log(`Tool ${toolName} failed: ${execution.error?.message || 'Unknown error'}`);
       return false;
     }
-    const parsed = JSON.parse(execution.result ?? "null");
-    
+    const parsed = JSON.parse(execution.result ?? 'null');
+
     if (parsed.success !== false && !parsed.error) {
       console.log(`✅ ${toolName} - OK`);
       return true;
@@ -90,38 +90,41 @@ async function testTool(toolName: string, input: Record<string, unknown>) {
 }
 
 (async () => {
-  console.log("🔬 Testing Tools...\n");
-  
+  console.log('🔬 Testing Tools...\n');
+
   const tests = [
     // Voice Settings
-    ["getVoiceSettings", { __sessionId: testSessionId }],
-    ["setVoiceMode", { mode: "full-voice", __sessionId: testSessionId }],
-    ["setTTSProvider", { provider: "openai", voiceId: "nova", __sessionId: testSessionId }],
-    
+    ['getVoiceSettings', { __sessionId: testSessionId }],
+    ['setVoiceMode', { mode: 'full-voice', __sessionId: testSessionId }],
+    ['setTTSProvider', { provider: 'openai', voiceId: 'nova', __sessionId: testSessionId }],
+
     // Session Info
-    ["getSessionInfo", { sessionId: testSessionId }],
-    
+    ['getSessionInfo', { sessionId: testSessionId }],
+
     // Notifications
-    ["getNotificationPreferences", { sessionId: testSessionId }],
-    ["setNotificationPreferences", { 
-      sessionId: testSessionId,
-      notifications: {
-        successNotifications: true,
-        warningNotifications: false,
-        errorNotifications: true,
-        frequency: "batched"
-      }
-    }],
-    
+    ['getNotificationPreferences', { sessionId: testSessionId }],
+    [
+      'setNotificationPreferences',
+      {
+        sessionId: testSessionId,
+        notifications: {
+          successNotifications: true,
+          warningNotifications: false,
+          errorNotifications: true,
+          frequency: 'batched',
+        },
+      },
+    ],
+
     // Usage & Analytics
-    ["getUsageStats", { sessionId: testSessionId }],
-    ["getUsageHistory", { sessionId: testSessionId, limit: 10 }],
-    ["getModelBreakdown", { sessionId: testSessionId }],
+    ['getUsageStats', { sessionId: testSessionId }],
+    ['getUsageHistory', { sessionId: testSessionId, limit: 10 }],
+    ['getModelBreakdown', { sessionId: testSessionId }],
   ];
-  
+
   let passed = 0;
   let failed = 0;
-  
+
   for (const [toolName, input] of tests) {
     const success = await testTool(toolName as string, input as Record<string, unknown>);
     if (success) {
@@ -130,16 +133,16 @@ async function testTool(toolName: string, input: Record<string, unknown>) {
       failed++;
     }
   }
-  
-  console.log("\n" + "=".repeat(50));
+
+  console.log('\n' + '='.repeat(50));
   console.log(`📊 Test Results: ${passed} passed, ${failed} failed`);
-  
+
   if (failed === 0) {
-    console.log("✅ All dashboard tools working correctly!");
-    console.log("\n🎉 Backend integration COMPLETE - Ready for frontend wiring!");
+    console.log('✅ All dashboard tools working correctly!');
+    console.log('\n🎉 Backend integration COMPLETE - Ready for frontend wiring!');
     process.exit(0);
   } else {
-    console.log("❌ Some tests failed");
+    console.log('❌ Some tests failed');
     process.exit(1);
   }
 })();

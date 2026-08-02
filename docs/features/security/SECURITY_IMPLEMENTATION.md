@@ -9,6 +9,7 @@ Comprehensive security enhancements have been implemented for Gravity Claw, incl
 ### 1. Documentation
 
 **File: `docs/SECURITY_SETUP.md`** ✅
+
 - Complete MASTER_KEY generation guide
 - Step-by-step secret management procedures
 - Secret rotation workflow and best practices
@@ -23,10 +24,11 @@ Comprehensive security enhancements have been implemented for Gravity Claw, incl
 **File: `src/secrets.ts`** ✅
 
 #### New Features
+
 - **Secret Expiration**: Optional `expiresAt` field in metadata
 - **Secret Status Tracking**: active, deprecated, or deleted status
 - **Secret Rotation**: Functions to check and rotate expiring secrets
-- **Audit Logging**: 
+- **Audit Logging**:
   - `logSecretAccess()` - Log all secret access events
   - `getSecretAccessLog()` - Retrieve audit logs with filtering
 - **Secret Validation**:
@@ -39,6 +41,7 @@ Comprehensive security enhancements have been implemented for Gravity Claw, incl
   - `getExpiringSecrets()` - List secrets approaching expiration
 
 #### Metadata Structure
+
 ```typescript
 metadata?: {
   name?: string;
@@ -57,7 +60,8 @@ metadata?: {
 Centralized path validation module with:
 
 #### Features
-- **Symlink Attack Prevention**: 
+
+- **Symlink Attack Prevention**:
   - Uses `fs.realpathSync()` to resolve real paths
   - Validates resolved path is within allowlist
   - Rejects symlinks that escape allowed directories
@@ -72,6 +76,7 @@ Centralized path validation module with:
 - **Comprehensive Logging**: All validation results logged
 
 #### API
+
 ```typescript
 validatePathAccess(filePath: string, config: PathValidationConfig): PathValidationResult
 validateDirectoryAccess(dirPath: string, config: PathValidationConfig): PathValidationResult
@@ -87,6 +92,7 @@ clearValidationCache(): void
 #### New Tables
 
 **secret_access_log**
+
 ```sql
 CREATE TABLE secret_access_log (
   id INTEGER PRIMARY KEY,
@@ -100,6 +106,7 @@ CREATE TABLE secret_access_log (
 ```
 
 **file_access_log**
+
 ```sql
 CREATE TABLE file_access_log (
   id INTEGER PRIMARY KEY,
@@ -119,6 +126,7 @@ CREATE TABLE file_access_log (
 **File: `src/config.ts`** ✅
 
 #### New Environment Variables
+
 ```
 SECRET_ROTATION_DAYS=90             # Days before secrets flagged for rotation
 SECRET_CLEANUP_DAYS=90              # Days to keep deleted secrets
@@ -128,6 +136,7 @@ FILE_ACCESS_LOG_RETENTION_DAYS=30   # Retention period for file access logs
 ```
 
 #### New Helper Function
+
 ```typescript
 getSafeDirectories(): string[]  // Returns SAFE_DIRECTORIES as array
 ```
@@ -158,6 +167,7 @@ npm run secret:import           # Import encrypted secrets
 ```
 
 #### Usage Examples
+
 ```bash
 npm run secret:generate
 npm run secret:list
@@ -172,6 +182,7 @@ npm run secret:export -- --output backup.json
 **File: `src/tools/system/files.ts`** ✅
 
 #### Enhancements
+
 - **Integrated Path Validation**: Uses `validatePathAccess()` for all operations
 - **File Access Logging**: Logs every read/write/delete/list operation with:
   - Timestamp
@@ -186,6 +197,7 @@ npm run secret:export -- --output backup.json
 - **Safe Directories**: Uses SAFE_DIRECTORIES config instead of PATH_ALLOWLIST
 
 #### Affected Tools
+
 - `read_file`: Logs read operations with duration and size
 - `write_file`: Logs write operations with duration and size
 - `list_files`: Logs directory listing operations
@@ -199,14 +211,18 @@ npm run secret:export -- --output backup.json
 Four new dashboard tools for security management:
 
 #### 1. `getSecurityAuditLog`
+
 Retrieve security audit logs with filtering:
+
 - Filter by type: all, secret, or file
 - Filter by date range (days)
 - Filter by action, user, status
 - Returns formatted audit trail
 
 #### 2. `getSecurityStatus`
+
 Check current security configuration:
+
 - MASTER_KEY status
 - Safe directories configuration
 - Audit logging status
@@ -215,13 +231,17 @@ Check current security configuration:
 - Recent security events (last 24 hours)
 
 #### 3. `rotateSecrets`
+
 Manage secret rotation:
+
 - Find secrets nearing rotation age
 - Auto-cleanup deleted secrets option
 - Recommendations for rotation
 
 #### 4. `validatePathAccess`
+
 Validate if path is allowed for operations:
+
 - Check path is within safe directories
 - Detect path traversal attempts
 - Detect symlink escapes
@@ -232,6 +252,7 @@ Validate if path is allowed for operations:
 **File: `src/security/startup-validation.ts`** ✅ (NEW)
 
 Automatic security checks on startup:
+
 - Validates MASTER_KEY is configured
 - Checks safe directories exist and are readable
 - Verifies secrets file integrity
@@ -245,9 +266,11 @@ Called automatically in `src/index.ts` main function after air-gap enforcement.
 **File: `package.json`** ✅
 
 #### New Dependencies
+
 - `commander@^11.1.0` - CLI argument parsing for secret-manager
 
 #### New Scripts
+
 ```json
 {
   "secret:generate": "npx tsx scripts/secret-manager.ts generate-key",
@@ -273,6 +296,7 @@ Called automatically in `src/index.ts` main function after air-gap enforcement.
 ## Security Features Summary
 
 ### Secrets Management
+
 - ✅ AES-256-GCM encryption
 - ✅ Configurable expiration with automatic rotation checks
 - ✅ Soft delete with grace period
@@ -281,6 +305,7 @@ Called automatically in `src/index.ts` main function after air-gap enforcement.
 - ✅ Import/export functionality
 
 ### File Operations Security
+
 - ✅ Strict path validation for all operations
 - ✅ Symlink attack prevention (realpathSync validation)
 - ✅ Path traversal detection (.. rejection)
@@ -291,6 +316,7 @@ Called automatically in `src/index.ts` main function after air-gap enforcement.
 - ✅ User attribution for all operations
 
 ### Configuration & Validation
+
 - ✅ Environment-based safe directory whitelisting
 - ✅ Startup security validation
 - ✅ Configuration logging (without exposing secrets)
@@ -298,6 +324,7 @@ Called automatically in `src/index.ts` main function after air-gap enforcement.
 - ✅ Automatic cleanup of expired secrets
 
 ### Monitoring & Auditing
+
 - ✅ Secret access log (read, write, rotate, delete)
 - ✅ File access log (read, write, delete, list)
 - ✅ Security status dashboard tool
@@ -307,27 +334,32 @@ Called automatically in `src/index.ts` main function after air-gap enforcement.
 ## Usage Examples
 
 ### Generate Master Key
+
 ```bash
 npm run secret:generate
 ```
 
 ### Add Secret with Expiration
+
 ```bash
 npm run secret:add -- --name DB_PASSWORD --value "mypassword" --expires-in-days 90
 ```
 
 ### View Security Audit
+
 ```bash
 npm run secret:audit -- --days 7 --limit 100
 npm run secret:audit -- --type file --action write
 ```
 
 ### Check Secret Rotation
+
 ```bash
 npm run secret:rotate
 ```
 
 ### Validate Path Access
+
 ```typescript
 // Via dashboard tool
 getSecurityAuditLog({ type: 'all', days: 30 });
@@ -370,19 +402,19 @@ validatePathAccess({ path: './data/file.txt', action: 'read' });
 
 ## File Changes Summary
 
-| File | Type | Changes |
-|------|------|---------|
-| `docs/SECURITY_SETUP.md` | NEW | Comprehensive security guide (400+ lines) |
-| `src/secrets.ts` | ENHANCED | Added rotation, expiration, audit logging |
-| `src/security/path-validator.ts` | NEW | Centralized path validation module |
-| `src/security/startup-validation.ts` | NEW | Startup security checks |
-| `src/db.ts` | ENHANCED | Added audit logging tables |
-| `src/config.ts` | ENHANCED | Added 5 new security config variables |
-| `src/tools/system/files.ts` | ENHANCED | Integrated path validator and audit logging |
-| `src/tools/security/index.ts` | NEW | 4 new security management tools |
-| `scripts/secret-manager.ts` | NEW | CLI tool for secret management |
-| `src/index.ts` | ENHANCED | Registered security tools and validation |
-| `package.json` | ENHANCED | Added 9 npm scripts and commander dependency |
+| File                                 | Type     | Changes                                      |
+| ------------------------------------ | -------- | -------------------------------------------- |
+| `docs/SECURITY_SETUP.md`             | NEW      | Comprehensive security guide (400+ lines)    |
+| `src/secrets.ts`                     | ENHANCED | Added rotation, expiration, audit logging    |
+| `src/security/path-validator.ts`     | NEW      | Centralized path validation module           |
+| `src/security/startup-validation.ts` | NEW      | Startup security checks                      |
+| `src/db.ts`                          | ENHANCED | Added audit logging tables                   |
+| `src/config.ts`                      | ENHANCED | Added 5 new security config variables        |
+| `src/tools/system/files.ts`          | ENHANCED | Integrated path validator and audit logging  |
+| `src/tools/security/index.ts`        | NEW      | 4 new security management tools              |
+| `scripts/secret-manager.ts`          | NEW      | CLI tool for secret management               |
+| `src/index.ts`                       | ENHANCED | Registered security tools and validation     |
+| `package.json`                       | ENHANCED | Added 9 npm scripts and commander dependency |
 
 ## Testing Recommendations
 
@@ -428,7 +460,6 @@ validatePathAccess({ path: './data/file.txt', action: 'read' });
 - [Secrets Management](src/secrets.ts)
 - [Secret Manager CLI](scripts/secret-manager.ts)
 - [Security Tools](src/tools/security/index.ts)
-
 
 ### Access Control & Auditing
 

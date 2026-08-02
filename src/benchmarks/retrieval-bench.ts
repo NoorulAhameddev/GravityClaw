@@ -1,8 +1,8 @@
-import { createLogger } from "../logger.ts";
-import { vectorSemanticSearch, keywordBM25Search } from "../memory/vector.ts";
-import { performance } from "perf_hooks";
+import { createLogger } from '../logger.ts';
+import { vectorSemanticSearch, keywordBM25Search } from '../memory/vector.ts';
+import { performance } from 'perf_hooks';
 
-const log = createLogger("bench:retrieval");
+const log = createLogger('bench:retrieval');
 
 interface BenchResult {
   method: string;
@@ -22,16 +22,23 @@ async function runBenchmark(
   return { method, query, duration, results: results?.length ?? 0 };
 }
 
-export async function benchmarkRetrieval(sessionId: string, queries: string[]): Promise<BenchResult[]> {
+export async function benchmarkRetrieval(
+  sessionId: string,
+  queries: string[],
+): Promise<BenchResult[]> {
   const results: BenchResult[] = [];
 
   for (const query of queries) {
-    results.push(await runBenchmark("chromadb", () => vectorSemanticSearch(sessionId, query, 5), query));
-    results.push(await runBenchmark("bm25", () => keywordBM25Search(sessionId, query, 5), query));
+    results.push(
+      await runBenchmark('chromadb', () => vectorSemanticSearch(sessionId, query, 5), query),
+    );
+    results.push(await runBenchmark('bm25', () => keywordBM25Search(sessionId, query, 5), query));
   }
 
   for (const r of results) {
-    log.info(`${r.method.padEnd(10)} | ${r.duration.toFixed(1)}ms | ${r.results} results | "${r.query.substring(0, 40)}"`);
+    log.info(
+      `${r.method.padEnd(10)} | ${r.duration.toFixed(1)}ms | ${r.results} results | "${r.query.substring(0, 40)}"`,
+    );
   }
 
   return results;

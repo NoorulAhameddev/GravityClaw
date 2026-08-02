@@ -10,9 +10,9 @@ export class SessionScopedDB {
   constructor(
     private baseDb: typeof db,
     private sessionId: string,
-    private parentSessionId?: string
+    private parentSessionId?: string,
   ) {}
-  
+
   /**
    * Prepare a query with session isolation
    */
@@ -21,9 +21,9 @@ export class SessionScopedDB {
     if (this.containsSessionInjection(sql)) {
       throw new Error('Potential SQL injection detected in session query');
     }
-    
+
     const stmt = this.baseDb.prepare(sql);
-    
+
     // Wrap methods to enforce session scope
     return {
       all: (...params: unknown[]) => {
@@ -37,24 +37,24 @@ export class SessionScopedDB {
       run: (...params: unknown[]) => {
         this.validateSessionWrite(params);
         return stmt.run(...params);
-      }
+      },
     };
   }
-  
+
   /**
    * Check for SQL injection patterns targeting session_id
    */
   private containsSessionInjection(sql: string): boolean {
     const dangerousPatterns = [
-      /session_id\s*[=<>].*['"]/,  // Direct session_id comparison with quotes
-      /;\s*(SELECT|INSERT|UPDATE|DELETE).*session/,  // Chained queries
-      /UNION.*session/,  // Union injection
-      /OR\s+['"]?.*session_id/,  // OR injection
+      /session_id\s*[=<>].*['"]/, // Direct session_id comparison with quotes
+      /;\s*(SELECT|INSERT|UPDATE|DELETE).*session/, // Chained queries
+      /UNION.*session/, // Union injection
+      /OR\s+['"]?.*session_id/, // OR injection
     ];
-    
-    return dangerousPatterns.some(pattern => pattern.test(sql));
+
+    return dangerousPatterns.some((pattern) => pattern.test(sql));
   }
-  
+
   /**
    * Validate session access for read operations
    */
@@ -66,20 +66,22 @@ export class SessionScopedDB {
         if (param === this.sessionId) {
           continue;
         }
-        
+
         // Parent DB can read child sessions (child session IDs start with parent session ID)
         if (!this.parentSessionId && param.startsWith(this.sessionId + '-')) {
           // This is a parent DB reading a child session (format: parentSessionId-role-random)
           continue;
         }
-        
+
         // Child DB cannot read parent memory (unless explicit channel implemented later)
         if (this.parentSessionId && param === this.parentSessionId) {
           // Block child reading parent memory
-          logger.warn(`Session isolation violation: child ${this.sessionId} tried to access parent ${this.parentSessionId}`);
+          logger.warn(
+            `Session isolation violation: child ${this.sessionId} tried to access parent ${this.parentSessionId}`,
+          );
           throw new Error('Session isolation violation: Child cannot read parent memory');
         }
-        
+
         // Check if trying to access different session with colon format (e.g., sessionId:user:123)
         if (param.includes(':')) {
           const requestedSession = param.split(':')[0];
@@ -88,7 +90,9 @@ export class SessionScopedDB {
             if (!this.parentSessionId && requestedSession.startsWith(this.sessionId + '-')) {
               continue;
             }
-            logger.warn(`Session isolation violation: ${this.sessionId} tried to access ${requestedSession}`);
+            logger.warn(
+              `Session isolation violation: ${this.sessionId} tried to access ${requestedSession}`,
+            );
             throw new Error('Session isolation violation: Cannot access other session data');
           }
         } else {
@@ -99,7 +103,7 @@ export class SessionScopedDB {
       }
     }
   }
-  
+
   /**
    * Validate session writes
    */
@@ -107,14 +111,14 @@ export class SessionScopedDB {
     // Similar validation for write operations
     this.validateSessionAccess(params);
   }
-  
+
   /**
    * Get session ID
    */
   getSessionId(): string {
     return this.sessionId;
   }
-  
+
   /**
    * Get parent session ID
    */

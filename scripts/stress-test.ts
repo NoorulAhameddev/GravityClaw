@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 /**
  * Gravity Claw Stress Test
- * 
+ *
  * Gradually increases load until failure to identify breaking points:
  * - Connection timeouts
  * - Message loss
  * - Memory leaks
  * - CPU saturation
- * 
+ *
  * Usage:
  *   npx tsx scripts/stress-test.ts --increment 10 --max-clients 500
  */
 
-import ws from "ws";
-import { performance } from "perf_hooks";
-import { memoryUsage } from "process";
+import ws from 'ws';
+import { performance } from 'perf_hooks';
+import { memoryUsage } from 'process';
 
 interface StressTestConfig {
   initialClients: number;
@@ -64,10 +64,10 @@ class StressTester {
 
   private parseArgs(): void {
     const args = process.argv.slice(2);
-    const increment = args.indexOf("--increment");
-    const maxClients = args.indexOf("--max-clients");
-    const initial = args.indexOf("--initial");
-    const serverUrl = args.indexOf("--url");
+    const increment = args.indexOf('--increment');
+    const maxClients = args.indexOf('--max-clients');
+    const initial = args.indexOf('--initial');
+    const serverUrl = args.indexOf('--url');
 
     if (increment !== -1) this.config.increment = parseInt(args[increment + 1], 10);
     if (maxClients !== -1) this.config.maxClients = parseInt(args[maxClients + 1], 10);
@@ -76,7 +76,7 @@ class StressTester {
   }
 
   async run(): Promise<StressTestResults> {
-    console.log("🔥 Starting stress test...");
+    console.log('🔥 Starting stress test...');
     this.parseArgs();
 
     let currentClients = this.config.initialClients;
@@ -144,9 +144,9 @@ class StressTester {
           try {
             client.send(
               JSON.stringify({
-                type: "stress-test",
+                type: 'stress-test',
                 timestamp: performance.now(),
-              })
+              }),
             );
             const stats = this.messageStats.get(level);
             if (stats) stats.sent++;
@@ -157,9 +157,7 @@ class StressTester {
       }
     }, 50);
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, this.config.messageDuration * 1000)
-    );
+    await new Promise((resolve) => setTimeout(resolve, this.config.messageDuration * 1000));
     clearInterval(messageInterval);
 
     // Close connections for this level
@@ -195,11 +193,11 @@ class StressTester {
     const clientId = level * 10000 + index;
     const client = new ws(url);
 
-    client.on("open", () => {
+    client.on('open', () => {
       this.clients.set(clientId, client);
     });
 
-    client.on("message", (data: ws.Data) => {
+    client.on('message', (data: ws.Data) => {
       try {
         const msg = JSON.parse(data.toString());
         if (msg.timestamp) {
@@ -212,11 +210,11 @@ class StressTester {
       }
     });
 
-    client.on("error", (error: Error) => {
+    client.on('error', (error: Error) => {
       this.clients.delete(clientId);
     });
 
-    client.on("close", () => {
+    client.on('close', () => {
       this.clients.delete(clientId);
     });
   }
@@ -236,11 +234,13 @@ class StressTester {
 
     // Generate recommendations
     if (this.breakingPoint) {
-      recommendations.push(`Consider limiting to ${this.breakingPoint.clients - this.config.increment} concurrent clients`);
+      recommendations.push(
+        `Consider limiting to ${this.breakingPoint.clients - this.config.increment} concurrent clients`,
+      );
     }
 
     if (maxLevel && maxLevel.memoryMB > 500) {
-      recommendations.push("⚠️  High memory usage detected - consider cache optimization");
+      recommendations.push('⚠️  High memory usage detected - consider cache optimization');
     }
 
     if (this.levels.length > 1) {
@@ -259,7 +259,7 @@ class StressTester {
       levels: this.levels,
       breakingPoint: this.breakingPoint || {
         clients: this.config.maxClients,
-        reason: "Test completed without failure",
+        reason: 'Test completed without failure',
       },
       maxSustainableLoad: maxLevel || this.levels[0],
       recommendations,
@@ -267,22 +267,25 @@ class StressTester {
   }
 
   private printResults(results: StressTestResults): void {
-    console.log("\n" + "=".repeat(70));
-    console.log("🔥 STRESS TEST RESULTS");
-    console.log("=".repeat(70));
+    console.log('\n' + '='.repeat(70));
+    console.log('🔥 STRESS TEST RESULTS');
+    console.log('='.repeat(70));
 
-    console.log("\n📊 Configuration:");
+    console.log('\n📊 Configuration:');
     console.log(`  Initial clients:     ${results.config.initialClients}`);
     console.log(`  Max clients:         ${results.config.maxClients}`);
     console.log(`  Increment:           ${results.config.increment}`);
     console.log(`  Duration per level:  ${results.config.messageDuration}s`);
 
-    console.log("\n📈 Results by Level:");
-    console.log("Level | Clients | Connected | Failed | Sent | Received | Latency | Memory");
-    console.log("------|---------|-----------|--------|------|----------|---------|-------");
+    console.log('\n📈 Results by Level:');
+    console.log('Level | Clients | Connected | Failed | Sent | Received | Latency | Memory');
+    console.log('------|---------|-----------|--------|------|----------|---------|-------');
 
     results.levels.forEach((level) => {
-      const successRate = level.messagesSent > 0 ? ((level.messagesReceived / level.messagesSent) * 100).toFixed(0) : "0";
+      const successRate =
+        level.messagesSent > 0
+          ? ((level.messagesReceived / level.messagesSent) * 100).toFixed(0)
+          : '0';
       console.log(
         `${level.level.toString().padEnd(5)} | ${level.clients.toString().padEnd(7)} | ${level.connected
           .toString()
@@ -290,33 +293,33 @@ class StressTester {
           .toString()
           .padEnd(4)} | ${level.messagesReceived.toString().padEnd(8)} | ${level.latencyAvg
           .toFixed(2)
-          .padEnd(6)}ms | ${level.memoryMB.toFixed(1)}MB`
+          .padEnd(6)}ms | ${level.memoryMB.toFixed(1)}MB`,
       );
     });
 
-    console.log("\n🎯 Breaking Point:");
+    console.log('\n🎯 Breaking Point:');
     console.log(`  Clients:  ${results.breakingPoint.clients}`);
     console.log(`  Reason:   ${results.breakingPoint.reason}`);
 
-    console.log("\n📊 Max Sustainable Load:");
+    console.log('\n📊 Max Sustainable Load:');
     console.log(`  Clients:   ${results.maxSustainableLoad.clients}`);
     console.log(`  Memory:    ${results.maxSustainableLoad.memoryMB.toFixed(2)}MB`);
     console.log(`  Latency:   ${results.maxSustainableLoad.latencyAvg.toFixed(2)}ms`);
 
     if (results.recommendations.length > 0) {
-      console.log("\n💡 Recommendations:");
+      console.log('\n💡 Recommendations:');
       results.recommendations.forEach((rec) => {
         console.log(`  • ${rec}`);
       });
     }
 
-    console.log("\n" + "=".repeat(70));
+    console.log('\n' + '='.repeat(70));
   }
 
   private saveResults(results: StressTestResults): void {
-    const fs = require("fs");
-    const path = require("path");
-    const logsDir = path.join(process.cwd(), "logs");
+    const fs = require('fs');
+    const path = require('path');
+    const logsDir = path.join(process.cwd(), 'logs');
 
     if (!fs.existsSync(logsDir)) {
       fs.mkdirSync(logsDir, { recursive: true });
@@ -324,7 +327,7 @@ class StressTester {
 
     const filename = path.join(
       logsDir,
-      `stress-test-${new Date().toISOString().replace(/[:.]/g, "-")}.json`
+      `stress-test-${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
     );
     fs.writeFileSync(filename, JSON.stringify(results, null, 2));
     console.log(`\n💾 Results saved to: ${filename}`);
@@ -338,11 +341,11 @@ const config: StressTestConfig = {
   increment: 10,
   messageDuration: 10,
   rampUpTime: 5,
-  serverUrl: "ws://localhost:3000",
+  serverUrl: 'ws://localhost:3000',
 };
 
 const tester = new StressTester(config);
 tester.run().catch((error) => {
-  console.error("❌ Stress test failed:", error);
+  console.error('❌ Stress test failed:', error);
   process.exit(1);
 });

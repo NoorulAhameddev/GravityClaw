@@ -30,6 +30,7 @@ The Live Canvas feature enables Gravity Claw agents to push interactive HTML/JS 
 ### For Users
 
 1. **Open the Canvas Client:**
+
    ```
    http://localhost:3000/canvas.html?session=my-session-id
    ```
@@ -58,17 +59,19 @@ The agent can use the `canvas_push` tool to send widgets to connected clients:
 ### Example Use Cases
 
 #### 1. Interactive Form
+
 ```html
 <!-- HTML -->
 <form id="feedback">
-  <label>Name: <input type="text" name="name" required></label><br>
-  <label>Rating: 
+  <label>Name: <input type="text" name="name" required /></label><br />
+  <label
+    >Rating:
     <select name="rating">
       <option value="5">⭐⭐⭐⭐⭐</option>
       <option value="4">⭐⭐⭐⭐</option>
       <option value="3">⭐⭐⭐</option>
-    </select>
-  </label><br>
+    </select> </label
+  ><br />
   <button type="submit">Submit</button>
 </form>
 ```
@@ -84,6 +87,7 @@ document.getElementById('feedback').addEventListener('submit', (e) => {
 ```
 
 #### 2. Data Table
+
 ```html
 <table border="1" style="border-collapse: collapse; width: 100%;">
   <thead>
@@ -94,14 +98,27 @@ document.getElementById('feedback').addEventListener('submit', (e) => {
     </tr>
   </thead>
   <tbody>
-    <tr><td>Widget A</td><td>$19.99</td><td>50</td></tr>
-    <tr><td>Widget B</td><td>$29.99</td><td>30</td></tr>
-    <tr><td>Widget C</td><td>$39.99</td><td>20</td></tr>
+    <tr>
+      <td>Widget A</td>
+      <td>$19.99</td>
+      <td>50</td>
+    </tr>
+    <tr>
+      <td>Widget B</td>
+      <td>$29.99</td>
+      <td>30</td>
+    </tr>
+    <tr>
+      <td>Widget C</td>
+      <td>$39.99</td>
+      <td>20</td>
+    </tr>
   </tbody>
 </table>
 ```
 
 #### 3. SVG Chart
+
 ```html
 <svg width="400" height="200" style="border: 1px solid #ccc;">
   <rect x="50" y="150" width="50" height="100" fill="#4CAF50" />
@@ -114,6 +131,7 @@ document.getElementById('feedback').addEventListener('submit', (e) => {
 ```
 
 #### 4. Custom Widget with Styling
+
 ```html
 <style>
   .dashboard {
@@ -127,10 +145,15 @@ document.getElementById('feedback').addEventListener('submit', (e) => {
     color: white;
     padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
-  .card h3 { margin: 0 0 10px 0; }
-  .card .value { font-size: 32px; font-weight: bold; }
+  .card h3 {
+    margin: 0 0 10px 0;
+  }
+  .card .value {
+    font-size: 32px;
+    font-weight: bold;
+  }
 </style>
 <div class="dashboard">
   <div class="card">
@@ -155,6 +178,7 @@ The Live Canvas implements strict security measures:
 ### Content Validation
 
 **Blocked HTML patterns:**
+
 - External scripts (`<script src="...">`)
 - Inline event handlers (`onclick`, `onerror`, etc.)
 - JavaScript protocol (`href="javascript:..."`)
@@ -163,6 +187,7 @@ The Live Canvas implements strict security measures:
 - External stylesheets
 
 **Blocked JavaScript patterns:**
+
 - `eval()`
 - `Function()` constructor
 - `XMLHttpRequest`
@@ -173,6 +198,7 @@ The Live Canvas implements strict security measures:
 ### Sandboxing
 
 The canvas renders content in an iframe with:
+
 - `sandbox="allow-scripts allow-same-origin"` attribute
 - Strict CSP headers
 - No access to parent window
@@ -183,11 +209,13 @@ The canvas renders content in an iframe with:
 ### WebSocket Protocol
 
 **Connection:**
+
 ```
 ws://localhost:3000/canvas?session=<session_id>
 ```
 
 **Messages from Server:**
+
 ```json
 {
   "type": "connected",
@@ -208,6 +236,7 @@ ws://localhost:3000/canvas?session=<session_id>
 ```
 
 **Messages from Client:**
+
 ```json
 {
   "type": "ping"
@@ -227,28 +256,35 @@ ws://localhost:3000/canvas?session=<session_id>
 ### API Reference
 
 #### `registerCanvasClient(sessionId: string, ws: WebSocket): void`
+
 Registers a new canvas WebSocket client.
 
 #### `pushCanvas(sessionId: string, html: string, js?: string): Promise<string>`
+
 Pushes HTML/JS content to a connected canvas client.
 
 #### `hasCanvasClient(sessionId: string): boolean`
+
 Checks if a session has an active canvas client.
 
 #### `getConnectedCanvasClients(): string[]`
+
 Returns array of all connected session IDs.
 
 #### `canvasPushTool: Tool`
+
 The tool definition for LLM access to canvas pushing.
 
 ## Testing
 
 Run the test suite:
+
 ```bash
 npm test src/__tests__/canvas.test.ts
 ```
 
 Test coverage includes:
+
 - ✅ WebSocket connection management (4 tests)
 - ✅ Canvas push functionality (10 tests)
 - ✅ Tool integration (5 tests)
@@ -263,7 +299,7 @@ Test coverage includes:
 The Live Canvas is automatically registered in `src/index.ts`:
 
 ```typescript
-import { canvasPushTool } from "./canvas/index.ts";
+import { canvasPushTool } from './canvas/index.ts';
 // ...
 registry.register(canvasPushTool);
 ```
@@ -271,10 +307,10 @@ registry.register(canvasPushTool);
 The WebSocket handler is integrated in `src/server.ts`:
 
 ```typescript
-import { registerCanvasClient } from "./canvas/index.ts";
+import { registerCanvasClient } from './canvas/index.ts';
 // ...
-wss.on("connection", (ws, req) => {
-  if (pathname === "/canvas") {
+wss.on('connection', (ws, req) => {
+  if (pathname === '/canvas') {
     registerCanvasClient(sessionId, ws);
   }
 });
@@ -300,6 +336,7 @@ Potential improvements for the Live Canvas:
 ### Canvas client not connecting
 
 Check that:
+
 1. The server is running on the correct port
 2. WebSocket connections are not blocked by firewall
 3. The session ID is correct in the URL
@@ -307,6 +344,7 @@ Check that:
 ### Widget not rendering
 
 Verify:
+
 1. HTML is valid and not blocked by validation
 2. JavaScript doesn't contain blocked patterns
 3. Browser console for error messages
@@ -315,6 +353,7 @@ Verify:
 ### Security validation errors
 
 Review:
+
 1. Remove external script/stylesheet references
 2. Use event listeners instead of inline handlers
 3. Replace `innerHTML` with `textContent` or DOM methods

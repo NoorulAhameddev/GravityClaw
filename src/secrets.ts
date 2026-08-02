@@ -1,10 +1,10 @@
 /**
  * Encrypted Secrets Management with Rotation & Audit Logging
- * 
+ *
  * Uses AES-256-GCM encryption to securely store sensitive configuration values.
  * Secrets are stored in secrets.enc.json and decrypted at runtime using MASTER_KEY.
  * Supports secret expiration, rotation, and comprehensive audit logging.
- * 
+ *
  * Features:
  * - AES-256-GCM encryption
  * - Secret expiration with optional expiresAt field
@@ -12,7 +12,7 @@
  * - Audit log for all secret access (read/write/rotate/delete)
  * - Secret validation before use
  * - Automatic cleanup of expired secrets
- * 
+ *
  * Usage:
  * 1. Generate master key: node scripts/secret-manager.ts generate-key
  * 2. Add master key to .env: MASTER_KEY=<generated-key>
@@ -21,17 +21,18 @@
  * 5. Rotate secrets: npm run secret:rotate
  */
 
-import { createCipheriv, createDecipheriv, randomBytes, createHash } from "crypto";
-import { createLogger } from "./logger.ts";
-import { safeJsonParse } from "./utils/json.ts";
-import { db } from "./db.ts";
+import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto';
+import { createLogger } from './logger.ts';
+import { safeJsonParse } from './utils/json.ts';
+import { db } from './db.ts';
+import { LRUCache } from './utils/lru-cache.ts';
 
-const logger = createLogger("secrets");
+const logger = createLogger('secrets');
 
 /**
  * Encryption algorithm and parameters
  */
-const ALGORITHM = "aes-256-gcm";
+const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32; // 256 bits
 const IV_LENGTH = 16; // 128 bits for GCM
 const AUTH_TAG_LENGTH = 16; // 128 bits for GCM
@@ -44,17 +45,17 @@ export interface EncryptedData {
    * Initialization vector (hex encoded)
    */
   iv: string;
-  
+
   /**
    * Encrypted ciphertext (hex encoded)
    */
   data: string;
-  
+
   /**
    * Authentication tag for GCM (hex encoded)
    */
   authTag: string;
-  
+
   /**
    * Optional metadata (not encrypted)
    */
@@ -62,8 +63,8 @@ export interface EncryptedData {
     name?: string;
     description?: string;
     createdAt?: string;
-    expiresAt?: string;     // Optional expiration timestamp
-    rotatedAt?: string;     // Timestamp of last rotation
+    expiresAt?: string; // Optional expiration timestamp
+    rotatedAt?: string; // Timestamp of last rotation
     status?: 'active' | 'deprecated' | 'deleted'; // Secret status
   };
 }
@@ -97,14 +98,22 @@ export type SecretAccessLogFilters = {
  */
 function validateSecretAccessLogFilters(filters: unknown): filters is SecretAccessLogFilters {
   if (typeof filters !== 'object' || filters === null) return false;
-  
+
   const f = filters as Record<string, unknown>;
-  
+
   if (f.secret_name !== undefined && typeof f.secret_name !== 'string') return false;
   if (f.action !== undefined && typeof f.action !== 'string') return false;
-  if (f.days !== undefined && (typeof f.days !== 'number' || !Number.isInteger(f.days) || f.days < 1 || f.days > 365)) return false;
-  if (f.limit !== undefined && (typeof f.limit !== 'number' || !Number.isInteger(f.limit) || f.limit < 1 || f.limit > 1000)) return false;
-  
+  if (
+    f.days !== undefined &&
+    (typeof f.days !== 'number' || !Number.isInteger(f.days) || f.days < 1 || f.days > 365)
+  )
+    return false;
+  if (
+    f.limit !== undefined &&
+    (typeof f.limit !== 'number' || !Number.isInteger(f.limit) || f.limit < 1 || f.limit > 1000)
+  )
+    return false;
+
   return true;
 }
 
@@ -112,7 +121,7 @@ function validateSecretAccessLogFilters(filters: unknown): filters is SecretAcce
  * Rate limiting for audit log queries
  */
 const QUERY_RATE_LIMIT = 10; // Max queries per minute
-const queryRateLimit = new Map<string, { count: number; resetTime: number }>();
+const queryRateLimit = new LRUCache<string, { count: number; resetTime: number }>(1000);
 
 /**
  * Check if a query is allowed under rate limiting
@@ -122,16 +131,16 @@ const queryRateLimit = new Map<string, { count: number; resetTime: number }>();
 function checkQueryRateLimit(key: string = 'global'): boolean {
   const now = Date.now();
   const record = queryRateLimit.get(key);
-  
+
   if (!record || now > record.resetTime) {
     queryRateLimit.set(key, { count: 1, resetTime: now + 60000 });
     return true;
   }
-  
+
   if (record.count >= QUERY_RATE_LIMIT) {
     return false;
   }
-  
+
   record.count++;
   return true;
 }
@@ -148,7 +157,7 @@ export function resetRateLimitForTesting(): void {
  * @returns {string} 64-character hex string (32 bytes)
  */
 export function generateMasterKey(): string {
-  return randomBytes(KEY_LENGTH).toString("hex");
+  return randomBytes(KEY_LENGTH).toString('hex');
 }
 
 /**
@@ -158,11 +167,11 @@ export function generateMasterKey(): string {
 function deriveKey(masterKey: string): Buffer {
   if (masterKey.length === 64) {
     // Already the correct length (32 bytes hex)
-    return Buffer.from(masterKey, "hex");
+    return Buffer.from(masterKey, 'hex');
   }
-  
+
   // Hash to get consistent 256-bit key
-  return createHash("sha256").update(masterKey).digest();
+  return createHash('sha256').update(masterKey).digest();
 }
 
 /**
@@ -173,33 +182,33 @@ function deriveKey(masterKey: string): Buffer {
  */
 export function encryptSecret(plaintext: string, masterKey: string): EncryptedData {
   if (!plaintext) {
-    throw new Error("Plaintext cannot be empty");
+    throw new Error('Plaintext cannot be empty');
   }
-  
+
   if (!masterKey) {
-    throw new Error("Master key is required");
+    throw new Error('Master key is required');
   }
-  
+
   // Derive key
   const key = deriveKey(masterKey);
-  
+
   // Generate random IV
   const iv = randomBytes(IV_LENGTH);
-  
+
   // Create cipher
   const cipher = createCipheriv(ALGORITHM, key, iv);
-  
+
   // Encrypt
-  let encrypted = cipher.update(plaintext, "utf8", "hex");
-  encrypted += cipher.final("hex");
-  
+  let encrypted = cipher.update(plaintext, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+
   // Get authentication tag
   const authTag = cipher.getAuthTag();
-  
+
   return {
-    iv: iv.toString("hex"),
+    iv: iv.toString('hex'),
     data: encrypted,
-    authTag: authTag.toString("hex"),
+    authTag: authTag.toString('hex'),
   };
 }
 
@@ -212,27 +221,27 @@ export function encryptSecret(plaintext: string, masterKey: string): EncryptedDa
  */
 export function decryptSecret(encryptedData: EncryptedData, masterKey: string): string {
   if (!masterKey) {
-    throw new Error("Master key is required");
+    throw new Error('Master key is required');
   }
-  
+
   // Derive key
   const key = deriveKey(masterKey);
-  
+
   // Parse hex values
-  const iv = Buffer.from(encryptedData.iv, "hex");
-  const authTag = Buffer.from(encryptedData.authTag, "hex");
-  
+  const iv = Buffer.from(encryptedData.iv, 'hex');
+  const authTag = Buffer.from(encryptedData.authTag, 'hex');
+
   // Create decipher
   const decipher = createDecipheriv(ALGORITHM, key, iv);
   decipher.setAuthTag(authTag);
-  
+
   // Decrypt
   try {
-    let decrypted = decipher.update(encryptedData.data, "hex", "utf8");
-    decrypted += decipher.final("utf8");
+    let decrypted = decipher.update(encryptedData.data, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
     return decrypted;
   } catch (err) {
-    throw new Error("Decryption failed: invalid key or corrupted data");
+    throw new Error('Decryption failed: invalid key or corrupted data');
   }
 }
 
@@ -243,23 +252,23 @@ export function decryptSecret(encryptedData: EncryptedData, masterKey: string): 
  */
 export async function loadSecretsFile(filePath: string): Promise<Map<string, EncryptedData>> {
   try {
-    const fs = await import("fs/promises");
-    const content = await fs.readFile(filePath, "utf-8");
-    const result = safeJsonParse<Record<string, EncryptedData>>(content, {}, "secrets file");
-    
+    const fs = await import('fs/promises');
+    const content = await fs.readFile(filePath, 'utf-8');
+    const result = safeJsonParse<Record<string, EncryptedData>>(content, {}, 'secrets file');
+
     if (!result.success) {
       logger.warn(`Failed to parse secrets file: ${result.error}`);
       return new Map();
     }
-    
+
     const secrets = new Map<string, EncryptedData>();
     for (const [key, value] of Object.entries(result.data || {})) {
       secrets.set(key, value);
     }
-    
+
     return secrets;
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
       return new Map();
     }
     logger.error(`Failed to load secrets file: ${err}`);
@@ -274,16 +283,26 @@ export async function loadSecretsFile(filePath: string): Promise<Map<string, Enc
  */
 export async function saveSecretsFile(
   filePath: string,
-  secrets: Map<string, EncryptedData>
+  secrets: Map<string, EncryptedData>,
 ): Promise<void> {
-  const fs = await import("fs/promises");
-  
+  const fs = await import('fs/promises');
+  const pathMod = await import('path');
+
   const json: Record<string, EncryptedData> = {};
   for (const [key, value] of secrets.entries()) {
     json[key] = value;
   }
-  
-  await fs.writeFile(filePath, JSON.stringify(json, null, 2), "utf-8");
+
+  const tmpPath = filePath + `.tmp.${process.pid}.${Date.now()}`;
+  try {
+    await fs.writeFile(tmpPath, JSON.stringify(json, null, 2), 'utf-8');
+    await fs.rename(tmpPath, filePath);
+  } catch (err) {
+    try {
+      await fs.unlink(tmpPath);
+    } catch (_) {}
+    throw err;
+  }
 }
 
 /**
@@ -294,11 +313,11 @@ export async function saveSecretsFile(
  */
 export async function decryptAllSecrets(
   filePath: string,
-  masterKey: string
+  masterKey: string,
 ): Promise<Map<string, string>> {
   const encrypted = await loadSecretsFile(filePath);
   const decrypted = new Map<string, string>();
-  
+
   for (const [name, data] of encrypted.entries()) {
     try {
       const plaintext = decryptSecret(data, masterKey);
@@ -307,7 +326,7 @@ export async function decryptAllSecrets(
       throw new Error(`Failed to decrypt secret '${name}': ${(err as Error).message}`);
     }
   }
-  
+
   return decrypted;
 }
 
@@ -324,15 +343,15 @@ export async function addSecret(
   name: string,
   plaintext: string,
   masterKey: string,
-  metadata?: EncryptedData["metadata"]
+  metadata?: EncryptedData['metadata'],
 ): Promise<void> {
   const secrets = await loadSecretsFile(filePath);
-  
+
   const encrypted = encryptSecret(plaintext, masterKey);
   if (metadata) {
     encrypted.metadata = metadata;
   }
-  
+
   secrets.set(name, encrypted);
   await saveSecretsFile(filePath, secrets);
 }
@@ -344,11 +363,11 @@ export async function addSecret(
  */
 export async function removeSecret(filePath: string, name: string): Promise<void> {
   const secrets = await loadSecretsFile(filePath);
-  
+
   if (!secrets.has(name)) {
     throw new Error(`Secret '${name}' not found`);
   }
-  
+
   secrets.delete(name);
   await saveSecretsFile(filePath, secrets);
 }
@@ -358,12 +377,14 @@ export async function removeSecret(filePath: string, name: string): Promise<void
  * @param filePath - Path to secrets file
  * @returns Array of secret names with metadata
  */
-export async function listSecrets(filePath: string): Promise<Array<{
-  name: string;
-  metadata?: EncryptedData["metadata"];
-}>> {
+export async function listSecrets(filePath: string): Promise<
+  Array<{
+    name: string;
+    metadata?: EncryptedData['metadata'];
+  }>
+> {
   const secrets = await loadSecretsFile(filePath);
-  
+
   return Array.from(secrets.entries()).map(([name, data]) => ({
     name,
     metadata: data.metadata,
@@ -382,20 +403,15 @@ export function logSecretAccess(
   action: 'read' | 'write' | 'rotate' | 'delete',
   user?: string,
   status: 'success' | 'failed' = 'success',
-  error?: string
+  error?: string,
 ): void {
   try {
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO secret_access_log (timestamp, secret_name, action, user, status, error)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
-      new Date().toISOString(),
-      secretName,
-      action,
-      user || 'system',
-      status,
-      error || null
-    );
+    `,
+    ).run(new Date().toISOString(), secretName, action, user || 'system', status, error || null);
   } catch (err) {
     logger.error(`Failed to log secret access: ${err}`);
   }
@@ -412,20 +428,20 @@ export function getSecretAccessLog(filters?: SecretAccessLogFilters): SecretAcce
     if (filters && !validateSecretAccessLogFilters(filters)) {
       throw new Error('Invalid filter parameters');
     }
-    
+
     // Rate limiting check
     if (!checkQueryRateLimit('global')) {
       throw new Error('Rate limit exceeded for audit log queries');
     }
-    
+
     let query = 'SELECT * FROM secret_access_log WHERE 1=1';
     const params: unknown[] = [];
-    
+
     if (filters?.secret_name) {
       query += ' AND secret_name = ?';
       params.push(filters.secret_name);
     }
-    
+
     if (filters?.action) {
       // Validate action is one of allowed values
       const allowedActions = ['read', 'write', 'rotate', 'delete'];
@@ -435,19 +451,19 @@ export function getSecretAccessLog(filters?: SecretAccessLogFilters): SecretAcce
       query += ' AND action = ?';
       params.push(filters.action);
     }
-    
+
     if (filters?.days) {
       // Validate days is a positive integer within range
       const days = parseInt(String(filters.days), 10);
       if (isNaN(days) || days < 1 || days > 365) {
         throw new Error(`Invalid days value: ${filters.days}`);
       }
-      query += ' AND timestamp > datetime(\'now\', ? || \' days\')';
+      query += " AND timestamp > datetime('now', ? || ' days')";
       params.push(-days);
     }
-    
+
     query += ' ORDER BY timestamp DESC';
-    
+
     if (filters?.limit) {
       // Validate limit is a positive integer within range
       const limit = parseInt(String(filters.limit), 10);
@@ -462,7 +478,7 @@ export function getSecretAccessLog(filters?: SecretAccessLogFilters): SecretAcce
       query += ' LIMIT ?';
       params.push(100);
     }
-    
+
     return db.prepare(query).all(...params) as SecretAccessLog[];
   } catch (err) {
     logger.error(`Failed to get secret access log: ${err}`);
@@ -479,10 +495,10 @@ export function isSecretExpired(secret: EncryptedData): boolean {
   if (!secret.metadata?.expiresAt) {
     return false; // No expiration set
   }
-  
+
   const expiresAt = new Date(secret.metadata.expiresAt).getTime();
   const now = Date.now();
-  
+
   return now > expiresAt;
 }
 
@@ -496,11 +512,11 @@ export function isSecretExpiringSoon(secret: EncryptedData, daysThreshold: numbe
   if (!secret.metadata?.expiresAt) {
     return false; // No expiration set
   }
-  
+
   const expiresAt = new Date(secret.metadata.expiresAt).getTime();
   const now = Date.now();
   const thresholdMs = daysThreshold * 24 * 60 * 60 * 1000;
-  
+
   return expiresAt - now <= thresholdMs && expiresAt > now;
 }
 
@@ -516,27 +532,27 @@ export function validateSecret(secret: EncryptedData): {
 } {
   const warnings: string[] = [];
   const errors: string[] = [];
-  
+
   // Check if expired
   if (isSecretExpired(secret)) {
     errors.push('Secret has expired');
   }
-  
+
   // Check if expiring soon
   if (isSecretExpiringSoon(secret, 30)) {
     warnings.push('Secret will expire within 30 days');
   }
-  
+
   // Check if deprecated
   if (secret.metadata?.status === 'deprecated') {
     warnings.push('Secret is marked as deprecated');
   }
-  
+
   // Check if deleted
   if (secret.metadata?.status === 'deleted') {
     errors.push('Secret is marked as deleted');
   }
-  
+
   return {
     valid: errors.length === 0,
     warnings,
@@ -551,33 +567,33 @@ export function validateSecret(secret: EncryptedData): {
  */
 export async function cleanupExpiredSecrets(
   filePath: string,
-  gracePeriodDays: number = 90
+  gracePeriodDays: number = 90,
 ): Promise<{ cleaned: number; deleted: string[] }> {
   const secrets = await loadSecretsFile(filePath);
   const deleted: string[] = [];
   let cleaned = 0;
-  
+
   const gracePeriodMs = gracePeriodDays * 24 * 60 * 60 * 1000;
   const now = Date.now();
-  
+
   for (const [name, secret] of secrets.entries()) {
     if (secret.metadata?.status === 'deleted' && secret.metadata?.expiresAt) {
       const deletedAt = new Date(secret.metadata.expiresAt).getTime();
-      
+
       if (now - deletedAt > gracePeriodMs) {
         secrets.delete(name);
         deleted.push(name);
         cleaned++;
-        
+
         logger.info(`Cleaned up deleted secret: ${name}`);
       }
     }
   }
-  
+
   if (cleaned > 0) {
     await saveSecretsFile(filePath, secrets);
   }
-  
+
   return { cleaned, deleted };
 }
 
@@ -588,22 +604,22 @@ export async function cleanupExpiredSecrets(
  */
 export async function deleteSecret(filePath: string, name: string): Promise<void> {
   const secrets = await loadSecretsFile(filePath);
-  
+
   if (!secrets.has(name)) {
     throw new Error(`Secret '${name}' not found`);
   }
-  
+
   const secret = secrets.get(name)!;
   if (!secret.metadata) {
     secret.metadata = {};
   }
-  
+
   secret.metadata.status = 'deleted';
   secret.metadata.expiresAt = new Date().toISOString(); // Mark deletion time
-  
+
   secrets.set(name, secret);
   await saveSecretsFile(filePath, secrets);
-  
+
   logSecretAccess(name, 'delete', undefined, 'success');
   logger.info(`Secret marked for deletion: ${name}`);
 }
@@ -615,11 +631,11 @@ export async function deleteSecret(filePath: string, name: string): Promise<void
  */
 export async function getExpiringSecrets(
   filePath: string,
-  daysThreshold: number = 30
+  daysThreshold: number = 30,
 ): Promise<Array<{ name: string; expiresAt: string }>> {
   const secrets = await loadSecretsFile(filePath);
   const expiring: Array<{ name: string; expiresAt: string }> = [];
-  
+
   for (const [name, secret] of secrets.entries()) {
     if (isSecretExpiringSoon(secret, daysThreshold) && !isSecretExpired(secret)) {
       expiring.push({
@@ -628,8 +644,6 @@ export async function getExpiringSecrets(
       });
     }
   }
-  
-  return expiring.sort((a, b) => 
-    new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime()
-  );
+
+  return expiring.sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime());
 }

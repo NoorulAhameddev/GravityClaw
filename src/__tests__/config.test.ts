@@ -10,14 +10,18 @@ vi.mock('../config.ts', () => {
     if (!mockPaths.PATH_ALLOWLIST || mockPaths.PATH_ALLOWLIST.trim() === '') {
       return [process.cwd()];
     }
-    return mockPaths.PATH_ALLOWLIST.split(',').map(p => p.trim()).filter(p => p.length > 0);
+    return mockPaths.PATH_ALLOWLIST.split(',')
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
   }
 
   function getSafeDirectories(): string[] {
     if (!mockPaths.SAFE_DIRECTORIES || mockPaths.SAFE_DIRECTORIES.trim() === '') {
       return [process.cwd()];
     }
-    return mockPaths.SAFE_DIRECTORIES.split(',').map(p => p.trim()).filter(p => p.length > 0);
+    return mockPaths.SAFE_DIRECTORIES.split(',')
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
   }
 
   return {

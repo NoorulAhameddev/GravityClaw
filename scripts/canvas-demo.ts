@@ -1,40 +1,43 @@
 /**
  * Live Canvas Demo
- * 
+ *
  * This file demonstrates how to use the Live Canvas feature
  * Run this after starting the server to see widgets in action
  */
 
-import { pushCanvas } from "./src/canvas/index.ts";
+import { pushCanvas } from './src/canvas/index.ts';
 
 // Wait for a canvas client to connect at http://localhost:3000/canvas.html?session=demo
 
-const SESSION_ID = "demo";
+const SESSION_ID = 'demo';
 
 async function demo() {
-  console.log("🎨 Live Canvas Demo");
-  console.log("1. Start the server: npm run dev");
+  console.log('🎨 Live Canvas Demo');
+  console.log('1. Start the server: npm run dev');
   console.log(`2. Open: http://localhost:3000/canvas.html?session=${SESSION_ID}`);
-  console.log("3. Run this demo: tsx scripts/canvas-demo.ts");
-  console.log("");
-  
+  console.log('3. Run this demo: tsx scripts/canvas-demo.ts');
+  console.log('');
+
   // Wait for user to open canvas
-  console.log("Waiting for canvas client to connect...");
-  await new Promise(resolve => setTimeout(resolve, 5000));
-  
+  console.log('Waiting for canvas client to connect...');
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+
   try {
     // Demo 1: Simple greeting
-    console.log("\n📤 Demo 1: Simple Greeting");
-    await pushCanvas(SESSION_ID, `
+    console.log('\n📤 Demo 1: Simple Greeting');
+    await pushCanvas(
+      SESSION_ID,
+      `
       <div style="text-align: center; padding: 40px;">
         <h1 style="color: #667eea;">👋 Hello from Gravity Claw!</h1>
         <p>This is a live canvas widget pushed from the agent.</p>
       </div>
-    `);
+    `,
+    );
     await sleep(3000);
-    
+
     // Demo 2: Interactive button
-    console.log("\n📤 Demo 2: Interactive Button");
+    console.log('\n📤 Demo 2: Interactive Button');
     await pushCanvas(
       SESSION_ID,
       `
@@ -59,13 +62,15 @@ async function demo() {
         document.getElementById('output').textContent = 
           'Clicked ' + clicks + ' time' + (clicks !== 1 ? 's' : '');
       });
-      `
+      `,
     );
     await sleep(5000);
-    
+
     // Demo 3: Data Table
-    console.log("\n📤 Demo 3: Data Table");
-    await pushCanvas(SESSION_ID, `
+    console.log('\n📤 Demo 3: Data Table');
+    await pushCanvas(
+      SESSION_ID,
+      `
       <style>
         table {
           width: 100%;
@@ -125,11 +130,12 @@ async function demo() {
           </tbody>
         </table>
       </div>
-    `);
+    `,
+    );
     await sleep(5000);
-    
+
     // Demo 4: Form
-    console.log("\n📤 Demo 4: Interactive Form");
+    console.log('\n📤 Demo 4: Interactive Form');
     await pushCanvas(
       SESSION_ID,
       `
@@ -219,13 +225,15 @@ async function demo() {
         document.getElementById('successMessage').style.display = 'block';
         e.target.style.display = 'none';
       });
-      `
+      `,
     );
     await sleep(5000);
-    
+
     // Demo 5: Chart
-    console.log("\n📤 Demo 5: SVG Chart");
-    await pushCanvas(SESSION_ID, `
+    console.log('\n📤 Demo 5: SVG Chart');
+    await pushCanvas(
+      SESSION_ID,
+      `
       <div style="padding: 30px;">
         <h2>📈 Monthly Sales</h2>
         <svg width="600" height="300" style="border: 1px solid #ddd; border-radius: 8px; padding: 20px;">
@@ -253,20 +261,22 @@ async function demo() {
           <line x1="30" y1="50" x2="530" y2="50" stroke="#ddd" stroke-width="1"/>
         </svg>
       </div>
-    `);
-    
-    console.log("\n✅ Demo complete!");
-    
+    `,
+    );
+
+    console.log('\n✅ Demo complete!');
   } catch (error) {
-    console.error("❌ Error:", error);
-    console.log("\nMake sure:");
-    console.log("1. The server is running");
-    console.log(`2. A canvas client is connected at http://localhost:3000/canvas.html?session=${SESSION_ID}`);
+    console.error('❌ Error:', error);
+    console.log('\nMake sure:');
+    console.log('1. The server is running');
+    console.log(
+      `2. A canvas client is connected at http://localhost:3000/canvas.html?session=${SESSION_ID}`,
+    );
   }
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // Run demo

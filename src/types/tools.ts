@@ -1,12 +1,12 @@
-import type { ChatCompletionTool } from "openai/resources/chat/completions.js";
+import type { ChatCompletionTool } from 'openai/resources/chat/completions.js';
 
-export type QueuePolicy = "inline-only" | "background-capable" | "background-preferred";
+export type QueuePolicy = 'inline-only' | 'background-capable' | 'background-preferred';
 
 export interface Tool {
   name: string;
   description: string;
   inputSchema: {
-    type: "object";
+    type: 'object';
     properties?: Record<string, unknown>;
     required?: string[];
   };

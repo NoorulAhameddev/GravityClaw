@@ -1,8 +1,11 @@
-import type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
-import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions.js";
-import { createLogger } from "../logger.ts";
+import type { LLMProvider, LLMResponse, LLMChatOptions } from '../types/llm.js';
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+} from 'openai/resources/chat/completions.js';
+import { createLogger } from '../logger.ts';
 
-const log = createLogger("llm:failover");
+const log = createLogger('llm:failover');
 
 interface ProviderHealth {
   name: string;
@@ -29,14 +32,14 @@ const DEFAULT_CONFIG: FailoverConfig = {
  * Automatically switches to backup providers when primary fails
  */
 export class FailoverProvider implements LLMProvider {
-  public readonly name = "failover";
+  public readonly name = 'failover';
   private providers: LLMProvider[];
   private healthMap: Map<string, ProviderHealth>;
   private config: FailoverConfig;
 
   constructor(providers: LLMProvider[], config: Partial<FailoverConfig> = {}) {
     if (providers.length === 0) {
-      throw new Error("FailoverProvider requires at least one provider");
+      throw new Error('FailoverProvider requires at least one provider');
     }
 
     this.providers = providers;
@@ -57,7 +60,7 @@ export class FailoverProvider implements LLMProvider {
     }
 
     log.info(
-      `Initialized failover provider with ${providers.length} providers: ${providers.map((p) => p.name).join(", ")}`
+      `Initialized failover provider with ${providers.length} providers: ${providers.map((p) => p.name).join(', ')}`,
     );
   }
 
@@ -70,12 +73,9 @@ export class FailoverProvider implements LLMProvider {
 
     for (const health of this.healthMap.values()) {
       // Auto-reset circuit breaker if enough time has passed
-      if (
-        health.isCircuitOpen &&
-        now - health.lastFailureTime > this.config.circuitResetTimeMs
-      ) {
+      if (health.isCircuitOpen && now - health.lastFailureTime > this.config.circuitResetTimeMs) {
         log.info(
-          `Circuit breaker reset for ${health.name} after ${this.config.circuitResetTimeMs}ms`
+          `Circuit breaker reset for ${health.name} after ${this.config.circuitResetTimeMs}ms`,
         );
         health.isCircuitOpen = false;
         health.consecutiveFailures = 0;
@@ -97,10 +97,7 @@ export class FailoverProvider implements LLMProvider {
       if (!health) return false;
 
       // Auto-reset circuit if enough time passed
-      if (
-        health.isCircuitOpen &&
-        now - health.lastFailureTime > this.config.circuitResetTimeMs
-      ) {
+      if (health.isCircuitOpen && now - health.lastFailureTime > this.config.circuitResetTimeMs) {
         health.isCircuitOpen = false;
         health.consecutiveFailures = 0;
         log.info(`Circuit breaker auto-reset for ${provider.name}`);
@@ -140,14 +137,14 @@ export class FailoverProvider implements LLMProvider {
     health.lastFailureTime = Date.now();
 
     log.warn(
-      `Provider ${providerName} failed (${health.consecutiveFailures}/${this.config.maxConsecutiveFailures}): ${error.message}`
+      `Provider ${providerName} failed (${health.consecutiveFailures}/${this.config.maxConsecutiveFailures}): ${error.message}`,
     );
 
     // Open circuit breaker if threshold reached
     if (health.consecutiveFailures >= this.config.maxConsecutiveFailures) {
       health.isCircuitOpen = true;
       log.error(
-        `Circuit breaker OPENED for ${providerName} after ${health.consecutiveFailures} consecutive failures`
+        `Circuit breaker OPENED for ${providerName} after ${health.consecutiveFailures} consecutive failures`,
       );
     }
   }
@@ -157,34 +154,34 @@ export class FailoverProvider implements LLMProvider {
    */
   private isRetryableError(error: Error): boolean {
     const message = error.message.toLowerCase();
-    
+
     // Rate limits (429)
-    if (message.includes("429") || message.includes("rate limit")) {
+    if (message.includes('429') || message.includes('rate limit')) {
       return true;
     }
 
     // Timeouts
-    if (message.includes("timeout") || message.includes("timed out")) {
+    if (message.includes('timeout') || message.includes('timed out')) {
       return true;
     }
 
     // Network errors
     if (
-      message.includes("econnrefused") ||
-      message.includes("enotfound") ||
-      message.includes("network") ||
-      message.includes("fetch failed")
+      message.includes('econnrefused') ||
+      message.includes('enotfound') ||
+      message.includes('network') ||
+      message.includes('fetch failed')
     ) {
       return true;
     }
 
     // Server errors (5xx)
-    if (message.includes("500") || message.includes("502") || message.includes("503")) {
+    if (message.includes('500') || message.includes('502') || message.includes('503')) {
       return true;
     }
 
     // API errors that suggest temporary issues
-    if (message.includes("overloaded") || message.includes("unavailable")) {
+    if (message.includes('overloaded') || message.includes('unavailable')) {
       return true;
     }
 
@@ -197,19 +194,17 @@ export class FailoverProvider implements LLMProvider {
   async chat(
     messages: ChatCompletionMessageParam[],
     toolDefinitions: ChatCompletionTool[],
-    options?: LLMChatOptions
+    options?: LLMChatOptions,
   ): Promise<LLMResponse> {
     const availableProviders = this.getAvailableProviders();
 
     if (availableProviders.length === 0) {
       throw new Error(
-        "All providers have open circuit breakers. No providers available for failover."
+        'All providers have open circuit breakers. No providers available for failover.',
       );
     }
 
-    log.info(
-      `Starting failover chat with ${availableProviders.length} available providers`
-    );
+    log.info(`Starting failover chat with ${availableProviders.length} available providers`);
 
     let lastError: Error | null = null;
 
@@ -217,17 +212,17 @@ export class FailoverProvider implements LLMProvider {
     for (let i = 0; i < availableProviders.length; i++) {
       const provider = availableProviders[i];
       if (!provider) continue; // Skip if undefined (should never happen)
-      
+
       const isLastProvider = i === availableProviders.length - 1;
 
       try {
         log.debug(`Attempting provider ${i + 1}/${availableProviders.length}: ${provider.name}`);
-        
+
         const response = await provider.chat(messages, toolDefinitions, options);
-        
+
         this.recordSuccess(provider.name);
         log.info(`✓ Provider ${provider.name} succeeded`);
-        
+
         return response;
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
@@ -238,20 +233,18 @@ export class FailoverProvider implements LLMProvider {
         // If this is the last provider or error is not retryable, throw
         if (isLastProvider || !this.isRetryableError(err)) {
           log.error(
-            `✗ Provider ${provider.name} failed (last provider or non-retryable): ${err.message}`
+            `✗ Provider ${provider.name} failed (last provider or non-retryable): ${err.message}`,
           );
           throw err;
         }
 
         // Otherwise, log and continue to next provider
-        log.warn(
-          `✗ Provider ${provider.name} failed, trying next provider: ${err.message}`
-        );
+        log.warn(`✗ Provider ${provider.name} failed, trying next provider: ${err.message}`);
       }
     }
 
     // Should not reach here, but throw last error if we do
-    throw lastError || new Error("All providers failed");
+    throw lastError || new Error('All providers failed');
   }
 
   /**
@@ -259,7 +252,7 @@ export class FailoverProvider implements LLMProvider {
    */
   async listModels(): Promise<string[]> {
     const primaryProvider = this.providers[0];
-    
+
     if (!primaryProvider || !primaryProvider.listModels) {
       return [];
     }
@@ -277,7 +270,7 @@ export class FailoverProvider implements LLMProvider {
    */
   countTokens(messages: ChatCompletionMessageParam[]): number {
     const primaryProvider = this.providers[0];
-    
+
     if (!primaryProvider) {
       return 0;
     }

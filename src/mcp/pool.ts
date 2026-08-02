@@ -1,9 +1,9 @@
-import { createLogger } from "../logger.ts";
-import { MCPClient } from "./client.ts";
-import type { MCPServerConfig } from "./types.ts";
-import { config } from "../config.ts";
+import { createLogger } from '../logger.ts';
+import { MCPClient } from './client.ts';
+import type { MCPServerConfig } from './types.ts';
+import { config } from '../config.ts';
 
-const log = createLogger("mcp-pool");
+const log = createLogger('mcp-pool');
 
 interface PooledServer {
   name: string;
@@ -58,7 +58,7 @@ export async function destroyPool(serverName: string): Promise<void> {
   const pool = pools.get(serverName);
   if (!pool) return;
 
-  await Promise.all(pool.instances.map(inst => inst.shutdown()));
+  await Promise.all(pool.instances.map((inst) => inst.shutdown()));
   pools.delete(serverName);
   log.info(`Pool destroyed for ${serverName}`);
 }

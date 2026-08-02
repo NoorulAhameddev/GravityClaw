@@ -3,7 +3,7 @@
 **Project:** Gravity Claw  
 **Version:** 0.1.0  
 **Assessment Date:** March 17, 2026  
-**Assessor:** Automated Security Analysis  
+**Assessor:** Automated Security Analysis
 
 ---
 
@@ -11,15 +11,15 @@
 
 Gravity Claw is a lean, secure personal AI agent built in TypeScript with multi-channel support (Telegram, WhatsApp, Discord, Slack, Signal, Email, WebChat). The project demonstrates strong security foundations with several built-in protections, though some areas require attention.
 
-| Category | Status |
-|----------|--------|
-| Encryption & Secrets | ✅ Good |
-| Access Control | ✅ Good |
-| Input Validation | ✅ Good |
-| Dependency Security | ⚠️ Needs Attention |
-| Network Security | ✅ Good |
-| Rate Limiting | ✅ Good |
-| Audit Logging | ✅ Good |
+| Category             | Status             |
+| -------------------- | ------------------ |
+| Encryption & Secrets | ✅ Good            |
+| Access Control       | ✅ Good            |
+| Input Validation     | ✅ Good            |
+| Dependency Security  | ⚠️ Needs Attention |
+| Network Security     | ✅ Good            |
+| Rate Limiting        | ✅ Good            |
+| Audit Logging        | ✅ Good            |
 
 ---
 
@@ -77,6 +77,7 @@ Only whitelisted users can interact with the agent.
 **Status:** ✅ Implemented
 
 File operations are restricted to safe directories:
+
 - Working directory
 - `data/`
 - `backups/`
@@ -84,6 +85,7 @@ File operations are restricted to safe directories:
 **Implementation:** `src/security/path-validator.ts`
 
 Features:
+
 - Symlink attack prevention
 - Path traversal protection
 - Real path resolution and validation
@@ -135,6 +137,7 @@ Interactive confirmation required for dangerous operations before execution.
 **Status:** ✅ Implemented
 
 Approval middleware sanitizes sensitive parameters:
+
 - API keys, passwords, tokens are redacted in logs
 
 ---
@@ -146,9 +149,9 @@ Approval middleware sanitizes sensitive parameters:
 **Status:** ⚠️ 12 Vulnerabilities Found
 
 | Severity | Count |
-|----------|-------|
-| High | 8 |
-| Moderate | 4 |
+| -------- | ----- |
+| High     | 8     |
+| Moderate | 4     |
 
 #### High Severity:
 
@@ -156,7 +159,7 @@ Approval middleware sanitizes sensitive parameters:
    - Arbitrary File Creation/Overwrite via Hardlink
    - Symlink Poisoning
    - Arbitrary File Read/Write
-   
+
 2. **undici (≤6.23.0)** - Multiple HTTP vulnerabilities
    - Unbounded decompression (DoS)
    - WebSocket length overflow
@@ -258,6 +261,7 @@ SECURITY_AUDIT_ENABLED=true
 **Status:** ✅ Implemented
 
 All secret operations logged:
+
 - Read, write, rotate, delete actions
 - Timestamp, user, status, error fields
 
@@ -267,14 +271,14 @@ All secret operations logged:
 
 ### 8.1 Current Implementation
 
-| Practice | Status |
-|----------|--------|
-| Environment separation | ✅ .env.example provided |
-| No secrets in code | ✅ Externalized |
-| Database file permissions | ✅ Documented |
-| Session management | ✅ Implemented |
-| Graceful shutdown | ✅ Implemented |
-| Error handling | ✅ Structured logging |
+| Practice                  | Status                   |
+| ------------------------- | ------------------------ |
+| Environment separation    | ✅ .env.example provided |
+| No secrets in code        | ✅ Externalized          |
+| Database file permissions | ✅ Documented            |
+| Session management        | ✅ Implemented           |
+| Graceful shutdown         | ✅ Implemented           |
+| Error handling            | ✅ Structured logging    |
 
 ### 8.2 Missing Items
 
@@ -290,12 +294,15 @@ All secret operations logged:
 ### High Priority
 
 1. **Fix dependency vulnerabilities**
+
    ```bash
    npm audit fix
    ```
+
    Review breaking changes before production use
 
 2. **Enable security audit logging**
+
    ```env
    SECURITY_AUDIT_ENABLED=true
    ```
@@ -369,4 +376,4 @@ The encryption, access control, and input validation implementations are robust 
 
 ---
 
-*Report generated: March 17, 2026*
+_Report generated: March 17, 2026_

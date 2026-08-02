@@ -23,12 +23,12 @@ Agent Swarms spawn multiple specialized agents with different roles (researcher,
 
 ### Available Roles
 
-| Role | Specialization | Best For |
-|------|---------------|----------|
-| **researcher** | Analysis, research, pattern finding | Data gathering, investigation, analysis tasks |
-| **coder** | Programming, implementation | Writing code, solving algorithms, technical implementation |
-| **reviewer** | Code review, QA, critique | Quality assurance, bug finding, improvement suggestions |
-| **summarizer** | Distillation, communication | Aggregating results, creating summaries, reports |
+| Role           | Specialization                      | Best For                                                   |
+| -------------- | ----------------------------------- | ---------------------------------------------------------- |
+| **researcher** | Analysis, research, pattern finding | Data gathering, investigation, analysis tasks              |
+| **coder**      | Programming, implementation         | Writing code, solving algorithms, technical implementation |
+| **reviewer**   | Code review, QA, critique           | Quality assurance, bug finding, improvement suggestions    |
+| **summarizer** | Distillation, communication         | Aggregating results, creating summaries, reports           |
 
 ### Usage
 
@@ -61,26 +61,23 @@ Aggregate results from multiple agents:
 #### Programmatic Usage
 
 ```typescript
-import { AgentSwarm } from "./agents/swarm.ts";
+import { AgentSwarm } from './agents/swarm.ts';
 
 // Create swarm configuration
 const swarmConfig = {
   numAgents: 3,
-  roles: ["researcher", "coder", "reviewer"],
+  roles: ['researcher', 'coder', 'reviewer'],
   maxConcurrency: 2, // Run 2 agents at once
 };
 
-const swarm = new AgentSwarm("parent-session-id", swarmConfig);
+const swarm = new AgentSwarm('parent-session-id', swarmConfig);
 
 // Orchestrate work
-const result = await swarm.orchestrate(
-  "Build a rate-limited API endpoint",
-  [
-    "Research rate limiting algorithms",
-    "Implement sliding window rate limiter",
-    "Review implementation for edge cases",
-  ]
-);
+const result = await swarm.orchestrate('Build a rate-limited API endpoint', [
+  'Research rate limiting algorithms',
+  'Implement sliding window rate limiter',
+  'Review implementation for edge cases',
+]);
 
 console.log(result.aggregatedResult);
 ```
@@ -89,9 +86,9 @@ console.log(result.aggregatedResult);
 
 ```typescript
 interface SwarmConfig {
-  numAgents: number;        // Number of agents to spawn
-  roles: string[];          // Agent roles to use
-  maxConcurrency: number;   // Max agents running simultaneously
+  numAgents: number; // Number of agents to spawn
+  roles: string[]; // Agent roles to use
+  maxConcurrency: number; // Max agents running simultaneously
 }
 ```
 
@@ -114,20 +111,22 @@ CREATE TABLE agent_swarms (
 Query swarm activity:
 
 ```typescript
-const swarms = db.prepare(
-  `SELECT * FROM agent_swarms WHERE parent_session_id = ? ORDER BY created_at DESC`
-).all(sessionId);
+const swarms = db
+  .prepare(`SELECT * FROM agent_swarms WHERE parent_session_id = ? ORDER BY created_at DESC`)
+  .all(sessionId);
 ```
 
 ### When to Use Swarms
 
 ✅ **Good for:**
+
 - Tasks requiring different expertise (research + implementation + review)
 - Parallel investigation of multiple approaches
 - Multi-perspective analysis
 - Tasks where agents can work independently
 
 ❌ **Not ideal for:**
+
 - Sequential tasks with strict dependencies
 - Single-perspective tasks
 - Simple queries that don't need parallelization
@@ -159,32 +158,26 @@ Result Aggregation
 #### Programmatic Usage
 
 ```typescript
-import { MeshWorkflow } from "./agents/mesh.ts";
+import { MeshWorkflow } from './agents/mesh.ts';
 
 const mesh = new MeshWorkflow();
 
 // 1. Decompose goal into task DAG
-const dag = await mesh.decompose(
-  "Create a complete backup system with encryption and scheduling"
-);
+const dag = await mesh.decompose('Create a complete backup system with encryption and scheduling');
 
 console.log(`Generated ${dag.tasks.length} tasks`);
 
 // 2. Validate DAG
 const validation = mesh.validateDAG(dag);
 if (!validation.valid) {
-  console.error("Invalid DAG:", validation.errors);
+  console.error('Invalid DAG:', validation.errors);
   return;
 }
 
 // 3. Execute workflow
-const result = await mesh.execute(
-  dag,
-  "workflow-session-id",
-  async (progress) => {
-    console.log(`${progress.currentTask}/${progress.totalTasks}: ${progress.taskDescription}`);
-  }
-);
+const result = await mesh.execute(dag, 'workflow-session-id', async (progress) => {
+  console.log(`${progress.currentTask}/${progress.totalTasks}: ${progress.taskDescription}`);
+});
 
 if (result.success) {
   console.log(`Completed ${result.tasksCompleted} tasks`);
@@ -192,7 +185,7 @@ if (result.success) {
     console.log(`Task ${taskId} result:`, output);
   });
 } else {
-  console.error("Workflow failed:", result.errors);
+  console.error('Workflow failed:', result.errors);
 }
 ```
 
@@ -207,8 +200,8 @@ interface WorkflowDAG {
 interface WorkflowTask {
   id: string;
   description: string;
-  dependsOn: string[];  // Task IDs that must complete first
-  status: "pending" | "running" | "completed" | "failed";
+  dependsOn: string[]; // Task IDs that must complete first
+  status: 'pending' | 'running' | 'completed' | 'failed';
   result?: string;
 }
 ```
@@ -264,7 +257,7 @@ The system validates:
 const validation = mesh.validateDAG(dag);
 
 if (!validation.valid) {
-  validation.errors.forEach(error => console.error(error));
+  validation.errors.forEach((error) => console.error(error));
 }
 ```
 
@@ -306,7 +299,7 @@ const progressCallback = async (progress: WorkflowProgress) => {
   console.log(`[${progress.currentTask}/${progress.totalTasks}] ${progress.taskDescription}`);
   console.log(`Status: ${progress.status}`);
   console.log(`Message: ${progress.message}`);
-  
+
   // Update UI, send notifications, etc.
 };
 
@@ -316,12 +309,14 @@ await mesh.execute(dag, sessionId, progressCallback);
 ### When to Use Mesh
 
 ✅ **Good for:**
+
 - Complex goals with clear dependencies
 - Sequential workflows with parallel opportunities
 - Tasks that build on each other's results
 - Automatic task breakdown needed
 
 ❌ **Not ideal for:**
+
 - Pre-defined task lists (use Swarms)
 - Simple linear workflows
 - Tasks that don't decompose naturally
@@ -330,15 +325,15 @@ await mesh.execute(dag, sessionId, progressCallback);
 
 ## Comparison: Swarms vs Mesh
 
-| Feature | Agent Swarms | Mesh Workflows |
-|---------|--------------|----------------|
-| **Task Definition** | Manual (you provide subtasks) | Automatic (LLM decomposes goal) |
-| **Dependencies** | None (all parallel) | Explicit (DAG structure) |
-| **Execution** | Concurrent by role | Topological order |
-| **Agents** | Role-specialized | General-purpose per task |
-| **Best For** | Multi-perspective analysis | Complex sequential workflows |
-| **Complexity** | Simpler setup | More sophisticated orchestration |
-| **Control** | High (you define subtasks) | Lower (LLM decomposes) |
+| Feature             | Agent Swarms                  | Mesh Workflows                   |
+| ------------------- | ----------------------------- | -------------------------------- |
+| **Task Definition** | Manual (you provide subtasks) | Automatic (LLM decomposes goal)  |
+| **Dependencies**    | None (all parallel)           | Explicit (DAG structure)         |
+| **Execution**       | Concurrent by role            | Topological order                |
+| **Agents**          | Role-specialized              | General-purpose per task         |
+| **Best For**        | Multi-perspective analysis    | Complex sequential workflows     |
+| **Complexity**      | Simpler setup                 | More sophisticated orchestration |
+| **Control**         | High (you define subtasks)    | Lower (LLM decomposes)           |
 
 ---
 
@@ -351,25 +346,25 @@ Combine both approaches for maximum flexibility:
 ```typescript
 // 1. Use mesh to decompose high-level goal
 const mesh = new MeshWorkflow();
-const dag = await mesh.decompose("Build complete authentication system");
+const dag = await mesh.decompose('Build complete authentication system');
 
 // 2. For complex tasks in the DAG, spawn swarms
 for (const task of dag.tasks) {
-  if (task.description.includes("implement")) {
+  if (task.description.includes('implement')) {
     const swarm = new AgentSwarm(task.id, {
       numAgents: 3,
-      roles: ["coder", "reviewer", "summarizer"],
+      roles: ['coder', 'reviewer', 'summarizer'],
       maxConcurrency: 3,
     });
-    
+
     const result = await swarm.orchestrate(task.description, [
-      "Write implementation",
-      "Review for issues",
-      "Create documentation",
+      'Write implementation',
+      'Review for issues',
+      'Create documentation',
     ]);
-    
+
     task.result = result.aggregatedResult;
-    task.status = "completed";
+    task.status = 'completed';
   }
 }
 ```
@@ -381,10 +376,10 @@ For very complex goals, recursively decompose subtasks:
 ```typescript
 async function recursiveDecompose(goal: string, depth: number = 0): Promise<WorkflowDAG> {
   if (depth > 3) return; // Limit recursion
-  
+
   const mesh = new MeshWorkflow();
   const dag = await mesh.decompose(goal);
-  
+
   for (const task of dag.tasks) {
     if (isComplex(task.description)) {
       const subDAG = await recursiveDecompose(task.description, depth + 1);
@@ -392,7 +387,7 @@ async function recursiveDecompose(goal: string, depth: number = 0): Promise<Work
       dag.tasks = [...dag.tasks, ...subDAG.tasks];
     }
   }
-  
+
   return dag;
 }
 ```
@@ -403,16 +398,22 @@ Track multi-agent activity:
 
 ```typescript
 // Query active swarms
-const activeSwarms = db.prepare(`
+const activeSwarms = db
+  .prepare(
+    `
   SELECT parent_session_id, COUNT(*) as agent_count, 
          SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed
   FROM agent_swarms
   WHERE status IN ('spawned', 'running')
   GROUP BY parent_session_id
-`).all();
+`,
+  )
+  .all();
 
 // Query workflow progress
-const workflowStatus = db.prepare(`
+const workflowStatus = db
+  .prepare(
+    `
   SELECT w.id, w.goal_description, 
          COUNT(t.id) as total_tasks,
          SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) as completed_tasks
@@ -420,7 +421,9 @@ const workflowStatus = db.prepare(`
   LEFT JOIN workflow_tasks t ON w.id = t.workflow_id
   WHERE w.status = 'running'
   GROUP BY w.id
-`).all();
+`,
+  )
+  .all();
 ```
 
 ---
@@ -451,14 +454,14 @@ DEFAULT_MESH_DECOMPOSITION_RETRIES=3
 Override per-session:
 
 ```typescript
-import { updateSessionSettings } from "./session.ts";
+import { updateSessionSettings } from './session.ts';
 
 updateSessionSettings(sessionId, {
   multiAgent: {
     swarmConcurrency: 4,
     meshMaxTasks: 30,
     enableRecursiveDecomposition: true,
-  }
+  },
 });
 ```
 
@@ -498,6 +501,7 @@ updateSessionSettings(sessionId, {
 **Problem**: Agents not completing
 
 **Solutions**:
+
 - Check agent session logs
 - Verify LLM provider is responding
 - Increase timeout limits
@@ -506,6 +510,7 @@ updateSessionSettings(sessionId, {
 **Problem**: Poor aggregation quality
 
 **Solutions**:
+
 - Use summarizer role for aggregation
 - Provide clearer aggregation instructions
 - Review individual agent outputs first
@@ -515,6 +520,7 @@ updateSessionSettings(sessionId, {
 **Problem**: DAG has cycles
 
 **Solutions**:
+
 - Review task dependencies manually
 - Simplify goal description
 - Manually edit DAG before execution
@@ -522,6 +528,7 @@ updateSessionSettings(sessionId, {
 **Problem**: Task decomposition is too granular/coarse
 
 **Solutions**:
+
 - Adjust goal specificity
 - Provide example task breakdown in prompt
 - Post-process DAG to merge/split tasks
@@ -529,6 +536,7 @@ updateSessionSettings(sessionId, {
 **Problem**: Tasks failing unexpectedly
 
 **Solutions**:
+
 - Check task session logs
 - Verify task descriptions are clear
 - Add retry logic for transient failures
@@ -543,17 +551,14 @@ updateSessionSettings(sessionId, {
 // Use swarm for research, then implementation
 const swarm = new AgentSwarm(sessionId, {
   numAgents: 2,
-  roles: ["researcher", "coder"],
+  roles: ['researcher', 'coder'],
   maxConcurrency: 2,
 });
 
-const result = await swarm.orchestrate(
-  "Implement OAuth 2.0 authentication",
-  [
-    "Research OAuth 2.0 flow and best practices",
-    "Implement OAuth provider integration with error handling",
-  ]
-);
+const result = await swarm.orchestrate('Implement OAuth 2.0 authentication', [
+  'Research OAuth 2.0 flow and best practices',
+  'Implement OAuth provider integration with error handling',
+]);
 ```
 
 ### Example 2: Complex Project
@@ -563,11 +568,11 @@ const result = await swarm.orchestrate(
 const mesh = new MeshWorkflow();
 
 const dag = await mesh.decompose(
-  "Create a CLI tool for managing database migrations with rollback support"
+  'Create a CLI tool for managing database migrations with rollback support',
 );
 
 // Review and adjust DAG if needed
-console.log("Generated tasks:", dag.tasks);
+console.log('Generated tasks:', dag.tasks);
 
 // Execute
 const result = await mesh.execute(dag, sessionId, async (progress) => {
@@ -582,19 +587,16 @@ const result = await mesh.execute(dag, sessionId, async (progress) => {
 // Research → Code → Review → Summarize
 const swarm = new AgentSwarm(sessionId, {
   numAgents: 4,
-  roles: ["researcher", "coder", "reviewer", "summarizer"],
+  roles: ['researcher', 'coder', 'reviewer', 'summarizer'],
   maxConcurrency: 1, // Sequential execution
 });
 
-const result = await swarm.orchestrate(
-  "Implement a feature with full review",
-  [
-    "Research: Best practices for feature",
-    "Code: Implement the feature",
-    "Review: Analyze implementation for issues",
-    "Summarize: Create documentation",
-  ]
-);
+const result = await swarm.orchestrate('Implement a feature with full review', [
+  'Research: Best practices for feature',
+  'Code: Implement the feature',
+  'Review: Analyze implementation for issues',
+  'Summarize: Create documentation',
+]);
 ```
 
 ---

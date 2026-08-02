@@ -1,19 +1,22 @@
-import pg from "pg";
-import { createLogger } from "../logger.ts";
-import type { DbProvider, QueryResult } from "./provider.ts";
+import pg from 'pg';
+import { createLogger } from '../logger.ts';
+import type { DbProvider, QueryResult } from './provider.ts';
 
 function sqliteToPg(sql: string) {
-    let pg = sql.replace(/INTEGER PRIMARY KEY AUTOINCREMENT/g, 'SERIAL PRIMARY KEY');
-    pg = pg.replace(/DATETIME/g, 'TIMESTAMP');
-    // For the specific INSERT OR IGNORE in 0002 migration
-    if (pg.includes('INSERT OR IGNORE INTO session_settings')) {
-        pg = pg.replace('INSERT OR IGNORE INTO', 'INSERT INTO');
-        pg = pg.replace('WHERE m1.session_id IS NOT NULL;', 'WHERE m1.session_id IS NOT NULL ON CONFLICT (session_id) DO NOTHING;');
-    }
-    return pg;
+  let pg = sql.replace(/INTEGER PRIMARY KEY AUTOINCREMENT/g, 'SERIAL PRIMARY KEY');
+  pg = pg.replace(/DATETIME/g, 'TIMESTAMP');
+  // For the specific INSERT OR IGNORE in 0002 migration
+  if (pg.includes('INSERT OR IGNORE INTO session_settings')) {
+    pg = pg.replace('INSERT OR IGNORE INTO', 'INSERT INTO');
+    pg = pg.replace(
+      'WHERE m1.session_id IS NOT NULL;',
+      'WHERE m1.session_id IS NOT NULL ON CONFLICT (session_id) DO NOTHING;',
+    );
+  }
+  return pg;
 }
 
-const log = createLogger("db:postgres");
+const log = createLogger('db:postgres');
 const { Pool } = pg;
 
 /**
@@ -34,11 +37,11 @@ export class PostgresDbProvider implements DbProvider {
       connectionTimeoutMillis: 5000,
     });
 
-    this.pool.on("error", (err) => {
-      log.error("Unexpected PostgreSQL pool error", err);
+    this.pool.on('error', (err) => {
+      log.error('Unexpected PostgreSQL pool error', err);
     });
 
-    log.info("PostgreSQL connection pool created", {
+    log.info('PostgreSQL connection pool created', {
       maxConnections,
       idleTimeout: 30000,
       connectionTimeout: 5000,
@@ -55,7 +58,10 @@ export class PostgresDbProvider implements DbProvider {
     }
   }
 
-  async get<T = Record<string, unknown>>(sql: string, ...params: unknown[]): Promise<T | undefined> {
+  async get<T = Record<string, unknown>>(
+    sql: string,
+    ...params: unknown[]
+  ): Promise<T | undefined> {
     const client = await this.pool.connect();
     try {
       const result = await client.query(sqliteToPg(sql), params);
@@ -90,12 +96,12 @@ export class PostgresDbProvider implements DbProvider {
   async transaction<T>(fn: (db: DbProvider) => Promise<T>): Promise<T> {
     const client = await this.pool.connect();
     try {
-      await client.query("BEGIN");
+      await client.query('BEGIN');
       const result = await fn(this);
-      await client.query("COMMIT");
+      await client.query('COMMIT');
       return result;
     } catch (err) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       throw err;
     } finally {
       client.release();
@@ -104,6 +110,6 @@ export class PostgresDbProvider implements DbProvider {
 
   async close(): Promise<void> {
     await this.pool.end();
-    log.info("PostgreSQL connection pool closed");
+    log.info('PostgreSQL connection pool closed');
   }
 }

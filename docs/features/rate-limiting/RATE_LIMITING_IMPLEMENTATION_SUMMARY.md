@@ -68,50 +68,58 @@ A comprehensive API rate limiting system has been implemented for Gravity Claw u
 ## 🎯 Features Implemented
 
 ### 1. Token Bucket Algorithm
+
 - ✅ Per-request token consumption
 - ✅ Automatic token refill
 - ✅ Burst allowance (initial credits)
 - ✅ Smooth rate limiting without blocking
 
 ### 2. Rate Limit Categories
-| Category | Default | Purpose |
-|----------|---------|---------|
-| Session | 100/min, burst 10 | Overall user limit |
-| Voice | 50/min, burst 5 | TTS (expensive) |
-| Memory | 200/min, burst 20 | Knowledge operations |
-| System | 500/min, burst 50 | Local operations |
-| Per-Tool | 30/min, burst 3 | Individual tool guard |
+
+| Category | Default           | Purpose               |
+| -------- | ----------------- | --------------------- |
+| Session  | 100/min, burst 10 | Overall user limit    |
+| Voice    | 50/min, burst 5   | TTS (expensive)       |
+| Memory   | 200/min, burst 20 | Knowledge operations  |
+| System   | 500/min, burst 50 | Local operations      |
+| Per-Tool | 30/min, burst 3   | Individual tool guard |
 
 ### 3. Storage Architecture
+
 - **In-Memory Map**: Fast O(1) lookups
 - **SQLite Tables**: Persistence and audit trail
 - **Automatic Cleanup**: Removes expired buckets every 5 minutes
 - **History Tracking**: Full audit trail of all rate limit checks
 
 ### 4. User Management Tools
+
 - Check rate limit status with `get_rate_limit_status`
 - Customize personal limits with `update_rate_limits`
 - Review usage history with `get_rate_limit_history`
 
 ### 5. Configuration Options
+
 - Default limits configurable in code
 - Environment-based overrides (NODE_ENV)
 - Per-user custom limits (lower only)
 - Development mode (10x higher limits)
 
 ### 6. Error Handling
+
 - 429 Too Many Requests responses
 - Retry-After headers (HTTP)
 - X-RateLimit-* headers
 - Structured error responses
 
 ### 7. Monitoring & Logging
+
 - Rate limit violations logged at WARN level
 - History tracking in SQLite
 - Automatic alerts (> 5 hits/hour)
 - Dashboard-ready data format
 
 ### 8. Integration Points
+
 - ✅ Agent-level (before tool execution)
 - ✅ WebSocket-level (before direct tool calls)
 - ✅ Optional HTTP middleware
@@ -120,6 +128,7 @@ A comprehensive API rate limiting system has been implemented for Gravity Claw u
 ## 📊 Default Configuration
 
 ### Per-Minute Limits
+
 ```
 Session:     100 req/min (burst: 10)
 Voice:        50 req/min (burst: 5)
@@ -129,7 +138,9 @@ Tool:         30 req/min (burst: 3)
 ```
 
 ### Development Mode
+
 All limits are 10x higher when `NODE_ENV=development`:
+
 ```
 Session:   1000 req/min (burst: 100)
 Voice:      500 req/min (burst: 50)
@@ -142,16 +153,18 @@ System:    5000 req/min (burst: 500)
 ### For Developers
 
 1. **Check rate limit before executing tool:**
+
    ```typescript
-   import { rateLimiter } from "./middleware/rate-limit.ts";
-   
+   import { rateLimiter } from './middleware/rate-limit.ts';
+
    const status = rateLimiter.checkRateLimit(sessionId, toolName);
    if (!status.allowed) {
-       return { error: "Rate limit exceeded" };
+     return { error: 'Rate limit exceeded' };
    }
    ```
 
 2. **Get user's status:**
+
    ```typescript
    const status = rateLimiter.getStatus(sessionId);
    console.log(`${status.tokensAvailable} requests available`);
@@ -165,11 +178,13 @@ System:    5000 req/min (burst: 500)
 ### For Users
 
 1. **Check quota:**
+
    ```
    User: "How many requests do I have left?"
    ```
 
 2. **Customize limit:**
+
    ```
    User: "Set my rate limit to 30 requests per minute"
    ```
@@ -205,11 +220,13 @@ docs/
 ## 🧪 Testing
 
 Run the test suite:
+
 ```bash
 npx vitest run src/__tests__/rate-limit.test.ts
 ```
 
 Tests cover:
+
 - ✅ Token bucket algorithm
 - ✅ Tool category limiting
 - ✅ Rate limit status
@@ -221,24 +238,28 @@ Tests cover:
 ## 🔧 Configuration
 
 ### Modify Default Limits
+
 Edit `DEFAULT_CONFIGS` in `src/middleware/rate-limit.ts`:
+
 ```typescript
 const DEFAULT_CONFIGS = {
-    session: {
-        requestsPerMinute: 100,  // Change here
-        burstSize: 10,           // Change here
-        refillInterval: 60000,
-    },
-    // ... other categories
+  session: {
+    requestsPerMinute: 100, // Change here
+    burstSize: 10, // Change here
+    refillInterval: 60000,
+  },
+  // ... other categories
 };
 ```
 
 ### Enable Development Mode
+
 ```bash
 NODE_ENV=development npm run dev
 ```
 
 ### Enable SQLite Persistence
+
 The implementation automatically creates and uses SQLite tables for persistence.
 
 ## 📈 Monitoring
@@ -246,6 +267,7 @@ The implementation automatically creates and uses SQLite tables for persistence.
 ### Database Queries for Insights
 
 **High violation users:**
+
 ```sql
 SELECT session_id, COUNT(*) as violations
 FROM rate_limit_history
@@ -255,6 +277,7 @@ HAVING violations > 5;
 ```
 
 **Top violating tools:**
+
 ```sql
 SELECT tool_name, COUNT(*) as violations
 FROM rate_limit_history
@@ -264,7 +287,9 @@ ORDER BY violations DESC;
 ```
 
 ### Log Monitoring
+
 Watch for lines like:
+
 ```
 ⚠️ Session abc123 hit rate limit 6 times in 1 minute
 ⚠️ Rate limit exceeded for tool 'save_fact'
@@ -295,6 +320,7 @@ Watch for lines like:
 ## 📦 Database Schema
 
 ### rate_limits Table
+
 ```sql
 CREATE TABLE rate_limits (
     id INTEGER PRIMARY KEY,
@@ -311,6 +337,7 @@ CREATE TABLE rate_limits (
 ```
 
 ### rate_limit_history Table
+
 ```sql
 CREATE TABLE rate_limit_history (
     id INTEGER PRIMARY KEY,
@@ -333,12 +360,12 @@ CREATE TABLE rate_limit_history (
 
 ## ⚙️ Performance
 
-| Metric | Value |
-|--------|-------|
-| Time per check | <1ms |
-| Space per session | ~1KB |
+| Metric            | Value                |
+| ----------------- | -------------------- |
+| Time per check    | <1ms                 |
+| Space per session | ~1KB                 |
 | Storage per month | ~50MB (with history) |
-| Cleanup interval | 5 minutes |
+| Cleanup interval  | 5 minutes            |
 
 ## 🔮 Future Enhancements
 

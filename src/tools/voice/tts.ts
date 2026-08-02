@@ -33,8 +33,7 @@ export const textToSpeechTool: Tool = {
       voice: {
         type: 'string',
         enum: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
-        description:
-          'Voice to use (alloy, echo, fable, onyx, nova, shimmer). Default is alloy.',
+        description: 'Voice to use (alloy, echo, fable, onyx, nova, shimmer). Default is alloy.',
       },
       model: {
         type: 'string',

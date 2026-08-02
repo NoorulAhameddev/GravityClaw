@@ -39,33 +39,33 @@ window.dashboardAPI = {
   goToChat: () => {
     showPage('chat');
   },
-  
+
   goToDashboard: () => {
     showPage('overview');
   },
-  
+
   goToMemory: () => {
     showPage('memory');
   },
-  
+
   goToScheduler: () => {
     showPage('scheduler');
   },
-  
+
   // Settings
   toggleVoiceMode: () => {
     const current = localStorage.getItem('voice-mode') === 'true';
     localStorage.setItem('voice-mode', String(!current));
     return !current;
   },
-  
+
   // Dashboard actions
   refresh: async () => {
     await loadHealth();
     await loadStats();
     return 'Dashboard refreshed';
   },
-  
+
   // Other methods...
 };
 ```
@@ -99,8 +99,8 @@ This works if your pages respond to hash changes. The dashboard already has this
 ```javascript
 // In index.html main script
 const hash = window.location.hash.replace('#', '');
-if (hash && pageTitles[hash]) { 
-  showPage(hash);  // Shows the page when hash changes
+if (hash && pageTitles[hash]) {
+  showPage(hash); // Shows the page when hash changes
 }
 ```
 
@@ -143,7 +143,7 @@ class VoiceSystem {
     this.enabled = localStorage.getItem('voice-mode') === 'true';
     this.setupListeners();
   }
-  
+
   setupListeners() {
     document.addEventListener('voicemode-changed', () => {
       this.enabled = localStorage.getItem('voice-mode') === 'true';
@@ -180,13 +180,13 @@ class TTSSystem {
     const providers = ['elevenlabs', 'google', 'azure', 'openai'];
     const initial = localStorage.getItem('tts-provider') || 'elevenlabs';
     this.setProvider(initial);
-    
+
     document.addEventListener('tts-provider-changed', () => {
       const current = localStorage.getItem('tts-provider');
       this.setProvider(current);
     });
   }
-  
+
   setProvider(name) {
     // Initialize provider...
     console.log(`TTS Provider set to: ${name}`);
@@ -262,7 +262,7 @@ async exportData() {
       },
       history: this.commandHistory,
     };
-    
+
     // Download
     const blob = new Blob([JSON.stringify(data, null, 2)], {
       type: 'application/json',
@@ -273,7 +273,7 @@ async exportData() {
     a.download = `gravity-claw-export-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    
+
     return 'Data exported successfully';
   } catch (error) {
     throw new Error('Failed to export data');
@@ -289,13 +289,13 @@ The implementation clears localStorage and IndexedDB:
 async clearCache() {
   const keysToKeep = ['session-id', 'voice-mode', 'tts-provider'];
   const allKeys = Object.keys(localStorage);
-  
+
   allKeys.forEach((key) => {
     if (!keysToKeep.includes(key)) {
       localStorage.removeItem(key);
     }
   });
-  
+
   // Also clears indexedDB...
   return 'Cache cleared successfully';
 }
@@ -311,10 +311,10 @@ async clearCache() {
     Object.keys(localStorage)
       .filter(k => !keysToKeep.includes(k))
       .forEach(k => localStorage.removeItem(k));
-    
+
     // Clear sessionStorage
     sessionStorage.clear();
-    
+
     // Clear IndexedDB
     if ('indexedDB' in window) {
       const dbs = await indexedDB.databases?.();
@@ -324,7 +324,7 @@ async clearCache() {
         }
       }
     }
-    
+
     // Clear service worker cache (if using)
     if ('caches' in window) {
       const cacheNames = await caches.keys();
@@ -332,12 +332,12 @@ async clearCache() {
         cacheNames.map(name => caches.delete(name))
       );
     }
-    
+
     // Clear browser cache (via API call if available)
     if (window.dashboardAPI?.clearCache) {
       await window.dashboardAPI.clearCache();
     }
-    
+
     return 'Cache cleared successfully';
   } catch (error) {
     throw new Error('Failed to clear cache');
@@ -353,17 +353,17 @@ Update the `openSettings` handler to match your settings UI:
 openSettings() {
   // Method 1: Hash navigation
   window.location.hash = '#settings';
-  
+
   // Method 2: Show settings modal
   if (window.dashboardAPI?.showSettings) {
     window.dashboardAPI.showSettings();
   }
-  
+
   // Method 3: Open settings page
   if (typeof showPage === 'function') {
     showPage('settings');
   }
-  
+
   this.showToast('⚙️ Opening settings...');
 }
 ```
@@ -435,27 +435,27 @@ To add your own commands, modify the constructor in `command-palette.js`:
 // test-command-palette.js
 describe('CommandPalette Integration', () => {
   let palette;
-  
+
   before(() => {
     palette = CommandPalette.getInstance();
   });
-  
+
   it('should navigate to dashboard', () => {
-    const cmd = palette.allCommands.find(c => c.id === 'nav-dashboard');
+    const cmd = palette.allCommands.find((c) => c.id === 'nav-dashboard');
     expect(cmd).toBeDefined();
     expect(cmd.handler).toBeDefined();
   });
-  
+
   it('should toggle voice mode', () => {
-    const cmd = palette.allCommands.find(c => c.id === 'settings-voice');
+    const cmd = palette.allCommands.find((c) => c.id === 'settings-voice');
     localStorage.setItem('voice-mode', 'false');
     cmd.handler();
     expect(localStorage.getItem('voice-mode')).toBe('true');
   });
-  
+
   it('should perform fuzzy search', () => {
     const results = palette.fuzzySearch('dash', palette.allCommands);
-    expect(results.some(r => r.name === 'Go to Dashboard')).toBe(true);
+    expect(results.some((r) => r.name === 'Go to Dashboard')).toBe(true);
   });
 });
 ```
@@ -485,7 +485,7 @@ const palette = CommandPalette.getInstance();
 
 // Hook into executeCommand
 const original = palette.executeCommand;
-palette.executeCommand = async function(cmd) {
+palette.executeCommand = async function (cmd) {
   console.log('CMD.EXEC', cmd.id, cmd.name);
   try {
     const result = await original.call(this, cmd);
@@ -523,7 +523,7 @@ document.getElementById('cmd-list');
 ```javascript
 // Execute command and get result
 const palette = CommandPalette.getInstance();
-palette.executeCommand(cmd).then(result => {
+palette.executeCommand(cmd).then((result) => {
   console.log('Command completed:', result);
 });
 ```
@@ -534,7 +534,7 @@ palette.executeCommand(cmd).then(result => {
 // Re-execute last command
 const last = palette.commandHistory[0];
 if (last) {
-  const cmd = palette.allCommands.find(c => c.id === last.id);
+  const cmd = palette.allCommands.find((c) => c.id === last.id);
   palette.executeCommand(cmd);
 }
 ```
@@ -549,7 +549,7 @@ palette.allCommands.push({
   category: 'Runtime',
   icon: '⚡',
   handler: () => console.log('Dynamic!'),
-  description: 'Added at runtime'
+  description: 'Added at runtime',
 });
 ```
 

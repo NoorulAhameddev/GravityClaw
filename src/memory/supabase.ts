@@ -1,14 +1,14 @@
-import OpenAI from "openai";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { config } from "../config.ts";
-import { createLogger } from "../logger.ts";
-import { db } from "../db.ts";
+import OpenAI from 'openai';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { config } from '../config.ts';
+import { createLogger } from '../logger.ts';
+import { db } from '../db.ts';
 export { db };
-import type { SemanticSearchResult } from "../types/memory.js";
+import type { SemanticSearchResult } from '../types/memory.js';
 
-export type { SemanticSearchResult } from "../types/memory.js";
+export type { SemanticSearchResult } from '../types/memory.js';
 
-const log = createLogger("memory:supabase");
+const log = createLogger('memory:supabase');
 
 interface SessionSyncPayload {
   id: string;
@@ -59,8 +59,8 @@ function getClient(): SupabaseClient | null {
 }
 
 function parseSessionId(sessionId: string): { channelId?: string; chatId?: string } {
-  const [channelId, ...rest] = sessionId.split(":");
-  const chatId = rest.length > 0 ? rest.join(":") : undefined;
+  const [channelId, ...rest] = sessionId.split(':');
+  const chatId = rest.length > 0 ? rest.join(':') : undefined;
 
   const parsed: { channelId?: string; chatId?: string } = {};
   if (channelId) {
@@ -93,7 +93,7 @@ function fallbackEmbedding(text: string, dims = 64): number[] {
   const vector = Array.from({ length: dims }, () => 0);
   const tokens = text
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
     .filter(Boolean);
 
@@ -108,7 +108,7 @@ function fallbackEmbedding(text: string, dims = 64): number[] {
 export async function generateEmbedding(text: string): Promise<number[]> {
   const cleaned = text.trim();
   if (!cleaned) {
-    return fallbackEmbedding("empty");
+    return fallbackEmbedding('empty');
   }
 
   if (!config.OPENAI_API_KEY) {
@@ -129,7 +129,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
     return embedding;
   } catch (err) {
-    const message = err instanceof Error ? err.message : "unknown error";
+    const message = err instanceof Error ? err.message : 'unknown error';
     log.warn(`Embedding API failed, using fallback embedding: ${message}`);
     return fallbackEmbedding(cleaned);
   }
@@ -143,8 +143,8 @@ function createDefaultAdapter(): SupabaseMemoryAdapter {
         return;
       }
 
-      const { error } = await supabase.from("sessions").upsert(payload, {
-        onConflict: "id",
+      const { error } = await supabase.from('sessions').upsert(payload, {
+        onConflict: 'id',
       });
 
       if (error) {
@@ -158,7 +158,7 @@ function createDefaultAdapter(): SupabaseMemoryAdapter {
         return;
       }
 
-      const { error } = await supabase.from("messages").insert(payload);
+      const { error } = await supabase.from('messages').insert(payload);
 
       if (error) {
         throw new Error(`Supabase insert message failed: ${error.message}`);
@@ -171,7 +171,7 @@ function createDefaultAdapter(): SupabaseMemoryAdapter {
         return [];
       }
 
-      const { data, error } = await supabase.rpc("search_memory_semantic", {
+      const { data, error } = await supabase.rpc('search_memory_semantic', {
         query_session_id: payload.sessionId,
         query_embedding: payload.queryEmbedding,
         match_count: payload.limit,
@@ -221,7 +221,7 @@ export async function syncMessageToSupabase(input: {
   timestamp?: string;
 }): Promise<boolean> {
   if (!isSupabaseMemoryEnabled()) {
-    log.debug("Supabase memory sync skipped: SUPABASE_URL/SUPABASE_KEY not configured");
+    log.debug('Supabase memory sync skipped: SUPABASE_URL/SUPABASE_KEY not configured');
     return false;
   }
 
@@ -278,7 +278,11 @@ function cosineSimilarity(v1: number[], v2: number[]): number {
   return dotProduct / mag;
 }
 
-export function fallbackLocalSemanticSearch(sessionId: string, query: string, limit: number): SemanticSearchResult[] {
+export function fallbackLocalSemanticSearch(
+  sessionId: string,
+  query: string,
+  limit: number,
+): SemanticSearchResult[] {
   const rows = db
     .prepare(
       `
@@ -287,29 +291,29 @@ export function fallbackLocalSemanticSearch(sessionId: string, query: string, li
       WHERE session_id = ?
       ORDER BY timestamp DESC, id DESC
       LIMIT 200
-      `
+      `,
     )
     .all(sessionId) as Array<{
-      id: number;
-      session_id: string;
-      timestamp: string;
-      message_json: string;
-    }>;
+    id: number;
+    session_id: string;
+    timestamp: string;
+    message_json: string;
+  }>;
 
   const queryEmbedding = fallbackEmbedding(query);
 
   const scored = rows
     .map((row) => {
-      let role = "unknown";
-      let content = "";
+      let role = 'unknown';
+      let content = '';
 
       try {
         const message = JSON.parse(row.message_json) as { role?: string; content?: unknown };
-        role = message.role ?? "unknown";
-        if (typeof message.content === "string") {
+        role = message.role ?? 'unknown';
+        if (typeof message.content === 'string') {
           content = message.content;
         } else if (Array.isArray(message.content)) {
-          content = message.content.map((item) => (typeof item === "string" ? item : "")).join(" ");
+          content = message.content.map((item) => (typeof item === 'string' ? item : '')).join(' ');
         }
       } catch {
         content = row.message_json;
@@ -335,7 +339,7 @@ export function fallbackLocalSemanticSearch(sessionId: string, query: string, li
 export async function searchMemorySemantic(
   sessionId: string,
   query: string,
-  limit = 5
+  limit = 5,
 ): Promise<SemanticSearchResult[]> {
   const cleaned = query.trim();
   if (!cleaned) {
@@ -343,7 +347,7 @@ export async function searchMemorySemantic(
   }
 
   const clampedLimit = Math.max(1, Math.min(50, Math.floor(limit)));
-  
+
   if (isSupabaseMemoryEnabled()) {
     try {
       const queryEmbedding = await generateEmbedding(cleaned);
@@ -353,7 +357,9 @@ export async function searchMemorySemantic(
         limit: clampedLimit,
       });
     } catch (err) {
-      log.warn(`Supabase semantic search failed, using local fallback: ${err instanceof Error ? err.message : String(err)}`);
+      log.warn(
+        `Supabase semantic search failed, using local fallback: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 

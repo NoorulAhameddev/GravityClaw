@@ -1,35 +1,35 @@
-import type { LLMProvider } from "../types/llm.js";
-import { OpenRouterProvider } from "./openrouter.ts";
-import { OpenAIProvider } from "./openai.ts";
-import { AnthropicProvider } from "./anthropic.ts";
-import { GoogleProvider } from "./google.ts";
-import { GroqProvider } from "./groq.ts";
-import { DeepSeekProvider } from "./deepseek.ts";
-import { OpenCodeZenProvider } from "./opencodezen.ts";
-import { CohereProvider } from "./cohere.ts";
-import { MistralProvider } from "./mistral.ts";
-import { OllamaProvider } from "./ollama.ts";
-import { NvidiaProvider } from "./nvidia.ts";
-import { FailoverProvider } from "./failover.ts";
-import { MockProvider } from "./mock.ts";
-import { CachedLLMProvider } from "./cache.ts";
-import { setCachedProviderRef } from "../tools/cache.ts";
-import { config } from "../config.ts";
-import { createLogger } from "../logger.ts";
+import type { LLMProvider } from '../types/llm.js';
+import { OpenRouterProvider } from './openrouter.ts';
+import { OpenAIProvider } from './openai.ts';
+import { AnthropicProvider } from './anthropic.ts';
+import { GoogleProvider } from './google.ts';
+import { GroqProvider } from './groq.ts';
+import { DeepSeekProvider } from './deepseek.ts';
+import { OpenCodeZenProvider } from './opencodezen.ts';
+import { CohereProvider } from './cohere.ts';
+import { MistralProvider } from './mistral.ts';
+import { OllamaProvider } from './ollama.ts';
+import { NvidiaProvider } from './nvidia.ts';
+import { FailoverProvider } from './failover.ts';
+import { MockProvider } from './mock.ts';
+import { CachedLLMProvider } from './cache.ts';
+import { setCachedProviderRef } from '../tools/cache.ts';
+import { config } from '../config.ts';
+import { createLogger } from '../logger.ts';
 
-const log = createLogger("llm");
+const log = createLogger('llm');
 
-export { SYSTEM_PROMPT } from "./base.ts";
-export type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
-export { FailoverProvider } from "./failover.ts";
-export { OpenRouterProvider } from "./openrouter.ts";
-export { OpenCodeZenProvider } from "./opencodezen.ts";
-export { CohereProvider } from "./cohere.ts";
-export { MistralProvider } from "./mistral.ts";
-export { NvidiaProvider } from "./nvidia.ts";
-export { MockProvider } from "./mock.ts";
-export type { OpenRouterModel } from "./openrouter.ts";
-export * from "./orchestrator.ts";
+export { SYSTEM_PROMPT } from './base.ts';
+export type { LLMProvider, LLMResponse, LLMChatOptions } from '../types/llm.js';
+export { FailoverProvider } from './failover.ts';
+export { OpenRouterProvider } from './openrouter.ts';
+export { OpenCodeZenProvider } from './opencodezen.ts';
+export { CohereProvider } from './cohere.ts';
+export { MistralProvider } from './mistral.ts';
+export { NvidiaProvider } from './nvidia.ts';
+export { MockProvider } from './mock.ts';
+export type { OpenRouterModel } from './openrouter.ts';
+export * from './orchestrator.ts';
 
 /**
  * Create a single provider instance by name (used by failover provider)
@@ -38,76 +38,80 @@ function createSingleProvider(providerName: string, model?: string): LLMProvider
   const providerModel = model || config.LLM_MODEL;
 
   switch (providerName) {
-    case "openrouter":
+    case 'openrouter':
       if (!config.OPENROUTER_API_KEY) {
-        throw new Error("OPENROUTER_API_KEY is required for OpenRouter provider");
+        throw new Error('OPENROUTER_API_KEY is required for OpenRouter provider');
       }
       return new OpenRouterProvider(config.OPENROUTER_API_KEY, providerModel);
 
-    case "openai":
+    case 'openai':
       if (!config.OPENAI_API_KEY) {
-        throw new Error("OPENAI_API_KEY is required for OpenAI provider");
+        throw new Error('OPENAI_API_KEY is required for OpenAI provider');
       }
       return new OpenAIProvider(config.OPENAI_API_KEY, providerModel);
 
-    case "opencodezen":
+    case 'opencodezen':
       if (!config.OPENCODEZEN_API_KEY) {
-        throw new Error("OPENCODEZEN_API_KEY is required for OpenCodeZen provider");
+        throw new Error('OPENCODEZEN_API_KEY is required for OpenCodeZen provider');
       }
-      return new OpenCodeZenProvider(config.OPENCODEZEN_API_KEY, providerModel, config.OPENCODEZEN_BASE_URL);
+      return new OpenCodeZenProvider(
+        config.OPENCODEZEN_API_KEY,
+        providerModel,
+        config.OPENCODEZEN_BASE_URL,
+      );
 
-    case "anthropic":
+    case 'anthropic':
       if (!config.ANTHROPIC_API_KEY) {
-        throw new Error("ANTHROPIC_API_KEY is required for Anthropic provider");
+        throw new Error('ANTHROPIC_API_KEY is required for Anthropic provider');
       }
       return new AnthropicProvider(config.ANTHROPIC_API_KEY, providerModel);
 
-    case "google":
+    case 'google':
       if (!config.GOOGLE_API_KEY) {
-        throw new Error("GOOGLE_API_KEY is required for Google provider");
+        throw new Error('GOOGLE_API_KEY is required for Google provider');
       }
       return new GoogleProvider(config.GOOGLE_API_KEY, providerModel);
 
-    case "groq":
+    case 'groq':
       if (!config.GROQ_API_KEY) {
-        throw new Error("GROQ_API_KEY is required for Groq provider");
+        throw new Error('GROQ_API_KEY is required for Groq provider');
       }
       return new GroqProvider(config.GROQ_API_KEY, providerModel);
 
-    case "deepseek":
+    case 'deepseek':
       if (!config.DEEPSEEK_API_KEY) {
-        throw new Error("DEEPSEEK_API_KEY is required for DeepSeek provider");
+        throw new Error('DEEPSEEK_API_KEY is required for DeepSeek provider');
       }
       return new DeepSeekProvider(config.DEEPSEEK_API_KEY, providerModel);
 
-    case "ollama":
-      const ollamaURL = config.OLLAMA_BASE_URL || "http://localhost:11434";
+    case 'ollama':
+      const ollamaURL = config.OLLAMA_BASE_URL || 'http://localhost:11434';
       return new OllamaProvider(providerModel, ollamaURL);
 
-    case "cohere":
+    case 'cohere':
       if (!config.COHERE_API_KEY) {
-        throw new Error("COHERE_API_KEY is required for Cohere provider");
+        throw new Error('COHERE_API_KEY is required for Cohere provider');
       }
       return new CohereProvider(config.COHERE_API_KEY, providerModel);
 
-    case "mistral":
+    case 'mistral':
       if (!config.MISTRAL_API_KEY) {
-        throw new Error("MISTRAL_API_KEY is required for Mistral provider");
+        throw new Error('MISTRAL_API_KEY is required for Mistral provider');
       }
       return new MistralProvider(config.MISTRAL_API_KEY, providerModel);
 
-    case "nvidia":
+    case 'nvidia':
       if (!config.NVIDIA_API_KEY) {
-        throw new Error("NVIDIA_API_KEY is required for NVIDIA provider");
+        throw new Error('NVIDIA_API_KEY is required for NVIDIA provider');
       }
       return new NvidiaProvider(config.NVIDIA_API_KEY, providerModel);
 
-    case "mock":
+    case 'mock':
       return new MockProvider();
 
     default:
       throw new Error(
-        `Unknown LLM provider: ${providerName}. Available: openrouter, openai, anthropic, google, groq, deepseek, ollama, cohere, mistral, nvidia, mock, opencodezen`
+        `Unknown LLM provider: ${providerName}. Available: openrouter, openai, anthropic, google, groq, deepseek, ollama, cohere, mistral, nvidia, mock, opencodezen`,
       );
   }
 }
@@ -115,24 +119,30 @@ function createSingleProvider(providerName: string, model?: string): LLMProvider
 /**
  * Create an LLM provider based on configuration or overrides
  */
-export function createProvider(overrides?: { provider?: string | undefined; model?: string | undefined }): LLMProvider {
-  const providerName = overrides?.provider || config.LLM_PROVIDER || "openrouter";
+export function createProvider(overrides?: {
+  provider?: string | undefined;
+  model?: string | undefined;
+}): LLMProvider {
+  const providerName = overrides?.provider || config.LLM_PROVIDER || 'openrouter';
   const modelName = overrides?.model || config.LLM_MODEL;
 
-  log.info(`Creating LLM provider: ${providerName}${overrides ? " (session override)" : ""}`);
+  log.info(`Creating LLM provider: ${providerName}${overrides ? ' (session override)' : ''}`);
 
   let provider: LLMProvider;
 
   // Special case: failover provider
-  if (providerName === "failover") {
-    const failoverList = config.LLM_FAILOVER_LIST || "openai,anthropic,openrouter";
-    const providerNames = failoverList.split(",").map((p) => p.trim()).filter(Boolean);
+  if (providerName === 'failover') {
+    const failoverList = config.LLM_FAILOVER_LIST || 'openai,anthropic,openrouter';
+    const providerNames = failoverList
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
 
     if (providerNames.length === 0) {
-      throw new Error("LLM_FAILOVER_LIST must contain at least one provider");
+      throw new Error('LLM_FAILOVER_LIST must contain at least one provider');
     }
 
-    log.info(`Creating failover provider with: ${providerNames.join(", ")}`);
+    log.info(`Creating failover provider with: ${providerNames.join(', ')}`);
 
     const providers: LLMProvider[] = [];
     const errors: string[] = [];
@@ -150,14 +160,12 @@ export function createProvider(overrides?: { provider?: string | undefined; mode
     }
 
     if (providers.length === 0) {
-      throw new Error(
-        `No valid providers available for failover. Errors:\n${errors.join("\n")}`
-      );
+      throw new Error(`No valid providers available for failover. Errors:\n${errors.join('\n')}`);
     }
 
     if (providers.length === 1) {
       log.warn(
-        "Only 1 provider available for failover, consider adding more API keys for redundancy"
+        'Only 1 provider available for failover, consider adding more API keys for redundancy',
       );
     }
 

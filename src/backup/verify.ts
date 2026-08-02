@@ -1,5 +1,5 @@
-import { createHash } from "crypto";
-import { statSync, readFileSync, existsSync } from "fs";
+import { createHash } from 'crypto';
+import { statSync, readFileSync, existsSync } from 'fs';
 
 export interface VerificationResult {
   valid: boolean;
@@ -10,11 +10,21 @@ export interface VerificationResult {
   errors: string[];
 }
 
-export function verifyBackup(backupPath: string, metadata?: { expectedSize: number; expectedHash: string }): VerificationResult {
+export function verifyBackup(
+  backupPath: string,
+  metadata?: { expectedSize: number; expectedHash: string },
+): VerificationResult {
   const errors: string[] = [];
 
   if (!existsSync(backupPath)) {
-    return { valid: false, path: backupPath, size: 0, sizeMatch: false, hashMatch: false, errors: ["File does not exist"] };
+    return {
+      valid: false,
+      path: backupPath,
+      size: 0,
+      sizeMatch: false,
+      hashMatch: false,
+      errors: ['File does not exist'],
+    };
   }
 
   let size = 0;
@@ -30,10 +40,10 @@ export function verifyBackup(backupPath: string, metadata?: { expectedSize: numb
     errors.push(`Size mismatch: expected ${metadata.expectedSize}, got ${size}`);
   }
 
-  let hash = "";
+  let hash = '';
   try {
     const data = readFileSync(backupPath);
-    hash = createHash("sha256").update(data).digest("hex");
+    hash = createHash('sha256').update(data).digest('hex');
   } catch (err) {
     errors.push(`Cannot read file: ${err}`);
     return { valid: false, path: backupPath, size, sizeMatch, hashMatch: false, errors };

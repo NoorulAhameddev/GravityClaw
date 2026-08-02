@@ -1,3 +1,3 @@
-export type { Tool } from "../index.js";
+export type { Tool } from '../index.js';
 
-export * from "./google-calendar.js";
+export * from './google-calendar.js';

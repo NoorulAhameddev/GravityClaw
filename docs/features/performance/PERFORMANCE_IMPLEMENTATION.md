@@ -114,7 +114,7 @@ Comprehensive load testing and performance optimization suite has been created f
 
 ### Performance Tests
 
-13. **[src/__tests__/performance.test.ts](../src/__tests__/performance.test.ts)** (380+ lines)
+13. **[src/**tests**/performance.test.ts](../src/__tests__/performance.test.ts)** (380+ lines)
     - Vitest suite for performance regression detection
     - Tool execution benchmarks
     - Agent iteration latency tests
@@ -155,6 +155,7 @@ Comprehensive load testing and performance optimization suite has been created f
 ## Performance Optimizations Summary
 
 ### Database Layer
+
 - ✅ Indexes on: `session_id`, `timestamp`, `session_id+timestamp`, `workflow_id+status`
 - ✅ Session settings cache with auto-cleanup
 - ✅ Batch insert transactions
@@ -162,6 +163,7 @@ Comprehensive load testing and performance optimization suite has been created f
 - ✅ Query result caching (5-minute TTL)
 
 ### WebSocket Layer
+
 - ✅ Max 1000 concurrent connections per instance
 - ✅ 30-second heartbeat with ping-pong
 - ✅ 60-second idle connection timeout
@@ -170,6 +172,7 @@ Comprehensive load testing and performance optimization suite has been created f
 - ✅ Message size warnings (>100KB)
 
 ### Memory Layer
+
 - ✅ 1-minute interval memory snapshots
 - ✅ Memory trend analysis (increasing/stable/decreasing)
 - ✅ Leak detection (8+ increasing trends = potential leak)
@@ -178,6 +181,7 @@ Comprehensive load testing and performance optimization suite has been created f
 - ✅ Peak heap tracking
 
 ### Tool Layer
+
 - ✅ Per-tool execution metrics
 - ✅ 5-minute result caching
 - ✅ Slow execution warnings (>100ms)
@@ -186,6 +190,7 @@ Comprehensive load testing and performance optimization suite has been created f
 - ✅ Automatic cache cleanup
 
 ### Agent Loop
+
 - ✅ Per-iteration latency tracking
 - ✅ Tool call counting per iteration
 - ✅ Regex pattern compilation caching
@@ -224,6 +229,7 @@ curl http://localhost:3000/api/metrics/all
 ## Usage Examples
 
 ### Run Load Test
+
 ```bash
 npm run bench:load
 # Output: metrics/load-test-*.json
@@ -233,6 +239,7 @@ npx tsx scripts/load-test.ts --clients 100 --messages 50 --duration 120
 ```
 
 ### Run Stress Test
+
 ```bash
 npm run bench:stress
 # Output: metrics/stress-test-*.json
@@ -242,22 +249,26 @@ npx tsx scripts/stress-test.ts --max-clients 500 --increment 25
 ```
 
 ### Run Tool Benchmarks
+
 ```bash
 npm run bench:tools
 # Output: metrics/bench-tools-*.json
 ```
 
 ### Run All Tests
+
 ```bash
 npm run bench:all
 ```
 
 ### Performance Regression Test (CI/CD)
+
 ```bash
 npm run test:performance
 ```
 
 ### View Metrics
+
 ```bash
 # In browser or curl
 curl http://localhost:3000/api/metrics/all | jq
@@ -265,27 +276,29 @@ curl http://localhost:3000/api/metrics/all | jq
 
 ## Performance Baseline Targets
 
-| Metric | Target | Notes |
-|--------|--------|-------|
-| Connected Clients | 50+ | Single instance |
-| Messages/Sec | 50+ | Sustained throughput |
-| Latency P50 | < 50ms | Typical response |
-| Latency P95 | < 200ms | 95th percentile |
-| Latency P99 | < 500ms | Worst-case (99th) |
-| Heap Memory | < 300MB | At 50 clients |
-| Peak Memory | < 500MB | Under stress test |
-| Tool Execution | < 50ms | Per tool average |
-| Error Rate | < 1% | Success rate > 99% |
+| Metric            | Target  | Notes                |
+| ----------------- | ------- | -------------------- |
+| Connected Clients | 50+     | Single instance      |
+| Messages/Sec      | 50+     | Sustained throughput |
+| Latency P50       | < 50ms  | Typical response     |
+| Latency P95       | < 200ms | 95th percentile      |
+| Latency P99       | < 500ms | Worst-case (99th)    |
+| Heap Memory       | < 300MB | At 50 clients        |
+| Peak Memory       | < 500MB | Under stress test    |
+| Tool Execution    | < 50ms  | Per tool average     |
+| Error Rate        | < 1%    | Success rate > 99%   |
 
 ## Scaling Recommendations
 
 ### Single Instance
+
 - **Light** (10-50 clients): 200MB RAM, minimal CPU
 - **Medium** (50-150 clients): 300-350MB RAM, 20-50% CPU
 - **Heavy** (150-200 clients): 400-450MB RAM, 50-80% CPU
 - **Maximum** (250+ clients): Not sustainable single instance
 
 ### Production (3-5 Instances)
+
 - Each instance: 2 CPU cores, 1GB RAM minimum
 - Load balanced with sticky sessions
 - Shared database with connection pooling
@@ -294,9 +307,11 @@ curl http://localhost:3000/api/metrics/all | jq
 ## Monitoring Setup
 
 ### Real-time Dashboard
+
 Use `/api/metrics/all` endpoint for comprehensive metrics
 
 ### Monitoring Checklist
+
 - [ ] Daily: Check health endpoint
 - [ ] Weekly: Run performance tests
 - [ ] Monthly: Scale recommendations update
@@ -304,17 +319,18 @@ Use `/api/metrics/all` endpoint for comprehensive metrics
 
 ## Known Limitations
 
-| Limit | Value | Solution |
-|-------|-------|----------|
-| Concurrent Clients | 250-500 | Run multiple instances |
-| Messages/sec | 500-1000 | Add message batching |
-| Database Size | 10GB | Implement archival |
-| Tool Cache | 5 min TTL | Adjust in tool-optimization.ts |
-| Memory | 512MB | Increase instance size |
+| Limit              | Value     | Solution                       |
+| ------------------ | --------- | ------------------------------ |
+| Concurrent Clients | 250-500   | Run multiple instances         |
+| Messages/sec       | 500-1000  | Add message batching           |
+| Database Size      | 10GB      | Implement archival             |
+| Tool Cache         | 5 min TTL | Adjust in tool-optimization.ts |
+| Memory             | 512MB     | Increase instance size         |
 
 ## Next Steps
 
 1. **Establish Baseline**
+
    ```bash
    npm run bench:load
    npm run bench:stress
@@ -339,16 +355,19 @@ Use `/api/metrics/all` endpoint for comprehensive metrics
 ## Troubleshooting
 
 ### High Memory Usage
+
 ```bash
 curl http://localhost:3000/api/metrics/memory | jq .leakDetection
 ```
 
 ### Connection Issues
+
 ```bash
 curl http://localhost:3000/api/metrics/all | jq '.health'
 ```
 
 ### Slow Tool Execution
+
 ```bash
 curl http://localhost:3000/api/metrics/tools | jq '.slowestTools'
 ```
@@ -372,6 +391,7 @@ curl http://localhost:3000/api/metrics/tools | jq '.slowestTools'
 ## Questions?
 
 Refer to:
+
 - [PERFORMANCE.md](../docs/PERFORMANCE.md) - Detailed guide
 - [PERFORMANCE_SETUP.md](../docs/PERFORMANCE_SETUP.md) - Quick reference
 - Test files - Implementation examples

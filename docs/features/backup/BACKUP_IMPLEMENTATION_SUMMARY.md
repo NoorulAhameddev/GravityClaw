@@ -9,6 +9,7 @@ A production-grade automated backup and restore system has been successfully imp
 ### Core Backup Module (`src/backup/`)
 
 #### 1. **index.ts** - Main Module
+
 - Initializes backup system on app startup
 - Configuration management with sensible defaults
 - Export public API functions
@@ -23,6 +24,7 @@ A production-grade automated backup and restore system has been successfully imp
   - `stopBackupScheduler()` - Graceful shutdown
 
 **Configuration:**
+
 - `BACKUP_ENABLED` (default: true) - Enable scheduler
 - `BACKUP_CRON` (default: "0 2 * * *") - Daily at 2 AM
 - `BACKUP_RETENTION_DAYS` (default: 30) - Keep 30 days
@@ -32,7 +34,9 @@ A production-grade automated backup and restore system has been successfully imp
 - `BACKUP_MASTER_KEY` - Encryption key
 
 #### 2. **backup.ts** - Core Logic
+
 **BackupManager Class**
+
 - Uses SQLite's `.backup()` command
 - Compression with zlib
 - Encryption with AES-256-GCM
@@ -41,6 +45,7 @@ A production-grade automated backup and restore system has been successfully imp
 - Error handling with rollback
 
 **Key Methods:**
+
 - `createBackup()` - Create encrypted, compressed backup
 - `restoreFromBackup()` - Decrypt, verify, restore safely
 - `listBackups()` - List all backups with metadata
@@ -50,6 +55,7 @@ A production-grade automated backup and restore system has been successfully imp
 - `getBackupStats()` - Storage analysis
 
 **Backup Format:**
+
 ```
 backup-YYYYMMDD-HHMMSS-timestamp.db.gz.enc
 ├── IV (16 bytes) - Random initialization vector
@@ -59,6 +65,7 @@ backup-YYYYMMDD-HHMMSS-timestamp.db.gz.enc
 ```
 
 **Metadata File:**
+
 ```
 backups/index.json
 {
@@ -75,13 +82,16 @@ backups/index.json
 ```
 
 #### 3. **scheduler.ts** - Cron Scheduling
+
 **BackupScheduler Class**
+
 - Uses node-cron for scheduling
 - Configurable cron expressions
 - Automatic retention cleanup
 - Error handling and logging
 
 **Key Methods:**
+
 - `start()` - Start scheduler
 - `stop()` - Stop scheduler
 - `triggerBackup()` - Manual trigger
@@ -93,12 +103,14 @@ backups/index.json
 ### Backup Tools (`src/tools/backup/`)
 
 #### 1. **createBackupTool.ts**
+
 - Tool name: `create_backup`
 - Creates on-demand backup
 - Optional description field
 - Returns: filename, timestamp, success status
 
 #### 2. **restoreBackupTool.ts**
+
 - Tool name: `restore_backup`
 - Required: `backup_filename`
 - Validates backup exists
@@ -106,18 +118,21 @@ backups/index.json
 - Note: Connection must be reestablished
 
 #### 3. **listBackupsTool.ts**
+
 - Tool name: `list_backups`
 - Returns all backups with details
 - Shows statistics (total size, count, dates)
 - Formatted output (human-readable sizes)
 
 #### 4. **deleteBackupTool.ts**
+
 - Tool name: `delete_backup`
 - Required: `backup_filename`
 - Optional: `reason` for deletion log
 - Validates backup exists before deletion
 
 #### 5. **getBackupStatusTool.ts**
+
 - Tool name: `get_backup_status`
 - No input required
 - Returns scheduler status
@@ -126,6 +141,7 @@ backups/index.json
 - Storage statistics
 
 #### 6. **verifyBackupTool.ts**
+
 - Tool name: `verify_backup`
 - Required: `backup_filename`
 - Validates decryption
@@ -134,6 +150,7 @@ backups/index.json
 - Returns validity status
 
 #### 7. **index.ts** - Tool Registry
+
 - Exports all tools
 - Creates `backupTools` array for registration
 
@@ -144,7 +161,9 @@ backups/index.json
 ### Modified Files
 
 #### 1. **src/config.ts**
+
 Added backup configuration options:
+
 ```typescript
 BACKUP_ENABLED: boolean (default: true)
 BACKUP_CRON: string (default: "0 2 * * *")
@@ -156,6 +175,7 @@ BACKUP_MASTER_KEY: string (optional)
 ```
 
 #### 2. **src/index.ts**
+
 - Import backup module and tools
 - Register all backup tools in registry
 - Initialize backup system on startup
@@ -163,34 +183,39 @@ BACKUP_MASTER_KEY: string (optional)
 - Error handling (non-fatal if backup init fails)
 
 **Imports Added:**
+
 ```typescript
-import { backupTools } from "./tools/backup/index.ts";
-import { 
-  initializeBackupSystem, 
-  stopBackupScheduler, 
-  DEFAULT_BACKUP_CONFIG 
-} from "./backup/index.ts";
-import { db } from "./db.ts";
+import { backupTools } from './tools/backup/index.ts';
+import {
+  initializeBackupSystem,
+  stopBackupScheduler,
+  DEFAULT_BACKUP_CONFIG,
+} from './backup/index.ts';
+import { db } from './db.ts';
 ```
 
 **Initialization:**
+
 ```typescript
 await initializeBackupSystem(db, dbPath, {
-    enabled: DEFAULT_BACKUP_CONFIG.enabled,
-    cronExpression: DEFAULT_BACKUP_CONFIG.cronExpression,
-    retentionDays: DEFAULT_BACKUP_CONFIG.retentionDays,
-    encryptBackups: DEFAULT_BACKUP_CONFIG.encryptBackups,
-    compressBackups: DEFAULT_BACKUP_CONFIG.compressBackups,
+  enabled: DEFAULT_BACKUP_CONFIG.enabled,
+  cronExpression: DEFAULT_BACKUP_CONFIG.cronExpression,
+  retentionDays: DEFAULT_BACKUP_CONFIG.retentionDays,
+  encryptBackups: DEFAULT_BACKUP_CONFIG.encryptBackups,
+  compressBackups: DEFAULT_BACKUP_CONFIG.compressBackups,
 });
 ```
 
 **Shutdown:**
+
 ```typescript
 stopBackupScheduler();
 ```
 
 #### 3. **.gitignore**
+
 Added backup directory exclusions:
+
 ```
 # Database Backups (automated backup system)
 backups/
@@ -203,6 +228,7 @@ backup-*.db*
 ## 📊 Features Detail
 
 ### Security
+
 - **Encryption**: AES-256-GCM (NIST-approved)
 - **Key Derivation**: SHA256 hash of master key
 - **IV**: 16 random bytes per backup
@@ -210,6 +236,7 @@ backup-*.db*
 - **Format**: IV (16) + AuthTag (16) + EncryptedData
 
 ### Backup Process
+
 1. Create SQLite backup using `.backup()` command
 2. Read backup into memory
 3. Calculate checksum (SHA256)
@@ -220,6 +247,7 @@ backup-*.db*
 8. Clean up old backups
 
 ### Restore Process
+
 1. Read encrypted backup file
 2. Decrypt AES-256-GCM (if encrypted)
 3. Decompress gzip (if compressed)
@@ -229,6 +257,7 @@ backup-*.db*
 7. Note: Connection must be reestablished
 
 ### Error Handling
+
 - **Backup Failures**: Logged, partial files cleaned up
 - **Restore Failures**: Original DB preserved, detailed errors
 - **Encryption Issues**: Clear error messages
@@ -237,6 +266,7 @@ backup-*.db*
 - **Non-Fatal**: Backup system init failure doesn't crash app
 
 ### Performance
+
 - **Backup Duration**: 1-10 seconds (typical)
 - **Restore Duration**: 2-15 seconds (typical)
 - **Compression Ratio**: 3:1 to 10:1
@@ -244,7 +274,9 @@ backup-*.db*
 - **CPU**: Minimal (mostly I/O bound)
 
 ### Monitoring
+
 Tools for health checks:
+
 - `get_backup_status` - Overall health
 - `verify_backup` - Integrity check
 - `list_backups` - Inventory and statistics
@@ -255,13 +287,16 @@ Tools for health checks:
 ## 📚 Documentation
 
 ### Main Documentation
+
 - **BACKUP_RESTORE_SYSTEM.md** - Complete guide with all features
 
 ### Examples & Configuration
+
 - **BACKUP_ENV_EXAMPLE.sh** - Environment configuration template
 - **BACKUP_USAGE_EXAMPLES.ts** - Code examples for 10 scenarios
 
 ### Features Covered in Docs
+
 - Configuration options
 - Architecture overview
 - Tool usage and responses
@@ -277,6 +312,7 @@ Tools for health checks:
 ## 🚀 Startup Integration
 
 ### Automatic Initialization
+
 1. System reads config on startup
 2. Creates BackupManager instance
 3. Starts BackupScheduler with cron
@@ -284,7 +320,9 @@ Tools for health checks:
 5. Continues with automatic daily schedule
 
 ### Registry
+
 All 6 tools automatically registered:
+
 - `create_backup`
 - `restore_backup`
 - `list_backups`
@@ -293,6 +331,7 @@ All 6 tools automatically registered:
 - `verify_backup`
 
 ### Shutdown
+
 1. Stops backup scheduler
 2. Closes any open operations
 3. Clean shutdown signals honored
@@ -302,12 +341,14 @@ All 6 tools automatically registered:
 ## 📦 Dependencies
 
 ### Existing (Already in package.json)
+
 - `better-sqlite3` - Database
 - `node-cron` - Scheduling
 - `zlib` - Compression (Node.js built-in)
 - `crypto` - Encryption (Node.js built-in)
 
 ### No New Dependencies Required
+
 All dependencies already available in project.
 
 ---

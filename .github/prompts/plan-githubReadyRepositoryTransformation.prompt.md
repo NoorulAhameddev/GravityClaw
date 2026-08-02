@@ -103,9 +103,9 @@ Your repository has strong foundations but needs strategic cleanup across four d
 
 14. **Reorganize test structure**
     - Create [tests](tests) directory at root with [unit](tests/unit), [integration](tests/integration), [e2e](tests/e2e), [fixtures](tests/fixtures) subdirectories
-    - Move tests from [src/__tests__](src/__tests__) to mirror src/ structure in tests/unit/
+    - Move tests from [src/**tests**](src/__tests__) to mirror src/ structure in tests/unit/
     - Update [vitest.config.ts](config/vitest.config.ts) include paths
-    - Consider keeping [src/__tests__/manual](src/__tests__/manual) co-located for developer convenience
+    - Consider keeping [src/**tests**/manual](src/__tests__/manual) co-located for developer convenience
 
 15. **Add GitHub Actions enhancements**
     - Extend [.github/workflows/ci.yml](.github/workflows/ci.yml) with: code coverage reporting, security scanning (npm audit), dependency updates (Dependabot), automatic releases
@@ -121,9 +121,10 @@ Your repository has strong foundations but needs strategic cleanup across four d
 After each tier, run these checks:
 
 **Post Tier 1:**
+
 ```bash
 # Verify removed files no longer tracked
-git ls-files | grep -E "(playwright-mcp|PROGRESS|add_numbers|check_tools|debug_agent|improved-ui)" 
+git ls-files | grep -E "(playwright-mcp|PROGRESS|add_numbers|check_tools|debug_agent|improved-ui)"
 # Should return nothing
 
 # Check .next/ removed from history
@@ -137,6 +138,7 @@ git status | grep "playwright-mcp"
 ```
 
 **Post Tier 2:**
+
 ```bash
 # Verify governance docs exist
 ls CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md
@@ -151,6 +153,7 @@ npx markdownlint-cli2 "*.md" "docs/**/*.md"
 ```
 
 **Post Tier 3:**
+
 ```bash
 # Verify tools reorganization
 find src/tools -type f -name "*.ts" | head -3
@@ -173,6 +176,7 @@ cd src/web && npm run build
 ```
 
 **Post Tier 4 (if completed):**
+
 ```bash
 # Verify GitHub repo clean
 git log --oneline --graph --all | head -20

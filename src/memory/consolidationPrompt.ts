@@ -1,44 +1,42 @@
-import { config } from "../config.ts";
-import { loadFactsForPrompt, readAllFacts, rewriteSessionFacts } from "./markdown.ts";
-import type { MarkdownFact } from "../types/memory.js";
+import { config } from '../config.ts';
+import { loadFactsForPrompt, readAllFacts, rewriteSessionFacts } from './markdown.ts';
+import type { MarkdownFact } from '../types/memory.js';
 
-export async function buildConsolidationPrompt(
-    sessionIds: string[],
-): Promise<string> {
-    const allFacts: MarkdownFact[] = [];
+export async function buildConsolidationPrompt(sessionIds: string[]): Promise<string> {
+  const allFacts: MarkdownFact[] = [];
 
-    for (const sessionId of sessionIds) {
-        const sessionFacts = readAllFacts(sessionId);
-        allFacts.push(...sessionFacts);
+  for (const sessionId of sessionIds) {
+    const sessionFacts = readAllFacts(sessionId);
+    allFacts.push(...sessionFacts);
+  }
+
+  const duplicates = new Map<string, { fact: MarkdownFact; count: number }>();
+  for (const fact of allFacts) {
+    const key = fact.fact.toLowerCase();
+    const existing = duplicates.get(key);
+    if (existing) {
+      existing.count++;
+    } else {
+      duplicates.set(key, { fact, count: 1 });
     }
+  }
 
-    const duplicates = new Map<string, { fact: MarkdownFact; count: number }>();
-    for (const fact of allFacts) {
-        const key = fact.fact.toLowerCase();
-        const existing = duplicates.get(key);
-        if (existing) {
-            existing.count++;
-        } else {
-            duplicates.set(key, { fact, count: 1 });
-        }
-    }
+  const uniqueFacts = Array.from(duplicates.values())
+    .filter((d) => d.count >= 1)
+    .sort((a, b) => b.count - a.count)
+    .map((d) => d.fact);
 
-    const uniqueFacts = Array.from(duplicates.values())
-        .filter((d) => d.count >= 1)
-        .sort((a, b) => b.count - a.count)
-        .map((d) => d.fact);
+  const factSummary = uniqueFacts
+    .slice(0, 50)
+    .map((f) => `- [${f.timestamp || 'unknown'}] [${f.category}] ${f.fact}`)
+    .join('\n');
 
-    const factSummary = uniqueFacts
-        .slice(0, 50)
-        .map((f) => `- [${f.timestamp || "unknown"}] [${f.category}] ${f.fact}`)
-        .join("\n");
-
-    return `## Memory Consolidation
+  return `## Memory Consolidation
 
 You are consolidating memories from ${sessionIds.length} sessions.
 
 ### Current Facts
-${factSummary || "No facts found."}
+${factSummary || 'No facts found.'}
 
 ### Task
 Review the facts above and:

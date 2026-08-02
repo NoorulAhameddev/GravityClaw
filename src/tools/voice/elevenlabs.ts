@@ -1,6 +1,10 @@
 import type { Tool } from './index.js';
 import { config } from '../../config.js';
-import { createElevenLabsService, type ElevenLabsVoiceId, type ElevenLabsModel } from '../../voice/elevenlabs.js';
+import {
+  createElevenLabsService,
+  type ElevenLabsVoiceId,
+  type ElevenLabsModel,
+} from '../../voice/elevenlabs.js';
 import { createLogger } from '../../logger.js';
 import { getSecret } from '../../secrets-runtime.ts';
 
@@ -10,14 +14,16 @@ let elevenLabsService: ReturnType<typeof createElevenLabsService> | null = null;
 
 async function getElevenLabsService() {
   if (!elevenLabsService) {
-    const apiKey = config.ELEVENLABS_API_KEY || await getSecret("ELEVENLABS_API_KEY");
+    const apiKey = config.ELEVENLABS_API_KEY || (await getSecret('ELEVENLABS_API_KEY'));
     if (apiKey) {
       const voiceId = (config.ELEVENLABS_VOICE_ID || 'bella') as ElevenLabsVoiceId;
       elevenLabsService = createElevenLabsService(apiKey, voiceId);
     }
   }
   if (!elevenLabsService) {
-    throw new Error('ElevenLabs API key not configured. Set ELEVENLABS_API_KEY in environment or add to secrets store.');
+    throw new Error(
+      'ElevenLabs API key not configured. Set ELEVENLABS_API_KEY in environment or add to secrets store.',
+    );
   }
   return elevenLabsService;
 }
@@ -117,7 +123,8 @@ export const elevenLabsTextToSpeechStreamingTool: Tool = {
       },
       chunk_size: {
         type: 'number',
-        description: 'Target size for each chunk in characters (default 1500, ElevenLabs limit is higher)',
+        description:
+          'Target size for each chunk in characters (default 1500, ElevenLabs limit is higher)',
       },
       __sessionId: {
         type: 'string',
@@ -159,4 +166,7 @@ export const elevenLabsTextToSpeechStreamingTool: Tool = {
 /**
  * ElevenLabs tools array for registration
  */
-export const elevenLabsTools: Tool[] = [elevenLabsTextToSpeechTool, elevenLabsTextToSpeechStreamingTool];
+export const elevenLabsTools: Tool[] = [
+  elevenLabsTextToSpeechTool,
+  elevenLabsTextToSpeechStreamingTool,
+];

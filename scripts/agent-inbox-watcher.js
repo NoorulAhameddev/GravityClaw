@@ -1,87 +1,103 @@
-import fs from "fs/promises";
-import path from "path";
-import { fileURLToPath } from "url";
-import "dotenv/config";
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import 'dotenv/config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const ROOT = path.resolve(__dirname, "..");
-const INBOX_DIR = path.join(ROOT, ".agent_inbox");
-const OUTBOX_DIR = path.join(ROOT, ".agent_outbox");
+const ROOT = path.resolve(__dirname, '..');
+const INBOX_DIR = path.join(ROOT, '.agent_inbox');
+const OUTBOX_DIR = path.join(ROOT, '.agent_outbox');
 
 const PROVIDERS = [
   {
-    name: "OpenRouter",
+    name: 'OpenRouter',
     key: process.env.OPENROUTER_API_KEY,
-    model: process.env.ANTIGRAVITY_MODEL_OPENROUTER || "openai/gpt-4o-mini",
+    model: process.env.ANTIGRAVITY_MODEL_OPENROUTER || 'openai/gpt-4o-mini',
     call: async (instructions) => {
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "HTTP-Referer": "https://gravityclaw.local",
+          'HTTP-Referer': 'https://gravityclaw.local',
         },
         body: JSON.stringify({
-          model: process.env.ANTIGRAVITY_MODEL_OPENROUTER || "openai/gpt-4o-mini",
+          model: process.env.ANTIGRAVITY_MODEL_OPENROUTER || 'openai/gpt-4o-mini',
           messages: [
-            { role: "system", content: "You are Antigravity, a parallel AI co-pilot executing delegated tasks. Complete the following task thoroughly and return the full results." },
-            { role: "user", content: instructions },
+            {
+              role: 'system',
+              content:
+                'You are Antigravity, a parallel AI co-pilot executing delegated tasks. Complete the following task thoroughly and return the full results.',
+            },
+            { role: 'user', content: instructions },
           ],
           max_tokens: 16384,
         }),
       });
       if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
       const data = await res.json();
-      return data.choices?.[0]?.message?.content || "[no response]";
+      return data.choices?.[0]?.message?.content || '[no response]';
     },
   },
   {
-    name: "Google Gemini",
+    name: 'Google Gemini',
     key: process.env.GOOGLE_API_KEY,
-    model: process.env.ANTIGRAVITY_MODEL_GOOGLE || "gemini-1.5-flash",
+    model: process.env.ANTIGRAVITY_MODEL_GOOGLE || 'gemini-1.5-flash',
     call: async (instructions) => {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/${process.env.ANTIGRAVITY_MODEL_GOOGLE || "gemini-1.5-flash"}:generateContent?key=${process.env.GOOGLE_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1/models/${process.env.ANTIGRAVITY_MODEL_GOOGLE || 'gemini-1.5-flash'}:generateContent?key=${process.env.GOOGLE_API_KEY}`,
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: `You are Antigravity, a parallel AI co-pilot executing delegated tasks. Complete the following task thoroughly.\n\n${instructions}` }] }],
+            contents: [
+              {
+                parts: [
+                  {
+                    text: `You are Antigravity, a parallel AI co-pilot executing delegated tasks. Complete the following task thoroughly.\n\n${instructions}`,
+                  },
+                ],
+              },
+            ],
             generationConfig: { maxOutputTokens: 8192 },
           }),
         },
       );
       if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
       const data = await res.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || "[no response]";
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || '[no response]';
     },
   },
   {
-    name: "OpenCodeZen",
+    name: 'OpenCodeZen',
     key: process.env.OPENCODEZEN_API_KEY,
-    model: process.env.ANTIGRAVITY_MODEL_ZEN || "gpt-4o-mini",
+    model: process.env.ANTIGRAVITY_MODEL_ZEN || 'gpt-4o-mini',
     call: async (instructions) => {
-      const baseUrl = process.env.OPENCODEZEN_BASE_URL || "https://opencode.ai/zen/v1";
+      const baseUrl = process.env.OPENCODEZEN_BASE_URL || 'https://opencode.ai/zen/v1';
       const res = await fetch(`${baseUrl}/chat/completions`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${process.env.OPENCODEZEN_API_KEY}`,
         },
         body: JSON.stringify({
-          model: process.env.ANTIGRAVITY_MODEL_ZEN || "gpt-4o-mini",
+          model: process.env.ANTIGRAVITY_MODEL_ZEN || 'gpt-4o-mini',
           messages: [
-            { role: "system", content: "You are Antigravity, a parallel AI co-pilot executing delegated tasks. Complete the following task thoroughly." },
-            { role: "user", content: instructions },
+            {
+              role: 'system',
+              content:
+                'You are Antigravity, a parallel AI co-pilot executing delegated tasks. Complete the following task thoroughly.',
+            },
+            { role: 'user', content: instructions },
           ],
           max_tokens: 16384,
         }),
       });
       if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
       const data = await res.json();
-      return data.choices?.[0]?.message?.content || "[no response]";
+      return data.choices?.[0]?.message?.content || '[no response]';
     },
   },
 ].filter((p) => p.key);
@@ -93,20 +109,20 @@ async function ensureDirs() {
 
 async function processTask(fileName) {
   const filePath = path.join(INBOX_DIR, fileName);
-  const processingPath = path.join(INBOX_DIR, fileName.replace(".json", ".processing.json"));
-  const failedPath = path.join(INBOX_DIR, fileName.replace(".json", ".failed.json"));
+  const processingPath = path.join(INBOX_DIR, fileName.replace('.json', '.processing.json'));
+  const failedPath = path.join(INBOX_DIR, fileName.replace('.json', '.failed.json'));
 
   let task;
   try {
-    const raw = await fs.readFile(filePath, "utf8");
+    const raw = await fs.readFile(filePath, 'utf8');
     task = JSON.parse(raw);
   } catch {
     return;
   }
 
-  if (task.status !== "pending") return;
+  if (task.status !== 'pending') return;
 
-  task.status = "processing";
+  task.status = 'processing';
   task.startedAt = new Date().toISOString();
 
   try {
@@ -121,14 +137,14 @@ async function processTask(fileName) {
   for (const provider of PROVIDERS) {
     try {
       const result = await provider.call(task.instructions);
-      task.status = "completed";
+      task.status = 'completed';
       task.completedAt = new Date().toISOString();
       task.provider = provider.name;
       task.result = result;
       task.output = result;
 
       const outboxPath = path.join(OUTBOX_DIR, `${task.taskId}.json`);
-      await fs.writeFile(outboxPath, JSON.stringify(task, null, 2), "utf8");
+      await fs.writeFile(outboxPath, JSON.stringify(task, null, 2), 'utf8');
       console.error(`[InboxWatcher] Completed ${task.taskId} (via ${provider.name})`);
       await fs.unlink(processingPath);
       return;
@@ -138,11 +154,11 @@ async function processTask(fileName) {
     }
   }
 
-  task.status = "failed";
+  task.status = 'failed';
   task.failedAt = new Date().toISOString();
-  task.error = lastError?.message || "No providers available";
+  task.error = lastError?.message || 'No providers available';
   task.output = task.error;
-  await fs.writeFile(failedPath, JSON.stringify(task, null, 2), "utf8");
+  await fs.writeFile(failedPath, JSON.stringify(task, null, 2), 'utf8');
   await fs.unlink(processingPath);
   console.error(`[InboxWatcher] Failed ${task.taskId}: ${task.error}`);
 }
@@ -151,14 +167,14 @@ async function scanInbox() {
   try {
     const entries = await fs.readdir(INBOX_DIR);
     const taskFiles = entries
-      .filter((f) => f.endsWith(".json") && !f.includes(".processing.") && !f.includes(".failed."))
+      .filter((f) => f.endsWith('.json') && !f.includes('.processing.') && !f.includes('.failed.'))
       .sort();
 
     for (const file of taskFiles) {
       await processTask(file);
     }
   } catch (err) {
-    if (err.code !== "ENOENT") {
+    if (err.code !== 'ENOENT') {
       console.error(`[InboxWatcher] Scan error: ${err.message}`);
     }
   }
@@ -168,10 +184,13 @@ function parseArgs(argv) {
   const args = new Map();
   for (let i = 0; i < argv.length; i++) {
     const part = argv[i];
-    if (!part?.startsWith("--")) continue;
+    if (!part?.startsWith('--')) continue;
     const key = part.slice(2);
     const next = argv[i + 1];
-    if (!next || next.startsWith("--")) { args.set(key, true); continue; }
+    if (!next || next.startsWith('--')) {
+      args.set(key, true);
+      continue;
+    }
     args.set(key, next);
     i++;
   }
@@ -180,16 +199,20 @@ function parseArgs(argv) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const once = Boolean(args.get("once"));
-  const intervalMinutes = Number(args.get("interval-minutes") ?? 1);
+  const once = Boolean(args.get('once'));
+  const intervalMinutes = Number(args.get('interval-minutes') ?? 1);
 
   await ensureDirs();
   console.error(`[InboxWatcher] Watching ${INBOX_DIR} → ${OUTBOX_DIR}`);
 
   if (PROVIDERS.length === 0) {
-    console.error(`[InboxWatcher] WARNING: No LLM API keys found. Set OPENROUTER_API_KEY or GOOGLE_API_KEY in .env`);
+    console.error(
+      `[InboxWatcher] WARNING: No LLM API keys found. Set OPENROUTER_API_KEY or GOOGLE_API_KEY in .env`,
+    );
   } else {
-    console.error(`[InboxWatcher] Providers: ${PROVIDERS.map((p) => `${p.name} (${p.model})`).join(", ")}`);
+    console.error(
+      `[InboxWatcher] Providers: ${PROVIDERS.map((p) => `${p.name} (${p.model})`).join(', ')}`,
+    );
   }
 
   await scanInbox();
@@ -202,6 +225,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("[InboxWatcher] Fatal:", err);
+  console.error('[InboxWatcher] Fatal:', err);
   process.exit(1);
 });

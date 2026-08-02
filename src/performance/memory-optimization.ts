@@ -1,6 +1,6 @@
 /**
  * Memory and Resource Optimization
- * 
+ *
  * Provides:
  * - Memory monitoring
  * - Cache size limiting
@@ -9,10 +9,10 @@
  * - Memory leak detection
  */
 
-import { memoryUsage } from "process";
-import { createLogger } from "../logger.ts";
+import { memoryUsage } from 'process';
+import { createLogger } from '../logger.ts';
 
-const log = createLogger("memory-optimization");
+const log = createLogger('memory-optimization');
 
 const MAX_HEAP_SIZE_MB = 512;
 const MAX_CACHE_SIZE = 10000;
@@ -44,7 +44,7 @@ class CircularBuffer<T> {
 
   push(item: T): void {
     if (this.capacity === 0) return;
-    
+
     if (this.full) {
       this.buffer[this.index] = item;
     } else {
@@ -58,10 +58,7 @@ class CircularBuffer<T> {
 
   toArray(): T[] {
     if (!this.full) return [...this.buffer];
-    return [
-      ...this.buffer.slice(this.index),
-      ...this.buffer.slice(0, this.index)
-    ];
+    return [...this.buffer.slice(this.index), ...this.buffer.slice(0, this.index)];
   }
 
   clear(): void {
@@ -80,7 +77,7 @@ class MemoryEfficientCache<K, V> {
 
   constructor(
     private maxSize: number,
-    private ttlMs: number = 30 * 60 * 1000
+    private ttlMs: number = 30 * 60 * 1000,
   ) {}
 
   set(key: K, value: V, customTTL?: number): void {
@@ -92,14 +89,14 @@ class MemoryEfficientCache<K, V> {
     }
     this.cache.set(key, {
       value,
-      expiresAt: Date.now() + (customTTL ?? this.ttlMs)
+      expiresAt: Date.now() + (customTTL ?? this.ttlMs),
     });
   }
 
   get(key: K): V | undefined {
     const entry = this.cache.get(key);
     if (!entry) return undefined;
-    
+
     if (Date.now() > entry.expiresAt) {
       this.cache.delete(key);
       return undefined;
@@ -107,7 +104,7 @@ class MemoryEfficientCache<K, V> {
 
     this.cache.delete(key);
     this.cache.set(key, entry);
-    
+
     return entry.value;
   }
 
@@ -136,14 +133,14 @@ class MemoryEfficientCache<K, V> {
   cleanup(): number {
     const now = Date.now();
     let cleaned = 0;
-    
+
     for (const [key, entry] of this.cache.entries()) {
       if (now > entry.expiresAt) {
         this.cache.delete(key);
         cleaned++;
       }
     }
-    
+
     return cleaned;
   }
 }
@@ -159,7 +156,7 @@ let gcHintTimer: ReturnType<typeof setInterval> | null = null;
  * Initialize memory optimizations
  */
 export function initializeMemoryOptimizations(): void {
-  log.info("Initializing memory optimizations");
+  log.info('Initializing memory optimizations');
 
   memorySnapshots = new CircularBuffer<MemorySnapshot>(60);
   globalCache = new MemoryEfficientCache<string, unknown>(MAX_CACHE_SIZE);
@@ -202,7 +199,7 @@ function startMemoryMonitoring(): void {
       if (now - lastMemoryWarning > MEMORY_WARN_COOLDOWN) {
         lastMemoryWarning = now;
         log.debug(
-          `Memory usage: ${(mem.heapUsed / 1024 / 1024).toFixed(2)}MB / ${(mem.heapTotal / 1024 / 1024).toFixed(2)}MB (${(heapPercent * 100).toFixed(1)}%)`
+          `Memory usage: ${(mem.heapUsed / 1024 / 1024).toFixed(2)}MB / ${(mem.heapTotal / 1024 / 1024).toFixed(2)}MB (${(heapPercent * 100).toFixed(1)}%)`,
         );
 
         if (globalCache) {
@@ -210,7 +207,7 @@ function startMemoryMonitoring(): void {
         }
 
         if (global.gc) {
-          log.debug("Triggering garbage collection");
+          log.debug('Triggering garbage collection');
           global.gc();
         }
       }
@@ -227,7 +224,7 @@ function startGCHints(): void {
   }
 
   gcHintTimer = setInterval(() => {
-    log.debug("Suggesting garbage collection");
+    log.debug('Suggesting garbage collection');
     global.gc!();
   }, GC_INTERVAL);
 }
@@ -269,18 +266,18 @@ export function getMemoryStats(): Record<string, unknown> {
 export function getMemoryTrend(): Record<string, unknown> {
   const snapshots = memorySnapshots.toArray();
   if (snapshots.length < 2) {
-    return { status: "insufficient data" };
+    return { status: 'insufficient data' };
   }
 
   const first = snapshots[0];
   const last = snapshots[snapshots.length - 1];
   if (!first || !last) return { heapGrowth: 0, heapGrowthRate: 0 };
-  
+
   const heapDelta = last.heapUsed - first.heapUsed;
   const heapDeltaMB = heapDelta / 1024 / 1024;
   const timeDeltaMins = (last.timestamp - first.timestamp) / 60000;
 
-  const trend = heapDelta > 0 ? "increasing" : heapDelta < 0 ? "decreasing" : "stable";
+  const trend = heapDelta > 0 ? 'increasing' : heapDelta < 0 ? 'decreasing' : 'stable';
   const rate = timeDeltaMins > 0 ? heapDeltaMB / timeDeltaMins : 0;
 
   return {
@@ -301,7 +298,7 @@ export function detectMemoryLeaks(): {
 } {
   const snapshots = memorySnapshots.toArray();
   if (snapshots.length < 10) {
-    return { hasLeak: false, reason: "Insufficient data" };
+    return { hasLeak: false, reason: 'Insufficient data' };
   }
 
   const recent = snapshots.slice(-10);
@@ -326,7 +323,7 @@ export function detectMemoryLeaks(): {
     }
   }
 
-  return { hasLeak: false, reason: "No leaks detected" };
+  return { hasLeak: false, reason: 'No leaks detected' };
 }
 
 /**
@@ -352,9 +349,9 @@ export function forceCleanup(): void {
   maxHeapObserved = 0;
 
   if (global.gc) {
-    log.info("Running forced garbage collection");
+    log.info('Running forced garbage collection');
     global.gc();
   }
 
-  log.info("✅ Memory cleanup complete");
+  log.info('✅ Memory cleanup complete');
 }

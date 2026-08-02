@@ -1,25 +1,29 @@
-import fs from "node:fs";
-import path from "node:path";
-import Database from "better-sqlite3";
+import fs from 'node:fs';
+import path from 'node:path';
+import Database from 'better-sqlite3';
 
-const DEFAULT_VAULT_ROOT = "D:\\Projects\\Zed";
-const DEFAULT_PROJECT_SLUG = "gravityclaw";
-const DEFAULT_PROJECT_NAME = "GravityClaw";
+const DEFAULT_VAULT_ROOT = 'D:\\Projects\\Zed';
+const DEFAULT_PROJECT_SLUG = 'gravityclaw';
+const DEFAULT_PROJECT_NAME = 'GravityClaw';
 
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
 function slugify(value) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80) || "session";
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 80) || 'session'
+  );
 }
 
 function truncate(value, maxLength = 120) {
-  const normalized = String(value || "").replace(/\s+/g, " ").trim();
+  const normalized = String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (normalized.length <= maxLength) {
     return normalized;
   }
@@ -39,7 +43,7 @@ function getDbPath(workspaceRoot, explicitDbPath) {
   if (explicitDbPath) {
     return explicitDbPath;
   }
-  return path.join(workspaceRoot, "data", "gravity.db");
+  return path.join(workspaceRoot, 'data', 'gravity.db');
 }
 
 function getLatestSession(dbPath) {
@@ -50,37 +54,48 @@ function getLatestSession(dbPath) {
   const db = new Database(dbPath, { readonly: true });
 
   try {
-    const latest = db.prepare(`
+    const latest = db
+      .prepare(
+        `
       SELECT session_id, MAX(timestamp) AS last_timestamp, COUNT(*) AS message_count
       FROM memory
       GROUP BY session_id
       ORDER BY last_timestamp DESC, session_id DESC
       LIMIT 1
-    `).get();
+    `,
+      )
+      .get();
 
     if (!latest?.session_id) {
       return null;
     }
 
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT timestamp, message_json
       FROM memory
       WHERE session_id = ?
       ORDER BY timestamp ASC, id ASC
-    `).all(latest.session_id);
+    `,
+      )
+      .all(latest.session_id);
 
     const messages = rows.map((row) => {
       let parsed;
       try {
         parsed = JSON.parse(row.message_json);
       } catch {
-        parsed = { role: "unknown", content: row.message_json };
+        parsed = { role: 'unknown', content: row.message_json };
       }
 
       return {
         timestamp: row.timestamp,
-        role: parsed?.role ?? "unknown",
-        content: typeof parsed?.content === "string" ? parsed.content : JSON.stringify(parsed?.content ?? ""),
+        role: parsed?.role ?? 'unknown',
+        content:
+          typeof parsed?.content === 'string'
+            ? parsed.content
+            : JSON.stringify(parsed?.content ?? ''),
       };
     });
 
@@ -96,10 +111,12 @@ function getLatestSession(dbPath) {
 }
 
 function buildSummary(session) {
-  const firstUser = session.messages.find((message) => message.role === "user" && message.content.trim().length > 0);
+  const firstUser = session.messages.find(
+    (message) => message.role === 'user' && message.content.trim().length > 0,
+  );
   const lastAssistant = [...session.messages]
     .reverse()
-    .find((message) => message.role === "assistant" && message.content.trim().length > 0);
+    .find((message) => message.role === 'assistant' && message.content.trim().length > 0);
 
   if (lastAssistant) {
     return truncate(lastAssistant.content, 140);
@@ -119,36 +136,36 @@ function ensureDailyNote(dailyNotePath, dateLabel) {
 
   const template = [
     `# ${dateLabel}`,
-    "",
-    "## Rapid Log",
-    "",
-    "## Sessions Today",
-    "",
-    "## Tasks Completed",
-    "",
-    "## Tasks Created",
-    "",
-    "## Decisions",
-    "",
-  ].join("\n");
+    '',
+    '## Rapid Log',
+    '',
+    '## Sessions Today',
+    '',
+    '## Tasks Completed',
+    '',
+    '## Tasks Created',
+    '',
+    '## Decisions',
+    '',
+  ].join('\n');
 
-  fs.writeFileSync(dailyNotePath, template, "utf8");
+  fs.writeFileSync(dailyNotePath, template, 'utf8');
 }
 
 function appendDailyEntry(dailyNotePath, entry, archiveLink) {
-  const content = fs.readFileSync(dailyNotePath, "utf8");
+  const content = fs.readFileSync(dailyNotePath, 'utf8');
   if (content.includes(archiveLink)) {
     return false;
   }
 
-  const sessionsHeader = "## Sessions Today";
+  const sessionsHeader = '## Sessions Today';
   if (!content.includes(sessionsHeader)) {
-    fs.appendFileSync(dailyNotePath, `\n${sessionsHeader}\n\n${entry}\n`, "utf8");
+    fs.appendFileSync(dailyNotePath, `\n${sessionsHeader}\n\n${entry}\n`, 'utf8');
     return true;
   }
 
   const updated = content.replace(sessionsHeader, `${sessionsHeader}\n${entry}`);
-  fs.writeFileSync(dailyNotePath, updated, "utf8");
+  fs.writeFileSync(dailyNotePath, updated, 'utf8');
   return true;
 }
 
@@ -158,31 +175,33 @@ function writeArchive(archivePath, session, summary, timestamp, projectName) {
   }
 
   const transcript = session.messages
-    .map((message) => `## ${message.role} (${message.timestamp})\n\n${message.content || "[empty]"}`)
-    .join("\n\n");
+    .map(
+      (message) => `## ${message.role} (${message.timestamp})\n\n${message.content || '[empty]'}`,
+    )
+    .join('\n\n');
 
   const archive = [
-    "---",
+    '---',
     `project: "${projectName}"`,
     `session_id: "${session.sessionId}"`,
     `synced_at: "${timestamp}"`,
     `message_count: ${session.messageCount}`,
-    "---",
-    "",
+    '---',
+    '',
     `# ${summary}`,
-    "",
+    '',
     `- Project: ${projectName}`,
     `- Session ID: \`${session.sessionId}\``,
     `- Synced: ${timestamp}`,
     `- Messages: ${session.messageCount}`,
-    "",
-    "## Transcript",
-    "",
+    '',
+    '## Transcript',
+    '',
     transcript,
-    "",
-  ].join("\n");
+    '',
+  ].join('\n');
 
-  fs.writeFileSync(archivePath, archive, "utf8");
+  fs.writeFileSync(archivePath, archive, 'utf8');
   return true;
 }
 
@@ -191,17 +210,17 @@ function updateVaultContext(vaultContextPath, dateLabel, projectName) {
     return false;
   }
 
-  const content = fs.readFileSync(vaultContextPath, "utf8");
+  const content = fs.readFileSync(vaultContextPath, 'utf8');
   const updated = content.replace(
     /^> Last sync:.*$/m,
-    `> Last sync: ${dateLabel} (${projectName} session sync)`
+    `> Last sync: ${dateLabel} (${projectName} session sync)`,
   );
 
   if (updated === content) {
     return false;
   }
 
-  fs.writeFileSync(vaultContextPath, updated, "utf8");
+  fs.writeFileSync(vaultContextPath, updated, 'utf8');
   return true;
 }
 
@@ -215,18 +234,18 @@ export function syncLatestSessionToVault(options = {}) {
 
   const session = getLatestSession(dbPath);
   if (!session) {
-    return { success: false, reason: "no-session", dbPath };
+    return { success: false, reason: 'no-session', dbPath };
   }
 
   const parts = isoDateParts(now);
   const summary = buildSummary(session);
   const archiveSlug = `${projectSlug}-${slugify(session.sessionId)}`;
 
-  const dailyDir = path.join(vaultRoot, "1-Daily");
-  const archiveDir = path.join(vaultRoot, "9-Decisions", "sessions");
+  const dailyDir = path.join(vaultRoot, '1-Daily');
+  const archiveDir = path.join(vaultRoot, '9-Decisions', 'sessions');
   const dailyNotePath = path.join(dailyDir, `${parts.date}.md`);
   const archivePath = path.join(archiveDir, `${archiveSlug}.md`);
-  const vaultContextPath = path.join(vaultRoot, "vault-context.md");
+  const vaultContextPath = path.join(vaultRoot, 'vault-context.md');
   const archiveLink = `[[9-Decisions/sessions/${archiveSlug}]]`;
   const dailyEntry = `- ${parts.time} ${archiveLink} - ${summary}`;
 
@@ -235,7 +254,13 @@ export function syncLatestSessionToVault(options = {}) {
     ensureDir(archiveDir);
     ensureDailyNote(dailyNotePath, parts.date);
 
-    const archiveCreated = writeArchive(archivePath, session, summary, parts.timestamp, projectName);
+    const archiveCreated = writeArchive(
+      archivePath,
+      session,
+      summary,
+      parts.timestamp,
+      projectName,
+    );
     const dailyUpdated = appendDailyEntry(dailyNotePath, dailyEntry, archiveLink);
     const contextUpdated = updateVaultContext(vaultContextPath, parts.date, projectName);
 
@@ -253,7 +278,7 @@ export function syncLatestSessionToVault(options = {}) {
   } catch (error) {
     return {
       success: false,
-      reason: "write-failed",
+      reason: 'write-failed',
       dbPath,
       sessionId: session.sessionId,
       error: error instanceof Error ? error.message : String(error),

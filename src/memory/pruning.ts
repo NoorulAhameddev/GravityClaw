@@ -11,19 +11,19 @@
  * - Trigger automatically before LLM call or manually via /compact command
  */
 
-import { getHistory, addAssistantMessage } from "../llm/index.ts";
-import type { LLMMessage } from "../llm/index.ts";
-import { getModelPricing, isApproachingContextLimit } from "../llm/pricing.ts";
-import { getProvider } from "../llm/index.ts";
-import { db } from "../db.ts";
-import { config } from "../config.ts";
-import { createLogger } from "../logger.ts";
-import type { PruningConfig } from "../types/memory.js";
-import type { OrchestratorDependencies } from "../llm/orchestrator.ts";
+import { getHistory, addAssistantMessage } from '../llm/index.ts';
+import type { LLMMessage } from '../llm/index.ts';
+import { getModelPricing, isApproachingContextLimit } from '../llm/pricing.ts';
+import { getProvider } from '../llm/index.ts';
+import { db } from '../db.ts';
+import { config } from '../config.ts';
+import { createLogger } from '../logger.ts';
+import type { PruningConfig } from '../types/memory.js';
+import type { OrchestratorDependencies } from '../llm/orchestrator.ts';
 
-export type { PruningConfig } from "../types/memory.js";
+export type { PruningConfig } from '../types/memory.js';
 
-const log = createLogger("pruning");
+const log = createLogger('pruning');
 
 const orchestratorDeps: OrchestratorDependencies = { db, config };
 
@@ -77,7 +77,7 @@ export function calculateContextUsage(sessionId: string, modelName: string): num
 export function isContextNearLimit(
   sessionId: string,
   modelName: string,
-  threshold: number = DEFAULT_PRUNING_CONFIG.contextThreshold
+  threshold: number = DEFAULT_PRUNING_CONFIG.contextThreshold,
 ): boolean {
   const usage = calculateContextUsage(sessionId, modelName);
   return usage >= threshold;
@@ -92,33 +92,33 @@ export function isContextNearLimit(
  */
 export async function generateContextSummary(
   sessionId: string,
-  messagesToSummarize: LLMMessage[]
+  messagesToSummarize: LLMMessage[],
 ): Promise<string> {
   try {
     if (messagesToSummarize.length === 0) {
-      return "No prior context.";
+      return 'No prior context.';
     }
 
     // Create summary prompt
     const conversationText = messagesToSummarize
       .map((msg, i) => {
-        const role = msg.role === "user" ? "User" : "Assistant";
-        let content = "";
+        const role = msg.role === 'user' ? 'User' : 'Assistant';
+        let content = '';
 
         // Handle different content types (string or array of content parts)
-        if (typeof msg.content === "string") {
+        if (typeof msg.content === 'string') {
           content = msg.content;
         } else if (Array.isArray(msg.content)) {
           content = msg.content
-            .map((part: any) => (typeof part === "object" && part.text ? part.text : ""))
-            .join("");
+            .map((part: any) => (typeof part === 'object' && part.text ? part.text : ''))
+            .join('');
         }
 
         // Truncate very long messages for summary prompt
-        const truncated = content.length > 500 ? content.substring(0, 500) + "..." : content;
+        const truncated = content.length > 500 ? content.substring(0, 500) + '...' : content;
         return `${role} (${i + 1}): ${truncated}`;
       })
-      .join("\n");
+      .join('\n');
 
     const summaryPrompt = `Summarize the following conversation history concisely. Focus on key decisions, facts learned, and important context. Keep it brief but comprehensive. Aim for 2-3 sentences or bullet points.
 
@@ -131,15 +131,12 @@ Summary:`;
     const provider = getProvider();
     const summaryMessages = [
       {
-        role: "user" as const,
+        role: 'user' as const,
         content: summaryPrompt,
       },
     ];
 
-    const response = await provider.chat(
-      summaryMessages,
-      []
-    );
+    const response = await provider.chat(summaryMessages, []);
 
     const summary = response.text;
     log.info(`Generated context summary with ${summary.length} characters`);
@@ -161,7 +158,7 @@ Summary:`;
  */
 export function identifyPrunableMessages(
   history: LLMMessage[],
-  keepExchanges: number = DEFAULT_PRUNING_CONFIG.keepRecentExchanges
+  keepExchanges: number = DEFAULT_PRUNING_CONFIG.keepRecentExchanges,
 ): [LLMMessage[], LLMMessage[]] {
   if (history.length <= keepExchanges * 2) {
     // Not enough messages to prune
@@ -188,7 +185,7 @@ export function identifyPrunableMessages(
 export async function pruneContext(
   sessionId: string,
   modelName: string,
-  config: Partial<PruningConfig> = {}
+  config: Partial<PruningConfig> = {},
 ): Promise<{
   wasPruned: boolean;
   contextUsageBefore: number;
@@ -199,21 +196,23 @@ export async function pruneContext(
   const finalConfig = { ...DEFAULT_PRUNING_CONFIG, ...config };
 
   try {
-    const rows = db.prepare(
-      "SELECT message_json, timestamp, settings FROM memory WHERE session_id = ? ORDER BY timestamp ASC, id ASC"
-    ).all(sessionId) as Array<{ message_json: string; timestamp: string; settings: string }>;
+    const rows = db
+      .prepare(
+        'SELECT message_json, timestamp, settings FROM memory WHERE session_id = ? ORDER BY timestamp ASC, id ASC',
+      )
+      .all(sessionId) as Array<{ message_json: string; timestamp: string; settings: string }>;
 
-    const history = rows.map(r => JSON.parse(r.message_json));
+    const history = rows.map((r) => JSON.parse(r.message_json));
     const contextUsageBefore = calculateContextUsage(sessionId, modelName);
 
     log.info(
-      `Starting context pruning for session ${sessionId}: ${contextUsageBefore}% usage, ${history.length} messages`
+      `Starting context pruning for session ${sessionId}: ${contextUsageBefore}% usage, ${history.length} messages`,
     );
 
     // Check conditions for pruning
     if (history.length < finalConfig.minMessageCount) {
       log.debug(
-        `Skipping prune: only ${history.length} messages (min: ${finalConfig.minMessageCount})`
+        `Skipping prune: only ${history.length} messages (min: ${finalConfig.minMessageCount})`,
       );
       return {
         wasPruned: false,
@@ -225,7 +224,9 @@ export async function pruneContext(
     }
 
     if (contextUsageBefore < finalConfig.contextThreshold) {
-      log.debug(`Skipping prune: context usage ${contextUsageBefore}% < threshold ${finalConfig.contextThreshold}%`);
+      log.debug(
+        `Skipping prune: context usage ${contextUsageBefore}% < threshold ${finalConfig.contextThreshold}%`,
+      );
       return {
         wasPruned: false,
         contextUsageBefore,
@@ -236,12 +237,12 @@ export async function pruneContext(
     }
 
     // Identify prunable messages
-    const pruneUpTo = rows.length - (finalConfig.keepRecentExchanges * 2);
+    const pruneUpTo = rows.length - finalConfig.keepRecentExchanges * 2;
     const prunableRows = rows.slice(0, pruneUpTo);
     const recentRows = rows.slice(pruneUpTo);
 
     if (prunableRows.length === 0) {
-      log.debug("No messages to prune");
+      log.debug('No messages to prune');
       return {
         wasPruned: false,
         contextUsageBefore,
@@ -252,17 +253,17 @@ export async function pruneContext(
     }
 
     // Generate summary
-    const prunableMessages = prunableRows.map(r => JSON.parse(r.message_json));
+    const prunableMessages = prunableRows.map((r) => JSON.parse(r.message_json));
     const summary = await generateContextSummary(sessionId, prunableMessages);
 
     // Create summary message to insert into history
     const summaryMessage: LLMMessage = {
-      role: "user",
+      role: 'user',
       content: `[Context Summary]\n${summary}`,
     };
 
     // Get current settings for preservation
-    const { getSessionSettings } = await import("../session.ts");
+    const { getSessionSettings } = await import('../session.ts');
     const currentSettings = getSessionSettings(sessionId);
     const settingsJson = JSON.stringify(currentSettings);
 
@@ -275,15 +276,18 @@ export async function pruneContext(
       // Use SQLite transaction wrapping for atomicity
       const transactionFn = db.transaction(() => {
         // Step 1: Clear entire session history
-        db.prepare("DELETE FROM memory WHERE session_id = ?").run(sessionId);
+        db.prepare('DELETE FROM memory WHERE session_id = ?').run(sessionId);
 
         // Step 2: Insert summary message first (most important)
-        db.prepare("INSERT INTO memory (session_id, message_json, settings) VALUES (?, ?, ?)")
-          .run(sessionId, JSON.stringify(summaryMessage), settingsJson);
+        db.prepare('INSERT INTO memory (session_id, message_json, settings) VALUES (?, ?, ?)').run(
+          sessionId,
+          JSON.stringify(summaryMessage),
+          settingsJson,
+        );
 
         // Step 3: Re-insert recent messages with original timestamps and settings preserved
         const insertStmt = db.prepare(
-          "INSERT INTO memory (session_id, message_json, timestamp, settings) VALUES (?, ?, ?, ?)"
+          'INSERT INTO memory (session_id, message_json, timestamp, settings) VALUES (?, ?, ?, ?)',
         );
         for (const row of recentRows) {
           insertStmt.run(sessionId, row.message_json, row.timestamp, row.settings);
@@ -294,19 +298,26 @@ export async function pruneContext(
       transactionFn();
 
       log.info(
-        `Context pruned: ${prunableRows.length} messages → summary (${summary.length} chars), usage ${contextUsageBefore}% → ${contextUsageAfter}%`
+        `Context pruned: ${prunableRows.length} messages → summary (${summary.length} chars), usage ${contextUsageBefore}% → ${contextUsageAfter}%`,
       );
     } catch (transactionError) {
       // Transaction failed - this means either:
       // 1. DELETE happened but INSERTs failed, OR
       // 2. Partial insert happened
       // In either case, database transaction rolls back automatically
-      const errMsg = transactionError instanceof Error ? transactionError.message : String(transactionError);
+      const errMsg =
+        transactionError instanceof Error ? transactionError.message : String(transactionError);
       log.error(`Pruning transaction failed, original state preserved: ${errMsg}`);
-      throw new Error(`Pruning failed atomically - no data loss. Original history preserved. Details: ${errMsg}`);
+      throw new Error(
+        `Pruning failed atomically - no data loss. Original history preserved. Details: ${errMsg}`,
+      );
     }
 
-    addAssistantMessage(sessionId, `Acknowledged context update. ${summary.length} characters summarized.`, orchestratorDeps);
+    addAssistantMessage(
+      sessionId,
+      `Acknowledged context update. ${summary.length} characters summarized.`,
+      orchestratorDeps,
+    );
 
     contextUsageAfter = calculateContextUsage(sessionId, modelName);
 
@@ -364,6 +375,6 @@ export function getPruningStatus(sessionId: string, modelName: string) {
     contextUsagePercent: contextUsage,
     messageCount: history.length,
     isNearLimit: nearLimit,
-    recommendedAction: nearLimit ? "Consider /compact to prune context" : "Context usage healthy",
+    recommendedAction: nearLimit ? 'Consider /compact to prune context' : 'Context usage healthy',
   };
 }

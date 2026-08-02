@@ -3,17 +3,17 @@
  * Provides helpers for database management, session creation, and test cleanup
  */
 
-import { db } from "../../db.ts";
-import { createLogger } from "../../logger.ts";
-import type { SessionSettings } from "../../session.ts";
-import { touchFactAccess } from "../../memory/markdown.ts";
+import { db } from '../../db.ts';
+import { createLogger } from '../../logger.ts';
+import type { SessionSettings } from '../../session.ts';
+import { touchFactAccess } from '../../memory/markdown.ts';
 
-const log = createLogger("test-utils");
+const log = createLogger('test-utils');
 
 /**
  * Create a unique test session ID with optional prefix
  */
-export function createTestSessionId(prefix: string = "test"): string {
+export function createTestSessionId(prefix: string = 'test'): string {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8);
   return `${prefix}:${timestamp}:${random}`;
@@ -24,16 +24,16 @@ export function createTestSessionId(prefix: string = "test"): string {
  */
 export function createTestSession(
   sessionId: string,
-  settings?: Partial<SessionSettings>
+  settings?: Partial<SessionSettings>,
 ): {
   sessionId: string;
   settings: SessionSettings;
 } {
   const defaultSettings: SessionSettings = {
-    provider: "openrouter",
-    model: "test-model",
-    thinkingLevel: "off",
-    voiceMode: "off",
+    provider: 'openrouter',
+    model: 'test-model',
+    thinkingLevel: 'off',
+    voiceMode: 'off',
     heartbeatEnabled: false,
     recommendationsEnabled: false,
     ...settings,
@@ -41,14 +41,17 @@ export function createTestSession(
 
   try {
     // Insert session record
-    db.prepare(
-      `INSERT OR IGNORE INTO sessions (id, allow_messages) VALUES (?, ?)`
-    ).run(sessionId, 0);
+    db.prepare(`INSERT OR IGNORE INTO sessions (id, allow_messages) VALUES (?, ?)`).run(
+      sessionId,
+      0,
+    );
 
     // Store settings
-    db.prepare(
-      `INSERT INTO memory (session_id, message_json, settings) VALUES (?, ?, ?)`
-    ).run(sessionId, JSON.stringify({ role: "system", content: "init" }), JSON.stringify(defaultSettings));
+    db.prepare(`INSERT INTO memory (session_id, message_json, settings) VALUES (?, ?, ?)`).run(
+      sessionId,
+      JSON.stringify({ role: 'system', content: 'init' }),
+      JSON.stringify(defaultSettings),
+    );
   } catch (err) {
     log.warn(`Failed to create test session: ${err}`);
   }
@@ -68,7 +71,7 @@ export function cleanupTestSession(sessionId: string): void {
     db.prepare(`DELETE FROM sessions WHERE id = ?`).run(sessionId);
     db.prepare(`DELETE FROM agent_swarms WHERE parent_session_id = ? OR child_session_id = ?`).run(
       sessionId,
-      sessionId
+      sessionId,
     );
     db.prepare(`DELETE FROM usage WHERE session_id = ?`).run(sessionId);
   } catch (err) {
@@ -96,7 +99,7 @@ export function getSessionHistory(sessionId: string): Array<Record<string, unkno
       try {
         return JSON.parse(row.message_json);
       } catch {
-        return { error: "Failed to parse message" };
+        return { error: 'Failed to parse message' };
       }
     });
   } catch (err) {
@@ -110,13 +113,15 @@ export function getSessionHistory(sessionId: string): Array<Record<string, unkno
  */
 export function insertTestMessage(
   sessionId: string,
-  role: "user" | "assistant" | "tool" | "system" | "tool-error" | "state" | "agent-iteration",
-  content: string
+  role: 'user' | 'assistant' | 'tool' | 'system' | 'tool-error' | 'state' | 'agent-iteration',
+  content: string,
 ): void {
   try {
-    db.prepare(
-      `INSERT INTO memory (session_id, message_json, settings) VALUES (?, ?, ?)`
-    ).run(sessionId, JSON.stringify({ role, content }), JSON.stringify({}));
+    db.prepare(`INSERT INTO memory (session_id, message_json, settings) VALUES (?, ?, ?)`).run(
+      sessionId,
+      JSON.stringify({ role, content }),
+      JSON.stringify({}),
+    );
   } catch (err) {
     log.error(`Failed to insert test message: ${err}`);
   }
@@ -129,14 +134,14 @@ export function getSessionSettingsFromDb(sessionId: string): SessionSettings | n
   try {
     const row = db
       .prepare(
-        `SELECT settings FROM memory WHERE session_id = ? AND settings != '{}' AND settings IS NOT NULL ORDER BY id DESC LIMIT 1`
+        `SELECT settings FROM memory WHERE session_id = ? AND settings != '{}' AND settings IS NOT NULL ORDER BY id DESC LIMIT 1`,
       )
       .get(sessionId) as { settings: string } | undefined;
 
     if (!row?.settings) {
       return null;
     }
-    
+
     const parsed = JSON.parse(row.settings);
     return parsed || null;
   } catch (err) {
@@ -150,15 +155,16 @@ export function getSessionSettingsFromDb(sessionId: string): SessionSettings | n
  */
 export function updateSessionSettingsInDb(
   sessionId: string,
-  settings: Partial<SessionSettings>
+  settings: Partial<SessionSettings>,
 ): void {
   try {
     const current = getSessionSettingsFromDb(sessionId) || {};
     const updated = { ...current, ...settings };
 
-    db.prepare(
-      `UPDATE memory SET settings = ? WHERE session_id = ?`
-    ).run(JSON.stringify(updated), sessionId);
+    db.prepare(`UPDATE memory SET settings = ? WHERE session_id = ?`).run(
+      JSON.stringify(updated),
+      sessionId,
+    );
   } catch (err) {
     log.error(`Failed to update session settings: ${err}`);
   }
@@ -167,11 +173,7 @@ export function updateSessionSettingsInDb(
 /**
  * Create test fact in memory system
  */
-export function createTestFact(
-  sessionId: string,
-  category: string,
-  fact: string
-): void {
+export function createTestFact(sessionId: string, category: string, fact: string): void {
   try {
     touchFactAccess(sessionId, category, fact, {
       incrementCount: true,
@@ -189,7 +191,7 @@ export function createTestEntity(
   sessionId: string,
   name: string,
   type: string,
-  properties?: Record<string, unknown>
+  properties?: Record<string, unknown>,
 ): number {
   try {
     const result = db
@@ -197,7 +199,7 @@ export function createTestEntity(
         `INSERT INTO entities (session_id, name, type, properties) 
          VALUES (?, ?, ?, ?)
          ON CONFLICT (session_id, name) DO UPDATE SET 
-         type = excluded.type, properties = excluded.properties`
+         type = excluded.type, properties = excluded.properties`,
       )
       .run(sessionId, name, type, JSON.stringify(properties || {}));
 
@@ -216,7 +218,7 @@ export function createTestRelationship(
   fromEntityName: string,
   toEntityName: string,
   relationType: string,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
 ): void {
   try {
     // Get entity IDs
@@ -231,14 +233,8 @@ export function createTestRelationship(
     if (fromEntity && toEntity) {
       db.prepare(
         `INSERT INTO relationships (session_id, from_id, to_id, relation_type, metadata)
-         VALUES (?, ?, ?, ?, ?)`
-      ).run(
-        sessionId,
-        fromEntity.id,
-        toEntity.id,
-        relationType,
-        JSON.stringify(metadata || {})
-      );
+         VALUES (?, ?, ?, ?, ?)`,
+      ).run(sessionId, fromEntity.id, toEntity.id, relationType, JSON.stringify(metadata || {}));
     }
   } catch (err) {
     log.warn(`Failed to create test relationship: ${err}`);
@@ -253,12 +249,12 @@ export function insertUsageRecord(
   model: string,
   inputTokens: number,
   outputTokens: number,
-  costUsd: number
+  costUsd: number,
 ): void {
   try {
     db.prepare(
       `INSERT INTO usage (session_id, model, prompt_tokens, completion_tokens, total_tokens, cost)
-       VALUES (?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?)`,
     ).run(sessionId, model, inputTokens, outputTokens, inputTokens + outputTokens, costUsd);
   } catch (err) {
     log.warn(`Failed to insert usage record: ${err}`);
@@ -270,7 +266,7 @@ export function insertUsageRecord(
  */
 export function createMockToolExecutor(
   toolName: string,
-  result: string
+  result: string,
 ): (input: Record<string, unknown>) => Promise<string> {
   return async (input: Record<string, unknown>) => {
     log.info(`Mock tool execution: ${toolName} with input:`, input);
@@ -284,7 +280,7 @@ export function createMockToolExecutor(
 export async function waitFor(
   condition: () => boolean,
   timeoutMs: number = 5000,
-  pollIntervalMs: number = 100
+  pollIntervalMs: number = 100,
 ): Promise<boolean> {
   const startTime = Date.now();
   while (Date.now() - startTime < timeoutMs) {
@@ -300,61 +296,67 @@ export async function waitFor(
  * Test fixture: Mock conversation messages
  */
 export const mockConversationMessages = [
-  { role: "user" as const, content: "Hello, what can you do?" },
-  { role: "assistant" as const, content: "I can help you with various tasks. What would you like?" },
-  { role: "user" as const, content: "Can you help me with a file operation?" },
-  { role: "assistant" as const, content: "Yes, I can help with file operations. What do you need?" },
+  { role: 'user' as const, content: 'Hello, what can you do?' },
+  {
+    role: 'assistant' as const,
+    content: 'I can help you with various tasks. What would you like?',
+  },
+  { role: 'user' as const, content: 'Can you help me with a file operation?' },
+  {
+    role: 'assistant' as const,
+    content: 'Yes, I can help with file operations. What do you need?',
+  },
 ];
 
 /**
  * Test fixture: Mock usage records
  */
 export const mockUsageRecords = [
-  { model: "gpt-3.5-turbo", inputTokens: 100, outputTokens: 200, costUsd: 0.003 },
-  { model: "gpt-4", inputTokens: 500, outputTokens: 1000, costUsd: 0.03 },
-  { model: "claude-3-opus", inputTokens: 300, outputTokens: 700, costUsd: 0.02 },
+  { model: 'gpt-3.5-turbo', inputTokens: 100, outputTokens: 200, costUsd: 0.003 },
+  { model: 'gpt-4', inputTokens: 500, outputTokens: 1000, costUsd: 0.03 },
+  { model: 'claude-3-opus', inputTokens: 300, outputTokens: 700, costUsd: 0.02 },
 ];
 
 /**
  * Test fixture: Mock memory facts
  */
 export const mockMemoryFacts = [
-  { category: "user-preferences", fact: "User prefers concise responses" },
-  { category: "user-info", fact: "User is a software engineer" },
-  { category: "conversation-context", fact: "Previously discussed API design" },
+  { category: 'user-preferences', fact: 'User prefers concise responses' },
+  { category: 'user-info', fact: 'User is a software engineer' },
+  { category: 'conversation-context', fact: 'Previously discussed API design' },
 ];
 
 /**
  * Test fixture: Mock entities for knowledge graph
  */
 export const mockEntities = [
-  { name: "Alice", type: "person", properties: { email: "alice@example.com" } },
-  { name: "PostgreSQL", type: "database", properties: { version: "14" } },
-  { name: "GitHub", type: "platform", properties: { language: "TypeScript" } },
+  { name: 'Alice', type: 'person', properties: { email: 'alice@example.com' } },
+  { name: 'PostgreSQL', type: 'database', properties: { version: '14' } },
+  { name: 'GitHub', type: 'platform', properties: { language: 'TypeScript' } },
 ];
 
 /**
  * Test fixture: Mock relationships for knowledge graph
  */
 export const mockRelationships = [
-  { from: "Alice", to: "GitHub", type: "uses" },
-  { from: "GitHub", to: "PostgreSQL", type: "integrates-with" },
-  { from: "Alice", to: "PostgreSQL", type: "manages" },
+  { from: 'Alice', to: 'GitHub', type: 'uses' },
+  { from: 'GitHub', to: 'PostgreSQL', type: 'integrates-with' },
+  { from: 'Alice', to: 'PostgreSQL', type: 'manages' },
 ];
 
 /**
  * Test fixture: Mock session settings
  */
 export const mockSessionSettings: SessionSettings = {
-  provider: "openrouter",
-  model: "gpt-4",
-  thinkingLevel: "medium",
-  voiceMode: "off",
-  ttsProvider: "openai",
+  provider: 'openrouter',
+  model: 'gpt-4',
+  thinkingLevel: 'medium',
+  voiceMode: 'off',
+  ttsProvider: 'openai',
   heartbeatEnabled: true,
   heartbeatInterval: 30,
   recommendationsEnabled: true,
-  customSystemPrompt: "You are a helpful assistant",
+  customSystemPrompt: 'You are a helpful assistant',
   temperature: 0.7,
   maxTokens: 4000,
 };

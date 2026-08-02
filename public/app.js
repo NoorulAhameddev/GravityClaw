@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────
 
 window.onerror = function (msg, url, line, col, error) {
-  console.error("GLOBAL ERROR:", msg, "at", url, ":", line, ":", col, error);
+  console.error('GLOBAL ERROR:', msg, 'at', url, ':', line, ':', col, error);
   return false;
 };
 
@@ -23,7 +23,23 @@ function fmtUptime(seconds) {
 window.fmtUptime = fmtUptime;
 
 // ── Router ──────────────────────────────────
-const PAGES = ['overview', 'chat', 'canvas', 'scheduler', 'webhooks', 'heartbeats', 'sessions', 'memory', 'analytics', 'swarms', 'workflows', 'tools', 'usage', 'admin', 'plugins'];
+const PAGES = [
+  'overview',
+  'chat',
+  'canvas',
+  'scheduler',
+  'webhooks',
+  'heartbeats',
+  'sessions',
+  'memory',
+  'analytics',
+  'swarms',
+  'workflows',
+  'tools',
+  'usage',
+  'admin',
+  'plugins',
+];
 let currentPage = 'overview';
 
 // already moved to top
@@ -35,7 +51,7 @@ function navigate(page) {
   const oldPage = currentPage;
   currentPage = page;
 
-  PAGES.forEach(p => {
+  PAGES.forEach((p) => {
     const el = document.getElementById(`page-${p}`);
     const nav = document.querySelector(`[data-page="${p}"]`);
     if (el) el.classList.toggle('active', p === page);
@@ -56,12 +72,15 @@ function navigate(page) {
   if (page === 'admin') loadAdmin();
 
   document.title = `Gravity Claw — ${page.charAt(0).toUpperCase() + page.slice(1)}`;
-  const titleEl = document.querySelector('.page-header .page-title') || document.getElementById('page-title') || document.querySelector('.page-title');
+  const titleEl =
+    document.querySelector('.page-header .page-title') ||
+    document.getElementById('page-title') ||
+    document.querySelector('.page-title');
   if (titleEl) titleEl.textContent = page.charAt(0).toUpperCase() + page.slice(1);
   window.location.hash = page;
 }
 
-document.querySelectorAll('[data-page]').forEach(el => {
+document.querySelectorAll('[data-page]').forEach((el) => {
   el.addEventListener('click', (e) => {
     e.preventDefault();
     navigate(el.dataset.page);
@@ -71,14 +90,25 @@ document.querySelectorAll('[data-page]').forEach(el => {
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey) {
-    if (e.key === '1') { e.preventDefault(); navigate('chat'); }
-    if (e.key === '2') { e.preventDefault(); navigate('dashboard'); }
-    if (e.key === '3') { e.preventDefault(); navigate('memory'); }
+    if (e.key === '1') {
+      e.preventDefault();
+      navigate('chat');
+    }
+    if (e.key === '2') {
+      e.preventDefault();
+      navigate('dashboard');
+    }
+    if (e.key === '3') {
+      e.preventDefault();
+      navigate('memory');
+    }
   }
 });
 
 // ── WebSocket (chat) ─────────────────────────
-let ws, wsDelay = 1000, wsTimer;
+let ws,
+  wsDelay = 1000,
+  wsTimer;
 const WS_MAX_DELAY = 10000;
 
 function wsConnect() {
@@ -119,26 +149,28 @@ function wsConnect() {
 
 function updateStatus(type, state, msg) {
   // Map state to CSS classes used in index.html
-  const clsMap = { 'ok': 'green', 'err': 'red', 'warn': 'yellow', 'connecting': 'yellow' };
+  const clsMap = { ok: 'green', err: 'red', warn: 'yellow', connecting: 'yellow' };
   const cssCls = clsMap[state] || '';
 
   // Update dots
-  const dots = {
-    ws: ['ws-dot', 'ws-clients-dot'],
-    server: ['server-dot'],
-    canvas: ['canvas-dot']
-  }[type] || [];
+  const dots =
+    {
+      ws: ['ws-dot', 'ws-clients-dot'],
+      server: ['server-dot'],
+      canvas: ['canvas-dot'],
+    }[type] || [];
 
-  dots.forEach(id => setDot(id, cssCls));
+  dots.forEach((id) => setDot(id, cssCls));
 
   // Update texts
-  const texts = {
-    ws: ['ws-status', 'ws-status-text', 'chat-ws-status'],
-    server: ['server-status', 'server-status-text', 'status-value'],
-    canvas: ['canvas-status']
-  }[type] || [];
+  const texts =
+    {
+      ws: ['ws-status', 'ws-status-text', 'chat-ws-status'],
+      server: ['server-status', 'server-status-text', 'status-value'],
+      canvas: ['canvas-status'],
+    }[type] || [];
 
-  texts.forEach(id => setText(id, msg));
+  texts.forEach((id) => setText(id, msg));
 
   // Update status-icon in the dashboard banner if it exists
   if (type === 'server') {
@@ -165,12 +197,14 @@ function callTool(toolName, args = {}) {
 
     pendingToolCalls.set(id, { resolve, reject, timeout });
 
-    ws.send(JSON.stringify({
-      type: 'tool_call',
-      id,
-      tool: toolName,
-      args
-    }));
+    ws.send(
+      JSON.stringify({
+        type: 'tool_call',
+        id,
+        tool: toolName,
+        args,
+      }),
+    );
   });
 }
 
@@ -259,7 +293,7 @@ function showTyping(on) {
 const chatForm = document.getElementById('chat-form');
 const chatTa = document.getElementById('chat-ta');
 
-chatForm.addEventListener('submit', e => {
+chatForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const text = chatTa.value.trim();
   if (!text || !ws || ws.readyState !== WebSocket.OPEN) {
@@ -279,7 +313,7 @@ chatTa.addEventListener('input', () => {
   chatTa.style.height = Math.min(chatTa.scrollHeight, 120) + 'px';
 });
 
-chatTa.addEventListener('keydown', e => {
+chatTa.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     chatForm.requestSubmit();
@@ -300,11 +334,15 @@ async function loadOverview() {
     const [health, stats, usage] = await Promise.all([
       api('/api/health'),
       api('/api/stats'),
-      api('/api/usage')
+      api('/api/usage'),
     ]);
 
     // Update overview statuses
-    updateStatus('server', health.status === 'ok' ? 'ok' : 'err', health.status === 'ok' ? 'Online' : 'Error');
+    updateStatus(
+      'server',
+      health.status === 'ok' ? 'ok' : 'err',
+      health.status === 'ok' ? 'Online' : 'Error',
+    );
     set('uptime-value', fmtUptime(health.uptime));
     set('ws-clients-value', health.server?.wsClients ?? 0);
     set('port-value', health.server?.port ?? 3000);
@@ -333,7 +371,6 @@ async function loadOverview() {
 
     set('usage-tokens', ua.tokens ?? 0);
     set('usage-latency', `${Math.round(usage.avgLatency || 0)}ms avg`);
-
   } catch (err) {
     console.error('Overview load error:', err);
     updateStatus('server', 'err', 'Offline');
@@ -343,7 +380,11 @@ async function loadOverview() {
 async function loadHealth() {
   try {
     const h = await api('/api/health');
-    updateStatus('server', h.status === 'ok' ? 'ok' : 'err', h.status === 'ok' ? 'Server Online' : 'Server Error');
+    updateStatus(
+      'server',
+      h.status === 'ok' ? 'ok' : 'err',
+      h.status === 'ok' ? 'Server Online' : 'Server Error',
+    );
   } catch {
     updateStatus('server', 'err', 'Server Offline');
   }
@@ -355,14 +396,24 @@ async function loadScheduler() {
   try {
     const { data } = await api('/api/scheduler/tasks');
     set('sched-stat-total', data.length);
-    if (!data.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px">No tasks found</td></tr>'; return; }
-    tb.innerHTML = data.map(t => `<tr>
+    if (!data.length) {
+      tb.innerHTML =
+        '<tr><td colspan="7" style="text-align:center;padding:20px">No tasks found</td></tr>';
+      return;
+    }
+    tb.innerHTML = data
+      .map(
+        (t) => `<tr>
       <td>${esc(t.name)}</td><td style="font-family:monospace">${esc(t.cron_expression)}</td>
       <td style="font-family:monospace">${esc(t.session_id)}</td>
       <td><span class="status-badge ${t.enabled ? 'online' : 'offline'}">${t.enabled ? 'Enabled' : 'Disabled'}</span></td>
       <td>${fmtDate(t.last_run)}</td><td>${fmtDate(t.next_run)}</td><td>${fmtDate(t.created_at)}</td>
-    </tr>`).join('');
-  } catch (e) { tb.innerHTML = `<tr><td colspan="7">Error: ${e.message}</td></tr>`; }
+    </tr>`,
+      )
+      .join('');
+  } catch (e) {
+    tb.innerHTML = `<tr><td colspan="7">Error: ${e.message}</td></tr>`;
+  }
 }
 
 async function loadWebhooks() {
@@ -371,16 +422,24 @@ async function loadWebhooks() {
   try {
     const { data } = await api('/api/webhooks');
     set('wh-stat-total', data.length);
-    if (!data.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px">No webhooks</td></tr>'; return; }
+    if (!data.length) {
+      tb.innerHTML =
+        '<tr><td colspan="5" style="text-align:center;padding:20px">No webhooks</td></tr>';
+      return;
+    }
     const origin = window.location.origin;
-    tb.innerHTML = data.map(w => {
-      const url = `${origin}/webhook/${w.session_id}/${encodeURIComponent(w.name)}`;
-      return `<tr><td>${esc(w.name)}</td><td style="font-family:monospace">${esc(w.session_id)}</td>
+    tb.innerHTML = data
+      .map((w) => {
+        const url = `${origin}/webhook/${w.session_id}/${encodeURIComponent(w.name)}`;
+        return `<tr><td>${esc(w.name)}</td><td style="font-family:monospace">${esc(w.session_id)}</td>
         <td style="font-family:monospace;max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(url)}</td>
         <td><button class="btn sm" onclick="copyToClipboard('${esc(url)}')">Copy</button></td>
         <td>${fmtDate(w.created_at)}</td></tr>`;
-    }).join('');
-  } catch (e) { tb.innerHTML = `<tr><td colspan="5">Error: ${e.message}</td></tr>`; }
+      })
+      .join('');
+  } catch (e) {
+    tb.innerHTML = `<tr><td colspan="5">Error: ${e.message}</td></tr>`;
+  }
 }
 
 async function loadHeartbeats() {
@@ -389,14 +448,24 @@ async function loadHeartbeats() {
   try {
     const { data } = await api('/api/heartbeats');
     set('hb-stat-total', data.length);
-    if (!data.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px">No heartbeats</td></tr>'; return; }
-    tb.innerHTML = data.map(h => `<tr>
+    if (!data.length) {
+      tb.innerHTML =
+        '<tr><td colspan="6" style="text-align:center;padding:20px">No heartbeats</td></tr>';
+      return;
+    }
+    tb.innerHTML = data
+      .map(
+        (h) => `<tr>
       <td style="font-family:monospace">${esc(h.session_id)}</td><td>${h.interval_minutes}m</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${esc(h.prompt)}">${esc(h.prompt)}</td>
       <td><span class="status-badge ${h.enabled ? 'online' : 'offline'}">${h.enabled ? 'Enabled' : 'Disabled'}</span></td>
       <td>${fmtDate(h.last_run)}</td><td>${fmtDate(h.created_at)}</td>
-    </tr>`).join('');
-  } catch (e) { tb.innerHTML = `<tr><td colspan="6">Error: ${e.message}</td></tr>`; }
+    </tr>`,
+      )
+      .join('');
+  } catch (e) {
+    tb.innerHTML = `<tr><td colspan="6">Error: ${e.message}</td></tr>`;
+  }
 }
 
 async function loadSessions() {
@@ -405,14 +474,24 @@ async function loadSessions() {
   try {
     const { data } = await api('/api/sessions');
     set('sess-stat-total', data.length);
-    if (!data.length) { tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px">No sessions</td></tr>'; return; }
-    tb.innerHTML = data.map(s => `<tr>
+    if (!data.length) {
+      tb.innerHTML =
+        '<tr><td colspan="4" style="text-align:center;padding:20px">No sessions</td></tr>';
+      return;
+    }
+    tb.innerHTML = data
+      .map(
+        (s) => `<tr>
       <td style="font-family:monospace">${esc(s.id || s.session_id)}</td>
       <td>${s.message_count}</td>
       <td><span class="status-badge ${s.allow_messages ? 'online' : 'offline'}">${s.allow_messages ? 'Active' : 'Stopped'}</span></td>
       <td>${fmtDate(s.updated_at)}</td>
-    </tr>`).join('');
-  } catch (e) { tb.innerHTML = `<tr><td colspan="4">Error: ${e.message}</td></tr>`; }
+    </tr>`,
+      )
+      .join('');
+  } catch (e) {
+    tb.innerHTML = `<tr><td colspan="4">Error: ${e.message}</td></tr>`;
+  }
 }
 
 async function loadSwarms() {
@@ -421,15 +500,25 @@ async function loadSwarms() {
   try {
     const { data } = await api('/api/swarms');
     set('sw-stat-total', data.length);
-    if (!data.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px">No swarms</td></tr>'; return; }
-    tb.innerHTML = data.map(s => `<tr>
+    if (!data.length) {
+      tb.innerHTML =
+        '<tr><td colspan="6" style="text-align:center;padding:20px">No swarms</td></tr>';
+      return;
+    }
+    tb.innerHTML = data
+      .map(
+        (s) => `<tr>
       <td style="font-family:monospace;font-size:11px">${esc(String(s.id).substring(0, 8))}…</td>
       <td style="font-family:monospace">${esc(s.parent_session_id)}</td>
       <td style="font-family:monospace">${esc(s.child_session_id)}</td>
       <td>${esc(s.role)}</td><td><span class="status-badge online">${esc(s.status)}</span></td>
       <td>${fmtDate(s.created_at)}</td>
-    </tr>`).join('');
-  } catch (e) { tb.innerHTML = `<tr><td colspan="6">Error: ${e.message}</td></tr>`; }
+    </tr>`,
+      )
+      .join('');
+  } catch (e) {
+    tb.innerHTML = `<tr><td colspan="6">Error: ${e.message}</td></tr>`;
+  }
 }
 
 async function loadWorkflows() {
@@ -438,18 +527,26 @@ async function loadWorkflows() {
   try {
     const { data } = await api('/api/workflows');
     set('wf-stat-total', data.length);
-    if (!data.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px">No workflows</td></tr>'; return; }
-    tb.innerHTML = data.map(w => {
-      const pct = Math.round((w.progress || 0) * 100);
-      return `<tr>
+    if (!data.length) {
+      tb.innerHTML =
+        '<tr><td colspan="6" style="text-align:center;padding:20px">No workflows</td></tr>';
+      return;
+    }
+    tb.innerHTML = data
+      .map((w) => {
+        const pct = Math.round((w.progress || 0) * 100);
+        return `<tr>
         <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis" title="${esc(w.goal)}">${esc(w.goal)}</td>
         <td style="font-family:monospace">${esc(w.session_id)}</td>
         <td><span class="status-badge ${w.status === 'completed' ? 'online' : w.status === 'running' ? 'blue' : 'offline'}">${esc(w.status)}</span></td>
         <td><div style="width:100%;height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="width:${pct}%;height:100%;background:var(--accent)"></div></div></td>
         <td>${fmtDate(w.created_at)}</td><td>${fmtDate(w.completed_at)}</td>
       </tr>`;
-    }).join('');
-  } catch (e) { tb.innerHTML = `<tr><td colspan="6">Error: ${e.message}</td></tr>`; }
+      })
+      .join('');
+  } catch (e) {
+    tb.innerHTML = `<tr><td colspan="6">Error: ${e.message}</td></tr>`;
+  }
 }
 
 async function loadUsage() {
@@ -469,12 +566,21 @@ async function loadUsage() {
     set('u-all-cost', b.allTime.cost != null ? `$${Number(b.allTime.cost).toFixed(4)}` : '—');
 
     const entries = Object.entries(usage.models || {});
-    if (!entries.length) { tb.innerHTML = '<tr><td colspan="4">No data</td></tr>'; return; }
-    tb.innerHTML = entries.map(([model, s]) => `<tr>
+    if (!entries.length) {
+      tb.innerHTML = '<tr><td colspan="4">No data</td></tr>';
+      return;
+    }
+    tb.innerHTML = entries
+      .map(
+        ([model, s]) => `<tr>
       <td style="font-family:monospace">${esc(model)}</td><td>${s.calls.toLocaleString()}</td>
       <td>${s.tokens.toLocaleString()}</td><td>$${Number(s.cost).toFixed(4)}</td>
-    </tr>`).join('');
-  } catch (e) { tb.innerHTML = `<tr><td colspan="4">Error: ${e.message}</td></tr>`; }
+    </tr>`,
+      )
+      .join('');
+  } catch (e) {
+    tb.innerHTML = `<tr><td colspan="4">Error: ${e.message}</td></tr>`;
+  }
 }
 
 async function loadAdmin() {
@@ -485,18 +591,28 @@ async function loadAdmin() {
     if (groups?.success && groups.data?.groups) {
       const list = groups.data.groups;
       set('admin-groups-count', list.length);
-      if (list.length === 0) { container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">No groups found</div>'; return; }
+      if (list.length === 0) {
+        container.innerHTML =
+          '<div style="padding:40px;text-align:center;color:var(--muted)">No groups found</div>';
+        return;
+      }
       container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));gap:20px">
-        ${list.map(g => `<div class="card" style="padding:20px">
+        ${list
+          .map(
+            (g) => `<div class="card" style="padding:20px">
           <div style="font-weight:bold;margin-bottom:10px">📱 ${esc(g.platform)}</div>
           <div style="font-family:monospace;font-size:12px;color:var(--muted)">ID: ${esc(g.groupId)}</div>
           <div style="margin-top:15px;display:flex;justify-content:space-between">
             <span>Tools: <strong style="color:var(--green)">${g.enabledToolCount}</strong> / <strong style="color:var(--red)">${g.disabledToolCount}</strong></span>
           </div>
-        </div>`).join('')}
+        </div>`,
+          )
+          .join('')}
       </div>`;
     }
-  } catch (e) { container.innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`; }
+  } catch (e) {
+    container.innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`;
+  }
 }
 
 function copyToClipboard(text) {
@@ -515,11 +631,15 @@ async function loadMemory() {
       return;
     }
 
-    panel.innerHTML = data.map(s => `
+    panel.innerHTML = data
+      .map(
+        (s) => `
       <div class="sess-item" data-sid="${esc(s.session_id)}" onclick="loadMsgs('${esc(s.session_id)}')">
         <div class="sess-id">${esc(s.session_id)}</div>
         <div class="sess-meta">${s.message_count} msgs · ${fmtDate(s.last_active)}</div>
-      </div>`).join('');
+      </div>`,
+      )
+      .join('');
 
     loadMsgs(data[0].session_id);
   } catch (e) {
@@ -529,8 +649,9 @@ async function loadMemory() {
 }
 
 async function loadMsgs(sid) {
-  document.querySelectorAll('.sess-item').forEach(el =>
-    el.classList.toggle('active', el.dataset.sid === sid));
+  document
+    .querySelectorAll('.sess-item')
+    .forEach((el) => el.classList.toggle('active', el.dataset.sid === sid));
 
   const panel = document.getElementById('msgs-panel');
   panel.innerHTML = loading();
@@ -541,24 +662,37 @@ async function loadMsgs(sid) {
       return;
     }
 
-    panel.innerHTML = [...data].reverse().map((row, i) => {
-      let msg;
-      try { msg = JSON.parse(row.message_json); } catch { return ''; }
-      if (!msg) return '';
-      const role = msg.role || 'unknown';
-      const raw = typeof msg.content === 'string' ? msg.content
-        : Array.isArray(msg.content) ? msg.content.filter(c => c.type === 'text').map(c => c.text).join('\n')
-          : JSON.stringify(msg.content);
-      const preview = (raw || '').substring(0, 600);
-      const more = (raw || '').length > 600;
-      return `
+    panel.innerHTML = [...data]
+      .reverse()
+      .map((row, i) => {
+        let msg;
+        try {
+          msg = JSON.parse(row.message_json);
+        } catch {
+          return '';
+        }
+        if (!msg) return '';
+        const role = msg.role || 'unknown';
+        const raw =
+          typeof msg.content === 'string'
+            ? msg.content
+            : Array.isArray(msg.content)
+              ? msg.content
+                  .filter((c) => c.type === 'text')
+                  .map((c) => c.text)
+                  .join('\n')
+              : JSON.stringify(msg.content);
+        const preview = (raw || '').substring(0, 600);
+        const more = (raw || '').length > 600;
+        return `
         <div class="mem-msg">
           <div class="mem-role ${role}">${role.toUpperCase()}</div>
           <div class="mem-content" id="mc-${i}">${esc(preview)}${more ? '…' : ''}</div>
           ${more ? `<span class="mem-expand" onclick="expandMsg('mc-${i}',${JSON.stringify(esc(raw))})">Show more</span>` : ''}
           <div class="mem-time">${fmtDate(row.timestamp)}</div>
         </div>`;
-    }).join('');
+      })
+      .join('');
   } catch (e) {
     panel.innerHTML = empty('❌', 'Failed to load');
     console.error('Messages load error:', e);
@@ -581,16 +715,28 @@ window.expandMsg = expandMsg;
 let canWs;
 
 function canConnect() {
-  if (canWs) { canWs.close(); canWs = null; }
+  if (canWs) {
+    canWs.close();
+    canWs = null;
+  }
   let sid = document.getElementById('canvas-sid').value.trim();
-  if (!sid) { sid = `web-${Date.now()}`; document.getElementById('canvas-sid').value = sid; }
+  if (!sid) {
+    sid = `web-${Date.now()}`;
+    document.getElementById('canvas-sid').value = sid;
+  }
 
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   canWs = new WebSocket(`${proto}//${location.host}/canvas?session=${sid}`);
 
-  canWs.onopen = () => { updateStatus('canvas', 'ok', 'Connected'); };
-  canWs.onclose = () => { updateStatus('canvas', '', 'Disconnected'); };
-  canWs.onerror = () => { updateStatus('canvas', 'warn', 'Error'); };
+  canWs.onopen = () => {
+    updateStatus('canvas', 'ok', 'Connected');
+  };
+  canWs.onclose = () => {
+    updateStatus('canvas', '', 'Disconnected');
+  };
+  canWs.onerror = () => {
+    updateStatus('canvas', 'warn', 'Error');
+  };
   canWs.onmessage = ({ data }) => {
     try {
       const m = JSON.parse(data);
@@ -629,27 +775,34 @@ async function loadTools() {
     }
 
     const groups = {};
-    data.forEach(t => {
+    data.forEach((t) => {
       const cat = toolCat(t.name);
       (groups[cat] = groups[cat] || []).push(t);
     });
 
     wrap.innerHTML = Object.entries(groups)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([cat, tools]) => `
+      .map(
+        ([cat, tools]) => `
         <div class="section">
           <div class="sec-title">
             <span>${esc(cat)}</span>
             <span style="font-weight:400;opacity:.6">(${tools.length})</span>
           </div>
           <div class="tools-grid">
-            ${tools.map(t => `
+            ${tools
+              .map(
+                (t) => `
               <div class="tool-card" title="${esc(t.description || '')}">
                 <div class="tool-name">${esc(t.name)}</div>
                 <div class="tool-desc">${esc(t.description || 'No description')}</div>
-              </div>`).join('')}
+              </div>`,
+              )
+              .join('')}
           </div>
-        </div>`).join('');
+        </div>`,
+      )
+      .join('');
 
     const count = document.getElementById('tools-count');
     if (count) count.textContent = `${data.length} tools`;
@@ -705,7 +858,12 @@ function setDot(id, cls) {
 
 function fmtDate(ts) {
   if (!ts) return '';
-  return new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return new Date(ts).toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 // moved to top
@@ -856,9 +1014,11 @@ setInterval(() => {
       toast('🎙️ Recording…', 'info');
 
       mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunks.push(e.data);
+      };
       mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
+        stream.getTracks().forEach((t) => t.stop());
         await processAudio();
       };
       mediaRecorder.start(250);
@@ -942,7 +1102,7 @@ setInterval(() => {
       const url = URL.createObjectURL(audioBlob);
       const audio = new Audio(url);
       audio.onended = () => URL.revokeObjectURL(url);
-      audio.play().catch(() => { }); // Ignore autoplay policy errors
+      audio.play().catch(() => {}); // Ignore autoplay policy errors
     } catch {
       // TTS is best-effort, never block the UI
     }
@@ -959,4 +1119,3 @@ setInterval(() => {
   micBtn.addEventListener('mouseup', () => clearTimeout(holdTimer));
   micBtn.addEventListener('mouseleave', () => clearTimeout(holdTimer));
 })();
-

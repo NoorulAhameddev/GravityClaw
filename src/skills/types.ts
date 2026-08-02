@@ -7,7 +7,7 @@
  */
 export interface SkillToolParameter {
   name: string;
-  type: "string" | "number" | "boolean" | "object" | "array";
+  type: 'string' | 'number' | 'boolean' | 'object' | 'array';
   required: boolean;
   description: string;
   default?: any;
@@ -38,7 +38,7 @@ export interface SkillFrontmatter {
  * Extracted code block from skill markdown
  */
 export interface SkillCodeBlock {
-  language: "bash" | "python" | "javascript" | "typescript";
+  language: 'bash' | 'python' | 'javascript' | 'typescript';
   code: string;
   toolName?: string;
 }

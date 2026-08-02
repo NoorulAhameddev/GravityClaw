@@ -1,14 +1,10 @@
-import { db } from "../db.ts";
-import { createLogger } from "../logger.ts";
-import type { Tool } from "../tools/index.js";
-import {
-  parseNaturalLanguageToCron,
-  scheduleTask,
-  toggleTask,
-} from "../scheduler/index.ts";
-import { getSessionSetting, updateSessionSetting } from "../session.ts";
+import { db } from '../db.ts';
+import { createLogger } from '../logger.ts';
+import type { Tool } from '../tools/index.js';
+import { parseNaturalLanguageToCron, scheduleTask, toggleTask } from '../scheduler/index.ts';
+import { getSessionSetting, updateSessionSetting } from '../session.ts';
 
-const log = createLogger("heartbeat");
+const log = createLogger('heartbeat');
 
 export interface HeartbeatTask {
   id: number;
@@ -31,16 +27,20 @@ function deriveIntervalMinutes(schedule: string, cronExpression: string): number
     }
   }
 
-  if (lower.includes("every hour")) {
+  if (lower.includes('every hour')) {
     return 60;
   }
 
-  if (lower.includes("every day") || lower.includes("every weekday") || lower.includes("every weekend")) {
+  if (
+    lower.includes('every day') ||
+    lower.includes('every weekday') ||
+    lower.includes('every weekend')
+  ) {
     return 60 * 24;
   }
 
-  if (cronExpression.startsWith("*/")) {
-    const n = parseInt(cronExpression.slice(2).split(" ")[0] || "60", 10);
+  if (cronExpression.startsWith('*/')) {
+    const n = parseInt(cronExpression.slice(2).split(' ')[0] || '60', 10);
     if (!Number.isNaN(n) && n > 0) {
       return n;
     }
@@ -58,7 +58,14 @@ export function setHeartbeatPrompt(params: {
   schedule: string;
   prompt: string;
   createdBy?: string;
-}): { success: boolean; heartbeatId?: number; taskId?: number; intervalMinutes?: number; cronExpression?: string; error?: string } {
+}): {
+  success: boolean;
+  heartbeatId?: number;
+  taskId?: number;
+  intervalMinutes?: number;
+  cronExpression?: string;
+  error?: string;
+} {
   try {
     const cronExpression = parseNaturalLanguageToCron(params.schedule);
     if (!cronExpression) {
@@ -75,7 +82,7 @@ export function setHeartbeatPrompt(params: {
       prompt: string;
       createdBy?: string;
     } = {
-      name: "heartbeat",
+      name: 'heartbeat',
       schedule: params.schedule,
       sessionId: params.sessionId,
       prompt: params.prompt,
@@ -90,7 +97,7 @@ export function setHeartbeatPrompt(params: {
     if (!scheduled.success || !scheduled.taskId) {
       return {
         success: false,
-        error: scheduled.error || "Failed to schedule heartbeat task",
+        error: scheduled.error || 'Failed to schedule heartbeat task',
       };
     }
 
@@ -99,17 +106,21 @@ export function setHeartbeatPrompt(params: {
     if (!intervalMinutes || intervalMinutes <= 0 || intervalMinutes > 525600) {
       return {
         success: false,
-        error: "Invalid interval: must be between 1 minute and 1 year",
+        error: 'Invalid interval: must be between 1 minute and 1 year',
       };
     }
 
-    const result = db.prepare(`
+    const result = db
+      .prepare(
+        `
       INSERT INTO heartbeat_tasks (session_id, interval_minutes, prompt, scheduled_task_id, enabled)
       VALUES (?, ?, ?, ?, 1)
-    `).run(params.sessionId, intervalMinutes, params.prompt, scheduled.taskId);
+    `,
+      )
+      .run(params.sessionId, intervalMinutes, params.prompt, scheduled.taskId);
 
-    updateSessionSetting(params.sessionId, "heartbeatEnabled", true);
-    updateSessionSetting(params.sessionId, "heartbeatInterval", intervalMinutes);
+    updateSessionSetting(params.sessionId, 'heartbeatEnabled', true);
+    updateSessionSetting(params.sessionId, 'heartbeatInterval', intervalMinutes);
 
     return {
       success: true,
@@ -122,7 +133,7 @@ export function setHeartbeatPrompt(params: {
     log.error(`Failed to set heartbeat prompt: ${error?.message || error}`);
     return {
       success: false,
-      error: error?.message || "Failed to set heartbeat prompt",
+      error: error?.message || 'Failed to set heartbeat prompt',
     };
   }
 }
@@ -135,7 +146,9 @@ export function getHeartbeatStatus(sessionId: string): {
   lastRun: string | null;
   nextRun: string | null;
 } {
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT 
       COUNT(*) as task_count,
       SUM(CASE WHEN h.enabled = 1 THEN 1 ELSE 0 END) as active_count,
@@ -145,7 +158,9 @@ export function getHeartbeatStatus(sessionId: string): {
     FROM heartbeat_tasks h
     LEFT JOIN scheduled_tasks s ON s.id = h.scheduled_task_id
     WHERE h.session_id = ?
-  `).get(sessionId) as {
+  `,
+    )
+    .get(sessionId) as {
     task_count: number;
     active_count: number | null;
     last_run: string | null;
@@ -153,11 +168,18 @@ export function getHeartbeatStatus(sessionId: string): {
     interval_minutes: number | null;
   };
 
-  const enabledSetting = getSessionSetting<boolean>(sessionId, "heartbeatEnabled", true);
+  const enabledSetting = getSessionSetting<boolean>(sessionId, 'heartbeatEnabled', true);
 
   return {
     enabled: Boolean(enabledSetting),
-    intervalMinutes: row?.interval_minutes || getSessionSetting<number>(sessionId, "heartbeatInterval", getDefaultHeartbeatIntervalMinutes()) || getDefaultHeartbeatIntervalMinutes(),
+    intervalMinutes:
+      row?.interval_minutes ||
+      getSessionSetting<number>(
+        sessionId,
+        'heartbeatInterval',
+        getDefaultHeartbeatIntervalMinutes(),
+      ) ||
+      getDefaultHeartbeatIntervalMinutes(),
     taskCount: row?.task_count || 0,
     activeTaskCount: row?.active_count || 0,
     lastRun: row?.last_run || null,
@@ -165,25 +187,34 @@ export function getHeartbeatStatus(sessionId: string): {
   };
 }
 
-export function setHeartbeatEnabled(sessionId: string, enabled: boolean): { success: boolean; affected: number; error?: string } {
+export function setHeartbeatEnabled(
+  sessionId: string,
+  enabled: boolean,
+): { success: boolean; affected: number; error?: string } {
   try {
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT scheduled_task_id 
       FROM heartbeat_tasks 
       WHERE session_id = ?
-    `).all(sessionId) as Array<{ scheduled_task_id: number }>;
+    `,
+      )
+      .all(sessionId) as Array<{ scheduled_task_id: number }>;
 
     for (const row of rows) {
       toggleTask(row.scheduled_task_id, enabled);
     }
 
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE heartbeat_tasks
       SET enabled = ?
       WHERE session_id = ?
-    `).run(enabled ? 1 : 0, sessionId);
+    `,
+    ).run(enabled ? 1 : 0, sessionId);
 
-    updateSessionSetting(sessionId, "heartbeatEnabled", enabled);
+    updateSessionSetting(sessionId, 'heartbeatEnabled', enabled);
 
     return {
       success: true,
@@ -193,29 +224,35 @@ export function setHeartbeatEnabled(sessionId: string, enabled: boolean): { succ
     return {
       success: false,
       affected: 0,
-      error: error?.message || "Failed to toggle heartbeat",
+      error: error?.message || 'Failed to toggle heartbeat',
     };
   }
 }
 
 export function isHeartbeatTask(taskId: number): boolean {
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT id FROM heartbeat_tasks WHERE scheduled_task_id = ? LIMIT 1
-  `).get(taskId) as { id: number } | undefined;
+  `,
+    )
+    .get(taskId) as { id: number } | undefined;
 
   return Boolean(row);
 }
 
 export function markHeartbeatRun(taskId: number): void {
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE heartbeat_tasks
     SET last_run = CURRENT_TIMESTAMP
     WHERE scheduled_task_id = ?
-  `).run(taskId);
+  `,
+  ).run(taskId);
 }
 
 export function isHeartbeatEnabledForSession(sessionId: string): boolean {
-  return Boolean(getSessionSetting<boolean>(sessionId, "heartbeatEnabled", true));
+  return Boolean(getSessionSetting<boolean>(sessionId, 'heartbeatEnabled', true));
 }
 
 export function isHeartbeatResponseNoteworthy(text: string): boolean {
@@ -237,42 +274,43 @@ export function isHeartbeatResponseNoteworthy(text: string): boolean {
 }
 
 export const setHeartbeatPromptTool: Tool = {
-  name: "set_heartbeat_prompt",
+  name: 'set_heartbeat_prompt',
   description:
-    "Register a heartbeat prompt on a recurring schedule. Heartbeat prompts run proactively and only notify the user when noteworthy updates are detected.",
+    'Register a heartbeat prompt on a recurring schedule. Heartbeat prompts run proactively and only notify the user when noteworthy updates are detected.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       schedule: {
-        type: "string",
-        description: "Schedule in natural language (e.g. 'every hour', 'every 30 minutes', 'every day at 9am')",
+        type: 'string',
+        description:
+          "Schedule in natural language (e.g. 'every hour', 'every 30 minutes', 'every day at 9am')",
       },
       prompt: {
-        type: "string",
-        description: "Prompt to execute during the heartbeat run",
+        type: 'string',
+        description: 'Prompt to execute during the heartbeat run',
       },
       session_id: {
-        type: "string",
-        description: "Optional explicit session id. If omitted, current session is used.",
+        type: 'string',
+        description: 'Optional explicit session id. If omitted, current session is used.',
       },
       __sessionId: {
-        type: "string",
-        description: "Injected session id",
+        type: 'string',
+        description: 'Injected session id',
       },
     },
-    required: ["schedule", "prompt"],
+    required: ['schedule', 'prompt'],
   },
   async execute(args: Record<string, unknown>): Promise<string> {
-    const sessionId = String(args.__sessionId || args.session_id || "").trim();
-    const schedule = String(args.schedule || "").trim();
-    const prompt = String(args.prompt || "").trim();
+    const sessionId = String(args.__sessionId || args.session_id || '').trim();
+    const schedule = String(args.schedule || '').trim();
+    const prompt = String(args.prompt || '').trim();
 
     if (!sessionId) {
-      return JSON.stringify({ success: false, error: "Session ID not found" });
+      return JSON.stringify({ success: false, error: 'Session ID not found' });
     }
 
     if (!schedule || !prompt) {
-      return JSON.stringify({ success: false, error: "Both schedule and prompt are required" });
+      return JSON.stringify({ success: false, error: 'Both schedule and prompt are required' });
     }
 
     const result = setHeartbeatPrompt({

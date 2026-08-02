@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type Database from 'better-sqlite3';
 
 /**
  * Query result for write operations
@@ -51,7 +51,10 @@ export class SqliteDbProvider implements DbProvider {
     return stmt.all(...params) as T[];
   }
 
-  async get<T = Record<string, unknown>>(sql: string, ...params: unknown[]): Promise<T | undefined> {
+  async get<T = Record<string, unknown>>(
+    sql: string,
+    ...params: unknown[]
+  ): Promise<T | undefined> {
     const stmt = this.db.prepare(sql);
     return stmt.get(...params) as T | undefined;
   }
@@ -72,21 +75,23 @@ export class SqliteDbProvider implements DbProvider {
   async transaction<T>(fn: (db: DbProvider) => Promise<T>): Promise<T> {
     const acquire = () => {
       let release!: () => void;
-      const promise = new Promise<void>((resolve) => { release = resolve; });
+      const promise = new Promise<void>((resolve) => {
+        release = resolve;
+      });
       const previous = this.transactionLock;
       this.transactionLock = previous.then(() => promise);
       return previous.then(() => release);
     };
-    
+
     const release = await acquire();
     try {
-      this.db.exec("BEGIN");
+      this.db.exec('BEGIN');
       try {
         const result = await fn(this);
-        this.db.exec("COMMIT");
+        this.db.exec('COMMIT');
         return result;
       } catch (err) {
-        this.db.exec("ROLLBACK");
+        this.db.exec('ROLLBACK');
         throw err;
       }
     } finally {

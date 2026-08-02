@@ -3,6 +3,7 @@
 ## **Executive Summary**
 
 The dashboard UI loads correctly, but WebSocket connections aren't establishing between browser and server. The root causes are:
+
 1. **Silent error handling** - Channel startup errors are logged but not surfaced
 2. **No verification** - Server startup isn't verified before main() continues
 3. **Architectural confusion** - Duplicate WebSocket handlers in different files
@@ -17,6 +18,7 @@ The dashboard UI loads correctly, but WebSocket connections aren't establishing 
 **Objective:** Determine if the server is actually starting and listening
 
 **Actions:**
+
 - [ ] Start the server: `npm start`
 - [ ] Look for patterns in logs:
   - ✅ "🚀 Web server listening on http://localhost:3000" = Server IS listening
@@ -33,6 +35,7 @@ The dashboard UI loads correctly, but WebSocket connections aren't establishing 
 **Objective:** See what the browser is trying to do
 
 **Actions:**
+
 - [ ] Open dashboard in browser: `http://localhost:3000/dashboards.html`
 - [ ] Press F12 → Console tab
 - [ ] Look for messages:
@@ -50,6 +53,7 @@ The dashboard UI loads correctly, but WebSocket connections aren't establishing 
 **Objective:** See if WebSocket upgrade request is being sent
 
 **Actions:**
+
 - [ ] Open browser DevTools → Network tab → WS filter
 - [ ] Refresh page
 - [ ] Look for WebSocket request to `ws://localhost:3000/`
@@ -86,16 +90,18 @@ export function startServer(): Promise<void> {
 export function startServer(): Promise<void> {
   return new Promise((resolve, reject) => {
     const port = config.PORT || 3000;
-    
+
     server.listen(port, () => {
       log.info(`🚀 Web server listening on http://localhost:${port}`);
       resolve();
     });
 
     // ADD THESE ERROR HANDLERS
-    server.on("error", (err: any) => {
-      if (err.code === "EADDRINUSE") {
-        log.error(`❌ Port ${port} is already in use. Kill existing process or use different port.`);
+    server.on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        log.error(
+          `❌ Port ${port} is already in use. Kill existing process or use different port.`,
+        );
       } else {
         log.error(`❌ Server error: ${err.message}`);
       }
@@ -154,44 +160,44 @@ async startAll() {
 
 ```typescript
 // In WebChatChannel.start() method, after line 45:
-wss.on("connection", (ws) => {
-    log.info("📡 New WebSocket client connected");  // ADD THIS
-    this.clients.add(ws);
+wss.on('connection', (ws) => {
+  log.info('📡 New WebSocket client connected'); // ADD THIS
+  this.clients.add(ws);
 
-    ws.on("message", async (data) => {
-        try {
-            const parsed: WebChatMessage = JSON.parse(data.toString());
-            
-            if (parsed.type === "message" && parsed.text && this.onMessageCb) {
-                log.debug(`📨 Received message: ${parsed.text.substring(0, 50)}...`);  // ADD THIS
-                const unifiedMsg: UnifiedMessage = {
-                    // ... existing code ...
-                };
-                await this.onMessageCb(unifiedMsg);
-            } else if ((parsed as any).type === "tool_call") {
-                log.info(`🔧 Tool call received: ${(parsed as any).tool}`);  // ADD THIS
-                const { id, tool: toolName, args } = parsed as any;
-                const { registry } = await import("../tools/index.ts");
+  ws.on('message', async (data) => {
+    try {
+      const parsed: WebChatMessage = JSON.parse(data.toString());
 
-                const tool = registry.get(toolName);
-                if (!tool) {
-                    log.warn(`❌ Tool not found: ${toolName}`);  // ADD THIS
-                    // ... rest of code ...
-                }
-            }
-        } catch (err) {
-            log.error("Failed to parse WebChat message", err);  // IMPROVED
+      if (parsed.type === 'message' && parsed.text && this.onMessageCb) {
+        log.debug(`📨 Received message: ${parsed.text.substring(0, 50)}...`); // ADD THIS
+        const unifiedMsg: UnifiedMessage = {
+          // ... existing code ...
+        };
+        await this.onMessageCb(unifiedMsg);
+      } else if ((parsed as any).type === 'tool_call') {
+        log.info(`🔧 Tool call received: ${(parsed as any).tool}`); // ADD THIS
+        const { id, tool: toolName, args } = parsed as any;
+        const { registry } = await import('../tools/index.ts');
+
+        const tool = registry.get(toolName);
+        if (!tool) {
+          log.warn(`❌ Tool not found: ${toolName}`); // ADD THIS
+          // ... rest of code ...
         }
-    });
+      }
+    } catch (err) {
+      log.error('Failed to parse WebChat message', err); // IMPROVED
+    }
+  });
 
-    ws.on("close", () => {
-        log.info("📡 WebSocket client disconnected");  // ADD THIS
-        this.clients.delete(ws);
-    });
+  ws.on('close', () => {
+    log.info('📡 WebSocket client disconnected'); // ADD THIS
+    this.clients.delete(ws);
+  });
 
-    ws.on("error", (err) => {
-        log.error("WebSocket client error", err);  // ADD THIS
-    });
+  ws.on('error', (err) => {
+    log.error('WebSocket client error', err); // ADD THIS
+  });
 });
 ```
 
@@ -208,54 +214,54 @@ wss.on("connection", (ws) => {
 ```javascript
 // Around line 272-310, ENHANCE the connectWebSocket function:
 function connectWebSocket() {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}`;
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${protocol}//${window.location.host}`;
 
-    log(`🔗 Attempting WebSocket connection to: ${wsUrl}`);
-    log(`   Protocol: ${protocol}`);
-    log(`   Host: ${window.location.host}`);
+  log(`🔗 Attempting WebSocket connection to: ${wsUrl}`);
+  log(`   Protocol: ${protocol}`);
+  log(`   Host: ${window.location.host}`);
 
-    try {
-        state.ws = new WebSocket(wsUrl);
-        log(`✓ WebSocket object created (readyState: ${state.ws.readyState})`);
+  try {
+    state.ws = new WebSocket(wsUrl);
+    log(`✓ WebSocket object created (readyState: ${state.ws.readyState})`);
 
-        state.ws.onopen = () => {
-            log('✅ WebSocket OPEN - Connection successful!');
-            log(`   ReadyState: ${state.ws.readyState}`);
-            CONFIG.wsReconnectAttempts = 0;
-            updateConnectionStatus(true);
-            showToast('Connected to Gravity Claw', 'success');
-        };
+    state.ws.onopen = () => {
+      log('✅ WebSocket OPEN - Connection successful!');
+      log(`   ReadyState: ${state.ws.readyState}`);
+      CONFIG.wsReconnectAttempts = 0;
+      updateConnectionStatus(true);
+      showToast('Connected to Gravity Claw', 'success');
+    };
 
-        state.ws.onclose = () => {
-            log('❌ WebSocket CLOSED');
-            log(`   Code: ${event.code}, Reason: ${event.reason}`);
-            updateConnectionStatus(false);
-            scheduleReconnect();
-        };
+    state.ws.onclose = () => {
+      log('❌ WebSocket CLOSED');
+      log(`   Code: ${event.code}, Reason: ${event.reason}`);
+      updateConnectionStatus(false);
+      scheduleReconnect();
+    };
 
-        state.ws.onerror = (event) => {
-            log(`❌ WebSocket ERROR: ${event.type}`);
-            log(`   Message: ${event.message || 'No message'}`);
-            logError('WebSocket Error', event);
-            updateConnectionStatus(false);
-        };
+    state.ws.onerror = (event) => {
+      log(`❌ WebSocket ERROR: ${event.type}`);
+      log(`   Message: ${event.message || 'No message'}`);
+      logError('WebSocket Error', event);
+      updateConnectionStatus(false);
+    };
 
-        state.ws.onmessage = (event) => {
-            log(`📨 WebSocket message received: ${event.data.substring(0, 100)}...`);
-            handleWebSocketMessage(event);
-        };
-    } catch (error) {
-        log(`❌ Failed to create WebSocket: ${error.message}`);
-        updateConnectionStatus(false);
-        scheduleReconnect();
-    }
+    state.ws.onmessage = (event) => {
+      log(`📨 WebSocket message received: ${event.data.substring(0, 100)}...`);
+      handleWebSocketMessage(event);
+    };
+  } catch (error) {
+    log(`❌ Failed to create WebSocket: ${error.message}`);
+    updateConnectionStatus(false);
+    scheduleReconnect();
+  }
 }
 
 // Add simple logger function at top of file
 function log(msg) {
-    const timestamp = new Date().toISOString().slice(11, 19);
-    console.log(`[${timestamp}] ${msg}`);
+  const timestamp = new Date().toISOString().slice(11, 19);
+  console.log(`[${timestamp}] ${msg}`);
 }
 ```
 
@@ -275,8 +281,8 @@ function log(msg) {
 // DELETE: Lines 44-70 (the entire wss.on("connection") handler)
 // REASON: WebChatChannel already handles this, so this is redundant
 
-wss.on("connection", (ws: WebSocket, req) => {
-    // ... all this code is REMOVED because WebChatChannel handles it ...
+wss.on('connection', (ws: WebSocket, req) => {
+  // ... all this code is REMOVED because WebChatChannel handles it ...
 });
 ```
 
@@ -292,80 +298,86 @@ wss.on("connection", (ws: WebSocket, req) => {
 
 ```typescript
 // In WebChatChannel.start(), around line 45:
-wss.on("connection", (ws: WebSocket, req) => {
-    log.info("📡 [WebChat] New WebSocket client connected");
-    
-    // IMPORTANT: Initialize keep-alive tracking
+wss.on('connection', (ws: WebSocket, req) => {
+  log.info('📡 [WebChat] New WebSocket client connected');
+
+  // IMPORTANT: Initialize keep-alive tracking
+  (ws as any).isAlive = true;
+  ws.on('pong', () => {
     (ws as any).isAlive = true;
-    ws.on("pong", () => {
-        (ws as any).isAlive = true;
-    });
+  });
 
-    this.clients.add(ws);
+  this.clients.add(ws);
 
-    ws.on("message", async (data) => {
-        try {
-            const parsed: WebChatMessage = JSON.parse(data.toString());
+  ws.on('message', async (data) => {
+    try {
+      const parsed: WebChatMessage = JSON.parse(data.toString());
 
-            if (parsed.type === "message" && parsed.text && this.onMessageCb) {
-                log.debug(`[WebChat] Message from client: "${parsed.text.substring(0, 50)}..."`);
-                const unifiedMsg: UnifiedMessage = {
-                    channelId: this.id,
-                    chatId: "webchat-session",
-                    userId: "web-user",
-                    text: parsed.text,
-                };
-                await this.onMessageCb(unifiedMsg);
-            } else if ((parsed as any).type === "tool_call") {
-                const { id, tool: toolName, args } = parsed as any;
-                log.info(`[WebChat] Tool call: ${toolName}`);
-                
-                const { registry } = await import("../tools/index.ts");
-                const tool = registry.get(toolName);
-                
-                if (!tool) {
-                    log.warn(`[WebChat] ❌ Tool not found: ${toolName}`);
-                    ws.send(JSON.stringify({
-                        type: "tool_response",
-                        id,
-                        error: `Tool not found: ${toolName}`
-                    }));
-                    return;
-                }
+      if (parsed.type === 'message' && parsed.text && this.onMessageCb) {
+        log.debug(`[WebChat] Message from client: "${parsed.text.substring(0, 50)}..."`);
+        const unifiedMsg: UnifiedMessage = {
+          channelId: this.id,
+          chatId: 'webchat-session',
+          userId: 'web-user',
+          text: parsed.text,
+        };
+        await this.onMessageCb(unifiedMsg);
+      } else if ((parsed as any).type === 'tool_call') {
+        const { id, tool: toolName, args } = parsed as any;
+        log.info(`[WebChat] Tool call: ${toolName}`);
 
-                try {
-                    log.debug(`[WebChat] Executing tool: ${toolName}`);
-                    const resultStr = await tool.execute(args || {});
-                    const result = JSON.parse(resultStr);
+        const { registry } = await import('../tools/index.ts');
+        const tool = registry.get(toolName);
 
-                    log.debug(`[WebChat] Tool result: success=${result.success}`);
-                    ws.send(JSON.stringify({
-                        type: "tool_response",
-                        id,
-                        result
-                    }));
-                } catch (err: any) {
-                    log.error(`[WebChat] ❌ Tool execution failed: ${toolName}`, err);
-                    ws.send(JSON.stringify({
-                        type: "tool_response",
-                        id,
-                        error: err.message || "Execution failed"
-                    }));
-                }
-            }
-        } catch (err) {
-            log.error("[WebChat] Failed to parse message", err);
+        if (!tool) {
+          log.warn(`[WebChat] ❌ Tool not found: ${toolName}`);
+          ws.send(
+            JSON.stringify({
+              type: 'tool_response',
+              id,
+              error: `Tool not found: ${toolName}`,
+            }),
+          );
+          return;
         }
-    });
 
-    ws.on("close", () => {
-        log.info("[WebChat] Client disconnected");
-        this.clients.delete(ws);
-    });
+        try {
+          log.debug(`[WebChat] Executing tool: ${toolName}`);
+          const resultStr = await tool.execute(args || {});
+          const result = JSON.parse(resultStr);
 
-    ws.on("error", (err) => {
-        log.error("[WebChat] Client error", err);
-    });
+          log.debug(`[WebChat] Tool result: success=${result.success}`);
+          ws.send(
+            JSON.stringify({
+              type: 'tool_response',
+              id,
+              result,
+            }),
+          );
+        } catch (err: any) {
+          log.error(`[WebChat] ❌ Tool execution failed: ${toolName}`, err);
+          ws.send(
+            JSON.stringify({
+              type: 'tool_response',
+              id,
+              error: err.message || 'Execution failed',
+            }),
+          );
+        }
+      }
+    } catch (err) {
+      log.error('[WebChat] Failed to parse message', err);
+    }
+  });
+
+  ws.on('close', () => {
+    log.info('[WebChat] Client disconnected');
+    this.clients.delete(ws);
+  });
+
+  ws.on('error', (err) => {
+    log.error('[WebChat] Client error', err);
+  });
 });
 ```
 
@@ -425,37 +437,37 @@ async function main() {
 /**
  * Health check endpoint - returns server status
  */
-app.get("/api/health", (req, res) => {
-    const health = {
-        status: "ok",
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        server: {
-            listening: true,
-            port: config.PORT || 3000,
-            wsClients: (wss as any).clients?.size || 0
-        }
-    };
+app.get('/api/health', (req, res) => {
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    server: {
+      listening: true,
+      port: config.PORT || 3000,
+      wsClients: (wss as any).clients?.size || 0,
+    },
+  };
 
-    res.json(health);
+  res.json(health);
 });
 
 /**
  * WebSocket diagnostic endpoint - returns WebSocket info
  */
-app.get("/api/ws-info", (req, res) => {
-    const handlers = (wss as any)._events?.connection;
-    const isHandlerRegistered = !!handlers;
-    
-    res.json({
-        status: "ok",
-        websocket: {
-            server_exists: !!wss,
-            handlers_registered: isHandlerRegistered,
-            connected_clients: (wss as any).clients?.size || 0,
-            ready_for_connections: wss && isHandlerRegistered
-        }
-    });
+app.get('/api/ws-info', (req, res) => {
+  const handlers = (wss as any)._events?.connection;
+  const isHandlerRegistered = !!handlers;
+
+  res.json({
+    status: 'ok',
+    websocket: {
+      server_exists: !!wss,
+      handlers_registered: isHandlerRegistered,
+      connected_clients: (wss as any).clients?.size || 0,
+      ready_for_connections: wss && isHandlerRegistered,
+    },
+  });
 });
 ```
 
@@ -529,13 +541,16 @@ curl http://localhost:3000/api/ws-info
 Once connected, verify a tool call works:
 
 **Browser Console:**
+
 ```javascript
-window.dashboard.callTool('getVoiceSettings', { sessionId: 'test' })
-  .then(r => console.log('✅ Tool result:', r))
-  .catch(e => console.error('❌ Tool error:', e))
+window.dashboard
+  .callTool('getVoiceSettings', { sessionId: 'test' })
+  .then((r) => console.log('✅ Tool result:', r))
+  .catch((e) => console.error('❌ Tool error:', e));
 ```
 
 **EXPECTED RESULTS:**
+
 - Browser sees tool response
 - Server logs show: `🔧 Tool call received: getVoiceSettings`
 - Server logs show: `🔧 Executing tool: getVoiceSettings`
@@ -567,27 +582,27 @@ window.dashboard.callTool('getVoiceSettings', { sessionId: 'test' })
 
 ## **EXPECTED OUTCOMES AFTER FIXES**
 
-| Symptom | Before | After |
-|---------|--------|-------|
-| Server startup error | Hidden, continues running | **Fails fast with clear error message** |
-| WebSocket connection fails | Silent, page shows "Loading..." forever | **Browser shows "WebSocket ERROR: ..."** |
-| Port already in use | "Random WebSocket connection" logged, but no connection | **Immediate fatal error: "Port 3000 already in use"** |
-| Tool call sent | Nothing happens | **Server logs tool execution, returns data** |
-| Dashboard loads content | Never (due to no WebSocket) | **✅ Loads voice settings, analytics, etc.** |
+| Symptom                    | Before                                                  | After                                                 |
+| -------------------------- | ------------------------------------------------------- | ----------------------------------------------------- |
+| Server startup error       | Hidden, continues running                               | **Fails fast with clear error message**               |
+| WebSocket connection fails | Silent, page shows "Loading..." forever                 | **Browser shows "WebSocket ERROR: ..."**              |
+| Port already in use        | "Random WebSocket connection" logged, but no connection | **Immediate fatal error: "Port 3000 already in use"** |
+| Tool call sent             | Nothing happens                                         | **Server logs tool execution, returns data**          |
+| Dashboard loads content    | Never (due to no WebSocket)                             | **✅ Loads voice settings, analytics, etc.**          |
 
 ---
 
 ## **TIMELINE ESTIMATE**
 
-| Phase | Time |
-|-------|------|
-| Phase 1: Diagnosis | 5 min |
-| Phase 2: Add Logging | 15 min |
-| Phase 3: Consolidate Handlers | 10 min |
-| Phase 4: Verify Startup | 5 min |
-| Phase 5: Health Endpoints | 10 min |
-| Phase 6: Testing | 20 min |
-| **Total** | **~65 minutes** |
+| Phase                         | Time            |
+| ----------------------------- | --------------- |
+| Phase 1: Diagnosis            | 5 min           |
+| Phase 2: Add Logging          | 15 min          |
+| Phase 3: Consolidate Handlers | 10 min          |
+| Phase 4: Verify Startup       | 5 min           |
+| Phase 5: Health Endpoints     | 10 min          |
+| Phase 6: Testing              | 20 min          |
+| **Total**                     | **~65 minutes** |
 
 ---
 

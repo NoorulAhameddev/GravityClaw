@@ -1,10 +1,10 @@
-import { createLogger } from "./logger.ts";
-import { config } from "./config.ts";
+import { createLogger } from './logger.ts';
+import { config } from './config.ts';
 
 const MAX_CONCURRENT = config.AGENT_MAX_CONCURRENT;
 const MAX_QUEUED = 1000;
 
-const log = createLogger("concurrency");
+const log = createLogger('concurrency');
 
 interface QueuedItem {
   sessionId: string;
@@ -23,10 +23,12 @@ const pendingQueue: QueuedItem[] = [];
 
 export function clearSessions(): void {
   const count = activeAgents.size + pendingQueue.length;
-  log.info(`Clearing ${count} sessions (${activeAgents.size} active, ${pendingQueue.length} queued)`);
+  log.info(
+    `Clearing ${count} sessions (${activeAgents.size} active, ${pendingQueue.length} queued)`,
+  );
 
   for (const item of pendingQueue) {
-    item.reject(new Error("System shutdown or reset requested"));
+    item.reject(new Error('System shutdown or reset requested'));
   }
   pendingQueue.length = 0;
   activeAgents.clear();
@@ -42,10 +44,7 @@ function processQueue(): void {
   executeAgent(next.sessionId, next.fn).then(next.resolve).catch(next.reject);
 }
 
-async function executeAgent(
-  sessionId: string,
-  fn: () => Promise<unknown>,
-): Promise<unknown> {
+async function executeAgent(sessionId: string, fn: () => Promise<unknown>): Promise<unknown> {
   const startTime = Date.now();
   const active: ActiveAgent = { sessionId, startTime };
 
@@ -76,7 +75,7 @@ export async function runWithConcurrencyLimit<T>(
   if (activeAgents.size >= MAX_CONCURRENT) {
     if (pendingQueue.length >= MAX_QUEUED) {
       log.warn(`Queue full (${MAX_QUEUED}), rejecting session ${sessionId}`);
-      throw new Error("Service Unavailable: Too many requests queued. Please try again later.");
+      throw new Error('Service Unavailable: Too many requests queued. Please try again later.');
     }
 
     log.warn(

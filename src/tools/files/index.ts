@@ -1,1 +1,1 @@
-export { fileDiffTool } from "./diff.ts";
+export { fileDiffTool } from './diff.ts';

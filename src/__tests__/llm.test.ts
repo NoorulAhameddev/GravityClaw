@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-  getHistory,
-  addUserMessage,
-  addAssistantMessage,
-  addToolResult
-} from '../llm/index.ts';
+import { getHistory, addUserMessage, addAssistantMessage, addToolResult } from '../llm/index.ts';
 import { db } from '../db.ts';
 import { config } from '../config.ts';
 
@@ -48,7 +43,7 @@ describe('LLM History Management', () => {
       expect(history).toHaveLength(1);
       expect(history[0]).toMatchObject({
         role: 'user',
-        content: 'Test message'
+        content: 'Test message',
       });
     });
 
@@ -70,19 +65,21 @@ describe('LLM History Management', () => {
       expect(history).toHaveLength(1);
       expect(history[0]).toMatchObject({
         role: 'assistant',
-        content: 'Response text'
+        content: 'Response text',
       });
     });
 
     it('should add assistant message with tool calls', () => {
-      const toolCalls = [{
-        id: 'call_123',
-        type: 'function' as const,
-        function: {
-          name: 'get_datetime',
-          arguments: '{}'
-        }
-      }];
+      const toolCalls = [
+        {
+          id: 'call_123',
+          type: 'function' as const,
+          function: {
+            name: 'get_datetime',
+            arguments: '{}',
+          },
+        },
+      ];
 
       addAssistantMessage(testSessionId, 'Let me check...', testDeps, toolCalls);
 
@@ -90,7 +87,7 @@ describe('LLM History Management', () => {
       expect(history).toHaveLength(1);
       expect(history[0]).toMatchObject({
         role: 'assistant',
-        content: 'Let me check...'
+        content: 'Let me check...',
       });
       expect((history[0] as any).tool_calls).toBeDefined();
       expect((history[0] as any).tool_calls).toHaveLength(1);
@@ -106,7 +103,7 @@ describe('LLM History Management', () => {
       expect(history[0]).toMatchObject({
         role: 'tool',
         tool_call_id: 'call_123',
-        content: 'Tool completed successfully'
+        content: 'Tool completed successfully',
       });
     });
   });
@@ -115,14 +112,16 @@ describe('LLM History Management', () => {
     it('should handle complete conversation with tool use', () => {
       addUserMessage(testSessionId, 'What time is it?', testDeps);
 
-      const toolCalls = [{
-        id: 'call_datetime_1',
-        type: 'function' as const,
-        function: {
-          name: 'get_datetime',
-          arguments: '{}'
-        }
-      }];
+      const toolCalls = [
+        {
+          id: 'call_datetime_1',
+          type: 'function' as const,
+          function: {
+            name: 'get_datetime',
+            arguments: '{}',
+          },
+        },
+      ];
       addAssistantMessage(testSessionId, 'Let me check the time for you.', testDeps, toolCalls);
 
       addToolResult(testSessionId, 'call_datetime_1', '2026-03-01T10:30:00Z', testDeps);
@@ -131,7 +130,7 @@ describe('LLM History Management', () => {
 
       const history = getHistory(testSessionId, testDeps);
       expect(history).toHaveLength(4);
-      expect(history.map(m => m.role)).toEqual(['user', 'assistant', 'tool', 'assistant']);
+      expect(history.map((m) => m.role)).toEqual(['user', 'assistant', 'tool', 'assistant']);
     });
   });
 });

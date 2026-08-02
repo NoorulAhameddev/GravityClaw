@@ -32,13 +32,15 @@ describe('Agent System', () => {
       expect(config.AGENT_MAX_TOOLS_PER_ITERATION).toBeDefined();
       expect(config.AGENT_MAX_TOOLS_PER_ITERATION).toBeGreaterThan(0);
       expect(config.AGENT_MAX_TOOLS_PER_ITERATION).toBeLessThanOrEqual(100);
-      
+
       expect(config.AGENT_MAX_TOOLS_TOTAL).toBeDefined();
       expect(config.AGENT_MAX_TOOLS_TOTAL).toBeGreaterThan(0);
       expect(config.AGENT_MAX_TOOLS_TOTAL).toBeLessThanOrEqual(1000);
-      
+
       // Total should be >= per iteration
-      expect(config.AGENT_MAX_TOOLS_TOTAL).toBeGreaterThanOrEqual(config.AGENT_MAX_TOOLS_PER_ITERATION);
+      expect(config.AGENT_MAX_TOOLS_TOTAL).toBeGreaterThanOrEqual(
+        config.AGENT_MAX_TOOLS_PER_ITERATION,
+      );
     });
 
     it('should have reasonable default values for tool limits', async () => {
@@ -47,7 +49,7 @@ describe('Agent System', () => {
       // Default per-iteration limit should be reasonable (e.g., between 1 and 20)
       expect(config.AGENT_MAX_TOOLS_PER_ITERATION).toBeGreaterThanOrEqual(1);
       expect(config.AGENT_MAX_TOOLS_PER_ITERATION).toBeLessThanOrEqual(20);
-      
+
       // Default total limit should be reasonable (e.g., between 10 and 200)
       expect(config.AGENT_MAX_TOOLS_TOTAL).toBeGreaterThanOrEqual(10);
       expect(config.AGENT_MAX_TOOLS_TOTAL).toBeLessThanOrEqual(200);
@@ -61,12 +63,12 @@ describe('Agent System', () => {
 
       db.prepare('INSERT INTO memory (session_id, message_json) VALUES (?, ?)').run(
         session1,
-        JSON.stringify({ role: 'user', content: 'Message 1' })
+        JSON.stringify({ role: 'user', content: 'Message 1' }),
       );
 
       db.prepare('INSERT INTO memory (session_id, message_json) VALUES (?, ?)').run(
         session2,
-        JSON.stringify({ role: 'user', content: 'Message 2' })
+        JSON.stringify({ role: 'user', content: 'Message 2' }),
       );
 
       const history1 = getHistory(session1, testDeps);
@@ -134,7 +136,7 @@ describe('Agent System', () => {
         message: 'Test message',
         sessionId: testSessionId,
         requestConfirmation: async (command: string) => true,
-        onProgress: async (text: string) => { },
+        onProgress: async (text: string) => {},
       };
 
       expect(options.message).toBe('Test message');
@@ -146,7 +148,9 @@ describe('Agent System', () => {
 
   describe('Agent Progress Detection', () => {
     it('should mark meaningful progress for detailed text outputs', () => {
-      expect(isMeaningfulProgress('This is a concrete response with sufficient length and no errors.')).toBe(true);
+      expect(
+        isMeaningfulProgress('This is a concrete response with sufficient length and no errors.'),
+      ).toBe(true);
     });
 
     it('should not mark progress for short texts or specific error prefixes', () => {

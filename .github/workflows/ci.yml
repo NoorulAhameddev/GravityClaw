@@ -49,13 +49,13 @@ jobs:
       - run: npm ci
       - run: npm run test:run
         env:
-          TELEGRAM_BOT_TOKEN: "0000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-          TELEGRAM_ALLOWED_USER_ID: "123456789"
-          LLM_PROVIDER: "mock"
-          OPENROUTER_API_KEY: "sk-or-dummy"
-          API_KEY: "ci-test-key-must-be-at-least-32-chars!!"
-          UNRESTRICTED_ACCESS: "false"
-          NODE_ENV: "test"
+          TELEGRAM_BOT_TOKEN: '0000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+          TELEGRAM_ALLOWED_USER_ID: '123456789'
+          LLM_PROVIDER: 'mock'
+          OPENROUTER_API_KEY: 'sk-or-dummy'
+          API_KEY: 'ci-test-key-must-be-at-least-32-chars!!'
+          UNRESTRICTED_ACCESS: 'false'
+          NODE_ENV: 'test'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -71,13 +71,13 @@ jobs:
       - run: npm ci
       - run: npm run test:coverage
         env:
-          TELEGRAM_BOT_TOKEN: "0000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-          TELEGRAM_ALLOWED_USER_ID: "123456789"
-          LLM_PROVIDER: "mock"
-          OPENROUTER_API_KEY: "sk-or-dummy"
-          API_KEY: "ci-test-key-must-be-at-least-32-chars!!"
-          UNRESTRICTED_ACCESS: "false"
-          NODE_ENV: "test"
+          TELEGRAM_BOT_TOKEN: '0000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+          TELEGRAM_ALLOWED_USER_ID: '123456789'
+          LLM_PROVIDER: 'mock'
+          OPENROUTER_API_KEY: 'sk-or-dummy'
+          API_KEY: 'ci-test-key-must-be-at-least-32-chars!!'
+          UNRESTRICTED_ACCESS: 'false'
+          NODE_ENV: 'test'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

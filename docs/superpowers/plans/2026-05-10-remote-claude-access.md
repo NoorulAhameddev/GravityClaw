@@ -122,6 +122,7 @@ notepad C:\ProgramData\ssh\sshd_config
 ```
 
 Add these lines to sshd_config:
+
 ```
 PasswordAuthentication no
 PubkeyAuthentication yes

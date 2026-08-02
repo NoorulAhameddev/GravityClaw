@@ -9,6 +9,7 @@ This document provides comprehensive performance metrics, optimization technique
 ### Load Test Baseline (50 concurrent clients, 100 messages/client)
 
 **Target Metrics:**
+
 - Connected clients: 50+
 - Response latency P95: < 200ms
 - Success rate: > 99%
@@ -16,6 +17,7 @@ This document provides comprehensive performance metrics, optimization technique
 - Memory usage: < 300MB
 
 **Typical Results:**
+
 ```json
 {
   "messagesPerSecond": 148.5,
@@ -43,6 +45,7 @@ This document provides comprehensive performance metrics, optimization technique
 ### 1. Database Optimizations
 
 #### Indexes Created
+
 ```sql
 -- Frequently queried columns
 CREATE INDEX idx_memory_timestamp ON memory(timestamp);
@@ -53,6 +56,7 @@ CREATE INDEX idx_workflow_tasks_status ON workflow_tasks(workflow_id, status);
 ```
 
 #### Pragmas Applied
+
 - **journal_mode = WAL** - Better concurrency for concurrent reads
 - **synchronous = NORMAL** - Balance between safety and performance
 - **temp_store = MEMORY** - Use RAM for temporary tables
@@ -60,12 +64,14 @@ CREATE INDEX idx_workflow_tasks_status ON workflow_tasks(workflow_id, status);
 - **foreign_keys = ON** - Data integrity with minimal overhead
 
 #### Caching Strategy
+
 - **Session Settings Cache**: In-memory LRU cache (60s TTL)
 - **Session Info Cache**: Per-session metadata caching
 - **Tool Result Cache**: 5-minute cache for tool outputs
 - Automatic cleanup of expired entries every 5 minutes
 
 #### Batch Operations
+
 - Use `batchInsertMessages()` for multiple inserts
 - Transactions for multi-step operations
 - Compiled prepared statements for reuse
@@ -73,12 +79,14 @@ CREATE INDEX idx_workflow_tasks_status ON workflow_tasks(workflow_id, status);
 ### 2. WebSocket Optimizations
 
 #### Connection Management
+
 - **Max connections**: 1000 per instance
 - **Heartbeat interval**: 30 seconds
 - **Dead connection timeout**: 60 seconds
 - Automatic cleanup of idle connections
 
 #### Ping-Pong Keep-Alive
+
 ```javascript
 // Server sends ping every 30s
 // Client responds with pong
@@ -93,6 +101,7 @@ setInterval(() => {
 ```
 
 #### Buffer Management
+
 - Message size warnings (>100KB)
 - Client metrics tracking
 - Connection queue monitoring
@@ -100,23 +109,27 @@ setInterval(() => {
 ### 3. Memory Optimization
 
 #### Monitoring
+
 - Real-time memory tracking (1-minute intervals)
 - Memory trend analysis
 - Leak detection algorithm
 - Peak heap tracking
 
 #### Limits
+
 ```javascript
 const MAX_HEAP_SIZE_MB = 512;
 const MEMORY_WARN_THRESHOLD = 0.8; // 80% of max
 ```
 
 #### GC Management
+
 - Automatic GC hints every 5 minutes
 - Forced cleanup when threshold exceeded
 - Support for `--expose-gc` flag for V8 profiling
 
 #### Cache Size Management
+
 - Session settings cache: < 1000 entries
 - Session info cache: < 5000 entries
 - Tool result cache: limited by TTL (5 minutes)
@@ -124,11 +137,13 @@ const MEMORY_WARN_THRESHOLD = 0.8; // 80% of max
 ### 4. Tool Execution Optimization
 
 #### Caching
+
 - Per-tool result caching with configurable TTL
 - Argument-based cache keys
 - Automatic cleanup of stale entries
 
 #### Metrics Tracking
+
 ```javascript
 {
   executionCount: number,
@@ -141,6 +156,7 @@ const MEMORY_WARN_THRESHOLD = 0.8; // 80% of max
 ```
 
 #### Slow Tool Detection
+
 - Warnings logged for executions > 100ms
 - Historical comparison with averages
 - Trend analysis
@@ -148,17 +164,20 @@ const MEMORY_WARN_THRESHOLD = 0.8; // 80% of max
 ### 5. Agent Loop Optimization
 
 #### Iteration Tracking
+
 - Per-iteration latency measurement
 - Tool call counting
 - Message length tracking
 - Session-based metrics
 
 #### Regex Optimization
+
 - Pattern compilation caching
 - Precompiled common patterns (URL, email, IP, session ID)
 - Reuse across iterations
 
 #### Latency Monitoring
+
 - P50, P95, P99 measurement
 - Trend detection
 - Anomaly identification
@@ -167,16 +186,17 @@ const MEMORY_WARN_THRESHOLD = 0.8; // 80% of max
 
 ### Single Instance Scaling
 
-| Load | Clients | Memory | CPU | Notes |
-|------|---------|--------|-----|-------|
-| Light | 10-50 | 200MB | <20% | Development, testing |
-| Medium | 50-150 | 300-350MB | 20-50% | Small production |
-| Heavy | 150-200 | 400-450MB | 50-80% | Medium production |
-| Maximum | 200-250 | 200-500MB | >80% | Approaching breaking point |
+| Load    | Clients | Memory    | CPU    | Notes                      |
+| ------- | ------- | --------- | ------ | -------------------------- |
+| Light   | 10-50   | 200MB     | <20%   | Development, testing       |
+| Medium  | 50-150  | 300-350MB | 20-50% | Small production           |
+| Heavy   | 150-200 | 400-450MB | 50-80% | Medium production          |
+| Maximum | 200-250 | 200-500MB | >80%   | Approaching breaking point |
 
 ### Multi-Instance Scaling
 
 **Load Balancer Setup**
+
 ```
 Client Connections
     ↓
@@ -187,6 +207,7 @@ Instance 1  Instance 2  Instance 3
 ```
 
 **Recommended Configuration**
+
 - 3-5 instances for production
 - Each instance: 2 CPU cores, 1GB RAM minimum
 - Load balanced with sticky sessions for WebSocket
@@ -195,12 +216,14 @@ Instance 1  Instance 2  Instance 3
 ### Database Scaling
 
 **For 1000+ clients:**
+
 1. Enable connection pooling (pgbouncer for PostgreSQL)
 2. Add read replicas for analytics queries
 3. Archive old data periodically
 4. Run VACUUM weekly
 
 **For 10,000+ clients:**
+
 1. Implement data sharding by session_id
 2. Separate database for analytics
 3. Message queue for async writes
@@ -210,13 +233,13 @@ Instance 1  Instance 2  Instance 3
 
 ### Bandwidth Estimates
 
-| Metric | Per Client | 100 Clients | 500 Clients |
-|--------|-----------|------------|------------|
-| Message Size (avg) | 500 bytes | 50KB/sec | 250KB/sec |
-| Connection Overhead | 1KB | 100KB | 500KB |
-| Control Messages | 100 bytes/min | 10KB/min | 50KB/min |
-| **Total Sustained** | - | **60KB/sec** | **300KB/sec** |
-| **Peak (BPS)** | - | **500Kbps** | **2.5Mbps** |
+| Metric              | Per Client    | 100 Clients  | 500 Clients   |
+| ------------------- | ------------- | ------------ | ------------- |
+| Message Size (avg)  | 500 bytes     | 50KB/sec     | 250KB/sec     |
+| Connection Overhead | 1KB           | 100KB        | 500KB         |
+| Control Messages    | 100 bytes/min | 10KB/min     | 50KB/min      |
+| **Total Sustained** | -             | **60KB/sec** | **300KB/sec** |
+| **Peak (BPS)**      | -             | **500Kbps**  | **2.5Mbps**   |
 
 **Recommendation**: Provision 5x peak bandwidth for headroom
 
@@ -225,6 +248,7 @@ Instance 1  Instance 2  Instance 3
 ### Key Metrics to Monitor
 
 #### Real-time (Updated every minute)
+
 - Connected WebSocket clients
 - Messages per second
 - Active sessions
@@ -232,6 +256,7 @@ Instance 1  Instance 2  Instance 3
 - Memory usage (heap, peak)
 
 #### Per-minute Aggregates
+
 - Average message latency
 - Tool execution times (slowest tools)
 - Error rates
@@ -239,6 +264,7 @@ Instance 1  Instance 2  Instance 3
 - Connection churn (new/closed)
 
 #### Hourly Analysis
+
 - Memory trend (increasing/decreasing/stable)
 - Peak resource usage
 - Tool performance degradation
@@ -247,6 +273,7 @@ Instance 1  Instance 2  Instance 3
 ### Dashboard Widgets
 
 **1. Real-time Status**
+
 ```
 ┌─────────────────────────────────────┐
 │ Connected Clients: 156/250 (62%)    │
@@ -257,6 +284,7 @@ Instance 1  Instance 2  Instance 3
 ```
 
 **2. Performance Metrics**
+
 ```
 ┌──────────────────────────────────────────────┐
 │ Latency (p50/p95/p99): 25ms/145ms/287ms      │
@@ -267,6 +295,7 @@ Instance 1  Instance 2  Instance 3
 ```
 
 **3. Tool Performance**
+
 ```
 Slowest Tools:
   1. executionAgent     152.3ms avg
@@ -275,6 +304,7 @@ Slowest Tools:
 ```
 
 **4. Memory Trend**
+
 ```
 Memory (MB) │ ╭─────╮
     256     │ │     ╰─────
@@ -309,11 +339,13 @@ Memory (MB) │ ╭─────╮
 ### Running Load Tests
 
 **Basic load test (50 clients, 100 messages each)**
+
 ```bash
 npm run bench:load
 ```
 
 **Custom parameters**
+
 ```bash
 npx tsx scripts/load-test.ts --clients 100 --messages 50 --duration 120 --url ws://localhost:3000
 ```
@@ -323,11 +355,13 @@ npx tsx scripts/load-test.ts --clients 100 --messages 50 --duration 120 --url ws
 ### Running Stress Tests
 
 **Find breaking point**
+
 ```bash
 npm run bench:stress
 ```
 
 **Custom parameters**
+
 ```bash
 npx tsx scripts/stress-test.ts --initial 10 --increment 20 --max-clients 500
 ```
@@ -335,6 +369,7 @@ npx tsx scripts/stress-test.ts --initial 10 --increment 20 --max-clients 500
 ### Running Tool Benchmarks
 
 **Benchmark all tools**
+
 ```bash
 npm run bench:tools
 ```
@@ -344,11 +379,13 @@ npm run bench:tools
 ### Performance Regression Testing
 
 Integrated into CI/CD:
+
 ```bash
 npm run test:performance
 ```
 
 **Fails if:**
+
 - Latency regression > 10%
 - Memory usage increase > 20MB
 - Tool execution degradation > 5%
@@ -357,13 +394,13 @@ npm run test:performance
 
 ### Current Limits (Single Instance)
 
-| Limit | Value | Notes |
-|-------|-------|-------|
-| Concurrent connections | 250-500 | Can be increased to 1000+ with tuning |
-| Messages per second | 500-1000 | Depends on message complexity |
-| Database size | 10GB | Recommended max before archival |
-| Session lifetime | Unlimited | Memory usage grows with history |
-| Tool batch size | 100 | Configured in AGENT_MAX_ITERATIONS |
+| Limit                  | Value     | Notes                                 |
+| ---------------------- | --------- | ------------------------------------- |
+| Concurrent connections | 250-500   | Can be increased to 1000+ with tuning |
+| Messages per second    | 500-1000  | Depends on message complexity         |
+| Database size          | 10GB      | Recommended max before archival       |
+| Session lifetime       | Unlimited | Memory usage grows with history       |
+| Tool batch size        | 100       | Configured in AGENT_MAX_ITERATIONS    |
 
 ### Known Issues
 
@@ -413,6 +450,7 @@ Import in Chrome DevTools > Memory > Load Profile
 ## Optimization Checklist
 
 For initial deployment:
+
 - [ ] Run load test to establish baseline
 - [ ] Run stress test to find breaking point
 - [ ] Run tool benchmarks
@@ -423,6 +461,7 @@ For initial deployment:
 - [ ] Create runbooks for common issues
 
 For ongoing optimization:
+
 - [ ] Monitor trends weekly
 - [ ] Compare with baseline monthly
 - [ ] Review error patterns

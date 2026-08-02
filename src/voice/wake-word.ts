@@ -36,17 +36,17 @@ export interface WakeWordDetector {
 
 /**
  * Create a wake word detector that listens for a custom phrase
- * 
+ *
  * NOTE: This feature requires:
  * - Microphone access (local machine only, not VPS)
  * - Node.js environment (not browser)
  * - Audio input device configured
- * 
+ *
  * Desktop/local development only - not for production VPS deployment
  */
 export function createWakeWordDetector(
   openaiApiKey: string,
-  config: Partial<WakeWordConfig> = {}
+  config: Partial<WakeWordConfig> = {},
 ): WakeWordDetector {
   let detectorConfig: WakeWordConfig = { ...DEFAULT_CONFIG, ...config };
   let recognizer: SpeechCommandRecognizer | null = null;
@@ -71,7 +71,9 @@ export function createWakeWordDetector(
       try {
         await import('@tensorflow/tfjs-node');
       } catch (e) {
-        log.warn('Could not load @tensorflow/tfjs-node, falling back to CPU. Wake word detection might be slower.');
+        log.warn(
+          'Could not load @tensorflow/tfjs-node, falling back to CPU. Wake word detection might be slower.',
+        );
       }
 
       recognizer = speechCommands.create('BROWSER_FFT');
@@ -79,7 +81,9 @@ export function createWakeWordDetector(
       log.info(`Model loaded. Available words: ${recognizer.wordLabels().join(', ')}`);
     } catch (error) {
       log.error('Failed to load speech commands model:', error);
-      throw new Error('Wake word model initialization failed. Ensure @tensorflow/tfjs-node or @tensorflow/tfjs is installed.');
+      throw new Error(
+        'Wake word model initialization failed. Ensure @tensorflow/tfjs-node or @tensorflow/tfjs is installed.',
+      );
     }
   }
 
@@ -196,7 +200,7 @@ export function createWakeWordDetector(
         }
 
         for (let i = 0; i < scores.length; i++) {
-          const score = typeof scores[i] === 'number' ? scores[i] as number : 0;
+          const score = typeof scores[i] === 'number' ? (scores[i] as number) : 0;
           if (score !== undefined && score > maxScore) {
             maxScore = score;
             detectedWord = words[i] || '';
@@ -237,7 +241,7 @@ export function createWakeWordDetector(
         probabilityThreshold: detectorConfig.threshold,
         invokeCallbackOnNoiseAndUnknown: false,
         overlapFactor: 0.5, // 50% overlap for better detection
-      }
+      },
     );
   }
 
@@ -287,7 +291,11 @@ export async function getAvailableWakeWords(): Promise<string[]> {
   try {
     const speechCommands = await import('@tensorflow-models/speech-commands');
     // Try to load tfjs-node if possible (optional, for better performance)
-    try { await import('@tensorflow/tfjs-node'); } catch { log.debug('tfjs-node not available, using fallback'); }
+    try {
+      await import('@tensorflow/tfjs-node');
+    } catch {
+      log.debug('tfjs-node not available, using fallback');
+    }
 
     const recognizer = speechCommands.create('BROWSER_FFT');
     await recognizer.ensureModelLoaded();

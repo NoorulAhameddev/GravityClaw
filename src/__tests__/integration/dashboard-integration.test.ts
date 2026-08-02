@@ -3,9 +3,9 @@
  * Tests all dashboard tools and data flows from database to API
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { db } from "../../db.ts";
-import { createLogger } from "../../logger.ts";
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { db } from '../../db.ts';
+import { createLogger } from '../../logger.ts';
 import {
   createTestSessionId,
   createTestSession,
@@ -15,15 +15,15 @@ import {
   insertUsageRecord,
   mockSessionSettings,
   mockUsageRecords,
-} from "./test-utils.ts";
+} from './test-utils.ts';
 
-const log = createLogger("dashboard-integration-test");
+const log = createLogger('dashboard-integration-test');
 
-describe("Dashboard Integration Tests", () => {
+describe('Dashboard Integration Tests', () => {
   let testSessionId: string;
 
   beforeEach(() => {
-    testSessionId = createTestSessionId("dashboard");
+    testSessionId = createTestSessionId('dashboard');
     createTestSession(testSessionId, mockSessionSettings);
   });
 
@@ -31,9 +31,9 @@ describe("Dashboard Integration Tests", () => {
     cleanupTestSession(testSessionId);
   });
 
-  describe("Usage Statistics Tool", () => {
-    it("should retrieve empty stats for new session", async () => {
-      const { getUsageStats } = await import("../../usage.ts");
+  describe('Usage Statistics Tool', () => {
+    it('should retrieve empty stats for new session', async () => {
+      const { getUsageStats } = await import('../../usage.ts');
       const stats = getUsageStats(testSessionId);
 
       expect(stats).toBeDefined();
@@ -43,51 +43,45 @@ describe("Dashboard Integration Tests", () => {
       expect(stats.models).toEqual([]);
     });
 
-    it("should aggregate usage records correctly", async () => {
+    it('should aggregate usage records correctly', async () => {
       // Insert test usage records
       mockUsageRecords.forEach((rec) => {
-        insertUsageRecord(
-          testSessionId,
-          rec.model,
-          rec.inputTokens,
-          rec.outputTokens,
-          rec.costUsd
-        );
+        insertUsageRecord(testSessionId, rec.model, rec.inputTokens, rec.outputTokens, rec.costUsd);
       });
 
-      const { getUsageStats } = await import("../../usage.ts");
+      const { getUsageStats } = await import('../../usage.ts');
       const stats = getUsageStats(testSessionId);
 
       expect(stats.totalCalls).toBe(3);
       expect(stats.totalTokens).toBe(
-        mockUsageRecords.reduce((sum, r) => sum + r.inputTokens + r.outputTokens, 0)
+        mockUsageRecords.reduce((sum, r) => sum + r.inputTokens + r.outputTokens, 0),
       );
       expect(stats.totalCost).toBeCloseTo(
         mockUsageRecords.reduce((sum, r) => sum + r.costUsd, 0),
-        5
+        5,
       );
     });
 
-    it("should calculate model breakdown with costs", async () => {
+    it('should calculate model breakdown with costs', async () => {
       // Insert usage for multiple models
-      insertUsageRecord(testSessionId, "gpt-4", 100, 200, 0.01);
-      insertUsageRecord(testSessionId, "gpt-4", 50, 100, 0.005);
-      insertUsageRecord(testSessionId, "gpt-3.5-turbo", 200, 400, 0.003);
+      insertUsageRecord(testSessionId, 'gpt-4', 100, 200, 0.01);
+      insertUsageRecord(testSessionId, 'gpt-4', 50, 100, 0.005);
+      insertUsageRecord(testSessionId, 'gpt-3.5-turbo', 200, 400, 0.003);
 
-      const { getUsageStats } = await import("../../usage.ts");
+      const { getUsageStats } = await import('../../usage.ts');
       const stats = getUsageStats(testSessionId);
 
       expect(stats.models).toHaveLength(2);
-      const gpt4 = stats.models.find((m) => m.model === "gpt-4");
+      const gpt4 = stats.models.find((m) => m.model === 'gpt-4');
       expect(gpt4?.calls).toBe(2);
       expect(gpt4?.cost).toBeCloseTo(0.015, 5);
     });
 
-    it("should track average latency per model", async () => {
+    it('should track average latency per model', async () => {
       // Insert usage records
-      insertUsageRecord(testSessionId, "gpt-4", 100, 200, 0.01);
+      insertUsageRecord(testSessionId, 'gpt-4', 100, 200, 0.01);
 
-      const { getUsageStats } = await import("../../usage.ts");
+      const { getUsageStats } = await import('../../usage.ts');
       const stats = getUsageStats(testSessionId);
 
       const model = stats.models[0];
@@ -96,12 +90,12 @@ describe("Dashboard Integration Tests", () => {
     });
   });
 
-  describe("Session Settings Tool", () => {
-    it("should store session settings in database", async () => {
+  describe('Session Settings Tool', () => {
+    it('should store session settings in database', async () => {
       const settings = {
-        provider: "anthropic",
-        model: "claude-3-opus",
-        thinkingLevel: "high" as const,
+        provider: 'anthropic',
+        model: 'claude-3-opus',
+        thinkingLevel: 'high' as const,
         temperature: 0.5,
       };
 
@@ -109,34 +103,34 @@ describe("Dashboard Integration Tests", () => {
       const retrieved = getSessionSettingsFromDb(testSessionId);
 
       expect(retrieved).toBeDefined();
-      expect(retrieved?.provider).toBe("anthropic");
-      expect(retrieved?.model).toBe("claude-3-opus");
-      expect(retrieved?.thinkingLevel).toBe("high");
+      expect(retrieved?.provider).toBe('anthropic');
+      expect(retrieved?.model).toBe('claude-3-opus');
+      expect(retrieved?.thinkingLevel).toBe('high');
       expect(retrieved?.temperature).toBe(0.5);
     });
 
-    it("should preserve existing settings when updating partial", async () => {
-      updateSessionSettingsInDb(testSessionId, { provider: "openai" });
+    it('should preserve existing settings when updating partial', async () => {
+      updateSessionSettingsInDb(testSessionId, { provider: 'openai' });
       const updated = getSessionSettingsFromDb(testSessionId);
 
-      expect(updated?.provider).toBe("openai");
+      expect(updated?.provider).toBe('openai');
       expect(updated?.model).toBe(mockSessionSettings.model); // From initial creation
     });
 
-    it("should handle voice settings", async () => {
+    it('should handle voice settings', async () => {
       const voiceSettings = {
-        voiceMode: "full" as const,
-        ttsProvider: "elevenlabs" as const,
+        voiceMode: 'full' as const,
+        ttsProvider: 'elevenlabs' as const,
       };
 
       updateSessionSettingsInDb(testSessionId, voiceSettings);
       const retrieved = getSessionSettingsFromDb(testSessionId);
 
-      expect(retrieved?.voiceMode).toBe("full");
-      expect(retrieved?.ttsProvider).toBe("elevenlabs");
+      expect(retrieved?.voiceMode).toBe('full');
+      expect(retrieved?.ttsProvider).toBe('elevenlabs');
     });
 
-    it("should handle heartbeat settings", async () => {
+    it('should handle heartbeat settings', async () => {
       const heartbeatSettings = {
         heartbeatEnabled: true,
         heartbeatInterval: 60,
@@ -150,8 +144,8 @@ describe("Dashboard Integration Tests", () => {
     });
   });
 
-  describe("Notification Preferences Tool", () => {
-    it("should toggle notification preferences", async () => {
+  describe('Notification Preferences Tool', () => {
+    it('should toggle notification preferences', async () => {
       const notificationSettings = {
         recommendationsEnabled: false,
         heartbeatEnabled: false,
@@ -164,8 +158,8 @@ describe("Dashboard Integration Tests", () => {
       expect(settings?.heartbeatEnabled).toBe(false);
     });
 
-    it("should handle recommendations last sent date", async () => {
-      const today = new Date().toISOString().split("T")[0]!;
+    it('should handle recommendations last sent date', async () => {
+      const today = new Date().toISOString().split('T')[0]!;
       updateSessionSettingsInDb(testSessionId, {
         recommendationsLastSentDate: today as string | undefined,
       });
@@ -175,9 +169,9 @@ describe("Dashboard Integration Tests", () => {
     });
   });
 
-  describe("Model Configuration Tool", () => {
-    it("should support model switching within session", async () => {
-      const models = ["gpt-4", "gpt-3.5-turbo", "claude-3-opus"];
+  describe('Model Configuration Tool', () => {
+    it('should support model switching within session', async () => {
+      const models = ['gpt-4', 'gpt-3.5-turbo', 'claude-3-opus'];
 
       for (const model of models) {
         updateSessionSettingsInDb(testSessionId, { model });
@@ -186,8 +180,8 @@ describe("Dashboard Integration Tests", () => {
       }
     });
 
-    it("should support provider switching", async () => {
-      const providers = ["openai", "anthropic", "google", "groq"];
+    it('should support provider switching', async () => {
+      const providers = ['openai', 'anthropic', 'google', 'groq'];
 
       for (const provider of providers) {
         updateSessionSettingsInDb(testSessionId, { provider });
@@ -196,7 +190,7 @@ describe("Dashboard Integration Tests", () => {
       }
     });
 
-    it("should handle temperature adjustments", async () => {
+    it('should handle temperature adjustments', async () => {
       const temperatures = [0, 0.5, 1.0, 1.5, 2.0];
 
       for (const temp of temperatures) {
@@ -206,8 +200,8 @@ describe("Dashboard Integration Tests", () => {
       }
     });
 
-    it("should handle max tokens configuration", async () => {
-      testSessionId = createTestSessionId("dashboard-tokens");
+    it('should handle max tokens configuration', async () => {
+      testSessionId = createTestSessionId('dashboard-tokens');
       createTestSession(testSessionId);
 
       updateSessionSettingsInDb(testSessionId, { maxTokens: 8000 });
@@ -217,10 +211,10 @@ describe("Dashboard Integration Tests", () => {
     });
   });
 
-  describe("Dashboard Data Consistency", () => {
-    it("should maintain data consistency across multiple updates", async () => {
-      const update1 = { provider: "openai", temperature: 0.7 };
-      const update2 = { model: "gpt-4", maxTokens: 2000 };
+  describe('Dashboard Data Consistency', () => {
+    it('should maintain data consistency across multiple updates', async () => {
+      const update1 = { provider: 'openai', temperature: 0.7 };
+      const update2 = { model: 'gpt-4', maxTokens: 2000 };
       const update3 = { heartbeatEnabled: true, heartbeatInterval: 30 };
 
       updateSessionSettingsInDb(testSessionId, update1);
@@ -229,36 +223,36 @@ describe("Dashboard Integration Tests", () => {
 
       const final = getSessionSettingsFromDb(testSessionId);
 
-      expect(final?.provider).toBe("openai");
+      expect(final?.provider).toBe('openai');
       expect(final?.temperature).toBe(0.7);
-      expect(final?.model).toBe("gpt-4");
+      expect(final?.model).toBe('gpt-4');
       expect(final?.maxTokens).toBe(2000);
       expect(final?.heartbeatEnabled).toBe(true);
       expect(final?.heartbeatInterval).toBe(30);
     });
 
-    it("should isolate settings between different sessions", async () => {
-      const session2Id = createTestSessionId("dashboard-isolation");
+    it('should isolate settings between different sessions', async () => {
+      const session2Id = createTestSessionId('dashboard-isolation');
       createTestSession(session2Id);
 
-      updateSessionSettingsInDb(testSessionId, { provider: "openai" });
-      updateSessionSettingsInDb(session2Id, { provider: "anthropic" });
+      updateSessionSettingsInDb(testSessionId, { provider: 'openai' });
+      updateSessionSettingsInDb(session2Id, { provider: 'anthropic' });
 
       const settings1 = getSessionSettingsFromDb(testSessionId);
       const settings2 = getSessionSettingsFromDb(session2Id);
 
-      expect(settings1?.provider).toBe("openai");
-      expect(settings2?.provider).toBe("anthropic");
+      expect(settings1?.provider).toBe('openai');
+      expect(settings2?.provider).toBe('anthropic');
 
       cleanupTestSession(session2Id);
     });
 
-    it("should handle concurrent setting updates", async () => {
+    it('should handle concurrent setting updates', async () => {
       const updates = [
-        { provider: "openai", temperature: 0.5 },
-        { model: "gpt-4", maxTokens: 4000 },
+        { provider: 'openai', temperature: 0.5 },
+        { model: 'gpt-4', maxTokens: 4000 },
         { heartbeatEnabled: true, heartbeatInterval: 45 },
-        { voiceMode: "full" as const, ttsProvider: "elevenlabs" as const },
+        { voiceMode: 'full' as const, ttsProvider: 'elevenlabs' as const },
       ];
 
       updates.forEach((update) => {
@@ -266,16 +260,16 @@ describe("Dashboard Integration Tests", () => {
       });
 
       const final = getSessionSettingsFromDb(testSessionId);
-      expect(final?.provider).toBe("openai");
-      expect(final?.model).toBe("gpt-4");
-      expect(final?.voiceMode).toBe("full");
+      expect(final?.provider).toBe('openai');
+      expect(final?.model).toBe('gpt-4');
+      expect(final?.voiceMode).toBe('full');
     });
   });
 
-  describe("Error Handling in Dashboard Tools", () => {
-    it("should handle missing session gracefully", async () => {
-      const nonexistentSessionId = "nonexistent:session:id";
-      const { getUsageStats } = await import("../../usage.ts");
+  describe('Error Handling in Dashboard Tools', () => {
+    it('should handle missing session gracefully', async () => {
+      const nonexistentSessionId = 'nonexistent:session:id';
+      const { getUsageStats } = await import('../../usage.ts');
 
       expect(() => {
         getUsageStats(nonexistentSessionId);
@@ -285,7 +279,7 @@ describe("Dashboard Integration Tests", () => {
       expect(stats.totalCalls).toBe(0);
     });
 
-    it("should handle invalid settings data", async () => {
+    it('should handle invalid settings data', async () => {
       // Try to update with invalid data types
       expect(() => {
         updateSessionSettingsInDb(testSessionId, {
@@ -298,11 +292,12 @@ describe("Dashboard Integration Tests", () => {
       expect(settings?.temperature).toBe(-1);
     });
 
-    it("should recover from corrupted settings", async () => {
+    it('should recover from corrupted settings', async () => {
       // Insert corrupted JSON
-      db.prepare(
-        `UPDATE memory SET settings = ? WHERE session_id = ? LIMIT 1`
-      ).run("{invalid json", testSessionId);
+      db.prepare(`UPDATE memory SET settings = ? WHERE session_id = ? LIMIT 1`).run(
+        '{invalid json',
+        testSessionId,
+      );
 
       // Should handle gracefully
       const settings = getSessionSettingsFromDb(testSessionId);
@@ -310,14 +305,14 @@ describe("Dashboard Integration Tests", () => {
     });
   });
 
-  describe("Dashboard Performance", () => {
-    it("should retrieve stats efficiently for session with many records", async () => {
+  describe('Dashboard Performance', () => {
+    it('should retrieve stats efficiently for session with many records', async () => {
       // Insert 100 usage records
       for (let i = 0; i < 100; i++) {
         insertUsageRecord(testSessionId, `model-${i % 5}`, 100, 200, 0.001);
       }
 
-      const { getUsageStats } = await import("../../usage.ts");
+      const { getUsageStats } = await import('../../usage.ts');
       const startTime = performance.now();
       const stats = getUsageStats(testSessionId);
       const duration = performance.now() - startTime;
@@ -326,12 +321,12 @@ describe("Dashboard Integration Tests", () => {
       expect(duration).toBeLessThan(1000); // Should be fast
     });
 
-    it("should handle large settings objects", async () => {
+    it('should handle large settings objects', async () => {
       const largeSettings = {
-        provider: "openai",
-        model: "gpt-4",
-        customSystemPrompt: "You are a helpful assistant. ".repeat(100),
-        thinkingLevel: "high" as const,
+        provider: 'openai',
+        model: 'gpt-4',
+        customSystemPrompt: 'You are a helpful assistant. '.repeat(100),
+        thinkingLevel: 'high' as const,
       };
 
       updateSessionSettingsInDb(testSessionId, largeSettings);

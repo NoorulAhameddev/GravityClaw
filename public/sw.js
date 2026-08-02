@@ -2,7 +2,7 @@
  * ═════════════════════════════════════════════════════════════════════════════
  * Gravity Claw — Service Worker
  * ═════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * Provides offline capability, caching strategy, and background sync
  */
 
@@ -26,7 +26,7 @@ self.addEventListener('install', (event) => {
         // Continue even if some files fail
         return Promise.resolve();
       });
-    })
+    }),
   );
   self.skipWaiting();
 });
@@ -40,9 +40,9 @@ self.addEventListener('activate', (event) => {
           if (cacheName !== CACHE_VERSION) {
             return caches.delete(cacheName);
           }
-        })
+        }),
       );
-    })
+    }),
   );
   self.clients.claim();
 });
@@ -58,7 +58,11 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Skip WebSocket upgrades and external requests
-  if (url.protocol === 'ws:' || url.protocol === 'wss:' || !url.origin.includes(self.location.origin)) {
+  if (
+    url.protocol === 'ws:' ||
+    url.protocol === 'wss:' ||
+    !url.origin.includes(self.location.origin)
+  ) {
     return;
   }
 
@@ -79,13 +83,16 @@ self.addEventListener('fetch', (event) => {
         .catch(() => {
           // Fall back to cache on network error
           return caches.match(request).then((cachedResponse) => {
-            return cachedResponse || new Response('Offline — network unavailable', {
-              status: 503,
-              statusText: 'Service Unavailable',
-              headers: new Headers({ 'Content-Type': 'text/plain' }),
-            });
+            return (
+              cachedResponse ||
+              new Response('Offline — network unavailable', {
+                status: 503,
+                statusText: 'Service Unavailable',
+                headers: new Headers({ 'Content-Type': 'text/plain' }),
+              })
+            );
           });
-        })
+        }),
     );
     return;
   }
@@ -111,7 +118,7 @@ self.addEventListener('fetch', (event) => {
           // Return offline page if available
           return caches.match('/index.html');
         });
-    })
+    }),
   );
 });
 
@@ -163,9 +170,7 @@ self.addEventListener('push', (event) => {
     vibrate: [200, 100, 200],
   };
 
-  event.waitUntil(
-    self.registration.showNotification('Gravity Claw', options)
-  );
+  event.waitUntil(self.registration.showNotification('Gravity Claw', options));
 });
 
 // Notification click event
@@ -183,6 +188,6 @@ self.addEventListener('notificationclick', (event) => {
       if (clients.openWindow) {
         return clients.openWindow('/');
       }
-    })
+    }),
   );
 });

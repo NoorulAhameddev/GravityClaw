@@ -3,12 +3,12 @@
  * Export facts, entities, and relationships in JSON or Markdown format
  */
 
-import type { Tool } from "../index.js";
-import { db } from "../../db.ts";
-import { createLogger } from "../../logger.ts";
-import { gzipSync } from "zlib";
+import type { Tool } from '../index.js';
+import { db } from '../../db.ts';
+import { createLogger } from '../../logger.ts';
+import { gzipSync } from 'zlib';
 
-const log = createLogger("export-memory");
+const log = createLogger('export-memory');
 
 interface MemoryFact {
   id: number;
@@ -67,7 +67,7 @@ function fetchFacts(sessionId: string, limit: number = 500): MemoryFact[] {
                 last_accessed as lastAccessed, access_count as accessCount, importance 
          FROM fact_stats WHERE session_id = ? 
          ORDER BY importance DESC, last_accessed DESC 
-         LIMIT ?`
+         LIMIT ?`,
       )
       .all(sessionId, limit) as any[];
 
@@ -81,7 +81,7 @@ function fetchFacts(sessionId: string, limit: number = 500): MemoryFact[] {
       importance: row.importance || 0,
     }));
   } catch (err) {
-    log.warn("Facts table not available or error reading", { error: err });
+    log.warn('Facts table not available or error reading', { error: err });
     return [];
   }
 }
@@ -97,7 +97,7 @@ function fetchEntities(sessionId: string, limit: number = 500): MemoryEntity[] {
                 last_accessed as lastAccessed, created_at as createdAt 
          FROM entities WHERE session_id = ? 
          ORDER BY access_count DESC 
-         LIMIT ?`
+         LIMIT ?`,
       )
       .all(sessionId, limit) as any[];
 
@@ -111,7 +111,7 @@ function fetchEntities(sessionId: string, limit: number = 500): MemoryEntity[] {
       createdAt: row.createdAt,
     }));
   } catch (err) {
-    log.warn("Entities table not available or error reading", { error: err });
+    log.warn('Entities table not available or error reading', { error: err });
     return [];
   }
 }
@@ -119,10 +119,7 @@ function fetchEntities(sessionId: string, limit: number = 500): MemoryEntity[] {
 /**
  * Fetch relationships for a session
  */
-function fetchRelationships(
-  sessionId: string,
-  limit: number = 500
-): MemoryRelationship[] {
+function fetchRelationships(sessionId: string, limit: number = 500): MemoryRelationship[] {
   try {
     const rows = db
       .prepare(
@@ -133,7 +130,7 @@ function fetchRelationships(
          LEFT JOIN entities e2 ON r.to_id = e2.id 
          WHERE r.session_id = ? 
          ORDER BY r.created_at DESC 
-         LIMIT ?`
+         LIMIT ?`,
       )
       .all(sessionId, limit) as any[];
 
@@ -146,7 +143,7 @@ function fetchRelationships(
       createdAt: row.createdAt,
     }));
   } catch (err) {
-    log.warn("Relationships table not available or error reading", { error: err });
+    log.warn('Relationships table not available or error reading', { error: err });
     return [];
   }
 }
@@ -158,7 +155,7 @@ function formatAsMarkdown(
   sessionId: string,
   facts: MemoryFact[],
   entities: MemoryEntity[],
-  relationships: MemoryRelationship[]
+  relationships: MemoryRelationship[],
 ): string {
   let markdown = `# Memory Export\n\n`;
   markdown += `**Export Date:** ${new Date().toISOString()}\n`;
@@ -180,7 +177,7 @@ function formatAsMarkdown(
         acc[fact.category]!.push(fact);
         return acc;
       },
-      {} as Record<string, MemoryFact[]>
+      {} as Record<string, MemoryFact[]>,
     );
 
     for (const [category, categoryFacts] of Object.entries(categorized)) {
@@ -209,7 +206,7 @@ function formatAsMarkdown(
         acc[entity.type]!.push(entity);
         return acc;
       },
-      {} as Record<string, MemoryEntity[]>
+      {} as Record<string, MemoryEntity[]>,
     );
 
     for (const [type, typeEntities] of Object.entries(typedEntities)) {
@@ -239,7 +236,7 @@ function formatAsMarkdown(
     markdown += `## Relationships\n\n`;
 
     for (const rel of relationships) {
-      markdown += `- **${rel.fromEntityName || "Unknown"} --[${rel.relationType}]--> ${rel.toEntityName || "Unknown"}**\n`;
+      markdown += `- **${rel.fromEntityName || 'Unknown'} --[${rel.relationType}]--> ${rel.toEntityName || 'Unknown'}**\n`;
       if (Object.keys(rel.metadata).length > 0) {
         markdown += `  - Metadata: ${JSON.stringify(rel.metadata)}\n`;
       }
@@ -254,37 +251,37 @@ function formatAsMarkdown(
  * Export memory tool
  */
 export const exportMemoryTool: Tool = {
-  name: "exportMemory",
+  name: 'exportMemory',
   description:
-    "Export memory (facts, entities, relationships) for a session in JSON or Markdown format",
+    'Export memory (facts, entities, relationships) for a session in JSON or Markdown format',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       sessionId: {
-        type: "string",
-        description: "Session ID to export memory for",
+        type: 'string',
+        description: 'Session ID to export memory for',
       },
       format: {
-        type: "string",
-        enum: ["json", "markdown"],
-        description: "Export format (default: json)",
+        type: 'string',
+        enum: ['json', 'markdown'],
+        description: 'Export format (default: json)',
       },
       limit: {
-        type: "number",
-        description: "Maximum number of items per category (default: 500)",
+        type: 'number',
+        description: 'Maximum number of items per category (default: 500)',
       },
       compress: {
-        type: "boolean",
-        description: "Enable gzip compression (default: true)",
+        type: 'boolean',
+        description: 'Enable gzip compression (default: true)',
       },
     },
-    required: ["sessionId"],
+    required: ['sessionId'],
   },
   async execute(input: Record<string, unknown>): Promise<string> {
     try {
       const {
         sessionId,
-        format = "json",
+        format = 'json',
         limit = 500,
         compress = true,
       } = input as {
@@ -297,7 +294,7 @@ export const exportMemoryTool: Tool = {
       if (!sessionId.trim()) {
         return JSON.stringify({
           success: false,
-          error: "sessionId is required",
+          error: 'sessionId is required',
         });
       }
 
@@ -309,18 +306,18 @@ export const exportMemoryTool: Tool = {
       if (facts.length === 0 && entities.length === 0 && relationships.length === 0) {
         return JSON.stringify({
           success: true,
-          warning: "No memory found for this session",
+          warning: 'No memory found for this session',
           data: {
             format,
-            base64: "",
-            filename: `memory-${sessionId}.${format === "json" ? "json" : "md"}`,
+            base64: '',
+            filename: `memory-${sessionId}.${format === 'json' ? 'json' : 'md'}`,
           },
         });
       }
 
       let exportData: string;
 
-      if (format === "json") {
+      if (format === 'json') {
         const jsonExport: MemoryExportJSON = {
           metadata: {
             exportDate: new Date().toISOString(),
@@ -348,27 +345,25 @@ export const exportMemoryTool: Tool = {
       let used_compression = false;
       if (compress && exportData.length > 1024) {
         try {
-          const buffer = Buffer.from(exportData, "utf-8");
+          const buffer = Buffer.from(exportData, 'utf-8');
           const compressed = gzipSync(buffer);
-          finalData = compressed.toString("base64");
+          finalData = compressed.toString('base64');
           used_compression = true;
         } catch (err) {
-          log.warn("Compression failed, returning uncompressed", { error: err });
+          log.warn('Compression failed, returning uncompressed', { error: err });
         }
       }
 
       // Encode to base64
       const base64Data = used_compression
         ? finalData
-        : Buffer.from(exportData, "utf-8").toString("base64");
+        : Buffer.from(exportData, 'utf-8').toString('base64');
 
-      const extension = format === "json" ? "json" : "md";
-      const filename = `memory-${sessionId}.${extension}${
-        used_compression ? ".gz" : ""
-      }`;
+      const extension = format === 'json' ? 'json' : 'md';
+      const filename = `memory-${sessionId}.${extension}${used_compression ? '.gz' : ''}`;
 
       log.info(
-        `Exported memory for session ${sessionId}: ${facts.length} facts, ${entities.length} entities, ${relationships.length} relationships`
+        `Exported memory for session ${sessionId}: ${facts.length} facts, ${entities.length} entities, ${relationships.length} relationships`,
       );
 
       return JSON.stringify({
@@ -387,10 +382,10 @@ export const exportMemoryTool: Tool = {
         },
       });
     } catch (err) {
-      log.error("Failed to export memory", err);
+      log.error('Failed to export memory', err);
       return JSON.stringify({
         success: false,
-        error: err instanceof Error ? err.message : "Unknown error",
+        error: err instanceof Error ? err.message : 'Unknown error',
       });
     }
   },

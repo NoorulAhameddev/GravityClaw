@@ -27,7 +27,7 @@ describe('Command Injection Prevention', () => {
 
   describe('Dangerous Flags', () => {
     it('should block node -e (eval)', () => {
-      const result = validateCommand('node -e "require(\'child_process\').exec(\'ls\')"');
+      const result = validateCommand("node -e \"require('child_process').exec('ls')\"");
       expect(result.allowed).toBe(false);
       expect(result.parsed.hasInjection).toBe(true);
     });

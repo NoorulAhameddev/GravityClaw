@@ -75,7 +75,7 @@ export class TTSService {
 
         // Small delay between requests to avoid rate limiting
         if (i < chunks.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
       }
 
@@ -162,10 +162,6 @@ export class TTSService {
 /**
  * Initialize TTS service from OpenAI API key
  */
-export function createTTSService(
-  apiKey: string,
-  model?: TTSModel,
-  voice?: TTSVoice
-): TTSService {
+export function createTTSService(apiKey: string, model?: TTSModel, voice?: TTSVoice): TTSService {
   return new TTSService(apiKey, model, voice);
 }

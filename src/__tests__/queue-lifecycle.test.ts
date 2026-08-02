@@ -1,17 +1,17 @@
-import { describe, expect, it } from "vitest";
-import { SqliteTaskQueue } from "../queue/backends/sqlite.ts";
+import { describe, expect, it } from 'vitest';
+import { SqliteTaskQueue } from '../queue/backends/sqlite.ts';
 
-describe("queue lifecycle", () => {
-  it("claims queued tasks once and persists completion", async () => {
+describe('queue lifecycle', () => {
+  it('claims queued tasks once and persists completion', async () => {
     const queue = new SqliteTaskQueue();
     const sessionId = `queue-test-${Date.now()}-${Math.random()}`;
     const task = await queue.enqueueToolTask({
-      taskId: "queued-tool",
+      taskId: 'queued-tool',
       sessionId,
-      runId: "run-1",
-      toolName: "echo_test",
-      input: { value: "ok" },
-      source: "agent",
+      runId: 'run-1',
+      toolName: 'echo_test',
+      input: { value: 'ok' },
+      source: 'agent',
       maxRetries: 1,
       userId: undefined,
       platform: undefined,
@@ -23,14 +23,14 @@ describe("queue lifecycle", () => {
 
     const claimed = await queue.claimNext(sessionId);
     expect(claimed?.id).toBe(task.id);
-    expect(claimed?.status).toBe("processing");
+    expect(claimed?.status).toBe('processing');
 
     const duplicate = await queue.claimNext(sessionId);
     expect(duplicate).toBeNull();
 
     await queue.markSucceeded(task.id, { ok: true });
     const persisted = await queue.getTask(task.id);
-    expect(persisted?.status).toBe("completed");
-    expect(persisted?.resultJson).toContain("ok");
+    expect(persisted?.status).toBe('completed');
+    expect(persisted?.resultJson).toContain('ok');
   });
 });

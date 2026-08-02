@@ -12,13 +12,13 @@ GravityClaw is designed to meet SOC 2 Type II criteria across all five trust ser
 
 ## Current Posture
 
-| Category | Status | Target |
-|----------|--------|--------|
-| Security | ✅ Implemented | CC6.1-CC6.8 |
-| Availability | ✅ Implemented | CC7.1-CC7.5 |
+| Category             | Status         | Target      |
+| -------------------- | -------------- | ----------- |
+| Security             | ✅ Implemented | CC6.1-CC6.8 |
+| Availability         | ✅ Implemented | CC7.1-CC7.5 |
 | Processing Integrity | ✅ Implemented | CC8.1-CC8.3 |
-| Confidentiality | ✅ Implemented | CC6.1-CC6.8 |
-| Privacy | 🚧 In Progress | CC9.1-CC9.3 |
+| Confidentiality      | ✅ Implemented | CC6.1-CC6.8 |
+| Privacy              | 🚧 In Progress | CC9.1-CC9.3 |
 
 ## Key Controls
 

@@ -1,6 +1,6 @@
 /**
  * Agent Loop Performance Optimization
- * 
+ *
  * Provides:
  * - Message parsing optimization
  * - Iteration tracking
@@ -8,10 +8,10 @@
  * - Tool call batching hints
  */
 
-import { createLogger } from "../logger.ts";
-import { performance } from "perf_hooks";
+import { createLogger } from '../logger.ts';
+import { performance } from 'perf_hooks';
 
-const log = createLogger("agent-optimization");
+const log = createLogger('agent-optimization');
 
 interface IterationMetrics {
   sessionId: string;
@@ -39,7 +39,7 @@ export function trackIterationMetrics(metrics: IterationMetrics): void {
   // Log slow iterations
   if (metrics.duration > 5000) {
     log.debug(
-      `Agent iteration: ${metrics.duration.toFixed(0)}ms (${metrics.toolCallCount} tools, session: ${metrics.sessionId})`
+      `Agent iteration: ${metrics.duration.toFixed(0)}ms (${metrics.toolCallCount} tools, session: ${metrics.sessionId})`,
     );
   }
 }
@@ -59,10 +59,10 @@ export function getCompiledRegex(pattern: string): RegExp {
  */
 export function precompileCommonPatterns(): void {
   const patterns = [
-    "^[a-zA-Z0-9_-]+$", // Session ID format
-    "https?://[^\\s]+", // URL
-    "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", // Email
-    "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}", // IP address
+    '^[a-zA-Z0-9_-]+$', // Session ID format
+    'https?://[^\\s]+', // URL
+    '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}', // Email
+    '\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}', // IP address
   ];
 
   for (const pattern of patterns) {
@@ -77,7 +77,7 @@ export function precompileCommonPatterns(): void {
  */
 export function getIterationStats(): Record<string, unknown> {
   if (iterationMetrics.length === 0) {
-    return { status: "no data" };
+    return { status: 'no data' };
   }
 
   const durations = iterationMetrics.map((m) => m.duration);
@@ -129,7 +129,7 @@ export function getSessionsWithMostToolCalls(limit: number = 5): unknown[] {
  */
 export function getLatencyTrend(): Record<string, unknown> {
   if (iterationMetrics.length < 10) {
-    return { status: "insufficient data" };
+    return { status: 'insufficient data' };
   }
 
   const recent = iterationMetrics.slice(-10);
@@ -139,7 +139,7 @@ export function getLatencyTrend(): Record<string, unknown> {
   const olderAvg = older.reduce((sum, m) => sum + m.duration, 0) / older.length;
 
   const change = ((recentAvg - olderAvg) / olderAvg) * 100;
-  const trend = change > 5 ? "degrading" : change < -5 ? "improving" : "stable";
+  const trend = change > 5 ? 'degrading' : change < -5 ? 'improving' : 'stable';
 
   return {
     trend,
@@ -155,5 +155,5 @@ export function getLatencyTrend(): Record<string, unknown> {
 export function clearIterationMetrics(): void {
   iterationMetrics.length = 0;
   compiledRegexPatterns.clear();
-  log.info("Agent metrics cleared");
+  log.info('Agent metrics cleared');
 }

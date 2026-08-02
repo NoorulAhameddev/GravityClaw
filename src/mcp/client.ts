@@ -1,6 +1,6 @@
-import { spawn, ChildProcess } from "child_process";
-import { createLogger } from "../logger.ts";
-import { safeJsonParse } from "../utils/json.ts";
+import { spawn, ChildProcess } from 'child_process';
+import { createLogger } from '../logger.ts';
+import { safeJsonParse } from '../utils/json.ts';
 import type {
   JSONRPCRequest,
   JSONRPCResponse,
@@ -10,55 +10,55 @@ import type {
   MCPToolSchema,
   MCPToolCallRequest,
   MCPToolCallResponse,
-} from "./types.ts";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+} from './types.ts';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const log = createLogger("mcp");
+const log = createLogger('mcp');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const MCP_SAFE_ENV_VARS = [
-    "PATH",
-    "HOME",
-    "USERPROFILE",
-    "NODE_PATH",
-    "TMPDIR",
-    "TEMP",
-    "TMP",
-    "LANG",
-    "LC_ALL",
-    "SystemRoot",
-    "APPDATA",
-    "LOCALAPPDATA",
-    "COMSPEC",
-    "PATHEXT",
+  'PATH',
+  'HOME',
+  'USERPROFILE',
+  'NODE_PATH',
+  'TMPDIR',
+  'TEMP',
+  'TMP',
+  'LANG',
+  'LC_ALL',
+  'SystemRoot',
+  'APPDATA',
+  'LOCALAPPDATA',
+  'COMSPEC',
+  'PATHEXT',
 ];
 
 function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, string> {
-    const env: Record<string, string> = {};
+  const env: Record<string, string> = {};
 
-    for (const key of MCP_SAFE_ENV_VARS) {
-        if (process.env[key]) {
-            env[key] = process.env[key]!;
-        }
+  for (const key of MCP_SAFE_ENV_VARS) {
+    if (process.env[key]) {
+      env[key] = process.env[key]!;
     }
+  }
 
-    if (serverConfig.env) {
-        Object.assign(env, serverConfig.env);
-    }
+  if (serverConfig.env) {
+    Object.assign(env, serverConfig.env);
+  }
 
-    return env;
+  return env;
 }
 
 /**
-   * MCP Client Manager
-   * Manages connections to MCP servers and routes tool calls
-   * Includes automatic reconnection for crashed servers
-   */
-  export class MCPClient {
+ * MCP Client Manager
+ * Manages connections to MCP servers and routes tool calls
+ * Includes automatic reconnection for crashed servers
+ */
+export class MCPClient {
   private servers: Map<string, MCPServer> = new Map();
   private requestId = 0;
   private pendingRequests: Map<
@@ -79,12 +79,15 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
   }
 
   // Track failed servers for reconnection with exponential backoff
-  private failedServers: Map<string, { 
-    lastFailure: number; 
-    attempt: number;
-    reconnectTimer?: NodeJS.Timeout;
-  }> = new Map();
-  
+  private failedServers: Map<
+    string,
+    {
+      lastFailure: number;
+      attempt: number;
+      reconnectTimer?: NodeJS.Timeout;
+    }
+  > = new Map();
+
   // Reconnection configuration
   private readonly INITIAL_RECONNECT_DELAY_MS = 5000;
   private readonly MAX_RECONNECT_DELAY_MS = 300000; // 5 minutes max
@@ -113,7 +116,7 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
     const config = this.loadConfig();
 
     if (!config || Object.keys(config.mcpServers).length === 0) {
-      log.info("No MCP servers configured in mcp-servers.json");
+      log.info('No MCP servers configured in mcp-servers.json');
       return;
     }
 
@@ -132,9 +135,7 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
       }
     }
 
-    log.info(
-      `MCP client initialized with ${this.servers.size} server(s)`
-    );
+    log.info(`MCP client initialized with ${this.servers.size} server(s)`);
   }
 
   /**
@@ -153,7 +154,9 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
 
     // Don't retry beyond max attempts
     if (failure.attempt > this.MAX_RECONNECT_ATTEMPTS) {
-      log.warn(`MCP server "${name}" has exceeded max reconnection attempts (${this.MAX_RECONNECT_ATTEMPTS}). Manual intervention required.`);
+      log.warn(
+        `MCP server "${name}" has exceeded max reconnection attempts (${this.MAX_RECONNECT_ATTEMPTS}). Manual intervention required.`,
+      );
       this.failedServers.delete(name);
       return;
     }
@@ -161,10 +164,12 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
     // Calculate delay with exponential backoff
     const delay = Math.min(
       this.INITIAL_RECONNECT_DELAY_MS * Math.pow(2, failure.attempt - 1),
-      this.MAX_RECONNECT_DELAY_MS
+      this.MAX_RECONNECT_DELAY_MS,
     );
 
-    log.info(`Scheduling reconnection for MCP server "${name}" in ${delay}ms (attempt ${failure.attempt}/${this.MAX_RECONNECT_ATTEMPTS})`);
+    log.info(
+      `Scheduling reconnection for MCP server "${name}" in ${delay}ms (attempt ${failure.attempt}/${this.MAX_RECONNECT_ATTEMPTS})`,
+    );
 
     const timer = setTimeout(async () => {
       try {
@@ -215,7 +220,11 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
   /**
    * Check if a server is available or scheduled for reconnection
    */
-  getServerHealth(name: string): { connected: boolean; reconnectScheduled: boolean; attempt: number } {
+  getServerHealth(name: string): {
+    connected: boolean;
+    reconnectScheduled: boolean;
+    attempt: number;
+  } {
     const server = this.servers.get(name);
     const failed = this.failedServers.get(name);
 
@@ -230,15 +239,15 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
    * Load MCP servers configuration from mcp-servers.json
    */
   private loadConfig(): MCPServersConfig | null {
-    const configPath = path.join(process.cwd(), "config", "mcp-servers.json");
+    const configPath = path.join(process.cwd(), 'config', 'mcp-servers.json');
 
     if (!fs.existsSync(configPath)) {
-      log.info("config/mcp-servers.json not found, MCP bridge disabled");
+      log.info('config/mcp-servers.json not found, MCP bridge disabled');
       return null;
     }
 
-    const content = fs.readFileSync(configPath, "utf-8");
-    const result = safeJsonParse<MCPServersConfig | null>(content, null, "MCP config");
+    const content = fs.readFileSync(configPath, 'utf-8');
+    const result = safeJsonParse<MCPServersConfig | null>(content, null, 'MCP config');
     if (!result.success || result.data === null) {
       log.error(`Error loading config/mcp-servers.json: ${result.error}`);
       return null;
@@ -249,17 +258,14 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
   /**
    * Connect to an MCP server
    */
-  private async connectServer(
-    name: string,
-    config: MCPServerConfig
-  ): Promise<void> {
+  private async connectServer(name: string, config: MCPServerConfig): Promise<void> {
     log.info(`Connecting to MCP server: ${name} (command: ${config.command})`);
 
     // Spawn the MCP server process
     const serverProcess = spawn(config.command, config.args, {
       env: createMCPServerEnv(config) as NodeJS.ProcessEnv,
-      stdio: ["pipe", "pipe", "pipe"],
-      shell: process.platform === "win32",
+      stdio: ['pipe', 'pipe', 'pipe'],
+      shell: process.platform === 'win32',
     });
 
     const server: MCPServer = {
@@ -271,15 +277,15 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
     };
 
     // Buffer for incomplete JSON-RPC messages
-    let buffer = "";
+    let buffer = '';
 
     // Handle stdout (JSON-RPC responses)
-    serverProcess.stdout?.on("data", (data: Buffer) => {
+    serverProcess.stdout?.on('data', (data: Buffer) => {
       buffer += data.toString();
 
       // Split by newlines (JSON-RPC messages are newline-delimited)
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || ""; // Keep last incomplete line
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || ''; // Keep last incomplete line
 
       for (const line of lines) {
         if (line.trim()) {
@@ -287,28 +293,26 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
             const response = JSON.parse(line) as JSONRPCResponse;
             this.handleResponse(server, response);
           } catch (error) {
-            log.error(
-              `Error parsing JSON-RPC response from ${name}: ${error}`
-            );
+            log.error(`Error parsing JSON-RPC response from ${name}: ${error}`);
           }
         }
       }
     });
 
     // Handle stderr (logging)
-    serverProcess.stderr?.on("data", (data: Buffer) => {
+    serverProcess.stderr?.on('data', (data: Buffer) => {
       log.warn(`MCP server "${name}" stderr: ${data.toString().trim()}`);
     });
 
     // Handle process exit
-    serverProcess.on("exit", (code: number | null) => {
+    serverProcess.on('exit', (code: number | null) => {
       log.info(`MCP server "${name}" stopped (code: ${code})`);
       server.connected = false;
       this.servers.delete(name);
     });
 
     // Handle process errors
-    serverProcess.on("error", (error: Error) => {
+    serverProcess.on('error', (error: Error) => {
       log.error(`MCP server "${name}" process error: ${error}`);
       server.connected = false;
     });
@@ -322,12 +326,10 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
     try {
       await this.initializeServer(server);
       server.connected = true;
-      log.info(
-        `MCP server "${name}" connected, discovered ${server.tools.length} tools`
-      );
+      log.info(`MCP server "${name}" connected, discovered ${server.tools.length} tools`);
     } catch (error) {
       log.error(`Failed to initialize MCP server "${name}": ${error}`);
-      serverProcess.kill("SIGTERM");
+      serverProcess.kill('SIGTERM');
       this.servers.delete(name);
       throw error;
     }
@@ -339,29 +341,27 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
   private async initializeServer(server: MCPServer): Promise<void> {
     // Call initialize method
     try {
-      await this.sendRequest(server, "initialize", {
-        protocolVersion: "2024-11-05",
+      await this.sendRequest(server, 'initialize', {
+        protocolVersion: '2024-11-05',
         capabilities: {},
         clientInfo: {
-          name: "gravity-claw",
-          version: "1.0.0",
+          name: 'gravity-claw',
+          version: '1.0.0',
         },
       });
     } catch (error) {
-      log.warn(
-        `Server ${server.name} doesn't support initialize, continuing...`
-      );
+      log.warn(`Server ${server.name} doesn't support initialize, continuing...`);
     }
 
     // Discover tools via tools/list
-    const toolsResult = await this.sendRequest(server, "tools/list", {});
+    const toolsResult = await this.sendRequest(server, 'tools/list', {});
 
     if (toolsResult && Array.isArray(toolsResult.tools)) {
       server.tools = toolsResult.tools.map((tool: any) => ({
         name: tool.name,
-        description: tool.description || "",
+        description: tool.description || '',
         inputSchema: tool.inputSchema || {
-          type: "object",
+          type: 'object',
           properties: {},
         },
       }));
@@ -371,16 +371,12 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
   /**
    * Send JSON-RPC request to MCP server
    */
-  private sendRequest(
-    server: MCPServer,
-    method: string,
-    params: any
-  ): Promise<any> {
+  private sendRequest(server: MCPServer, method: string, params: any): Promise<any> {
     return new Promise((resolve, reject) => {
       const id = ++this.requestId;
 
       const request: JSONRPCRequest = {
-        jsonrpc: "2.0",
+        jsonrpc: '2.0',
         id,
         method,
         params,
@@ -390,18 +386,14 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
       this.pendingRequests.set(id, { resolve, reject });
 
       // Send request
-      const message = JSON.stringify(request) + "\n";
+      const message = JSON.stringify(request) + '\n';
       server.process.stdin?.write(message);
 
       // Set timeout
       setTimeout(() => {
         if (this.pendingRequests.has(id)) {
           this.pendingRequests.delete(id);
-          reject(
-            new Error(
-              `Request timeout for ${method} on server ${server.name}`
-            )
-          );
+          reject(new Error(`Request timeout for ${method} on server ${server.name}`));
         }
       }, 30000); // 30 second timeout
     });
@@ -411,24 +403,18 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
    * Handle JSON-RPC response from MCP server
    */
   private handleResponse(server: MCPServer, response: JSONRPCResponse): void {
-    const id = typeof response.id === "number" ? response.id : parseInt(response.id as string);
+    const id = typeof response.id === 'number' ? response.id : parseInt(response.id as string);
     const pending = this.pendingRequests.get(id);
 
     if (!pending) {
-      log.warn(
-        `Received response for unknown request ID ${id} from ${server.name}`
-      );
+      log.warn(`Received response for unknown request ID ${id} from ${server.name}`);
       return;
     }
 
     this.pendingRequests.delete(id);
 
     if (response.error) {
-      pending.reject(
-        new Error(
-          `MCP Error ${response.error.code}: ${response.error.message}`
-        )
-      );
+      pending.reject(new Error(`MCP Error ${response.error.code}: ${response.error.message}`));
     } else {
       pending.resolve(response.result);
     }
@@ -457,10 +443,7 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
   /**
    * Call a tool on an MCP server
    */
-  async callTool(
-    toolName: string,
-    args: Record<string, any>
-  ): Promise<MCPToolCallResponse> {
+  async callTool(toolName: string, args: Record<string, any>): Promise<MCPToolCallResponse> {
     // Find which server has this tool
     let targetServer: MCPServer | null = null;
 
@@ -475,22 +458,18 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
       throw new Error(`Tool "${toolName}" not found in any MCP server`);
     }
 
-    log.info(
-      `Calling MCP tool "${toolName}" on server "${targetServer.name}"`
-    );
+    log.info(`Calling MCP tool "${toolName}" on server "${targetServer.name}"`);
 
     this.activeRequests++;
     try {
-      const result = await this.sendRequest(targetServer, "tools/call", {
+      const result = await this.sendRequest(targetServer, 'tools/call', {
         name: toolName,
         arguments: args,
       });
 
       return result as MCPToolCallResponse;
     } catch (error) {
-      log.error(
-        `Error calling tool "${toolName}" on ${targetServer.name}: ${error}`
-      );
+      log.error(`Error calling tool "${toolName}" on ${targetServer.name}: ${error}`);
       throw error;
     } finally {
       this.activeRequests--;
@@ -501,7 +480,7 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
    * Disconnect from all MCP servers
    */
   async shutdown(): Promise<void> {
-    log.info("Shutting down MCP client...");
+    log.info('Shutting down MCP client...');
 
     // Clear all reconnection timers
     for (const [name, failure] of this.failedServers.entries()) {
@@ -521,7 +500,7 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
 
     this.servers.clear();
     this.pendingRequests.clear();
-    log.info("MCP client shut down");
+    log.info('MCP client shut down');
   }
 
   /**
@@ -550,12 +529,12 @@ function createMCPServerEnv(serverConfig: MCPServerConfig): Record<string, strin
         toolCount: server.tools.length,
         command: server.config.command,
       };
-      
+
       if (failed) {
         status.reconnectAttempt = failed.attempt;
         status.lastFailure = failed.lastFailure;
       }
-      
+
       return status;
     });
   }

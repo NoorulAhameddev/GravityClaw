@@ -1,6 +1,25 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { createElevenLabsService } from '../voice/elevenlabs.js';
-import { elevenLabsTextToSpeechTool, elevenLabsTextToSpeechStreamingTool } from '../tools/voice/elevenlabs.js';
+import {
+  elevenLabsTextToSpeechTool,
+  elevenLabsTextToSpeechStreamingTool,
+} from '../tools/voice/elevenlabs.js';
+
+beforeAll(() => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => '',
+      arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
+    })),
+  );
+});
+
+afterAll(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('ElevenLabs Text-to-Speech', () => {
   let service: ReturnType<typeof createElevenLabsService>;
@@ -242,27 +261,20 @@ describe('ElevenLabs Text-to-Speech', () => {
   });
 
   describe('Text Chunking', () => {
-    it.skip('should split text into appropriate chunks (requires ELEVENLABS_API_KEY)', async () => {
+    it('should split text into appropriate chunks', async () => {
       const longText = 'Hello. World. How are you? I am fine. ' + 'Test. '.repeat(50);
-      
-      try {
-        await service.textToSpeechStreaming(longText, 50);
-        expect(true).toBe(true);
-      } catch (error) {
-        // Expected if no API key
-        expect((error as Error).message).toBeDefined();
-      }
-    }, 2000);
 
-    it.skip('should handle single chunk text (requires ELEVENLABS_API_KEY)', async () => {
-      try {
-        await service.textToSpeechStreaming('Short text', 1000);
-        expect(true).toBe(true);
-      } catch (error) {
-        // Expected if no API key
-        expect((error as Error).message).toBeDefined();
-      }
-    }, 2000);
+      const buffers = await service.textToSpeechStreaming(longText, 50);
+
+      // Long text should produce multiple chunks
+      expect(buffers.length).toBeGreaterThan(1);
+      expect(buffers[0]).toBeInstanceOf(Buffer);
+    });
+
+    it('should handle single chunk text', async () => {
+      const buffers = await service.textToSpeechStreaming('Short text', 1000);
+      expect(buffers.length).toBe(1);
+    });
   });
 
   describe('ElevenLabs-specific features', () => {

@@ -1,6 +1,6 @@
 /**
  * Security Startup Validation
- * 
+ *
  * Validates security configuration at startup
  */
 
@@ -13,11 +13,7 @@ const logger = createLogger('security-startup');
 
 // Get list of safe directories for file operations
 function getSafeDirectories(): string[] {
-  return [
-    process.cwd(),
-    path.join(process.cwd(), 'data'),
-    path.join(process.cwd(), 'backups'),
-  ];
+  return [process.cwd(), path.join(process.cwd(), 'data'), path.join(process.cwd(), 'backups')];
 }
 
 // Check if security audit logging is enabled

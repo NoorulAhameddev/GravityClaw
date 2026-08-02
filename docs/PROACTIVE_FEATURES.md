@@ -42,13 +42,13 @@ Via tool API:
 Or programmatically:
 
 ```typescript
-import { setHeartbeatPrompt } from "./heartbeat/index.ts";
+import { setHeartbeatPrompt } from './heartbeat/index.ts';
 
 const result = setHeartbeatPrompt({
-  sessionId: "user-session-id",
-  schedule: "every hour",
-  prompt: "Check if there are any pending tasks and notify the user if needed",
-  createdBy: "user-123"
+  sessionId: 'user-session-id',
+  schedule: 'every hour',
+  prompt: 'Check if there are any pending tasks and notify the user if needed',
+  createdBy: 'user-123',
 });
 
 console.log(result); // { success: true, heartbeatId: 1, taskId: 42, intervalMinutes: 60 }
@@ -57,6 +57,7 @@ console.log(result); // { success: true, heartbeatId: 1, taskId: 42, intervalMin
 #### Supported Schedules
 
 Natural language:
+
 - `"every 30 minutes"` - Every 30 minutes
 - `"every hour"` - Hourly
 - `"every day at 9am"` - Daily at 9 AM
@@ -64,6 +65,7 @@ Natural language:
 - `"every weekday at 8am"` - Weekday mornings
 
 Cron expressions:
+
 - `"*/30 * * * *"` - Every 30 minutes
 - `"0 9 * * *"` - Daily at 9 AM
 - `"0 9 * * 1-5"` - Weekdays at 9 AM
@@ -73,21 +75,25 @@ Cron expressions:
 The `prompt` field defines what the agent should check/report. Examples:
 
 **Task reminders**:
+
 ```
 "Check scheduled_tasks table for tasks due today. If any exist, remind the user with details."
 ```
 
 **System monitoring**:
+
 ```
 "Check system metrics, disk space, and memory usage. Alert if any thresholds exceeded (disk >80%, memory >90%)."
 ```
 
 **Engagement**:
+
 ```
 "If the user hasn't sent a message in the last 24 hours, send a friendly check-in asking if they need any help."
 ```
 
 **Custom logic**:
+
 ```
 "Query the database for unread notifications. If count > 5, summarize them for the user."
 ```
@@ -99,18 +105,18 @@ Not every heartbeat should send a message. The system filters heartbeat response
 ```typescript
 export function isHeartbeatResponseNoteworthy(response: string): boolean {
   const lower = response.toLowerCase().trim();
-  
+
   // Filter out non-actionable responses
   const nonNoteworthyPatterns = [
-    "everything is fine",
-    "all systems operational",
-    "no updates",
-    "nothing to report",
-    "no new notifications",
-    "no tasks",
+    'everything is fine',
+    'all systems operational',
+    'no updates',
+    'nothing to report',
+    'no new notifications',
+    'no tasks',
   ];
-  
-  return !nonNoteworthyPatterns.some(pattern => lower.includes(pattern));
+
+  return !nonNoteworthyPatterns.some((pattern) => lower.includes(pattern));
 }
 ```
 
@@ -121,9 +127,9 @@ export function isHeartbeatResponseNoteworthy(response: string): boolean {
 Check heartbeat configuration:
 
 ```typescript
-import { getHeartbeatStatus } from "./heartbeat/index.ts";
+import { getHeartbeatStatus } from './heartbeat/index.ts';
 
-const status = getHeartbeatStatus("session-id");
+const status = getHeartbeatStatus('session-id');
 console.log(status);
 // {
 //   enabled: true,
@@ -138,15 +144,15 @@ console.log(status);
 ### Disable Heartbeat
 
 ```typescript
-heartbeat_disable()
+heartbeat_disable();
 ```
 
 Or update session settings:
 
 ```typescript
-import { updateSessionSetting } from "./session.ts";
+import { updateSessionSetting } from './session.ts';
 
-updateSessionSetting(sessionId, "heartbeatEnabled", false);
+updateSessionSetting(sessionId, 'heartbeatEnabled', false);
 ```
 
 ### Database Schema
@@ -192,9 +198,9 @@ The recommendations system analyzes your usage patterns and proactively suggests
 Recommendations are **enabled by default**. To disable:
 
 ```typescript
-import { setRecommendationsEnabled } from "./recommendations/index.ts";
+import { setRecommendationsEnabled } from './recommendations/index.ts';
 
-setRecommendationsEnabled("session-id", false);
+setRecommendationsEnabled('session-id', false);
 ```
 
 ### Configuration
@@ -212,13 +218,13 @@ Based on your patterns, the agent might send:
 ```
 ☀️ Good morning! Here are your recommendations for today:
 
-1. **Backup Reminder**: You typically create backups on Wednesdays. 
+1. **Backup Reminder**: You typically create backups on Wednesdays.
    Run `create_backup` to maintain your schedule.
 
-2. **Weekly Report**: You often export usage stats on Fridays. 
+2. **Weekly Report**: You often export usage stats on Fridays.
    Consider running `export_usage_stats` today.
 
-3. **Tool Suggestion**: You've been using `web_search` frequently for research. 
+3. **Tool Suggestion**: You've been using `web_search` frequently for research.
    Try the new `semantic_search` tool for finding past conversations.
 
 Have a productive day! 🚀
@@ -265,9 +271,9 @@ Example profile:
 ### Check Recommendation Status
 
 ```typescript
-import { getRecommendationsStatus } from "./recommendations/index.ts";
+import { getRecommendationsStatus } from './recommendations/index.ts';
 
-const status = getRecommendationsStatus("session-id");
+const status = getRecommendationsStatus('session-id');
 console.log(status);
 // {
 //   enabled: true,
@@ -357,7 +363,7 @@ Date: ${dateString}
 
 Activity Summary:
 - Messages sent: ${messageCount}
-- Tools used: ${toolsUsed.join(", ")}
+- Tools used: ${toolsUsed.join(', ')}
 - Tasks completed: ${tasksCompleted}
 
 Generate a concise, friendly evening recap highlighting:
@@ -374,14 +380,14 @@ Keep it brief (3-5 sentences) and actionable.`;
 You can customize the recap logic:
 
 ```typescript
-import { buildEveningRecap } from "./recap/index.ts";
+import { buildEveningRecap } from './recap/index.ts';
 
 const recap = await buildEveningRecap({
-  sessionId: "user-session",
+  sessionId: 'user-session',
   includeMetrics: true,
   includeTaskStatus: true,
   includeSuggestions: true,
-  customPrompt: "Focus on development tasks and code commits"
+  customPrompt: 'Focus on development tasks and code commits',
 });
 
 console.log(recap);
@@ -397,9 +403,9 @@ RECAP_ENABLED=false
 Or via session settings:
 
 ```typescript
-import { updateSessionSetting } from "./session.ts";
+import { updateSessionSetting } from './session.ts';
 
-updateSessionSetting(sessionId, "recapEnabled", false);
+updateSessionSetting(sessionId, 'recapEnabled', false);
 ```
 
 ---
@@ -411,6 +417,7 @@ Use all three features together for maximum productivity:
 ### Morning Routine
 
 **7:00 AM** - Daily recommendations
+
 ```
 ☀️ Good morning! Here's what I suggest today:
 1. Review pending tasks from yesterday
@@ -421,6 +428,7 @@ Use all three features together for maximum productivity:
 ### Throughout the Day
 
 **Every 2 hours** - Heartbeat check-in (if noteworthy)
+
 ```
 ⏰ Status Update:
 - 3 scheduled tasks completed
@@ -431,6 +439,7 @@ Use all three features together for maximum productivity:
 ### Evening
 
 **6:00 PM** - Evening recap
+
 ```
 🌙 Evening Recap:
 You completed 15 tasks today, used 8 different tools, and created 2 backups.
@@ -490,6 +499,7 @@ RECAP_ENABLED=true
 **Problem**: Heartbeat doesn't send messages
 
 **Solutions**:
+
 1. Check heartbeat is enabled: `getHeartbeatStatus()`
 2. Verify scheduled task exists: `list_scheduled_tasks()`
 3. Check filtering: Response might be non-noteworthy
@@ -501,6 +511,7 @@ RECAP_ENABLED=true
 **Problem**: Daily recommendations not arriving
 
 **Solutions**:
+
 1. Verify enabled: `getRecommendationsStatus()`
 2. Check sufficient usage data (>7 days recommended)
 3. Verify delivery time configuration
@@ -512,6 +523,7 @@ RECAP_ENABLED=true
 **Problem**: Evening recap missing
 
 **Solutions**:
+
 1. Check `RECAP_ENABLED=true` in .env
 2. Verify `RECAP_HOUR_LOCAL` is set correctly
 3. Check timezone configuration
@@ -523,6 +535,7 @@ RECAP_ENABLED=true
 **Problem**: Proactive messages are too vague
 
 **Solutions**:
+
 1. **Heartbeat**: Improve prompt specificity
 2. **Recommendations**: More diverse usage creates better suggestions
 3. **Recap**: Ensure activity is being tracked properly
@@ -537,14 +550,14 @@ RECAP_ENABLED=true
 Override defaults for specific sessions:
 
 ```typescript
-import { updateSessionSettings } from "./session.ts";
+import { updateSessionSettings } from './session.ts';
 
 updateSessionSettings(sessionId, {
   heartbeatEnabled: true,
   heartbeatInterval: 120,
   recommendationsEnabled: true,
   recapEnabled: true,
-  recapCustomPrompt: "Focus on code-related activities"
+  recapCustomPrompt: 'Focus on code-related activities',
 });
 ```
 
@@ -553,13 +566,13 @@ updateSessionSettings(sessionId, {
 Implement your own proactive feature:
 
 ```typescript
-import { scheduleTask } from "./scheduler/index.ts";
+import { scheduleTask } from './scheduler/index.ts';
 
 scheduleTask({
-  name: "weekly-report",
-  schedule: "every Friday at 5pm",
-  sessionId: "user-session",
-  prompt: "Generate and export weekly usage report, send summary to user"
+  name: 'weekly-report',
+  schedule: 'every Friday at 5pm',
+  sessionId: 'user-session',
+  prompt: 'Generate and export weekly usage report, send summary to user',
 });
 ```
 
@@ -569,7 +582,7 @@ Send proactive messages to external systems:
 
 ```typescript
 // In heartbeat prompt:
-"Check pending issues in external issue tracker. If any critical issues, 
+"Check pending issues in external issue tracker. If any critical issues,
 notify user and optionally send webhook to Slack."
 ```
 
@@ -580,6 +593,7 @@ notify user and optionally send webhook to Slack."
 ### User Control
 
 Users have full control over proactive features:
+
 - Enable/disable individually
 - Adjust timing and frequency
 - Customize content and prompts
@@ -610,6 +624,7 @@ heartbeat_disable()
 ## Future Enhancements
 
 Planned features:
+
 - **Smart timing**: Learn optimal delivery times
 - **Multi-channel**: Send to Telegram, email, SMS, etc.
 - **Adaptive frequency**: Adjust based on user engagement

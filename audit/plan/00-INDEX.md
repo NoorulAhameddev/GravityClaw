@@ -10,15 +10,15 @@
 
 ## Document Structure
 
-| File | Contents |
-|------|----------|
-| `00-INDEX.md` | This file — master index, dependency graph, conventions |
-| `01-ISSUE-DATABASE.md` | Every issue cataloged with severity, effort, phase, file refs |
-| `02-PHASE-0.md` | **Stop the Bleeding** — security triage, critical bug fixes (Week 1) |
-| `03-PHASE-1.md` | **Production Hardening** — infrastructure, monitoring, auth (Weeks 2-3) |
-| `04-PHASE-2.md` | **Quality & Testing** — tests, code quality, docs (Weeks 4-7) |
-| `05-PHASE-3.md` | **Scale & Polish** — performance, streaming, UX (Months 2-3) |
-| `06-PHASE-4.md` | **Enterprise Readiness** — scaling, compliance, ecosystem (Months 3-6) |
+| File                   | Contents                                                                |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `00-INDEX.md`          | This file — master index, dependency graph, conventions                 |
+| `01-ISSUE-DATABASE.md` | Every issue cataloged with severity, effort, phase, file refs           |
+| `02-PHASE-0.md`        | **Stop the Bleeding** — security triage, critical bug fixes (Week 1)    |
+| `03-PHASE-1.md`        | **Production Hardening** — infrastructure, monitoring, auth (Weeks 2-3) |
+| `04-PHASE-2.md`        | **Quality & Testing** — tests, code quality, docs (Weeks 4-7)           |
+| `05-PHASE-3.md`        | **Scale & Polish** — performance, streaming, UX (Months 2-3)            |
+| `06-PHASE-4.md`        | **Enterprise Readiness** — scaling, compliance, ecosystem (Months 3-6)  |
 
 ---
 
@@ -113,26 +113,26 @@ Phase 4 (Months 3-6)
 
 ## Severity Classification
 
-| Level | Definition | Response Time |
-|-------|------------|---------------|
-| **P0-CRITICAL** | Security vuln (CVSS > 7.0), data loss, complete system failure | Within hours |
-| **P1-HIGH** | Significant security risk, major architectural flaw, broken feature | Within days |
-| **P2-MEDIUM** | Code smell, performance concern, missing test coverage | Within sprints |
-| **P3-LOW** | Style issue, minor optimization, nice-to-have | When time permits |
-| **P4-DECORATIVE** | Cosmetic, documentation polish, minor UX | Icebox |
+| Level             | Definition                                                          | Response Time     |
+| ----------------- | ------------------------------------------------------------------- | ----------------- |
+| **P0-CRITICAL**   | Security vuln (CVSS > 7.0), data loss, complete system failure      | Within hours      |
+| **P1-HIGH**       | Significant security risk, major architectural flaw, broken feature | Within days       |
+| **P2-MEDIUM**     | Code smell, performance concern, missing test coverage              | Within sprints    |
+| **P3-LOW**        | Style issue, minor optimization, nice-to-have                       | When time permits |
+| **P4-DECORATIVE** | Cosmetic, documentation polish, minor UX                            | Icebox            |
 
 ---
 
 ## Effort Estimation
 
-| Effort | Range | Example |
-|--------|-------|---------|
-| **XS** | 15-30 min | Fix a broken link, add `.dockerignore` |
-| **S** | 1-4 hours | Add `LIMIT` to query, cache AJV schema |
-| **M** | 1-3 days | Decompose server.ts, add CI/CD, fix JWT |
-| **L** | 1-2 weeks | Implement streaming, add test framework, fix all `any` types |
-| **XL** | 2-4 weeks | Plugin marketplace, horizontal scaling, multi-tenant |
-| **XXL** | 1-3 months | Enterprise readiness, SOC2, public SDK |
+| Effort  | Range      | Example                                                      |
+| ------- | ---------- | ------------------------------------------------------------ |
+| **XS**  | 15-30 min  | Fix a broken link, add `.dockerignore`                       |
+| **S**   | 1-4 hours  | Add `LIMIT` to query, cache AJV schema                       |
+| **M**   | 1-3 days   | Decompose server.ts, add CI/CD, fix JWT                      |
+| **L**   | 1-2 weeks  | Implement streaming, add test framework, fix all `any` types |
+| **XL**  | 2-4 weeks  | Plugin marketplace, horizontal scaling, multi-tenant         |
+| **XXL** | 1-3 months | Enterprise readiness, SOC2, public SDK                       |
 
 ---
 
@@ -148,23 +148,23 @@ Phase 4 (Months 3-6)
 
 ## Source Reports
 
-| Agent | Focus | File Reference |
-|-------|-------|----------------|
-| Agent 1 | Reverse Engineer | `audit/REVERSE_ENGINEER.md` |
-| Agent 2 | Code Quality | `audit/CODE_QUALITY.md` |
-| Agent 3 | Security | `audit/SECURITY.md` |
-| Agent 4 | Performance | `audit/PERFORMANCE.md` |
-| Agent 5 | DevOps | `audit/DEVOPS.md` |
-| Agent 6 | Database | `audit/DATABASE.md` |
-| Agent 7 | AI/LLM | `audit/AI_LLM.md` |
-| Agent 8 | Frontend | `audit/FRONTEND.md` |
-| Agent 9 | Backend | `audit/BACKEND.md` |
-| Agent 10 | Product | `audit/PRODUCT.md` |
-| Agent 11 | QA | `audit/QA.md` |
-| Agent 12 | Documentation | `audit/DOCS.md` |
-| Agent 13 | Forensics | `audit/FORENSICS.md` |
-| Agent 14 | CTO Synthesis | `audit/CTO-FINAL-SYNTHESIS.md` |
+| Agent    | Focus            | File Reference                 |
+| -------- | ---------------- | ------------------------------ |
+| Agent 1  | Reverse Engineer | `audit/REVERSE_ENGINEER.md`    |
+| Agent 2  | Code Quality     | `audit/CODE_QUALITY.md`        |
+| Agent 3  | Security         | `audit/SECURITY.md`            |
+| Agent 4  | Performance      | `audit/PERFORMANCE.md`         |
+| Agent 5  | DevOps           | `audit/DEVOPS.md`              |
+| Agent 6  | Database         | `audit/DATABASE.md`            |
+| Agent 7  | AI/LLM           | `audit/AI_LLM.md`              |
+| Agent 8  | Frontend         | `audit/FRONTEND.md`            |
+| Agent 9  | Backend          | `audit/BACKEND.md`             |
+| Agent 10 | Product          | `audit/PRODUCT.md`             |
+| Agent 11 | QA               | `audit/QA.md`                  |
+| Agent 12 | Documentation    | `audit/DOCS.md`                |
+| Agent 13 | Forensics        | `audit/FORENSICS.md`           |
+| Agent 14 | CTO Synthesis    | `audit/CTO-FINAL-SYNTHESIS.md` |
 
 ---
 
-*Generated 2026-07-18 | Next review: After Phase 0 completion*
+_Generated 2026-07-18 | Next review: After Phase 0 completion_

@@ -6,19 +6,9 @@
  */
 
 import { AIR_GAPPED, config } from './src/config.ts';
-import { 
-  enforceAirGap, 
-  getAirGapProvider, 
-  checkAirGapTool 
-} from './src/airgap/enforcement.ts';
-import { 
-  localTextToSpeech, 
-  getLocalTTSBackend 
-} from './src/voice/local-tts.ts';
-import { 
-  localTranscribe, 
-  getLocalTranscriptionBackend 
-} from './src/voice/local-transcription.ts';
+import { enforceAirGap, getAirGapProvider, checkAirGapTool } from './src/airgap/enforcement.ts';
+import { localTextToSpeech, getLocalTTSBackend } from './src/voice/local-tts.ts';
+import { localTranscribe, getLocalTranscriptionBackend } from './src/voice/local-transcription.ts';
 
 async function verify() {
   console.log('🧪 Air-Gapped Mode Verification');
@@ -70,7 +60,9 @@ async function verify() {
       console.log('  ✗ ERROR: web_search not blocked');
     } catch (err) {
       console.log('  ✓ web_search correctly blocked');
-      console.log(`  - Error message includes guidance: ${(err as Error).message.includes('docs/AIRGAP')}`);
+      console.log(
+        `  - Error message includes guidance: ${(err as Error).message.includes('docs/AIRGAP')}`,
+      );
     }
   } else {
     console.log('\n✓ Tool blocking test (cloud mode)');

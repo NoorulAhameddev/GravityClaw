@@ -17,7 +17,7 @@ interface Tool {
   name: string;
   description: string;
   inputSchema: {
-    type: "object";
+    type: 'object';
     properties?: Record<string, unknown>;
     required?: string[];
   };
@@ -67,6 +67,7 @@ All tools automatically receive these fields:
 Get current date and time with timezone support.
 
 **Input Schema:**
+
 ```json
 {
   "timezone": "string (optional, e.g., 'America/New_York')"
@@ -80,6 +81,7 @@ Get current date and time with timezone support.
 Execute shell commands with safety restrictions.
 
 **Input Schema:**
+
 ```json
 {
   "command": "string (required)",
@@ -96,6 +98,7 @@ Execute shell commands with safety restrictions.
 Read file contents.
 
 **Input Schema:**
+
 ```json
 {
   "file_path": "string (required)"
@@ -111,6 +114,7 @@ Read file contents.
 Write content to file.
 
 **Input Schema:**
+
 ```json
 {
   "file_path": "string (required)",
@@ -126,6 +130,7 @@ Write content to file.
 Delete a file.
 
 **Input Schema:**
+
 ```json
 {
   "file_path": "string (required)"
@@ -139,6 +144,7 @@ Delete a file.
 List files in directory.
 
 **Input Schema:**
+
 ```json
 {
   "directory_path": "string (required)",
@@ -153,6 +159,7 @@ List files in directory.
 Search uploaded attachments (images, documents, audio).
 
 **Input Schema:**
+
 ```json
 {
   "query": "string (optional, searches by filename)",
@@ -172,6 +179,7 @@ Search uploaded attachments (images, documents, audio).
 Store a long-term fact in markdown memory.
 
 **Input Schema:**
+
 ```json
 {
   "category": "string (required, e.g., 'preferences', 'contacts')",
@@ -182,6 +190,7 @@ Store a long-term fact in markdown memory.
 **Returns:** Confirmation of storage
 
 **Example:**
+
 ```json
 {
   "category": "preferences",
@@ -194,6 +203,7 @@ Store a long-term fact in markdown memory.
 Retrieve facts from markdown memory.
 
 **Input Schema:**
+
 ```json
 {
   "category": "string (optional, filter by category)",
@@ -208,6 +218,7 @@ Retrieve facts from markdown memory.
 Store an entity in the knowledge graph.
 
 **Input Schema:**
+
 ```json
 {
   "name": "string (required, entity name)",
@@ -223,6 +234,7 @@ Store an entity in the knowledge graph.
 Create a relationship between entities.
 
 **Input Schema:**
+
 ```json
 {
   "from_entity": "string (required, entity name)",
@@ -238,6 +250,7 @@ Create a relationship between entities.
 Query the knowledge graph with Cypher-like syntax.
 
 **Input Schema:**
+
 ```json
 {
   "query": "string (required, e.g., 'MATCH (p:person) WHERE p.role = engineer RETURN p')"
@@ -251,6 +264,7 @@ Query the knowledge graph with Cypher-like syntax.
 Semantic search across conversation history using embeddings.
 
 **Input Schema:**
+
 ```json
 {
   "query": "string (required)",
@@ -268,6 +282,7 @@ Semantic search across conversation history using embeddings.
 Search the web using configured provider (DuckDuckGo, SerpAPI, or Brave).
 
 **Input Schema:**
+
 ```json
 {
   "query": "string (required)",
@@ -284,6 +299,7 @@ Search the web using configured provider (DuckDuckGo, SerpAPI, or Brave).
 Sync memory to Supabase cloud storage.
 
 **Input Schema:**
+
 ```json
 {
   "operation": "'push' | 'pull' | 'status' (required)"
@@ -303,6 +319,7 @@ Sync memory to Supabase cloud storage.
 Transcribe audio file to text using OpenAI Whisper.
 
 **Input Schema:**
+
 ```json
 {
   "file_path": "string (required)",
@@ -319,6 +336,7 @@ Transcribe audio file to text using OpenAI Whisper.
 Convert text to speech using OpenAI TTS.
 
 **Input Schema:**
+
 ```json
 {
   "text": "string (required, max 4096 chars)",
@@ -333,6 +351,7 @@ Convert text to speech using OpenAI TTS.
 High-quality TTS using ElevenLabs.
 
 **Input Schema:**
+
 ```json
 {
   "text": "string (required)",
@@ -357,6 +376,7 @@ List available ElevenLabs voices.
 Configure voice preferences per session.
 
 **Input Schema:**
+
 ```json
 {
   "provider": "'openai' | 'elevenlabs' (optional)",
@@ -372,6 +392,7 @@ Configure voice preferences per session.
 Enable wake word detection (desktop only).
 
 **Input Schema:**
+
 ```json
 {
   "wake_phrase": "string (optional, default: 'hey claw')",
@@ -418,6 +439,7 @@ Disable talk mode.
 Navigate to a URL in headless browser.
 
 **Input Schema:**
+
 ```json
 {
   "url": "string (required)"
@@ -431,6 +453,7 @@ Navigate to a URL in headless browser.
 Extract text content from current page.
 
 **Input Schema:**
+
 ```json
 {
   "selector": "string (optional, CSS selector for specific element)"
@@ -444,6 +467,7 @@ Extract text content from current page.
 Click an element on the page.
 
 **Input Schema:**
+
 ```json
 {
   "selector": "string (required, CSS selector)"
@@ -457,6 +481,7 @@ Click an element on the page.
 Fill form fields.
 
 **Input Schema:**
+
 ```json
 {
   "selector": "string (required, form selector)",
@@ -471,6 +496,7 @@ Fill form fields.
 Take a screenshot of the page.
 
 **Input Schema:**
+
 ```json
 {
   "full_page": "boolean (optional, default: false)"
@@ -488,6 +514,7 @@ Take a screenshot of the page.
 Send a message through a channel.
 
 **Input Schema:**
+
 ```json
 {
   "channel": "'telegram' | 'whatsapp' | 'webchat' (required)",
@@ -503,6 +530,7 @@ Send a message through a channel.
 Send message to multiple recipients.
 
 **Input Schema:**
+
 ```json
 {
   "channels": "array of strings (required)",
@@ -522,6 +550,7 @@ Send message to multiple recipients.
 Create a new agent instance for parallel execution.
 
 **Input Schema:**
+
 ```json
 {
   "role": "string (required, e.g., 'researcher', 'writer', 'analyst')",
@@ -539,6 +568,7 @@ Create a new agent instance for parallel execution.
 Combine results from multiple agents.
 
 **Input Schema:**
+
 ```json
 {
   "agent_ids": "array of strings (required)",
@@ -557,6 +587,7 @@ Combine results from multiple agents.
 Create a widget on the web dashboard.
 
 **Input Schema:**
+
 ```json
 {
   "type": "'chart' | 'table' | 'text' | 'metric' (required)",
@@ -572,6 +603,7 @@ Create a widget on the web dashboard.
 Update existing widget.
 
 **Input Schema:**
+
 ```json
 {
   "widget_id": "string (required)",
@@ -586,6 +618,7 @@ Update existing widget.
 Push live HTML/JS widget to Canvas interface.
 
 **Input Schema:**
+
 ```json
 {
   "html": "string (required)",
@@ -603,6 +636,7 @@ Push live HTML/JS widget to Canvas interface.
 Create dashboard user account.
 
 **Input Schema:**
+
 ```json
 {
   "username": "string (required)",
@@ -621,6 +655,7 @@ Create dashboard user account.
 Retrieve security audit logs.
 
 **Input Schema:**
+
 ```json
 {
   "event_type": "'secret_access' | 'file_access' | 'all' (optional)",
@@ -644,6 +679,7 @@ Get overall security posture.
 Trigger secret rotation for encrypted secrets.
 
 **Input Schema:**
+
 ```json
 {
   "secret_name": "string (optional, rotates specific secret or all if omitted)"
@@ -657,6 +693,7 @@ Trigger secret rotation for encrypted secrets.
 Check if path access is allowed.
 
 **Input Schema:**
+
 ```json
 {
   "path": "string (required)"
@@ -674,6 +711,7 @@ Check if path access is allowed.
 Create database backup.
 
 **Input Schema:**
+
 ```json
 {
   "compress": "boolean (optional, default: true)",
@@ -688,6 +726,7 @@ Create database backup.
 Restore from backup file.
 
 **Input Schema:**
+
 ```json
 {
   "backup_path": "string (required)"
@@ -703,6 +742,7 @@ Restore from backup file.
 List available backups.
 
 **Input Schema:**
+
 ```json
 {
   "sort_by": "'date' | 'size' (optional, default: 'date')"
@@ -716,6 +756,7 @@ List available backups.
 Delete a backup file.
 
 **Input Schema:**
+
 ```json
 {
   "backup_path": "string (required)"
@@ -737,6 +778,7 @@ Get backup system status.
 Verify backup integrity.
 
 **Input Schema:**
+
 ```json
 {
   "backup_path": "string (required)"
@@ -754,6 +796,7 @@ Verify backup integrity.
 Export conversation history.
 
 **Input Schema:**
+
 ```json
 {
   "session_id": "string (optional, defaults to current)",
@@ -769,6 +812,7 @@ Export conversation history.
 Export markdown memory to file.
 
 **Input Schema:**
+
 ```json
 {
   "category": "string (optional, exports all if omitted)",
@@ -784,6 +828,7 @@ Export markdown memory to file.
 Export usage statistics.
 
 **Input Schema:**
+
 ```json
 {
   "format": "'json' | 'csv' (optional, default: 'json')",
@@ -798,6 +843,7 @@ Export usage statistics.
 Export knowledge graph.
 
 **Input Schema:**
+
 ```json
 {
   "format": "'json' | 'cypher' | 'graphml' (optional, default: 'json')",
@@ -816,6 +862,7 @@ Export knowledge graph.
 Schedule recurring task using cron expressions or natural language.
 
 **Input Schema:**
+
 ```json
 {
   "name": "string (required)",
@@ -827,6 +874,7 @@ Schedule recurring task using cron expressions or natural language.
 **Returns:** Task ID and next run time
 
 **Examples**:
+
 - `"every day at 9am"` → Daily at 9 AM
 - `"every Monday"` → Weekly on Monday
 - `"0 */6 * * *"` → Every 6 hours
@@ -836,6 +884,7 @@ Schedule recurring task using cron expressions or natural language.
 List all scheduled tasks.
 
 **Input Schema:**
+
 ```json
 {
   "include_disabled": "boolean (optional, default: false)"
@@ -849,6 +898,7 @@ List all scheduled tasks.
 Cancel/delete a scheduled task.
 
 **Input Schema:**
+
 ```json
 {
   "task_id": "number (required)"
@@ -862,6 +912,7 @@ Cancel/delete a scheduled task.
 Enable a disabled task.
 
 **Input Schema:**
+
 ```json
 {
   "task_id": "number (required)"
@@ -875,6 +926,7 @@ Enable a disabled task.
 Disable a task without deleting it.
 
 **Input Schema:**
+
 ```json
 {
   "task_id": "number (required)"
@@ -892,6 +944,7 @@ Disable a task without deleting it.
 Create webhook endpoint.
 
 **Input Schema:**
+
 ```json
 {
   "name": "string (required)",
@@ -915,6 +968,7 @@ List all webhooks.
 Delete a webhook.
 
 **Input Schema:**
+
 ```json
 {
   "webhook_id": "string (required)"
@@ -928,6 +982,7 @@ Delete a webhook.
 Get webhook trigger history.
 
 **Input Schema:**
+
 ```json
 {
   "webhook_id": "string (required)",
@@ -954,6 +1009,7 @@ List connected MCP servers.
 List tools exposed by MCP servers.
 
 **Input Schema:**
+
 ```json
 {
   "server_name": "string (optional, filters by server)"
@@ -967,6 +1023,7 @@ List tools exposed by MCP servers.
 Invoke an MCP tool.
 
 **Input Schema:**
+
 ```json
 {
   "tool_name": "string (required)",
@@ -981,6 +1038,7 @@ Invoke an MCP tool.
 Reconnect to an MCP server.
 
 **Input Schema:**
+
 ```json
 {
   "server_name": "string (required)"
@@ -998,6 +1056,7 @@ Reconnect to an MCP server.
 Load a skill file.
 
 **Input Schema:**
+
 ```json
 {
   "skill_name": "string (required, filename without .md)"
@@ -1019,6 +1078,7 @@ List all available skills.
 Unload a skill.
 
 **Input Schema:**
+
 ```json
 {
   "skill_name": "string (required)"
@@ -1038,6 +1098,7 @@ Unload a skill.
 Enable proactive heartbeat check-ins.
 
 **Input Schema:**
+
 ```json
 {
   "interval_minutes": "number (optional, default: 60)"
@@ -1073,6 +1134,7 @@ Manually trigger a heartbeat check.
 Get system metrics.
 
 **Input Schema:**
+
 ```json
 {
   "metric_type": "'summary' | 'tools' | 'messages' | 'database' | 'memory' (optional, default: 'summary')"
@@ -1082,6 +1144,7 @@ Get system metrics.
 **Returns:** Metrics data
 
 **Available Metrics**:
+
 - `summary`: Overview of all metrics
 - `tools`: Tool execution statistics
 - `messages`: Message counts by channel
@@ -1105,6 +1168,7 @@ Check rate limit status for current user.
 Configure rate limits (admin only).
 
 **Input Schema:**
+
 ```json
 {
   "user_id": "string (required)",
@@ -1123,6 +1187,7 @@ Configure rate limits (admin only).
 List all users.
 
 **Input Schema:**
+
 ```json
 {
   "include_inactive": "boolean (optional, default: false)"
@@ -1136,6 +1201,7 @@ List all users.
 Update user permissions.
 
 **Input Schema:**
+
 ```json
 {
   "user_id": "string (required)",
@@ -1158,6 +1224,7 @@ List active sessions.
 Force-terminate a session.
 
 **Input Schema:**
+
 ```json
 {
   "session_id": "string (required)"
@@ -1183,33 +1250,33 @@ Get system statistics.
 1. Define tool structure:
 
 ```typescript
-import type { Tool } from "../types/tools.js";
+import type { Tool } from '../types/tools.js';
 
 export const myCustomTool: Tool = {
-  name: "my_custom_tool",
-  description: "Description of what the tool does",
+  name: 'my_custom_tool',
+  description: 'Description of what the tool does',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       param1: {
-        type: "string",
-        description: "Parameter description"
-      }
+        type: 'string',
+        description: 'Parameter description',
+      },
     },
-    required: ["param1"]
+    required: ['param1'],
   },
   async execute(input) {
     // Tool logic here
     const result = doSomething(input.param1 as string);
     return JSON.stringify({ success: true, result });
-  }
+  },
 };
 ```
 
 2. Register in `src/tools/index.ts`:
 
 ```typescript
-import { myCustomTool } from "./category/my-tool.ts";
+import { myCustomTool } from './category/my-tool.ts';
 
 export function registerBuiltInTools(): void {
   // ... existing registrations
@@ -1241,7 +1308,8 @@ npm run test
 
 **Issue**: "Tool X not found in registry"
 
-**Solution**: 
+**Solution**:
+
 1. Check tool is registered in `src/tools/index.ts`
 2. Verify tool name matches exactly (case-sensitive)
 3. Restart the agent if you added a new tool
@@ -1251,6 +1319,7 @@ npm run test
 **Issue**: "Permission denied" or "Unauthorized operation"
 
 **Solution**:
+
 1. Check user permissions with `user_list`
 2. Verify API keys are configured (for external tools)
 3. For file operations, check `PATH_ALLOWLIST` configuration
@@ -1260,6 +1329,7 @@ npm run test
 **Issue**: Tool execution times out
 
 **Solution**:
+
 1. Increase timeout in tool configuration
 2. Check network connectivity for external API tools
 3. Verify external services are operational
@@ -1269,6 +1339,7 @@ npm run test
 **Issue**: "Rate limit exceeded" error
 
 **Solution**:
+
 1. Check current limits with `rate_limit_status`
 2. Wait for rate limit reset
 3. Contact admin to adjust limits if needed
@@ -1282,4 +1353,3 @@ npm run test
 - [Plugin Development](../src/plugins/README.md) - Creating tool plugins
 - [Skills Guide](SKILLS_GUIDE.md) - Creating skill definitions
 - [Multi-Agent Systems](MULTI_AGENT_SYSTEMS.md) - Agent coordination
-

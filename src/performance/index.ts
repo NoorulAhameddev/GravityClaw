@@ -15,7 +15,7 @@ export {
   getDatabaseStats,
   flushCaches,
   getCacheStats,
-} from "./db-optimization.ts";
+} from './db-optimization.ts';
 
 export {
   initializeWSOptimizations,
@@ -23,7 +23,7 @@ export {
   broadcastMessage,
   getWSMetrics,
   cleanupWSResources,
-} from "./ws-optimization.ts";
+} from './ws-optimization.ts';
 
 export {
   initializeMemoryOptimizations,
@@ -32,7 +32,7 @@ export {
   detectMemoryLeaks,
   getMemorySeries,
   forceCleanup,
-} from "./memory-optimization.ts";
+} from './memory-optimization.ts';
 
 export {
   trackToolExecution,
@@ -45,7 +45,7 @@ export {
   clearOldCacheEntries,
   resetMetrics,
   getCacheStats as getToolCacheStats,
-} from "./tool-optimization.ts";
+} from './tool-optimization.ts';
 
 export {
   trackIterationMetrics,
@@ -56,4 +56,4 @@ export {
   getSessionsWithMostToolCalls,
   getLatencyTrend,
   clearIterationMetrics,
-} from "./agent-optimization.ts";
+} from './agent-optimization.ts';

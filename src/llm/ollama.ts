@@ -1,9 +1,12 @@
-import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions.js";
-import type OpenAI from "openai";
-import type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
-import { createLogger } from "../logger.ts";
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+} from 'openai/resources/chat/completions.js';
+import type OpenAI from 'openai';
+import type { LLMProvider, LLMResponse, LLMChatOptions } from '../types/llm.js';
+import { createLogger } from '../logger.ts';
 
-const log = createLogger("llm:ollama");
+const log = createLogger('llm:ollama');
 
 /**
  * Ollama Provider
@@ -11,11 +14,11 @@ const log = createLogger("llm:ollama");
  * Note: Ollama now supports function calling via the /api/chat tools parameter
  */
 export class OllamaProvider implements LLMProvider {
-  readonly name = "ollama";
+  readonly name = 'ollama';
   private baseURL: string;
   private defaultModel: string;
 
-  constructor(defaultModel: string = "llama3.3:70b", baseURL: string = "http://localhost:11434") {
+  constructor(defaultModel: string = 'llama3.3:70b', baseURL: string = 'http://localhost:11434') {
     this.baseURL = baseURL;
     this.defaultModel = defaultModel;
     log.info(`Ollama provider initialized with model: ${defaultModel} at ${baseURL}`);
@@ -24,46 +27,48 @@ export class OllamaProvider implements LLMProvider {
   async chat(
     messages: ChatCompletionMessageParam[],
     toolDefinitions: ChatCompletionTool[],
-    options?: LLMChatOptions
+    options?: LLMChatOptions,
   ): Promise<LLMResponse> {
     const model = options?.model ?? this.defaultModel;
 
-    log.debug(`Calling Ollama — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`);
+    log.debug(
+      `Calling Ollama — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`,
+    );
 
     // Ollama doesn't support tool roles or tool_calls
     // Filter and sanitize messages for Ollama compatibility
     const sanitizedMessages: Array<{ role: string; content: string }> = [];
-    
+
     for (const msg of messages) {
       // Skip tool result messages entirely
-      if (msg.role === "tool") {
+      if (msg.role === 'tool') {
         continue;
       }
 
-      let content = "";
+      let content = '';
 
       // Convert all content to string
-      if (typeof msg.content === "string") {
+      if (typeof msg.content === 'string') {
         content = msg.content;
       } else if (Array.isArray(msg.content)) {
         // Handle content arrays (multimodal)
         content = msg.content
           .map((block: unknown) => {
-            if (typeof block === "string") return block;
-            if (typeof block === "object" && block !== null) {
+            if (typeof block === 'string') return block;
+            if (typeof block === 'object' && block !== null) {
               const b = block as Record<string, unknown>;
-              if (b.type === "text") return String(b.text || "");
-              if (b.type === "image_url") return "[Image content omitted]";
-              return typeof b.text === "string" ? b.text : JSON.stringify(block);
+              if (b.type === 'text') return String(b.text || '');
+              if (b.type === 'image_url') return '[Image content omitted]';
+              return typeof b.text === 'string' ? b.text : JSON.stringify(block);
             }
             return String(block);
           })
-          .join("\n");
+          .join('\n');
       } else if (msg.content) {
         // Fallback for other content types
         content = String(msg.content);
       } else {
-        content = "";
+        content = '';
       }
 
       // Skip empty messages
@@ -80,9 +85,9 @@ export class OllamaProvider implements LLMProvider {
     log.debug(`Ollama sanitized messages: ${sanitizedMessages.length}`);
 
     const resp = await fetch(`${this.baseURL}/api/chat`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model,
@@ -110,12 +115,12 @@ export class OllamaProvider implements LLMProvider {
       eval_count: number;
     };
 
-    const text = data.message.content ?? "";
+    const text = data.message.content ?? '';
 
     log.debug(`Ollama response — text: ${text.length} chars`);
 
     const result: LLMResponse = {
-      stopReason: "stop",
+      stopReason: 'stop',
       text,
       toolCalls: [],
     };
@@ -133,13 +138,15 @@ export class OllamaProvider implements LLMProvider {
 
   async listModels(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseURL}/api/tags`, { signal: AbortSignal.timeout(30000) });
+      const response = await fetch(`${this.baseURL}/api/tags`, {
+        signal: AbortSignal.timeout(30000),
+      });
       if (!response.ok) return [];
-      
+
       const data = (await response.json()) as { models: Array<{ name: string }> };
       return data.models.map((m) => m.name);
     } catch (err) {
-      log.error("Error fetching Ollama models", err);
+      log.error('Error fetching Ollama models', err);
       return [];
     }
   }

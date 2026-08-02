@@ -39,14 +39,15 @@ Step-by-step guide to integrate the observability system into Gravity Claw.
 **File:** `src/agent.ts`
 
 - [ ] Add imports:
+
   ```typescript
-  import { 
-      startCorrelationContext, 
-      endCorrelationContext,
-      addCorrelationProperty 
-  } from "./observability/correlation.ts";
-  import { startSpan, endSpan, endSpanWithError, addSpanEvent } from "./observability/tracing.ts";
-  import { recordHistogram, metrics_ } from "./observability/metrics.ts";
+  import {
+    startCorrelationContext,
+    endCorrelationContext,
+    addCorrelationProperty,
+  } from './observability/correlation.ts';
+  import { startSpan, endSpan, endSpanWithError, addSpanEvent } from './observability/tracing.ts';
+  import { recordHistogram, metrics_ } from './observability/metrics.ts';
   ```
 
 - [ ] In `runAgent()`:
@@ -156,19 +157,21 @@ Step-by-step guide to integrate the observability system into Gravity Claw.
 
 - [ ] Register metrics tool:
   ```typescript
-  import { MetricsTool } from "./observability/metrics.ts";
-  
+  import { MetricsTool } from './observability/metrics.ts';
+
   registry.set(MetricsTool.name, MetricsTool);
   ```
 
 ## Phase 9: Testing & Verification
 
 - [ ] Start the application:
+
   ```bash
   npm run dev
   ```
 
 - [ ] Test health endpoint:
+
   ```bash
   curl http://localhost:3000/api/health
   ```
@@ -177,6 +180,7 @@ Step-by-step guide to integrate the observability system into Gravity Claw.
   - [ ] Response time < 100ms
 
 - [ ] Test metrics endpoint:
+
   ```bash
   curl http://localhost:3000/metrics
   ```
@@ -184,6 +188,7 @@ Step-by-step guide to integrate the observability system into Gravity Claw.
   - [ ] Contains tool_calls_total, ws_clients, etc.
 
 - [ ] Test JSON metrics:
+
   ```bash
   curl http://localhost:3000/api/metrics
   ```
@@ -232,6 +237,7 @@ Step-by-step guide to integrate the observability system into Gravity Claw.
 ## Phase 11: OpenTelemetry Integration (Optional)
 
 - [ ] Install OpenTelemetry packages:
+
   ```bash
   npm install @opentelemetry/api @opentelemetry/sdk-node \
     @opentelemetry/auto-instrumentations-node \
@@ -239,6 +245,7 @@ Step-by-step guide to integrate the observability system into Gravity Claw.
   ```
 
 - [ ] Update `.env`:
+
   ```bash
   OTEL_ENABLED=true
   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
@@ -303,29 +310,34 @@ Step-by-step guide to integrate the observability system into Gravity Claw.
 ## Troubleshooting
 
 ### Missing correlation IDs in logs
+
 - [ ] Verify `startCorrelationContext()` called at request entry
 - [ ] Check correlation context is not ended prematurely
 - [ ] Ensure async operations propagate context correctly
 
 ### Traces not appearing
+
 - [ ] Check `ENABLE_TRACING=true`
 - [ ] Verify spans are being created
 - [ ] Check `/api/metrics` for active correlations
 - [ ] Traces older than configured retention are cleaned up
 
 ### High memory usage
+
 - [ ] Reduce `METRICS_RETENTION_HOURS`
 - [ ] Disable metrics persistence
 - [ ] Disable `ENABLE_CALLER_INFO`
 - [ ] Check for memory leaks in spans
 
 ### Prometheus scraping fails
+
 - [ ] Verify `/metrics` endpoint returns data
 - [ ] Check Content-Type header is text/plain
 - [ ] Review Prometheus target configuration
 - [ ] Check network connectivity
 
 ### OTEL export errors
+
 - [ ] Verify `OTEL_EXPORTER_OTLP_ENDPOINT` is correct
 - [ ] Check OTEL collector is running
 - [ ] Review error logs for details

@@ -15,20 +15,23 @@ What did we decide? What approach are we taking?
 ## Consequences
 
 ### Positive
+
 - What benefits does this decision bring?
 
 ### Negative
+
 - What trade-offs or downsides exist?
 
 ### Neutral
+
 - What else changes as a result?
 
 ## Alternatives Considered
 
 | Alternative | Pros | Cons |
-|-------------|------|------|
-| Option A | ... | ... |
-| Option B | ... | ... |
+| ----------- | ---- | ---- |
+| Option A    | ...  | ...  |
+| Option B    | ...  | ...  |
 
 ## References
 

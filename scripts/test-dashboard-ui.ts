@@ -1,6 +1,6 @@
 /**
  * Dashboard UI Test Script
- * 
+ *
  * Tests the WebSocket-based dashboard integration:
  * - Connects to WebSocket
  * - Calls all dashboard tools directly
@@ -19,9 +19,13 @@ interface ToolResponse {
   error?: string;
 }
 
-async function callTool(ws: WebSocket, toolName: string, args: Record<string, unknown> = {}): Promise<unknown> {
+async function callTool(
+  ws: WebSocket,
+  toolName: string,
+  args: Record<string, unknown> = {},
+): Promise<unknown> {
   const id = `test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  
+
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error(`Timeout waiting for ${toolName}`));
@@ -33,7 +37,7 @@ async function callTool(ws: WebSocket, toolName: string, args: Record<string, un
         if (msg.type === 'tool_response' && msg.id === id) {
           clearTimeout(timeout);
           ws.off('message', handler);
-          
+
           if (msg.error) {
             reject(new Error(msg.error));
           } else {
@@ -55,12 +59,14 @@ async function callTool(ws: WebSocket, toolName: string, args: Record<string, un
 
     ws.on('message', handler);
 
-    ws.send(JSON.stringify({
-      type: 'tool_call',
-      id,
-      tool: toolName,
-      args
-    }));
+    ws.send(
+      JSON.stringify({
+        type: 'tool_call',
+        id,
+        tool: toolName,
+        args,
+      }),
+    );
   });
 }
 
@@ -86,7 +92,7 @@ async function testDashboard(): Promise<void> {
     fn: async () => {
       const result = await callTool(ws, 'getVoiceSettings', { sessionId });
       console.log('   ✅ Voice settings:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   tests.push({
@@ -94,7 +100,7 @@ async function testDashboard(): Promise<void> {
     fn: async () => {
       const result = await callTool(ws, 'getSessionInfo', { sessionId });
       console.log('   ✅ Session info:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   tests.push({
@@ -102,7 +108,7 @@ async function testDashboard(): Promise<void> {
     fn: async () => {
       const result = await callTool(ws, 'getUsageStats', { sessionId });
       console.log('   ✅ Usage stats:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   tests.push({
@@ -110,7 +116,7 @@ async function testDashboard(): Promise<void> {
     fn: async () => {
       const result = await callTool(ws, 'getUsageHistory', { sessionId, limit: 5 });
       console.log('   ✅ Usage history:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   tests.push({
@@ -118,7 +124,7 @@ async function testDashboard(): Promise<void> {
     fn: async () => {
       const result = await callTool(ws, 'getModelBreakdown', { sessionId });
       console.log('   ✅ Model breakdown:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   tests.push({
@@ -126,7 +132,7 @@ async function testDashboard(): Promise<void> {
     fn: async () => {
       const result = await callTool(ws, 'getNotificationPreferences', { sessionId });
       console.log('   ✅ Notification prefs:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   tests.push({
@@ -134,7 +140,7 @@ async function testDashboard(): Promise<void> {
     fn: async () => {
       const result = await callTool(ws, 'setVoiceMode', { sessionId, enabled: true });
       console.log('   ✅ Voice mode set:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   tests.push({
@@ -142,46 +148,52 @@ async function testDashboard(): Promise<void> {
     fn: async () => {
       const result = await callTool(ws, 'setTTSProvider', { sessionId, provider: 'openai' });
       console.log('   ✅ TTS provider set:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   tests.push({
     name: 'setNotificationPreferences',
     fn: async () => {
-      const result = await callTool(ws, 'setNotificationPreferences', { sessionId, notifications: { enabled: true } });
+      const result = await callTool(ws, 'setNotificationPreferences', {
+        sessionId,
+        notifications: { enabled: true },
+      });
       console.log('   ✅ Notifications set:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
-  // Admin Tools Tests  
+  // Admin Tools Tests
   tests.push({
     name: 'listGroupsForUser',
     fn: async () => {
       const result = await callTool(ws, 'listGroupsForUser', { sessionId });
       console.log('   ✅ Groups listed:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   tests.push({
     name: 'getGroupSettings',
     fn: async () => {
       // Use dummy values as there may not be actual groups
-      const result = await callTool(ws, 'getGroupSettings', { platform: 'telegram', groupId: 'test-123' });
+      const result = await callTool(ws, 'getGroupSettings', {
+        platform: 'telegram',
+        groupId: 'test-123',
+      });
       console.log('   ✅ Group settings retrieved:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   tests.push({
     name: 'updateGroupSettings',
     fn: async () => {
-      const result = await callTool(ws, 'updateGroupSettings', { 
-        platform: 'telegram', 
+      const result = await callTool(ws, 'updateGroupSettings', {
+        platform: 'telegram',
         groupId: 'test-123',
         voiceMode: 'off',
-        thinkingLevel: 'medium'
+        thinkingLevel: 'medium',
       });
       console.log('   ✅ Group settings updated:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   tests.push({
@@ -189,7 +201,7 @@ async function testDashboard(): Promise<void> {
     fn: async () => {
       const result = await callTool(ws, 'getDangerousTools', {});
       console.log('   ✅ Dangerous tools:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   tests.push({
@@ -197,7 +209,7 @@ async function testDashboard(): Promise<void> {
     fn: async () => {
       const result = await callTool(ws, 'listPlugins', {});
       console.log('   ✅ Plugins listed:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   // Memory Tools Tests
@@ -206,7 +218,7 @@ async function testDashboard(): Promise<void> {
     fn: async () => {
       const result = await callTool(ws, 'listFacts', { sessionId, limit: 10 });
       console.log('   ✅ Facts listed:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   tests.push({
@@ -214,7 +226,7 @@ async function testDashboard(): Promise<void> {
     fn: async () => {
       const result = await callTool(ws, 'listEntities', { sessionId, limit: 10 });
       console.log('   ✅ Entities listed:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   tests.push({
@@ -222,7 +234,7 @@ async function testDashboard(): Promise<void> {
     fn: async () => {
       const result = await callTool(ws, 'listRelationships', { sessionId, limit: 10 });
       console.log('   ✅ Relationships listed:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   tests.push({
@@ -230,7 +242,7 @@ async function testDashboard(): Promise<void> {
     fn: async () => {
       const result = await callTool(ws, 'searchMemory', { sessionId, query: 'test' });
       console.log('   ✅ Memory searched:', JSON.stringify(result, null, 2));
-    }
+    },
   });
 
   // Run all tests sequentially
@@ -260,7 +272,6 @@ async function testDashboard(): Promise<void> {
     console.log('   ✓ Voice & thinking settings');
     console.log('   ✓ TTS provider configuration');
     console.log('   ✓ Dangerous tools display');
-
   } catch (error) {
     console.error('\n❌ Test failed:', error);
     process.exit(1);
@@ -270,7 +281,7 @@ async function testDashboard(): Promise<void> {
 }
 
 // Run tests
-testDashboard().catch(err => {
+testDashboard().catch((err) => {
   console.error('Fatal error:', err);
   process.exit(1);
 });

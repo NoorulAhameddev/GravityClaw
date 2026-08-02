@@ -77,20 +77,21 @@ LLM_MODEL=mistral              # Override with your chosen model
 ### Force Ollama Provider
 
 When `AIR_GAPPED=true`:
+
 - `LLM_PROVIDER` is forced to `ollama` (overrides any other setting)
 - All other API keys are ignored
 - External LLM APIs cannot be used
 
 ## What's Disabled
 
-| Feature | Status | Alternative |
-|---------|--------|-------------|
+| Feature                                 | Status     | Alternative               |
+| --------------------------------------- | ---------- | ------------------------- |
 | Web Search (DuckDuckGo, SerpAPI, Brave) | ❌ Blocked | Local knowledge base only |
-| Browser Automation | ❌ Blocked | Manual instructions |
-| ElevenLabs TTS | ❌ Blocked | Local TTS options |
-| OpenAI/Anthropic/Groq LLM | ❌ Blocked | Ollama only |
-| Supabase Sync | ❌ Blocked | SQLite memory only |
-| External MCP Servers | ❌ Blocked | Local MCP only |
+| Browser Automation                      | ❌ Blocked | Manual instructions       |
+| ElevenLabs TTS                          | ❌ Blocked | Local TTS options         |
+| OpenAI/Anthropic/Groq LLM               | ❌ Blocked | Ollama only               |
+| Supabase Sync                           | ❌ Blocked | SQLite memory only        |
+| External MCP Servers                    | ❌ Blocked | Local MCP only            |
 
 ## Local Alternatives
 
@@ -99,25 +100,30 @@ When `AIR_GAPPED=true`:
 When air-gapped, Gravity Claw tries these in order:
 
 #### Option 1: Piper TTS (Recommended)
+
 Fast, high-quality, privacy-first.
 
 **Install:**
+
 ```bash
 pip install piper-tts
 # or download: https://github.com/rhasspy/piper/releases
 ```
 
 **Verify:**
+
 ```bash
 echo "Hello world" | piper --output-file test.wav
 ```
 
 **Status:** When running, shows:
+
 ```
 ✓ Generated audio via piper-tts
 ```
 
 #### Option 2: espeak
+
 Cross-platform fallback, available on most systems.
 
 **Install:**
@@ -127,16 +133,19 @@ Cross-platform fallback, available on most systems.
 - **Windows**: Download from https://espeak.sourceforge.net/
 
 **Verify:**
+
 ```bash
 espeak "Hello world" -w test.wav
 ```
 
 **Status:** When running, shows:
+
 ```
 ✓ Generated audio via espeak
 ```
 
 #### Option 3: Text-Only (Fallback)
+
 If no TTS installed, messages are text-only (no audio).
 
 ```
@@ -166,13 +175,13 @@ make
 
 **Available Models:**
 
-| Model | Size | Download | Speed | Accuracy |
-|-------|------|----------|-------|----------|
-| tiny | 75 MB | Instant | 🚀🚀🚀 | ⭐⭐ |
-| base | 140 MB | ~30s | 🚀🚀 | ⭐⭐⭐ |
-| small | 466 MB | ~2m | 🚀 | ⭐⭐⭐⭐ |
-| medium | 1.5 GB | ~5m | 🐢 | ⭐⭐⭐⭐⭐ |
-| large | 2.9 GB | ~10m | 🐢 | ⭐⭐⭐⭐⭐ |
+| Model  | Size   | Download | Speed  | Accuracy   |
+| ------ | ------ | -------- | ------ | ---------- |
+| tiny   | 75 MB  | Instant  | 🚀🚀🚀 | ⭐⭐       |
+| base   | 140 MB | ~30s     | 🚀🚀   | ⭐⭐⭐     |
+| small  | 466 MB | ~2m      | 🚀     | ⭐⭐⭐⭐   |
+| medium | 1.5 GB | ~5m      | 🐢     | ⭐⭐⭐⭐⭐ |
+| large  | 2.9 GB | ~10m     | 🐢     | ⭐⭐⭐⭐⭐ |
 
 **Supported Languages:** English, Spanish, French, German, Italian, Portuguese, Dutch, Russian, Chinese (Mandarin), Japanese, and 90+ more.
 
@@ -181,18 +190,21 @@ make
 Recommended models for various use cases:
 
 #### General Purpose (Recommended)
+
 ```bash
 ollama pull mistral         # 7B, fast, balanced (4.9 GB)
 ollama pull neural-chat     # 7B, optimized for chat (4.7 GB)
 ```
 
 #### Fast & Lightweight
+
 ```bash
 ollama pull phi             # 2.7B, ultra-fast (1.6 GB)
 ollama pull orca-mini       # 3B, efficient (1.9 GB)
 ```
 
 #### Specialized
+
 ```bash
 ollama pull codellama       # Code generation
 ollama pull neural-chat     # Conversational
@@ -200,6 +212,7 @@ ollama pull dolphin-mixtral # Advanced reasoning
 ```
 
 #### Large & Powerful (Requires 16GB+ RAM)
+
 ```bash
 ollama pull llama2-70b      # 70B model (~40 GB)
 ollama pull mixtral         # 46.7B model (~27 GB)
@@ -207,6 +220,7 @@ ollama pull qwen            # Efficient 32B model
 ```
 
 **Switch Models:**
+
 ```bash
 # In .env
 LLM_MODEL=mistral           # default
@@ -220,12 +234,12 @@ curl http://localhost:11434/api/tags | jq '.models[].name'
 
 In air-gapped mode:
 
-| Data | Storage | Sync |
-|------|---------|------|
-| Conversation History | SQLite (local) | ❌ No (local only) |
-| Facts/Memory | Markdown files (local) | ❌ No (local only) |
-| User Sessions | SQLite (local) | ❌ No (local only) |
-| Preferences | SQLite (local) | ❌ No (local only) |
+| Data                 | Storage                | Sync               |
+| -------------------- | ---------------------- | ------------------ |
+| Conversation History | SQLite (local)         | ❌ No (local only) |
+| Facts/Memory         | Markdown files (local) | ❌ No (local only) |
+| User Sessions        | SQLite (local)         | ❌ No (local only) |
+| Preferences          | SQLite (local)         | ❌ No (local only) |
 
 All data stays on your device. No cloud uploads.
 
@@ -239,16 +253,17 @@ All data stays on your device. No cloud uploads.
 
 ### Hardware Requirements
 
-| Model | RAM | GPU | Speed |
-|-------|-----|-----|-------|
-| Phi (2.7B) | 4 GB | Optional | ⚡ Instant |
-| Mistral (7B) | 8 GB | Recommended | ⚡ Fast |
-| Llama2 (13B) | 16 GB | Recommended | 🐢 Moderate |
-| Mixtral (46B) | 32+ GB | Required | 🐢 Slow |
+| Model         | RAM    | GPU         | Speed       |
+| ------------- | ------ | ----------- | ----------- |
+| Phi (2.7B)    | 4 GB   | Optional    | ⚡ Instant  |
+| Mistral (7B)  | 8 GB   | Recommended | ⚡ Fast     |
+| Llama2 (13B)  | 16 GB  | Recommended | 🐢 Moderate |
+| Mixtral (46B) | 32+ GB | Required    | 🐢 Slow     |
 
 ### Optimization Tips
 
 1. **Use GPU acceleration** (if available):
+
    ```bash
    # macOS with Apple Silicon
    ollama pull mistral
@@ -262,7 +277,7 @@ All data stays on your device. No cloud uploads.
 
 2. **Reduce model size**: Phi (2.7B) is much faster than Mistral (7B)
 
-3. **Increase GPU memory**: 
+3. **Increase GPU memory**:
    - NVIDIA: `CUDA_VISIBLE_DEVICES=0`
    - Apple: No configuration needed (automatic)
 
@@ -271,6 +286,7 @@ All data stays on your device. No cloud uploads.
 ### ❌ "Ollama is not responding"
 
 **Fix:**
+
 ```bash
 # Make sure Ollama is running
 ollama serve
@@ -285,6 +301,7 @@ curl http://localhost:11434/api/tags
 ### ❌ "No models available in Ollama"
 
 **Fix:**
+
 ```bash
 # Download a model
 ollama pull mistral
@@ -299,6 +316,7 @@ ollama list
 This is expected! The feature is working correctly.
 
 **If you need external APIs:**
+
 ```bash
 # Disable air-gap mode
 AIR_GAPPED=false
@@ -311,6 +329,7 @@ AIR_GAPPED=false
 **This is correct behavior.** Air-gap mode blocks all external APIs.
 
 **Workaround:** Use local-only sources:
+
 - `recall_facts` — query local memory
 - `query_graph` — search knowledge graph
 - Manual document upload & search
@@ -330,6 +349,7 @@ ls ./whisper.cpp/main
 ```
 
 **Fallbacks:**
+
 - TTS: Falls back to text-only (no audio)
 - STT: Returns error message, use text input instead
 
@@ -338,29 +358,32 @@ ls ./whisper.cpp/main
 ### Privacy Benefits
 
 ✅ **Zero External Data Leakage**
+
 - No API calls to OpenAI, Anthropic, etc.
 - No searches sent to DuckDuckGo, Google, etc.
 - No audio to ElevenLabs servers
 
 ✅ **Zero Cloud Metadata**
+
 - All data stored locally
 - No conversation history in cloud
 - No user profiling
 
 ✅ **Zero Network Dependencies**
+
 - Runs 100% offline (after model download)
 - No internet required
 - Works in isolated networks
 
 ### Compliance
 
-| Standard | Status |
-|----------|--------|
-| HIPAA | ✅ Can comply (all local) |
-| GDPR | ✅ Can comply (no data export) |
-| CCPA | ✅ Can comply (user owns data) |
-| SOC 2 | ✅ Can comply (no third-party APIs) |
-| FedRAMP | ⚠️ Requires on-premise deployment |
+| Standard | Status                              |
+| -------- | ----------------------------------- |
+| HIPAA    | ✅ Can comply (all local)           |
+| GDPR     | ✅ Can comply (no data export)      |
+| CCPA     | ✅ Can comply (user owns data)      |
+| SOC 2    | ✅ Can comply (no third-party APIs) |
+| FedRAMP  | ⚠️ Requires on-premise deployment   |
 
 ### Network Isolation
 

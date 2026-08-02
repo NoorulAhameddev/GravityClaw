@@ -1,19 +1,19 @@
-import { mcpClient } from "./client.ts";
-import type { Tool } from "../tools/index.js";
-import { createLogger } from "../logger.ts";
+import { mcpClient } from './client.ts';
+import type { Tool } from '../tools/index.js';
+import { createLogger } from '../logger.ts';
 
-const log = createLogger("mcp");
+const log = createLogger('mcp');
 
 /**
  * Tool: list_mcp_tools
  * Lists all available tools from connected MCP servers
  */
 const listMCPToolsTool: Tool = {
-  name: "list_mcp_tools",
+  name: 'list_mcp_tools',
   description:
-    "List all available tools from connected MCP (Model Context Protocol) servers. Shows tool names, descriptions, and which server they belong to.",
+    'List all available tools from connected MCP (Model Context Protocol) servers. Shows tool names, descriptions, and which server they belong to.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {},
     required: [],
   },
@@ -26,7 +26,7 @@ const listMCPToolsTool: Tool = {
           success: true,
           count: 0,
           tools: [],
-          message: "No MCP servers connected or no tools available",
+          message: 'No MCP servers connected or no tools available',
         });
       }
 
@@ -47,7 +47,7 @@ const listMCPToolsTool: Tool = {
       log.error(`Error in list_mcp_tools tool: ${error}`);
       return JSON.stringify({
         success: false,
-        error: error.message || "Failed to list MCP tools",
+        error: error.message || 'Failed to list MCP tools',
       });
     }
   },
@@ -58,49 +58,46 @@ const listMCPToolsTool: Tool = {
  * Calls a tool on an MCP server
  */
 const callMCPToolTool: Tool = {
-  name: "call_mcp_tool",
+  name: 'call_mcp_tool',
   description:
-    "Call a tool on an MCP server. First use list_mcp_tools to discover available tools, then call them by name with the required arguments.",
+    'Call a tool on an MCP server. First use list_mcp_tools to discover available tools, then call them by name with the required arguments.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       tool_name: {
-        type: "string",
+        type: 'string',
         description: "Name of the MCP tool to call (e.g., 'read_file', 'search_web')",
       },
       arguments: {
-        type: "object",
-        description: "Arguments to pass to the tool (as key-value pairs)",
+        type: 'object',
+        description: 'Arguments to pass to the tool (as key-value pairs)',
       },
     },
-    required: ["tool_name", "arguments"],
+    required: ['tool_name', 'arguments'],
   },
   execute: async (params: any): Promise<string> => {
     try {
-      if (!params.tool_name || typeof params.tool_name !== "string") {
+      if (!params.tool_name || typeof params.tool_name !== 'string') {
         return JSON.stringify({
           success: false,
           error: "Missing or invalid 'tool_name' parameter",
         });
       }
 
-      if (!params.arguments || typeof params.arguments !== "object") {
+      if (!params.arguments || typeof params.arguments !== 'object') {
         return JSON.stringify({
           success: false,
           error: "Missing or invalid 'arguments' parameter",
         });
       }
 
-      const result = await mcpClient.callTool(
-        params.tool_name,
-        params.arguments
-      );
+      const result = await mcpClient.callTool(params.tool_name, params.arguments);
 
       // Extract text content from MCP response
-      let textContent = "";
+      let textContent = '';
       if (result.content && Array.isArray(result.content)) {
         for (const item of result.content) {
-          if (item.type === "text" && item.text) {
+          if (item.type === 'text' && item.text) {
             textContent += item.text;
           }
         }
@@ -123,7 +120,7 @@ const callMCPToolTool: Tool = {
       log.error(`Error in call_mcp_tool tool: ${error}`);
       return JSON.stringify({
         success: false,
-        error: error.message || "Failed to call MCP tool",
+        error: error.message || 'Failed to call MCP tool',
         tool: params.tool_name,
       });
     }
@@ -135,11 +132,11 @@ const callMCPToolTool: Tool = {
  * Shows status of MCP servers
  */
 const mcpStatusTool: Tool = {
-  name: "mcp_status",
+  name: 'mcp_status',
   description:
-    "Check the status of all MCP servers: which are connected, how many tools each provides, and their configuration.",
+    'Check the status of all MCP servers: which are connected, how many tools each provides, and their configuration.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {},
     required: [],
   },
@@ -158,18 +155,14 @@ const mcpStatusTool: Tool = {
       log.error(`Error in mcp_status tool: ${error}`);
       return JSON.stringify({
         success: false,
-        error: error.message || "Failed to get MCP status",
+        error: error.message || 'Failed to get MCP status',
       });
     }
   },
 };
 
 // Export tools array
-export const mcpTools: Tool[] = [
-  listMCPToolsTool,
-  callMCPToolTool,
-  mcpStatusTool,
-];
+export const mcpTools: Tool[] = [listMCPToolsTool, callMCPToolTool, mcpStatusTool];
 
 // Export client for initialization
-export { mcpClient } from "./client.ts";
+export { mcpClient } from './client.ts';

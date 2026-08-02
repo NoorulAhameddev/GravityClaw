@@ -1,6 +1,10 @@
 import type { Tool } from './index.js';
 import { config } from '../../config.js';
-import { createWakeWordDetector, getAvailableWakeWords, type WakeWordCallback } from '../../voice/wake-word.js';
+import {
+  createWakeWordDetector,
+  getAvailableWakeWords,
+  type WakeWordCallback,
+} from '../../voice/wake-word.js';
 import { createLogger } from '../../logger.js';
 
 const logger = createLogger('wake-word-tools');
@@ -37,7 +41,8 @@ export const startWakeWordTool: Tool = {
     properties: {
       wake_phrase: {
         type: 'string',
-        description: 'Custom wake phrase to detect (default: "hey claw"). Use built-in words like "go", "stop", "yes", "no".',
+        description:
+          'Custom wake phrase to detect (default: "hey claw"). Use built-in words like "go", "stop", "yes", "no".',
       },
       threshold: {
         type: 'number',
@@ -223,4 +228,9 @@ export const listWakeWordsTool: Tool = {
   },
 };
 
-export const wakeWordTools = [startWakeWordTool, stopWakeWordTool, getWakeWordStatusTool, listWakeWordsTool];
+export const wakeWordTools = [
+  startWakeWordTool,
+  stopWakeWordTool,
+  getWakeWordStatusTool,
+  listWakeWordsTool,
+];

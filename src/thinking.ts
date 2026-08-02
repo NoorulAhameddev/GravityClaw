@@ -1,23 +1,23 @@
-import { createLogger } from "./logger.ts";
+import { createLogger } from './logger.ts';
 
-const log = createLogger("thinking");
+const log = createLogger('thinking');
 
-export type ThinkingLevel = "off" | "low" | "medium" | "high";
+export type ThinkingLevel = 'off' | 'low' | 'medium' | 'high';
 
 /**
  * Thinking level configurations and prompt templates
  */
 export const THINKING_CONFIGS = {
   off: {
-    name: "Off",
-    description: "Default behavior - no special thinking prompts",
-    systemPromptAddition: "",
+    name: 'Off',
+    description: 'Default behavior - no special thinking prompts',
+    systemPromptAddition: '',
     messageTransform: (message: string) => message,
   },
-  
+
   low: {
-    name: "Low",
-    description: "Basic reasoning prompts in system context",
+    name: 'Low',
+    description: 'Basic reasoning prompts in system context',
     systemPromptAddition: `
 
 When approaching tasks, consider the following reasoning steps:
@@ -29,10 +29,10 @@ When approaching tasks, consider the following reasoning steps:
 Be concise but thoughtful in your responses.`,
     messageTransform: (message: string) => message,
   },
-  
+
   medium: {
-    name: "Medium",
-    description: "Step-by-step thinking encouraged",
+    name: 'Medium',
+    description: 'Step-by-step thinking encouraged',
     systemPromptAddition: `
 
 REASONING APPROACH:
@@ -49,10 +49,10 @@ Think step-by-step and show your reasoning process when appropriate.`,
       return `[Think step-by-step before responding]\n\n${message}`;
     },
   },
-  
+
   high: {
-    name: "High",
-    description: "Extended chain-of-thought with explicit reasoning sections",
+    name: 'High',
+    description: 'Extended chain-of-thought with explicit reasoning sections',
     systemPromptAddition: `
 
 EXTENDED REASONING MODE:
@@ -95,11 +95,11 @@ export function getThinkingConfig(level: ThinkingLevel) {
  */
 export function applyThinkingToSystemPrompt(basePrompt: string, level: ThinkingLevel): string {
   const config = getThinkingConfig(level);
-  
-  if (level === "off") {
+
+  if (level === 'off') {
     return basePrompt;
   }
-  
+
   log.debug(`Applying thinking level: ${level}`);
   return basePrompt + config.systemPromptAddition;
 }
@@ -112,12 +112,12 @@ export function applyThinkingToSystemPrompt(basePrompt: string, level: ThinkingL
  */
 export function applyThinkingToMessage(message: string, level: ThinkingLevel): string {
   const config = getThinkingConfig(level);
-  
-  if (level === "off" || level === "low") {
+
+  if (level === 'off' || level === 'low') {
     // Low level only affects system prompt
     return message;
   }
-  
+
   log.debug(`Applying thinking transformation to message: ${level}`);
   return config.messageTransform(message);
 }
@@ -126,13 +126,17 @@ export function applyThinkingToMessage(message: string, level: ThinkingLevel): s
  * Validate thinking level
  */
 export function isValidThinkingLevel(level: string): level is ThinkingLevel {
-  return ["off", "low", "medium", "high"].includes(level);
+  return ['off', 'low', 'medium', 'high'].includes(level);
 }
 
 /**
  * Get all available thinking levels with descriptions
  */
-export function getAvailableThinkingLevels(): Array<{level: ThinkingLevel; name: string; description: string}> {
+export function getAvailableThinkingLevels(): Array<{
+  level: ThinkingLevel;
+  name: string;
+  description: string;
+}> {
   return Object.entries(THINKING_CONFIGS).map(([level, config]) => ({
     level: level as ThinkingLevel,
     name: config.name,
@@ -145,16 +149,16 @@ export function getAvailableThinkingLevels(): Array<{level: ThinkingLevel; name:
  */
 export function formatThinkingLevelsForDisplay(): string {
   const levels = getAvailableThinkingLevels();
-  
-  let output = "🧠 **Available Thinking Levels**\n\n";
-  
+
+  let output = '🧠 **Available Thinking Levels**\n\n';
+
   for (const level of levels) {
     output += `**${level.level}** (${level.name})\n`;
     output += `  ${level.description}\n\n`;
   }
-  
-  output += "Set thinking level with: `/think <level>`\n";
-  output += "Example: `/think high`";
-  
+
+  output += 'Set thinking level with: `/think <level>`\n';
+  output += 'Example: `/think high`';
+
   return output;
 }

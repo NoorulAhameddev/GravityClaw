@@ -2,7 +2,13 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { randomUUID } from 'crypto';
 import type { IncomingMessage } from 'http';
 import { createLogger } from '../logger.js';
-import type { BridgeConfig, SessionHandle, SessionInfo, BridgeMessage, SessionStatus } from './types.js';
+import type {
+  BridgeConfig,
+  SessionHandle,
+  SessionInfo,
+  BridgeMessage,
+  SessionStatus,
+} from './types.js';
 
 const log = createLogger('bridge');
 
@@ -12,7 +18,10 @@ export class BridgeServer {
   private sessions: Map<string, SessionHandle> = new Map();
   private connections: Map<string, Set<WebSocket>> = new Map();
   private requestId = 0;
-  private pendingRequests: Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }> = new Map();
+  private pendingRequests: Map<
+    number,
+    { resolve: (v: unknown) => void; reject: (e: Error) => void }
+  > = new Map();
 
   constructor(config: BridgeConfig) {
     this.config = config;
@@ -47,7 +56,9 @@ export class BridgeServer {
 
   private handleConnection(ws: WebSocket, req: IncomingMessage): void {
     const url = req.url || '';
-    const token = new URL(url, `http://${this.config.host}:${this.config.port}`).searchParams.get('token');
+    const token = new URL(url, `http://${this.config.host}:${this.config.port}`).searchParams.get(
+      'token',
+    );
 
     if (token !== this.config.authToken) {
       ws.close(4001, 'Unauthorized');
@@ -63,11 +74,13 @@ export class BridgeServer {
         this.handleMessage(ws, connectionId, message);
       } catch (error) {
         log.error(`Failed to parse message: ${error}`);
-        ws.send(JSON.stringify({
-          jsonrpc: '2.0',
-          id: 0,
-          error: { code: -32700, message: 'Parse error' }
-        }));
+        ws.send(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: 0,
+            error: { code: -32700, message: 'Parse error' },
+          }),
+        );
       }
     });
 
@@ -80,7 +93,11 @@ export class BridgeServer {
     });
   }
 
-  private async handleMessage(ws: WebSocket, connectionId: string, message: BridgeMessage): Promise<void> {
+  private async handleMessage(
+    ws: WebSocket,
+    connectionId: string,
+    message: BridgeMessage,
+  ): Promise<void> {
     const { method, params, id } = message;
 
     try {
@@ -109,18 +126,22 @@ export class BridgeServer {
           throw new Error(`Unknown method: ${method}`);
       }
 
-      ws.send(JSON.stringify({
-        jsonrpc: '2.0',
-        id,
-        result
-      }));
+      ws.send(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id,
+          result,
+        }),
+      );
     } catch (error) {
       const err = error as Error;
-      ws.send(JSON.stringify({
-        jsonrpc: '2.0',
-        id,
-        error: { code: -32600, message: err.message }
-      }));
+      ws.send(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id,
+          error: { code: -32600, message: err.message },
+        }),
+      );
     }
   }
 
@@ -131,7 +152,7 @@ export class BridgeServer {
 
   async spawnSession(params: { workDir?: string }): Promise<{ sessionId: string }> {
     const sessionId = randomUUID();
-    
+
     const session: SessionHandle = {
       sessionId,
       createdAt: Date.now(),
@@ -148,7 +169,7 @@ export class BridgeServer {
 
   async stopSession(params: { sessionId: string }): Promise<{ success: boolean }> {
     const { sessionId } = params;
-    
+
     if (!this.sessions.has(sessionId)) {
       throw new Error(`Session not found: ${sessionId}`);
     }
@@ -161,13 +182,13 @@ export class BridgeServer {
 
   getSessionStatus(params: { sessionId: string }): SessionInfo | null {
     const session = this.sessions.get(params.sessionId);
-    
+
     if (!session) {
       return null;
     }
 
     const status: SessionStatus = session.connected ? 'active' : 'starting';
-    
+
     return {
       sessionId: session.sessionId,
       status,
@@ -179,7 +200,7 @@ export class BridgeServer {
   }
 
   listSessions(): SessionInfo[] {
-    return Array.from(this.sessions.values()).map(session => ({
+    return Array.from(this.sessions.values()).map((session) => ({
       sessionId: session.sessionId,
       status: (session.connected ? 'active' : 'idle') as SessionStatus,
       startedAt: session.createdAt,
@@ -189,9 +210,12 @@ export class BridgeServer {
     }));
   }
 
-  async sendToSession(params: { sessionId: string; message: string }): Promise<{ success: boolean; response?: string }> {
+  async sendToSession(params: {
+    sessionId: string;
+    message: string;
+  }): Promise<{ success: boolean; response?: string }> {
     const session = this.sessions.get(params.sessionId);
-    
+
     if (!session) {
       throw new Error(`Session not found: ${params.sessionId}`);
     }
@@ -200,7 +224,7 @@ export class BridgeServer {
 
     return {
       success: true,
-      response: `Message received by session ${params.sessionId}: ${params.message}`
+      response: `Message received by session ${params.sessionId}: ${params.message}`,
     };
   }
 

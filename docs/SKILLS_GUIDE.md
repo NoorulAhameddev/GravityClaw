@@ -10,13 +10,13 @@ Skills in GravityClaw are markdown files containing specialized knowledge, tools
 
 ### Skills vs Plugins
 
-| Feature | Skills | Plugins |
-|---------|--------|---------|
-| **Format** | Markdown files | JavaScript/TypeScript modules |
-| **Scope** | Knowledge + Code templates | Full runtime extensions |
-| **Loading** | Runtime, on-demand | Startup or runtime |
-| **Execution** | Via interpreter (Python, shell, etc.) | Native JavaScript/TypeScript |
-| **Use Case** | Specialized domain knowledge | Core functionality extensions |
+| Feature       | Skills                                | Plugins                       |
+| ------------- | ------------------------------------- | ----------------------------- |
+| **Format**    | Markdown files                        | JavaScript/TypeScript modules |
+| **Scope**     | Knowledge + Code templates            | Full runtime extensions       |
+| **Loading**   | Runtime, on-demand                    | Startup or runtime            |
+| **Execution** | Via interpreter (Python, shell, etc.) | Native JavaScript/TypeScript  |
+| **Use Case**  | Specialized domain knowledge          | Core functionality extensions |
 
 ---
 
@@ -50,7 +50,9 @@ Skill documentation and guidance.
 Tool-specific documentation.
 
 \`\`\`python
+
 # Executable code with ${parameter} interpolation
+
 import json
 
 param_value = "${param_name}"
@@ -63,21 +65,21 @@ print(json.stringify({"success": True, "result": result}))
 ### Frontmatter Schema
 
 ```yaml
-name: string              # Unique skill identifier (required)
-description: string       # Brief skill description (required)
-enabled: boolean          # Whether skill is active (default: true)
-tags: string[]           # Optional tags for categorization
-version: string          # Optional version number
-author: string           # Optional author name
-tools:                   # Tool definitions (optional)
-  - name: string         # Tool name (unique within skill)
-    description: string  # Tool description for LLM
-    parameters:          # Tool parameters
-      - name: string     # Parameter name
-        type: string     # Parameter type (string, number, boolean, object, array)
+name: string # Unique skill identifier (required)
+description: string # Brief skill description (required)
+enabled: boolean # Whether skill is active (default: true)
+tags: string[] # Optional tags for categorization
+version: string # Optional version number
+author: string # Optional author name
+tools: # Tool definitions (optional)
+  - name: string # Tool name (unique within skill)
+    description: string # Tool description for LLM
+    parameters: # Tool parameters
+      - name: string # Parameter name
+        type: string # Parameter type (string, number, boolean, object, array)
         required: boolean # Whether parameter is required
         description: string # Parameter description
-        default: any     # Optional default value
+        default: any # Optional default value
 ```
 
 ---
@@ -116,16 +118,16 @@ import json
 expression = "${expression}"
 
 try:
-    result = eval(expression, {"__builtins__": {}}, {
-        "sqrt": math.sqrt,
-        "sin": math.sin,
-        "cos": math.cos,
-        "pi": math.pi,
-        "e": math.e,
-    })
-    print(json.dumps({"success": True, "result": result}))
+result = eval(expression, {"**builtins**": {}}, {
+"sqrt": math.sqrt,
+"sin": math.sin,
+"cos": math.cos,
+"pi": math.pi,
+"e": math.e,
+})
+print(json.dumps({"success": True, "result": result}))
 except Exception as e:
-    print(json.dumps({"success": False, "error": str(e)}))
+print(json.dumps({"success": False, "error": str(e)}))
 \`\`\`
 ```
 
@@ -165,11 +167,12 @@ location="${location}"
 units="${units}"
 
 # Call weather API
+
 curl -s "https://api.weather.example.com/current?q=$location&units=$units" | jq '{
-  "success": true,
-  "location": .name,
-  "temperature": .main.temp,
-  "conditions": .weather[0].description
+"success": true,
+"location": .name,
+"temperature": .main.temp,
+"conditions": .weather[0].description
 }'
 \`\`\`
 ```
@@ -191,6 +194,7 @@ tags: [coding, typescript, standards]
 ## Type Safety
 
 Always use strict type checking:
+
 - Enable `strict: true` in tsconfig.json
 - Avoid `any` type—use `unknown` for truly unknown types
 - Use type guards for runtime type narrowing
@@ -207,8 +211,8 @@ Always use strict type checking:
 Prefer explicit error handling:
 \`\`\`typescript
 function divide(a: number, b: number): Result<number, string> {
-  if (b === 0) return { success: false, error: "Division by zero" };
-  return { success: true, value: a / b };
+if (b === 0) return { success: false, error: "Division by zero" };
+return { success: true, value: a / b };
 }
 \`\`\`
 
@@ -217,13 +221,13 @@ function divide(a: number, b: number): Result<number, string> {
 Always handle promise rejections:
 \`\`\`typescript
 async function fetchData(): Promise<Data> {
-  try {
-    const response = await fetch(url);
-    return await response.json();
-  } catch (error) {
-    logger.error("Fetch failed", error);
-    throw new Error(`Failed to fetch data: ${error.message}`);
-  }
+try {
+const response = await fetch(url);
+return await response.json();
+} catch (error) {
+logger.error("Fetch failed", error);
+throw new Error(`Failed to fetch data: ${error.message}`);
+}
 }
 \`\`\`
 ```
@@ -247,6 +251,7 @@ async function fetchData(): Promise<Data> {
 ```
 
 **Result**:
+
 ```json
 {
   "success": true,
@@ -270,10 +275,11 @@ async function fetchData(): Promise<Data> {
 
 ```typescript
 // Via tool API
-skill_list()
+skill_list();
 ```
 
 **Returns**:
+
 ```json
 {
   "success": true,
@@ -300,7 +306,7 @@ skill_list()
 ### Disabling Skills
 
 ```typescript
-disable_skill({ skill_name: "calculator" })
+disable_skill({ skill_name: 'calculator' });
 ```
 
 ### Reloading Skills
@@ -308,7 +314,7 @@ disable_skill({ skill_name: "calculator" })
 After modifying skill files:
 
 ```typescript
-reload_skills()
+reload_skills();
 ```
 
 ---
@@ -318,6 +324,7 @@ reload_skills()
 ### Supported Languages
 
 Skills can include executable code in:
+
 - **Python** - For data processing, calculations, ML
 - **Bash/Shell** - For system commands, API calls
 - **JavaScript/Node.js** - For JS-specific operations
@@ -380,6 +387,7 @@ print(json.dumps({
 ### Security
 
 ✅ **Do**:
+
 - Validate and sanitize all inputs
 - Use safe eval contexts (restricted builtins)
 - Handle errors gracefully
@@ -387,6 +395,7 @@ print(json.dumps({
 - Set execution timeouts
 
 ❌ **Don't**:
+
 - Execute arbitrary user code directly
 - Access sensitive file paths
 - Make unrestricted network calls
@@ -447,12 +456,12 @@ action = "${action}"
 data = "${data}"
 
 if action == "store":
-    db.execute("INSERT INTO state (key, value) VALUES (?, ?)", 
+    db.execute("INSERT INTO state (key, value) VALUES (?, ?)",
                ("mykey", data))
     db.commit()
     print(json.dumps({"success": True}))
 elif action == "retrieve":
-    row = db.execute("SELECT value FROM state WHERE key = ?", 
+    row = db.execute("SELECT value FROM state WHERE key = ?",
                      ("mykey",)).fetchone()
     print(json.dumps({"success": True, "value": row[0] if row else None}))
 ```
@@ -474,19 +483,21 @@ import json
 import subprocess
 
 # Call analyze_data tool
+
 analysis = subprocess.run(
-    ["gravityclaw-tool", "analyze_data", "--input", "${data}"],
-    capture_output=True, text=True
+["gravityclaw-tool", "analyze_data", "--input", "${data}"],
+capture_output=True, text=True
 )
 analysis_result = json.loads(analysis.stdout)
 
 # Generate visualization
+
 # ...
 
 print(json.dumps({
-  "success": True,
-  "analysis": analysis_result,
-  "chart_url": chart_url
+"success": True,
+"analysis": analysis_result,
+"chart_url": chart_url
 }))
 \`\`\`
 ```
@@ -528,6 +539,7 @@ Skills in `skills/` directory are auto-discovered on startup. Organize with subd
 **Problem**: Skill file fails to load
 
 **Solutions**:
+
 1. Check YAML frontmatter syntax (use YAML validator)
 2. Ensure required fields (`name`, `description`) are present
 3. Verify file is `.md` extension
@@ -539,6 +551,7 @@ Skills in `skills/` directory are auto-discovered on startup. Organize with subd
 **Problem**: Tool from skill doesn't appear in tool list
 
 **Solutions**:
+
 1. Verify skill is enabled (`enabled: true`)
 2. Reload skills: `reload_skills()` tool
 3. Check tool name doesn't conflict with built-in tool
@@ -549,6 +562,7 @@ Skills in `skills/` directory are auto-discovered on startup. Organize with subd
 **Problem**: Code block fails to execute
 
 **Solutions**:
+
 1. Test code independently (copy/paste, run manually)
 2. Check parameter interpolation syntax
 3. Verify required interpreter is installed (python, bash, etc.)
@@ -561,6 +575,7 @@ Skills in `skills/` directory are auto-discovered on startup. Organize with subd
 **Problem**: Parameters not substituting correctly
 
 **Solutions**:
+
 1. Use exact parameter name from frontmatter
 2. Wrap in quotes if value might contain spaces
 3. Escape special characters if needed
@@ -605,6 +620,7 @@ git push
 ### Skill Marketplace (Future)
 
 Planned features:
+
 - Central skill repository
 - Version management
 - Dependency resolution

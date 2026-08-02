@@ -37,7 +37,7 @@ export class TranscriptionService {
 
       if (!supportedFormats.includes(ext)) {
         throw new Error(
-          `Unsupported audio format: ${ext}. Supported: ${supportedFormats.join(', ')}`
+          `Unsupported audio format: ${ext}. Supported: ${supportedFormats.join(', ')}`,
         );
       }
 
@@ -82,7 +82,7 @@ export class TranscriptionService {
       // Unfortunately, it doesn't support direct URL transcription
       // We'd need to download the file first
       throw new Error(
-        'Direct URL transcription not supported. Download file first and use transcribeAudio()'
+        'Direct URL transcription not supported. Download file first and use transcribeAudio()',
       );
     } catch (error) {
       logger.error(`URL transcription failed: ${audioUrl}`, error);
@@ -108,7 +108,11 @@ export function createTranscriptionService(apiKey: string): TranscriptionService
 /**
  * Transcribe audio directly using OpenAI Whisper API
  */
-export async function transcribeAudio(filePath: string, apiKey: string, language?: string): Promise<string> {
+export async function transcribeAudio(
+  filePath: string,
+  apiKey: string,
+  language?: string,
+): Promise<string> {
   const service = createTranscriptionService(apiKey);
   return service.transcribeAudio(filePath, language);
 }

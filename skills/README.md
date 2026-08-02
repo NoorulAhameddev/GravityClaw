@@ -4,13 +4,13 @@ This directory contains Superpowers-inspired skills that guide development workf
 
 ## Available Skills
 
-| Skill | Purpose | When to Use |
-|-------|---------|-------------|
-| [brainstorming](brainstorming/) | Design refinement | Before writing any code |
-| [writing-plans](writing-plans/) | Implementation planning | After design approved |
-| [test-driven-development](test-driven-development/) | TDD enforcement | Writing any code |
-| [subagent-driven-development](subagent-driven-development/) | Subagent coordination | Complex multi-file tasks |
-| [code-review](code-review/) | PR quality gate | Before commit |
+| Skill                                                       | Purpose                 | When to Use              |
+| ----------------------------------------------------------- | ----------------------- | ------------------------ |
+| [brainstorming](brainstorming/)                             | Design refinement       | Before writing any code  |
+| [writing-plans](writing-plans/)                             | Implementation planning | After design approved    |
+| [test-driven-development](test-driven-development/)         | TDD enforcement         | Writing any code         |
+| [subagent-driven-development](subagent-driven-development/) | Subagent coordination   | Complex multi-file tasks |
+| [code-review](code-review/)                                 | PR quality gate         | Before commit            |
 
 ## Superpowers Integration
 

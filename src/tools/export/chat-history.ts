@@ -3,16 +3,16 @@
  * Export conversation history in JSON or Markdown format
  */
 
-import type { Tool } from "../index.js";
-import { db } from "../../db.ts";
-import { createLogger } from "../../logger.ts";
-import { gzipSync } from "zlib";
+import type { Tool } from '../index.js';
+import { db } from '../../db.ts';
+import { createLogger } from '../../logger.ts';
+import { gzipSync } from 'zlib';
 
-const log = createLogger("export-chat-history");
+const log = createLogger('export-chat-history');
 
 interface ChatMessage {
   timestamp: string;
-  role: "user" | "assistant" | "tool";
+  role: 'user' | 'assistant' | 'tool';
   content?: string;
   toolCallId?: string;
   toolCalls?: Array<{
@@ -46,13 +46,12 @@ function parseMessageJson(messageJson: string): ChatMessage | null {
     // Structure the message consistently
     const result: ChatMessage = {
       timestamp: new Date().toISOString(),
-      role: parsed.role || "user",
+      role: parsed.role || 'user',
     };
 
     if (parsed.content) {
-      result.content = typeof parsed.content === "string" 
-        ? parsed.content 
-        : JSON.stringify(parsed.content);
+      result.content =
+        typeof parsed.content === 'string' ? parsed.content : JSON.stringify(parsed.content);
     }
 
     if (parsed.tool_call_id) {
@@ -65,7 +64,7 @@ function parseMessageJson(messageJson: string): ChatMessage | null {
 
     return result;
   } catch (err) {
-      log.warn("Failed to parse message JSON", { error: err });
+    log.warn('Failed to parse message JSON', { error: err });
     return null;
   }
 }
@@ -76,19 +75,19 @@ function parseMessageJson(messageJson: string): ChatMessage | null {
 function fetchChatHistory(
   sessionId: string,
   limit: number = 1000,
-  offset: number = 0
+  offset: number = 0,
 ): { messages: ChatMessage[]; total: number; timestamps: string[] } {
   try {
     // Get total count
     const countRow = db
-      .prepare("SELECT COUNT(*) as total FROM memory WHERE session_id = ?")
+      .prepare('SELECT COUNT(*) as total FROM memory WHERE session_id = ?')
       .get(sessionId) as { total: number };
     const total = countRow?.total || 0;
 
     // Get messages with timestamps
     const rows = db
       .prepare(
-        "SELECT message_json, timestamp FROM memory WHERE session_id = ? ORDER BY timestamp ASC, id ASC LIMIT ? OFFSET ?"
+        'SELECT message_json, timestamp FROM memory WHERE session_id = ? ORDER BY timestamp ASC, id ASC LIMIT ? OFFSET ?',
       )
       .all(sessionId, limit, offset) as { message_json: string; timestamp: string }[];
 
@@ -106,7 +105,7 @@ function fetchChatHistory(
 
     return { messages, total, timestamps };
   } catch (err) {
-    log.error("Failed to fetch chat history", err);
+    log.error('Failed to fetch chat history', err);
     return { messages: [], total: 0, timestamps: [] };
   }
 }
@@ -117,7 +116,7 @@ function fetchChatHistory(
 function formatAsMarkdown(
   sessionId: string,
   messages: ChatMessage[],
-  metadata: ExportMetadata
+  metadata: ExportMetadata,
 ): string {
   let markdown = `# Chat History Export\n\n`;
   markdown += `**Export Date:** ${metadata.exportDate}\n`;
@@ -160,41 +159,41 @@ function formatAsMarkdown(
  * Export chat history tool
  */
 export const exportChatHistoryTool: Tool = {
-  name: "exportChatHistory",
+  name: 'exportChatHistory',
   description:
-    "Export conversation history for a session in JSON or Markdown format. Returns base64 encoded data.",
+    'Export conversation history for a session in JSON or Markdown format. Returns base64 encoded data.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       sessionId: {
-        type: "string",
-        description: "Session ID to export history for",
+        type: 'string',
+        description: 'Session ID to export history for',
       },
       format: {
-        type: "string",
-        enum: ["json", "markdown"],
-        description: "Export format (default: json)",
+        type: 'string',
+        enum: ['json', 'markdown'],
+        description: 'Export format (default: json)',
       },
       limit: {
-        type: "number",
-        description: "Maximum number of messages to export (default: 1000)",
+        type: 'number',
+        description: 'Maximum number of messages to export (default: 1000)',
       },
       offset: {
-        type: "number",
-        description: "Number of messages to skip (default: 0)",
+        type: 'number',
+        description: 'Number of messages to skip (default: 0)',
       },
       compress: {
-        type: "boolean",
-        description: "Enable gzip compression (default: true)",
+        type: 'boolean',
+        description: 'Enable gzip compression (default: true)',
       },
     },
-    required: ["sessionId"],
+    required: ['sessionId'],
   },
   async execute(input: Record<string, unknown>): Promise<string> {
     try {
       const {
         sessionId,
-        format = "json",
+        format = 'json',
         limit = 1000,
         offset = 0,
         compress = true,
@@ -209,7 +208,7 @@ export const exportChatHistoryTool: Tool = {
       if (!sessionId.trim()) {
         return JSON.stringify({
           success: false,
-          error: "sessionId is required",
+          error: 'sessionId is required',
         });
       }
 
@@ -219,12 +218,12 @@ export const exportChatHistoryTool: Tool = {
       if (messages.length === 0) {
         return JSON.stringify({
           success: true,
-          warning: "No messages found for this session",
+          warning: 'No messages found for this session',
           data: {
             format,
             messageCount: 0,
-            base64: "",
-            filename: `chat-history-${sessionId}.${format === "json" ? "json" : "md"}`,
+            base64: '',
+            filename: `chat-history-${sessionId}.${format === 'json' ? 'json' : 'md'}`,
           },
         });
       }
@@ -240,7 +239,7 @@ export const exportChatHistoryTool: Tool = {
 
       let exportData: string;
 
-      if (format === "json") {
+      if (format === 'json') {
         const jsonExport: ChatHistoryExportJSON = {
           metadata,
           messages,
@@ -256,24 +255,22 @@ export const exportChatHistoryTool: Tool = {
       let used_compression = false;
       if (compress && exportData.length > 1024) {
         try {
-          const buffer = Buffer.from(exportData, "utf-8");
+          const buffer = Buffer.from(exportData, 'utf-8');
           const compressed = gzipSync(buffer);
-          finalData = compressed.toString("base64");
+          finalData = compressed.toString('base64');
           used_compression = true;
         } catch (err) {
-          log.warn("Compression failed, returning uncompressed", { error: err });
+          log.warn('Compression failed, returning uncompressed', { error: err });
         }
       }
 
       // Encode to base64 if not already compressed
       const base64Data = used_compression
         ? finalData
-        : Buffer.from(exportData, "utf-8").toString("base64");
+        : Buffer.from(exportData, 'utf-8').toString('base64');
 
-      const extension = format === "json" ? "json" : "md";
-      const filename = `chat-history-${sessionId}.${extension}${
-        used_compression ? ".gz" : ""
-      }`;
+      const extension = format === 'json' ? 'json' : 'md';
+      const filename = `chat-history-${sessionId}.${extension}${used_compression ? '.gz' : ''}`;
 
       log.info(`Exported ${messages.length} messages for session ${sessionId}`);
 
@@ -290,10 +287,10 @@ export const exportChatHistoryTool: Tool = {
         },
       });
     } catch (err) {
-      log.error("Failed to export chat history", err);
+      log.error('Failed to export chat history', err);
       return JSON.stringify({
         success: false,
-        error: err instanceof Error ? err.message : "Unknown error",
+        error: err instanceof Error ? err.message : 'Unknown error',
       });
     }
   },

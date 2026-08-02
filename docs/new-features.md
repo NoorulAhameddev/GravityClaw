@@ -7,6 +7,7 @@ This guide helps you quickly enable the new features added in version 0.2.0.
 ## 🚀 Quick Enable New Channels
 
 ### Discord
+
 ```bash
 # 1. Create Discord Bot at https://discord.com/developers/applications
 # 2. Get Bot Token and add to .env:
@@ -19,6 +20,7 @@ DISCORD_GUILD_ID=your_server_id
 ```
 
 ### Slack
+
 ```bash
 # 1. Create Slack App at https://api.slack.com/apps
 # 2. Get Bot Token and Signing Secret, add to .env:
@@ -30,6 +32,7 @@ SLACK_SIGNING_SECRET=your_signing_secret
 ```
 
 ### Signal
+
 ```bash
 # 1. Install signal-cli: https://github.com/AsamK/signal-cli
 # 2. Register your bot number:
@@ -43,6 +46,7 @@ SIGNAL_GROUP_IDS=group1,group2
 ```
 
 ### Email
+
 ```bash
 # Add to .env:
 EMAIL_SMTP_HOST=smtp.gmail.com
@@ -60,6 +64,7 @@ EMAIL_ALLOWED_SENDERS=friend1@example.com,friend2@example.com
 ## 📅 Productivity Integrations
 
 ### Google Calendar
+
 ```bash
 # Option 1: Simple API Key (read-only for public calendars)
 GOOGLE_CALENDAR_API_KEY=your_api_key
@@ -70,6 +75,7 @@ GOOGLE_CREDENTIALS_PATH=./credentials.json
 ```
 
 ### Notion
+
 ```bash
 # 1. Create integration at https://www.notion.so/my-integrations
 # 2. Get Internal Integration Token
@@ -86,6 +92,7 @@ NOTION_DATABASE_ID=your_database_id
 ## 🗄️ Database
 
 ### PostgreSQL (instead of SQLite)
+
 ```bash
 # Simply set the DATABASE_URL - other code adapts automatically
 DATABASE_URL=postgresql://user:password@localhost:5432/gravyclaw
@@ -98,12 +105,14 @@ DATABASE_URL=postgresql://user:password@localhost:5432/gravyclaw
 ## 🤖 New LLM Providers
 
 ### Cohere
+
 ```bash
 COHERE_API_KEY=your_cohere_key
 # Then set: LLM_PROVIDER=cohere
 ```
 
 ### Mistral
+
 ```bash
 MISTRAL_API_KEY=your_mistral_key
 # Then set: LLM_PROVIDER=mistral
@@ -149,17 +158,17 @@ Use pre-configured MCP servers from `src/mcp/servers/`:
 
 ## 📝 New Tools Available
 
-| Tool | Description |
-|------|-------------|
-| `execute_code` | Run JS/Python/Bash in sandbox |
-| `calendar_list_events` | List Google Calendar events |
-| `calendar_create_event` | Create calendar event |
-| `calendar_update_event` | Update calendar event |
-| `calendar_delete_event` | Delete calendar event |
-| `notion_create_page` | Create Notion page |
-| `notion_read_page` | Read Notion page |
-| `notion_append_block` | Add blocks to page |
-| `notion_query_database` | Query Notion database |
+| Tool                    | Description                   |
+| ----------------------- | ----------------------------- |
+| `execute_code`          | Run JS/Python/Bash in sandbox |
+| `calendar_list_events`  | List Google Calendar events   |
+| `calendar_create_event` | Create calendar event         |
+| `calendar_update_event` | Update calendar event         |
+| `calendar_delete_event` | Delete calendar event         |
+| `notion_create_page`    | Create Notion page            |
+| `notion_read_page`      | Read Notion page              |
+| `notion_append_block`   | Add blocks to page            |
+| `notion_query_database` | Query Notion database         |
 
 ---
 

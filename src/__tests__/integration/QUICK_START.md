@@ -6,7 +6,7 @@
 ✅ **Test utilities** with 15+ helper functions  
 ✅ **Complete documentation** with examples  
 ✅ **Mock components** for WebSocket and tools  
-✅ **Test fixtures** with realistic data  
+✅ **Test fixtures** with realistic data
 
 ## Files
 
@@ -23,14 +23,14 @@ src/__tests__/integration/
 
 ## Test Coverage
 
-| Component | Tests | Coverage |
-|-----------|-------|----------|
-| Dashboard | 16 | ✅ 100% |
-| Channel→Agent→Tool | 18 | ✅ 100% |
-| Memory (Facts/Graphs) | 25 | ✅ 100% |
-| Sessions | 28 | ✅ 100% |
-| WebSocket | 27 | ✅ 100% |
-| **Total** | **114** | **✅ 100%** |
+| Component             | Tests   | Coverage    |
+| --------------------- | ------- | ----------- |
+| Dashboard             | 16      | ✅ 100%     |
+| Channel→Agent→Tool    | 18      | ✅ 100%     |
+| Memory (Facts/Graphs) | 25      | ✅ 100%     |
+| Sessions              | 28      | ✅ 100%     |
+| WebSocket             | 27      | ✅ 100%     |
+| **Total**             | **114** | **✅ 100%** |
 
 ## Run Tests
 
@@ -51,6 +51,7 @@ npx vitest run --coverage --config config/vitest.config.ts src/__tests__/integra
 ## Key Features Tested
 
 ### Dashboard (`dashboard-integration.test.ts`)
+
 - ✅ Usage stats (tokens, costs, latency)
 - ✅ Model breakdown by provider
 - ✅ Settings CRUD operations
@@ -60,6 +61,7 @@ npx vitest run --coverage --config config/vitest.config.ts src/__tests__/integra
 - ✅ Performance (< 1s for 100 records)
 
 ### Message Flow (`channel-agent-tool.test.ts`)
+
 - ✅ Message ordering through pipeline
 - ✅ Tool execution and errors
 - ✅ Multi-turn conversations
@@ -69,6 +71,7 @@ npx vitest run --coverage --config config/vitest.config.ts src/__tests__/integra
 - ✅ Tool call tracking
 
 ### Memory (`memory-persistence.test.ts`)
+
 - ✅ Fact CRUD operations
 - ✅ Access count tracking
 - ✅ Importance scoring
@@ -78,6 +81,7 @@ npx vitest run --coverage --config config/vitest.config.ts src/__tests__/integra
 - ✅ Session isolation
 
 ### Sessions (`session-management.test.ts`)
+
 - ✅ Session creation with unique IDs
 - ✅ Settings persistence
 - ✅ Partial updates
@@ -87,6 +91,7 @@ npx vitest run --coverage --config config/vitest.config.ts src/__tests__/integra
 - ✅ Rapid operations
 
 ### WebSocket (`websocket-lifecycle.test.ts`)
+
 - ✅ Connection establishment
 - ✅ Tool call/response matching
 - ✅ Multiple concurrent calls
@@ -98,6 +103,7 @@ npx vitest run --coverage --config config/vitest.config.ts src/__tests__/integra
 ## Test Utilities
 
 ### Session Management
+
 ```typescript
 const sessionId = createTestSessionId('test');
 createTestSession(sessionId);
@@ -105,18 +111,21 @@ cleanupTestSession(sessionId);
 ```
 
 ### Message Operations
+
 ```typescript
 insertTestMessage(sessionId, 'user', 'message');
 const history = getSessionHistory(sessionId);
 ```
 
 ### Settings
+
 ```typescript
 updateSessionSettingsInDb(sessionId, { provider: 'openai' });
 const settings = getSessionSettingsFromDb(sessionId);
 ```
 
 ### Memory
+
 ```typescript
 createTestFact(sessionId, 'category', 'fact text');
 createTestEntity(sessionId, 'name', 'type', { props });
@@ -124,24 +133,26 @@ createTestRelationship(sessionId, 'from', 'to', 'type');
 ```
 
 ### Helpers
+
 ```typescript
-await waitFor(() => condition, 5000);  // Wait for condition
+await waitFor(() => condition, 5000); // Wait for condition
 ```
 
 ## Test Data Fixtures
 
 ```typescript
-mockConversationMessages    // Sample messages
-mockUsageRecords           // Usage data
-mockMemoryFacts            // Fact examples
-mockEntities               // Entity examples
-mockRelationships          // Relationship examples
-mockSessionSettings        // Settings template
+mockConversationMessages; // Sample messages
+mockUsageRecords; // Usage data
+mockMemoryFacts; // Fact examples
+mockEntities; // Entity examples
+mockRelationships; // Relationship examples
+mockSessionSettings; // Settings template
 ```
 
 ## Performance
 
 Expected execution times:
+
 - Dashboard: ~500ms (16 tests)
 - Channel-Agent-Tool: ~600ms (18 tests)
 - Memory: ~800ms (25 tests)
@@ -152,7 +163,9 @@ Expected execution times:
 ## What Each Test Does
 
 ### dashboard-integration.test.ts
+
 Tests analytics dashboard data flows:
+
 - Verify usage stats are calculated
 - Test model cost breakdowns
 - Ensure settings persist
@@ -160,7 +173,9 @@ Tests analytics dashboard data flows:
 - Handle errors gracefully
 
 ### channel-agent-tool.test.ts
+
 Tests complete message pipeline:
+
 - Message flows through channels
 - Agent processes and executes tools
 - Responses route back to channels
@@ -168,7 +183,9 @@ Tests complete message pipeline:
 - Errors handled at each stage
 
 ### memory-persistence.test.ts
+
 Tests fact and knowledge graph storage:
+
 - Facts saved to database
 - Knowledge graph entities/relationships
 - Data isolated between sessions
@@ -176,7 +193,9 @@ Tests fact and knowledge graph storage:
 - Access statistics tracked
 
 ### session-management.test.ts
+
 Tests session lifecycle:
+
 - Sessions created with unique IDs
 - Settings stored persistently
 - Multi-session isolation maintained
@@ -184,7 +203,9 @@ Tests session lifecycle:
 - All configuration types supported
 
 ### websocket-lifecycle.test.ts
+
 Tests WebSocket connection:
+
 - Connection establishment works
 - Tool calls matched with responses
 - Multiple calls processed correctly
@@ -232,6 +253,7 @@ All automatically cleaned after each test.
 ## Common Patterns
 
 ### Test Sessions
+
 ```typescript
 const sessionId = createTestSessionId('prefix');
 createTestSession(sessionId);
@@ -240,20 +262,23 @@ cleanupTestSession(sessionId);
 ```
 
 ### Add Messages
+
 ```typescript
 insertTestMessage(sessionId, 'user', 'What is this?');
 insertTestMessage(sessionId, 'assistant', 'It is a test');
 ```
 
 ### Update Settings
+
 ```typescript
 updateSessionSettingsInDb(sessionId, {
   provider: 'anthropic',
-  model: 'claude-3-opus'
+  model: 'claude-3-opus',
 });
 ```
 
 ### Query DB
+
 ```typescript
 const history = getSessionHistory(sessionId);
 const settings = getSessionSettingsFromDb(sessionId);
@@ -262,16 +287,19 @@ const settings = getSessionSettingsFromDb(sessionId);
 ## Troubleshooting
 
 ### Tests won't run
+
 ```bash
 npm install  # Install deps
 npm run typecheck  # Check TypeScript
 ```
 
 ### Slow tests
+
 - Check database indices
 - Run with `--reporter=verbose`
 
 ### Cleanup issues
+
 ```bash
 # Manual cleanup (if needed)
 sqlite3 gravity.db "DELETE FROM memory WHERE session_id LIKE 'test:%';"

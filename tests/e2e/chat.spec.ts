@@ -1,25 +1,25 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from '@playwright/test';
 
-test.describe("WebSocket Chat", () => {
-  test("should connect to WebSocket and send message", async ({ page }) => {
+test.describe('WebSocket Chat', () => {
+  test('should connect to WebSocket and send message', async ({ page }) => {
     const allConsoleMessages: string[] = [];
-    page.on("console", (msg) => {
+    page.on('console', (msg) => {
       allConsoleMessages.push(`[${msg.type()}] ${msg.text()}`);
     });
 
-    await page.goto("http://localhost:3000");
-    await page.waitForLoadState("networkidle");
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
 
     // Wait for WebSocket connection
     await page.waitForTimeout(3000);
 
     // Check connection status in header
-    const statusElement = page.locator("header").filter({ hasText: /Live|Connecting|Offline/ });
+    const statusElement = page.locator('header').filter({ hasText: /Live|Connecting|Offline/ });
     const statusText = await statusElement.textContent();
-    console.log("Connection status:", statusText);
+    console.log('Connection status:', statusText);
 
     // Navigate to chat page
-    await page.click("text=Chat");
+    await page.click('text=Chat');
     await page.waitForTimeout(1000);
 
     // Find the chat input
@@ -27,7 +27,7 @@ test.describe("WebSocket Chat", () => {
     await expect(chatInput).toBeVisible({ timeout: 10000 });
 
     // Type and send a message
-    await chatInput.fill("Hello, who are you?");
+    await chatInput.fill('Hello, who are you?');
     await page.waitForTimeout(500);
     const sendButton = page.locator('button[type="submit"]');
     await sendButton.click();
@@ -36,17 +36,17 @@ test.describe("WebSocket Chat", () => {
     await page.waitForTimeout(15000);
 
     // Get all messages - look for the message containers
-    const messageDivs = await page.locator(".flex.gap-3").count();
+    const messageDivs = await page.locator('.flex.gap-3').count();
     console.log(`Total message containers: ${messageDivs}`);
 
     // Get the actual message text
-    const allMessages = await page.locator(".flex.gap-3 p").allTextContents();
-    console.log("Bot response:", allMessages[1]?.slice(0, 100));
+    const allMessages = await page.locator('.flex.gap-3 p').allTextContents();
+    console.log('Bot response:', allMessages[1]?.slice(0, 100));
 
     // Check console errors
-    const errors = allConsoleMessages.filter(m => m.startsWith("[error]"));
+    const errors = allConsoleMessages.filter((m) => m.startsWith('[error]'));
     if (errors.length > 0) {
-      console.log("Console errors:", errors.join("\n"));
+      console.log('Console errors:', errors.join('\n'));
     }
 
     // Check if we got a bot response (more than just user message)

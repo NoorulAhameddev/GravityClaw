@@ -1,7 +1,7 @@
-import { createLogger } from "../logger.ts";
-import { telemetryLogger } from "./telemetry/logger.js";
+import { createLogger } from '../logger.ts';
+import { telemetryLogger } from './telemetry/logger.js';
 
-const log = createLogger("background");
+const log = createLogger('background');
 
 interface BackgroundTask {
   id: string;
@@ -33,10 +33,10 @@ export function trackBackgroundTask<T>(
 ): Promise<T> {
   // Enforce concurrency limit
   if (activeTasks.size >= MAX_CONCURRENT_BACKGROUND_TASKS) {
-    log.warn(`Background task limit reached (${MAX_CONCURRENT_BACKGROUND_TASKS}), rejecting: ${name}`);
-    return Promise.reject(
-      new Error(`Too many background tasks running. ${name} was rejected.`),
+    log.warn(
+      `Background task limit reached (${MAX_CONCURRENT_BACKGROUND_TASKS}), rejecting: ${name}`,
     );
+    return Promise.reject(new Error(`Too many background tasks running. ${name} was rejected.`));
   }
 
   const taskId = `${name}-${++taskCounter}-${Date.now()}`;
@@ -57,7 +57,7 @@ export function trackBackgroundTask<T>(
     .catch((err) => {
       activeTasks.delete(taskId);
       const errMsg = err instanceof Error ? err.message : String(err);
-      telemetryLogger.error("background_task_failed", {
+      telemetryLogger.error('background_task_failed', {
         task_name: name,
         session_id: sessionId,
         task_id: taskId,
@@ -85,13 +85,10 @@ export async function drainBackgroundTasks(timeoutMs = 30_000): Promise<void> {
   log.info(`Draining ${tasks.length} background task(s)`);
 
   const timeout = new Promise<void>((_, reject) =>
-    setTimeout(() => reject(new Error("Background task drain timeout")), timeoutMs),
+    setTimeout(() => reject(new Error('Background task drain timeout')), timeoutMs),
   );
 
-  await Promise.race([
-    Promise.allSettled(tasks.map((t) => t.promise)),
-    timeout,
-  ]).catch((err) => {
+  await Promise.race([Promise.allSettled(tasks.map((t) => t.promise)), timeout]).catch((err) => {
     log.warn(`Background task drain issue: ${err}`);
   });
 

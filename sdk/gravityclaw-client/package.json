@@ -8,7 +8,11 @@
     "build": "tsc",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["gravityclaw", "ai-agent", "sdk"],
+  "keywords": [
+    "gravityclaw",
+    "ai-agent",
+    "sdk"
+  ],
   "license": "MIT",
   "devDependencies": {
     "typescript": "^5.0.0"

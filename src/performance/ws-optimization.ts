@@ -1,6 +1,6 @@
 /**
  * WebSocket Performance Optimizations
- * 
+ *
  * Provides:
  * - Connection pooling
  * - Buffer management
@@ -9,10 +9,10 @@
  * - Message compression handling
  */
 
-import { WebSocket, WebSocketServer } from "ws";
-import { createLogger } from "../logger.ts";
+import { WebSocket, WebSocketServer } from 'ws';
+import { createLogger } from '../logger.ts';
 
-const log = createLogger("ws-optimization");
+const log = createLogger('ws-optimization');
 
 const MAX_CONNECTIONS_PER_INSTANCE = 1000;
 const MAX_MESSAGE_QUEUE = 100;
@@ -33,7 +33,7 @@ const clientMetrics = new Map<WebSocket, WSClientMetrics>();
  * Initialize WebSocket optimizations
  */
 export function initializeWSOptimizations(wss: WebSocketServer): void {
-  log.info("Initializing WebSocket optimizations");
+  log.info('Initializing WebSocket optimizations');
 
   // Setup heartbeat/ping-pong
   setupHeartbeat(wss);
@@ -54,7 +54,7 @@ function setupHeartbeat(wss: WebSocketServer): void {
 
     wss.clients.forEach((client: any) => {
       if (client.isAlive === false) {
-        log.debug("Terminating dead connection");
+        log.debug('Terminating dead connection');
         return client.terminate();
       }
 
@@ -69,7 +69,7 @@ function setupHeartbeat(wss: WebSocketServer): void {
   }, HEARTBEAT_INTERVAL);
 
   // Cleanup on shutdown
-  process.on("exit", () => clearInterval(interval));
+  process.on('exit', () => clearInterval(interval));
 }
 
 /**
@@ -88,8 +88,8 @@ function setupConnectionCleanup(wss: WebSocketServer): void {
       }
       // Timeout idle connections
       else if (now - metrics.lastActivity > DEAD_CONNECTION_TIMEOUT) {
-        log.warn("Closing idle connection");
-        client.close(1000, "Idle timeout");
+        log.warn('Closing idle connection');
+        client.close(1000, 'Idle timeout');
         clientMetrics.delete(client);
         cleaned++;
       }
@@ -100,25 +100,25 @@ function setupConnectionCleanup(wss: WebSocketServer): void {
     }
   }, 60000); // Every 60 seconds
 
-  process.on("exit", () => clearInterval(interval));
+  process.on('exit', () => clearInterval(interval));
 }
 
 /**
  * Setup connection monitoring
  */
 function setupConnectionMonitoring(wss: WebSocketServer): void {
-  wss.on("connection", (client: any) => {
+  wss.on('connection', (client: any) => {
     // Check connection limit
     if ((wss as any).clients.size > MAX_CONNECTIONS_PER_INSTANCE) {
       log.warn(
-        `Connection limit exceeded (${(wss as any).clients.size}/${MAX_CONNECTIONS_PER_INSTANCE})`
+        `Connection limit exceeded (${(wss as any).clients.size}/${MAX_CONNECTIONS_PER_INSTANCE})`,
       );
-      client.close(1008, "Server at capacity");
+      client.close(1008, 'Server at capacity');
       return;
     }
 
     client.isAlive = true;
-    client.on("pong", () => {
+    client.on('pong', () => {
       client.isAlive = true;
     });
 
@@ -131,7 +131,7 @@ function setupConnectionMonitoring(wss: WebSocketServer): void {
       queueSize: 0,
     });
 
-    client.on("message", () => {
+    client.on('message', () => {
       const metrics = clientMetrics.get(client);
       if (metrics) {
         metrics.messagesReceived++;
@@ -152,7 +152,7 @@ export function sendMessage(client: WebSocket, data: unknown): boolean {
   }
 
   try {
-    const json = typeof data === "string" ? data : JSON.stringify(data);
+    const json = typeof data === 'string' ? data : JSON.stringify(data);
 
     // Check message size (warn if > 100KB)
     if (json.length > 102400) {
@@ -168,7 +168,7 @@ export function sendMessage(client: WebSocket, data: unknown): boolean {
 
     return true;
   } catch (error) {
-    log.error("Error sending message:", error);
+    log.error('Error sending message:', error);
     return false;
   }
 }
@@ -207,17 +207,15 @@ export function getWSMetrics(wss: WebSocketServer): Record<string, unknown> {
   return {
     connectedClients: (wss as any).clients.size,
     maxCapacity: MAX_CONNECTIONS_PER_INSTANCE,
-    utilizationPercent: (((wss as any).clients.size / MAX_CONNECTIONS_PER_INSTANCE) * 100).toFixed(2),
+    utilizationPercent: (((wss as any).clients.size / MAX_CONNECTIONS_PER_INSTANCE) * 100).toFixed(
+      2,
+    ),
     totalMessagesReceived,
     totalMessagesSent,
     averageMessagesPerClient:
-      clientMetrics.size > 0
-        ? (totalMessagesReceived / clientMetrics.size).toFixed(2)
-        : 0,
-    oldestConnectionAge:
-      oldestConnection < Date.now() ? Date.now() - oldestConnection : 0,
-    newestConnectionAge:
-      newestConnection > 0 ? Date.now() - newestConnection : 0,
+      clientMetrics.size > 0 ? (totalMessagesReceived / clientMetrics.size).toFixed(2) : 0,
+    oldestConnectionAge: oldestConnection < Date.now() ? Date.now() - oldestConnection : 0,
+    newestConnectionAge: newestConnection > 0 ? Date.now() - newestConnection : 0,
   };
 }
 
@@ -226,5 +224,5 @@ export function getWSMetrics(wss: WebSocketServer): Record<string, unknown> {
  */
 export function cleanupWSResources(wss: WebSocketServer): void {
   clientMetrics.clear();
-  log.info("✅ WebSocket resources cleaned up");
+  log.info('✅ WebSocket resources cleaned up');
 }

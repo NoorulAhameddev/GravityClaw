@@ -32,6 +32,7 @@ node scripts/secret-manager.ts generate-key
 ```
 
 This will output a 64-character hexadecimal string:
+
 ```
 Generated MASTER_KEY: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2
 ```
@@ -39,12 +40,14 @@ Generated MASTER_KEY: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9
 ### Store MASTER_KEY Securely
 
 1. **Environment Variable** (Development):
+
    ```bash
    # Add to .env file
    MASTER_KEY=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2
    ```
 
 2. **Environment Variable** (Production):
+
    ```bash
    # Use your platform's secret management:
    # AWS Secrets Manager, Azure Key Vault, Vault, etc.
@@ -85,18 +88,12 @@ node scripts/secret-manager.ts add-secret \
 ```typescript
 import { addSecret } from './src/secrets.ts';
 
-await addSecret(
-  './secrets.enc.json',
-  'MY_API_KEY',
-  'secret123',
-  process.env.MASTER_KEY!,
-  {
-    name: 'MY_API_KEY',
-    description: 'External API key',
-    createdAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-  }
-);
+await addSecret('./secrets.enc.json', 'MY_API_KEY', 'secret123', process.env.MASTER_KEY!, {
+  name: 'MY_API_KEY',
+  description: 'External API key',
+  createdAt: new Date().toISOString(),
+  expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+});
 ```
 
 ### Rotating Secrets
@@ -144,6 +141,7 @@ npm run secret:audit -- --limit 50
 ### Purpose
 
 Path allowlisting prevents file operations (read/write/delete) from accessing:
+
 - System directories (`/etc`, `/sys`, `C:\Windows`, etc.)
 - Sensitive files (`.env`, `.ssh`, credentials, etc.)
 - Arbitrary locations outside the allowlist
@@ -195,7 +193,7 @@ SAFE_DIRECTORIES=./data,./uploads,./exports
 File operations are rejected if:
 
 1. **Outside allowlist**: Path not in any safe directory
-2. **Path traversal**: Contains `..` or `/` escaping  
+2. **Path traversal**: Contains `..` or `/` escaping
 3. **Symlink escape**: Symlink resolves outside allowlist
 4. **Blocked patterns**: Matches system/sensitive paths
 5. **Sensitive files**: Matches `.env*`, `*credentials*`, `*.pem`, `.ssh/*`, etc.
@@ -255,11 +253,11 @@ Each log entry includes:
 {
   "timestamp": "2026-03-04T12:34:56.789Z",
   "path": "/full/path/to/file.txt",
-  "action": "read",        // read, write, delete
+  "action": "read", // read, write, delete
   "size_bytes": 1024,
   "duration_ms": 42,
   "user": "telegram:12345",
-  "status": "success",     // success, denied, error
+  "status": "success", // success, denied, error
   "error": null
 }
 ```
@@ -285,6 +283,7 @@ SECRET_CLEANUP_DAYS=90         # Delete when 90 days past expiration
 ```
 
 The scheduler automatically:
+
 1. Checks daily for expired secrets
 2. Logs rotation reminders
 3. Cleans up deleted secrets after grace period
@@ -349,12 +348,12 @@ When Gravity Claw starts, it validates:
 
 ### Troubleshooting Startup Issues
 
-| Issue | Solution |
-|-------|----------|
-| `MASTER_KEY not set` | Add `MASTER_KEY` to `.env` |
-| `Safe directories not found` | Create directories or update `SAFE_DIRECTORIES` |
-| `Secrets file corrupted` | Restore from backup or regenerate with `secret:import` |
-| `Decryption failed` | Verify `MASTER_KEY` matches the one used to encrypt |
+| Issue                        | Solution                                               |
+| ---------------------------- | ------------------------------------------------------ |
+| `MASTER_KEY not set`         | Add `MASTER_KEY` to `.env`                             |
+| `Safe directories not found` | Create directories or update `SAFE_DIRECTORIES`        |
+| `Secrets file corrupted`     | Restore from backup or regenerate with `secret:import` |
+| `Decryption failed`          | Verify `MASTER_KEY` matches the one used to encrypt    |
 
 ## Security Audit & Monitoring
 
@@ -365,7 +364,7 @@ Available security tools in dashboard:
 ```typescript
 // Get complete security audit log
 getSecurityAuditLog({
-  type: 'all',           // 'all', 'secret', 'file', 'access'
+  type: 'all', // 'all', 'secret', 'file', 'access'
   days: 7,
   limit: 100,
 });
@@ -383,17 +382,20 @@ validatePathAccess({ path: './data/file.txt', action: 'read' });
 ### Regular Security Reviews
 
 **Weekly**:
+
 1. Review secret access logs for unusual patterns
 2. Check for failed file access attempts
 3. Verify no new security warnings in logs
 
 **Monthly**:
+
 1. Run `npm run secret:audit` to review all access
 2. Rotate secrets nearing expiration (90+ days)
 3. Review path allowlist — add/remove as needed
 4. Check for deprecated or unused secrets
 
 **Quarterly**:
+
 1. Regenerate MASTER_KEY and re-encrypt secrets
 2. Audit all users/services accessing secrets
 3. Review security configuration changes
@@ -417,10 +419,11 @@ Configure alerts for:
 **If a secret is compromised:**
 
 1. **Immediate** (< 5 minutes):
+
    ```bash
    # Remove the compromised secret
    node scripts/secret-manager.ts delete-secret --name COMPROMISED_SECRET
-   
+
    # Check access log for leaks
    npm run secret:audit -- --secret COMPROMISED_SECRET
    ```
@@ -442,11 +445,13 @@ Configure alerts for:
 **If path traversal or symlink attack detected:**
 
 1. **Check logs**:
+
    ```bash
    npm run secret:audit -- --type file --status denied
    ```
 
 2. **Review safe directory configuration**:
+
    ```bash
    # Verify SAFE_DIRECTORIES is correct
    node scripts/secret-manager.ts show-config
@@ -463,18 +468,20 @@ Configure alerts for:
 **If MASTER_KEY is exposed:**
 
 1. **Generate new MASTER_KEY**:
+
    ```bash
    npm run secret:generate
    ```
 
 2. **Re-encrypt all secrets**:
+
    ```bash
    # Export all secrets with old key
    npm run secret:export --output secrets-backup.json
-   
+
    # Update .env with new MASTER_KEY
    MASTER_KEY=<new-key>
-   
+
    # Import with new key
    npm run secret:import --input secrets-backup.json
    ```
@@ -492,6 +499,7 @@ Configure alerts for:
 ## Best Practices Checklist
 
 ### Secrets
+
 - [ ] MASTER_KEY stored in environment (not code/git)
 - [ ] Secrets rotated every 90 days
 - [ ] Old secrets cleaned up after expiration
@@ -501,6 +509,7 @@ Configure alerts for:
 - [ ] Test secret rotation in dev first
 
 ### Paths
+
 - [ ] SAFE_DIRECTORIES configured for legitimate use cases
 - [ ] System directories blocked by default
 - [ ] `.env` and credentials blocked from file tools
@@ -509,18 +518,21 @@ Configure alerts for:
 - [ ] Suspicious patterns investigated
 
 ### Startup
+
 - [ ] Check MASTER_KEY before startup
 - [ ] Validate all config on boot
 - [ ] Log security status (without exposing keys)
 - [ ] Fail fast on misconfiguration
 
 ### Monitoring
+
 - [ ] Set up alerts for failed decryptions
 - [ ] Monitor secret access patterns
 - [ ] Track file operations on sensitive paths
 - [ ] Regular security audits (weekly/monthly)
 
 ### Incident Response
+
 - [ ] Document incident procedures
 - [ ] Test incident response regularly
 - [ ] Keep secure backup of MASTER_KEY regeneration logs

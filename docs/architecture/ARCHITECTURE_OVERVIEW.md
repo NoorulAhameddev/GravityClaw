@@ -62,6 +62,7 @@ gravyclaw/
 ### Entry Point
 
 **`src/index.ts`** — Main entry point that:
+
 - Validates config via Zod (exits if misconfigured)
 - Enforces air-gap mode if enabled
 - Registers all 80+ tools
@@ -73,12 +74,14 @@ gravyclaw/
 ### Project Bootstrap
 
 **Technology Stack:**
+
 - **Runtime**: Node.js 20+ with `tsx` for TypeScript execution
 - **Language**: TypeScript 5.x (ESM modules)
 - **Database**: SQLite 3 (better-sqlite3, WAL mode)
 - **Package Manager**: npm (≥10.0.0)
 
 **Commands:**
+
 ```bash
 npm run dev              # Development (tsx watch)
 npm start                # Production
@@ -189,12 +192,12 @@ For **multi-agent orchestration**, see swarm/mesh systems below.
 
 **Built-in specialized roles** (used in swarms):
 
-| Role | Description |
-|------|-------------|
-| `researcher` | Deep analysis, pattern finding, questioning assumptions |
-| `coder` | Programming implementations, clean code, best practices |
-| `reviewer` | Code review, QA, identifying issues, constructive feedback |
-| `summarizer` | Distillation, synthesis, clear communication |
+| Role         | Description                                                |
+| ------------ | ---------------------------------------------------------- |
+| `researcher` | Deep analysis, pattern finding, questioning assumptions    |
+| `coder`      | Programming implementations, clean code, best practices    |
+| `reviewer`   | Code review, QA, identifying issues, constructive feedback |
+| `summarizer` | Distillation, synthesis, clear communication               |
 
 Defined in [`src/agents/swarm.ts`](src/agents/swarm.ts) as `ROLE_PROMPTS` object.
 
@@ -257,8 +260,9 @@ No persistent "running" agents — they're invoked on-demand per message.
 
 ```typescript
 // LLM calls:
-spawn_agent({ role: "researcher", task: "Analyze X" })
+spawn_agent({ role: 'researcher', task: 'Analyze X' });
 ```
+
 Creates a new session, runs it, returns results.
 
 #### b) Swarm API ([`AgentSwarm` class](src/agents/swarm.ts))
@@ -266,8 +270,8 @@ Creates a new session, runs it, returns results.
 ```typescript
 const swarm = new AgentSwarm(parentSessionId, {
   numAgents: 3,
-  roles: ["researcher", "coder", "reviewer"],
-  maxConcurrency: 2
+  roles: ['researcher', 'coder', 'reviewer'],
+  maxConcurrency: 2,
 });
 await swarm.run(goal);
 ```
@@ -312,8 +316,8 @@ Each node is a **`WorkflowTask`**:
 interface WorkflowTask {
   id: string;
   description: string;
-  dependsOn: string[];  // Array of task IDs
-  status: "pending" | "running" | "completed" | "failed";
+  dependsOn: string[]; // Array of task IDs
+  status: 'pending' | 'running' | 'completed' | 'failed';
   result?: string;
 }
 ```
@@ -493,6 +497,7 @@ CREATE TABLE messages (
 #### a) Supabase (cloud, optional)
 
 [`src/memory/supabase.ts`](src/memory/supabase.ts):
+
 - Async sync of messages to Supabase pgvector
 - Semantic search via `match_documents` RPC
 - Non-blocking, enqueued writes
@@ -520,13 +525,13 @@ CREATE TABLE messages (
 **Hybrid approach:**
 
 1. **Conversation history**: Direct SQLite query, ordered by timestamp
-2. **Semantic search**: 
-   - Query Supabase `match_documents(embedding, threshold)` 
+2. **Semantic search**:
+   - Query Supabase `match_documents(embedding, threshold)`
    - OR compute embedding + cosine similarity in-memory
-3. **Graph traversal**: 
+3. **Graph traversal**:
    - [`queryGraph(sessionId, entityName, maxDepth)`](src/memory/graph.ts)
    - BFS from starting entity, returns subgraph
-4. **Fact injection**: 
+4. **Fact injection**:
    - [`loadFactsForPrompt(sessionId)`](src/memory/markdown.ts)
    - Recent facts prepended to system prompt
 
@@ -545,10 +550,12 @@ No manual save required — fully automatic.
 ### Memory Scoping
 
 **Per-session by default:**
+
 - Each `session_id` has isolated history
 - Cross-session queries possible via explicit tools (e.g., `agent_send_message`)
 
 **Global memory** (shared across sessions):
+
 - Facts can be tagged as global (roadmap item)
 
 ### Memory Summarization/Compression
@@ -568,11 +575,11 @@ No manual save required — fully automatic.
 
 ### Current State of Connectors
 
-| Channel | Status | File | Notes |
-|---------|--------|------|-------|
-| **Telegram** | ✅ Fully working | [`src/channels/telegram.ts`](src/channels/telegram.ts) | Grammy bot, user allowlist, group support |
-| **WhatsApp** | ✅ Working | [`src/channels/whatsapp.ts`](src/channels/whatsapp.ts) | Baileys library, QR auth, media support |
-| **WebChat** | ✅ Working | [`src/channels/webchat.ts`](src/channels/webchat.ts) | WebSocket-based, serves `public/chat.html` |
+| Channel      | Status           | File                                                   | Notes                                      |
+| ------------ | ---------------- | ------------------------------------------------------ | ------------------------------------------ |
+| **Telegram** | ✅ Fully working | [`src/channels/telegram.ts`](src/channels/telegram.ts) | Grammy bot, user allowlist, group support  |
+| **WhatsApp** | ✅ Working       | [`src/channels/whatsapp.ts`](src/channels/whatsapp.ts) | Baileys library, QR auth, media support    |
+| **WebChat**  | ✅ Working       | [`src/channels/webchat.ts`](src/channels/webchat.ts)   | WebSocket-based, serves `public/chat.html` |
 
 All three are production-ready.
 
@@ -582,13 +589,13 @@ Implement the [`Channel` interface](src/types/channels.ts):
 
 ```typescript
 interface Channel {
-  id: string;  // Unique identifier (e.g., "discord")
-  
+  id: string; // Unique identifier (e.g., "discord")
+
   start(onMessage: (msg: UnifiedMessage) => Promise<void>): Promise<void>;
   stop(): Promise<void>;
   sendMessage(chatId: string, text: string): Promise<void>;
-  sendTyping?(chatId: string): Promise<void>;  // Optional
-  preferredFormat?: "markdown" | "html" | "plaintext" | "whatsapp";
+  sendTyping?(chatId: string): Promise<void>; // Optional
+  preferredFormat?: 'markdown' | 'html' | 'plaintext' | 'whatsapp';
 }
 ```
 
@@ -639,16 +646,16 @@ Router stores `channel.preferredFormat` and adapts content.
 
 All in [`src/llm/`](src/llm/):
 
-| Provider | File | Status | Notes |
-|----------|------|--------|-------|
-| OpenRouter | [`openrouter.ts`](src/llm/openrouter.ts) | ✅ | Multi-model gateway |
-| Anthropic | [`anthropic.ts`](src/llm/anthropic.ts) | ✅ | Claude 3.5 Sonnet |
-| OpenAI | [`openai.ts`](src/llm/openai.ts) | ✅ | GPT-4o, o1 |
-| Google | [`google.ts`](src/llm/google.ts) | ✅ | Gemini Pro |
-| Groq | [`groq.ts`](src/llm/groq.ts) | ✅ | Fast inference |
-| DeepSeek | [`deepseek.ts`](src/llm/deepseek.ts) | ✅ | DeepSeek models |
-| Ollama | [`ollama.ts`](src/llm/ollama.ts) | ✅ | Local, air-gapped |
-| Failover | [`failover.ts`](src/llm/failover.ts) | ✅ | Auto-retry cascade |
+| Provider   | File                                     | Status | Notes               |
+| ---------- | ---------------------------------------- | ------ | ------------------- |
+| OpenRouter | [`openrouter.ts`](src/llm/openrouter.ts) | ✅     | Multi-model gateway |
+| Anthropic  | [`anthropic.ts`](src/llm/anthropic.ts)   | ✅     | Claude 3.5 Sonnet   |
+| OpenAI     | [`openai.ts`](src/llm/openai.ts)         | ✅     | GPT-4o, o1          |
+| Google     | [`google.ts`](src/llm/google.ts)         | ✅     | Gemini Pro          |
+| Groq       | [`groq.ts`](src/llm/groq.ts)             | ✅     | Fast inference      |
+| DeepSeek   | [`deepseek.ts`](src/llm/deepseek.ts)     | ✅     | DeepSeek models     |
+| Ollama     | [`ollama.ts`](src/llm/ollama.ts)         | ✅     | Local, air-gapped   |
+| Failover   | [`failover.ts`](src/llm/failover.ts)     | ✅     | Auto-retry cascade  |
 
 ### LLM Abstraction
 
@@ -676,8 +683,8 @@ Factory function: [`getProvider()`](src/llm/index.ts) returns current provider b
 Set dynamically via:
 
 ```typescript
-updateSessionSetting(sessionId, "model", "gpt-4o");
-updateSessionSetting(sessionId, "provider", "openai");
+updateSessionSetting(sessionId, 'model', 'gpt-4o');
+updateSessionSetting(sessionId, 'provider', 'openai');
 ```
 
 Command: `/model gpt-4o` in chat.
@@ -693,6 +700,7 @@ Roadmap item for canvas live updates.
 **Centralized in [`src/llm/index.ts`](src/llm/index.ts)** — `SYSTEM_PROMPT` constant (1500+ lines).
 
 Enhanced per-agent with:
+
 - **Thinking level** (adds `<thinking>` tags) via [`src/thinking.ts`](src/thinking.ts)
 - **Memory facts** (prepended via [`loadFactsForPrompt()`](src/memory/markdown.ts))
 - **Attachment context** (images/docs from [`getRecentAttachmentContext()`](src/memory/multimodal.ts))
@@ -707,6 +715,7 @@ Enhanced per-agent with:
 - Tool results fed back via [`addToolResult()`](src/llm/orchestrator.ts)
 
 **80+ tools** spanning:
+
 - System (datetime, shell, file ops)
 - Memory (save facts, query graph, semantic search)
 - Voice (TTS, wake word, talk mode)
@@ -733,7 +742,7 @@ Think "ChatGPT Code Interpreter" but for arbitrary UIs.
 **Native `ws` library** ([`src/server.ts`](src/server.ts)):
 
 ```typescript
-import { WebSocketServer } from "ws";
+import { WebSocketServer } from 'ws';
 const wss = new WebSocketServer({ server });
 ```
 
@@ -742,11 +751,13 @@ Listens on same port as HTTP server (`PORT=3000` by default).
 ### Canvas Events
 
 **Server → Client:**
+
 - `connected` — Welcome message with sessionId
 - `canvas_push` — Agent pushes widget (HTML + optional JS)
 - `pong` — Heartbeat response
 
 **Client → Server:**
+
 - `interaction` — User clicked button, submitted form, etc.
 - `error` — Canvas client error
 - `ping` — Heartbeat
@@ -766,16 +777,19 @@ Served by Express: `app.use(express.static("public"))`.
 ### User Capabilities
 
 **In Canvas:**
+
 - View agent-pushed widgets (charts, forms, interactive demos)
 - Interact with widgets → sends events back to agent
 - View live updates as agent modifies the canvas
 
 **In WebChat:**
+
 - Send/receive messages
 - Upload images (multimodal)
 - Export chat history
 
 **In Dashboard** (experimental):
+
 - View sessions list
 - See analytics (token usage, tool calls)
 - Manage configuration
@@ -805,7 +819,8 @@ Served by Express: `app.use(express.static("public"))`.
 }
 ```
 
-**Not encrypted**: 
+**Not encrypted**:
+
 - Conversation history (stored plaintext in SQLite)
 - Facts/entities (plaintext)
 
@@ -852,34 +867,43 @@ Validated at startup — exits if config violates air-gap rules.
 **Categories** (see [`src/tools/`](src/tools/)):
 
 #### System
+
 - `get_current_datetime`, `shell`, `search_attachments`
 - File ops: `read_file`, `write_file`, `list_directory`
 
 #### Memory
+
 - `save_fact`, `recall_facts`, `save_entity`, `save_relationship`
 - `query_graph`, `search_memory_semantic`, `memory_prune_context`
 
 #### Voice
+
 - `text_to_speech_openai`, `text_to_speech_elevenlabs`
 - `enable_talk_mode`, `set_voice_settings`, `enable_wake_word`
 
 #### Automation
+
 - `browser_navigate`, `browser_click`, `browser_screenshot`
 - `schedule_task`, `list_scheduled_tasks`, `cancel_task`
 
 #### Multi-Agent
+
 - `spawn_agent`, `aggregate_results`, `agent_send_message`
 
 #### Observability
+
 - `dashboard_analytics`, `export_chat_history`, `export_graph`
 
 #### Backup
+
 - `create_backup`, `list_backups`, `restore_backup`
 
 #### Security
+
 - `secret_add`, `secret_list`, `secret_rotate`
 
 #### MCP Bridge
+
 - `mcp_list_servers`, `mcp_list_tools`, `mcp_call_tool`
 
 Full list via CLI: `npm run cli -- tools`
@@ -890,25 +914,25 @@ Full list via CLI: `npm run cli -- tools`
 
 ```typescript
 // src/tools/myTool.ts
-import type { Tool } from "../types/tools.js";
+import type { Tool } from '../types/tools.js';
 
 export const myTool: Tool = {
-  name: "my_tool",
-  description: "Does something useful",
+  name: 'my_tool',
+  description: 'Does something useful',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
-      input: { type: "string" }
+      input: { type: 'string' },
     },
-    required: ["input"]
+    required: ['input'],
   },
   async execute(input) {
     // Context injected automatically:
     const { __sessionId, __userId, __platform } = input;
-    
+
     // Your logic here
-    return JSON.stringify({ success: true, result: "..." });
-  }
+    return JSON.stringify({ success: true, result: '...' });
+  },
 };
 ```
 
@@ -916,13 +940,13 @@ export const myTool: Tool = {
 
 ```typescript
 // src/tools/automation/index.ts
-export { myTool } from "./myTool.ts";
+export { myTool } from './myTool.ts';
 ```
 
 **3. Register** in [`src/index.ts`](src/index.ts):
 
 ```typescript
-import { myTool } from "./tools/automation/index.ts";
+import { myTool } from './tools/automation/index.ts';
 registry.register(myTool);
 ```
 
@@ -1057,8 +1081,8 @@ From recent commits/docs:
 ### Request Flow
 
 ```
-Channel (Telegram/WhatsApp/Web) 
-  → ChannelRouter 
+Channel (Telegram/WhatsApp/Web)
+  → ChannelRouter
   → runAgent() (tool-use loop)
   → callClaude() (LLM orchestrator)
   → Tool execution
@@ -1104,12 +1128,14 @@ src/index.ts                    # Entry point
 Gravity Claw is in early development. Contributions are welcome!
 
 **Before contributing:**
+
 1. Read [`CONTRIBUTING.md`](CONTRIBUTING.md)
 2. Check existing issues
 3. Follow conventional commits
 4. Ensure tests pass: `npm run test:run`
 
 **Common contribution areas:**
+
 - Adding new LLM providers
 - Implementing new tools
 - Adding platform connectors
@@ -1128,7 +1154,4 @@ MIT License — See [`LICENSE`](LICENSE) for details.
 **Maintainer**: Noorul Ahamed  
 **Repository**: [github.com/noorulahamed/gravityclaw](https://github.com/noorulahamed/gravityclaw)
 
-
-
 7. **Memory Persistence**: Writing to graph and relational memory.
-

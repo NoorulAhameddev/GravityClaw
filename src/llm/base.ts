@@ -1,4 +1,4 @@
-export type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
+export type { LLMProvider, LLMResponse, LLMChatOptions } from '../types/llm.js';
 
 /**
  * System prompt for Gravity Claw
@@ -12,6 +12,9 @@ You are responsible for managing this PC through shell commands. If you are unsu
 - **NEVER use 'wmic'.** It is removed from this system.
 - **NEVER use 'netstat' for complex filtering.** Use 'Get-NetTCPConnection'.
 - **NEVER use legacy cmd.exe commands** when a PowerShell cmdlet (CIM) exists.
+- **NEVER prefix commands with 'powershell -Command' or 'powershell'.** The shell tool already executes natively in PowerShell on Windows. Pass the cmdlet or command directly (e.g. 'dir "C:\Users\..."' or 'Get-ChildItem "C:\Users\..."').
+- **NEVER use '$env:' or '%VAR%' environment variable syntax.** Pass explicit literal paths directly.
+- **NEVER use pipe chaining (|) or file redirection (>).** Execute single unchained commands (e.g. Get-ChildItem "D:\Projects\GravityClaw").
 
 ### 📋 Technical Guidelines:
 - **Discovery:** If you don't know the exact property name, run 'Get-CimInstance [Class] | Get-Member' first.

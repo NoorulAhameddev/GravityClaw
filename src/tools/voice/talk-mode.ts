@@ -1,13 +1,17 @@
 /**
  * Talk Mode Tools
- * 
+ *
  * Provides hands-free continuous voice conversation for desktop/local use.
  * Requires microphone and speaker - not available on VPS.
  */
 
 import type { Tool } from './index.js';
 import { createLogger } from '../../logger.js';
-import { createTalkModeHandler, type TalkModeHandler, type TalkModeCallbacks } from '../../voice/talk-mode.js';
+import {
+  createTalkModeHandler,
+  type TalkModeHandler,
+  type TalkModeCallbacks,
+} from '../../voice/talk-mode.js';
 import { config } from '../../config.js';
 
 const logger = createLogger('talk-mode-tools');
@@ -96,12 +100,20 @@ REQUIRES: Microphone and speaker access. Not compatible with VPS/cloud deploymen
       }
 
       // Update config if provided
-      if (args.wake_phrase || args.wake_threshold || args.silence_duration || args.max_recording_duration) {
+      if (
+        args.wake_phrase ||
+        args.wake_threshold ||
+        args.silence_duration ||
+        args.max_recording_duration
+      ) {
         const configUpdate: Record<string, any> = {};
         if (args.wake_phrase) configUpdate.wakePhrase = args.wake_phrase as string;
-        if (args.wake_threshold !== undefined) configUpdate.wakeThreshold = args.wake_threshold as number;
-        if (args.silence_duration !== undefined) configUpdate.silenceDuration = args.silence_duration as number;
-        if (args.max_recording_duration !== undefined) configUpdate.maxRecordingDuration = args.max_recording_duration as number;
+        if (args.wake_threshold !== undefined)
+          configUpdate.wakeThreshold = args.wake_threshold as number;
+        if (args.silence_duration !== undefined)
+          configUpdate.silenceDuration = args.silence_duration as number;
+        if (args.max_recording_duration !== undefined)
+          configUpdate.maxRecordingDuration = args.max_recording_duration as number;
         handler.updateConfig(configUpdate);
       }
 
@@ -153,7 +165,6 @@ REQUIRES: Microphone and speaker access. Not compatible with VPS/cloud deploymen
         },
         instructions: 'Say the wake phrase to start a conversation. Use stop_talk_mode to stop.',
       });
-
     } catch (error) {
       const err = error as Error;
       logger.error('start_talk_mode failed:', err);
@@ -208,7 +219,6 @@ After stopping, you can restart talk mode with start_talk_mode.`,
         success: true,
         message: 'Talk mode stopped. Microphone released.',
       });
-
     } catch (error) {
       const err = error as Error;
       logger.error('stop_talk_mode failed:', err);
@@ -254,7 +264,6 @@ Returns:
         },
         status: isActive ? 'Listening for wake word' : 'Stopped',
       });
-
     } catch (error) {
       const err = error as Error;
       logger.error('get_talk_mode_status failed:', err);
@@ -284,8 +293,4 @@ export function clearTalkModeSessionCallback(): void {
 /**
  * Export all talk mode tools
  */
-export const talkModeTools: Tool[] = [
-  startTalkModeTool,
-  stopTalkModeTool,
-  getTalkModeStatusTool,
-];
+export const talkModeTools: Tool[] = [startTalkModeTool, stopTalkModeTool, getTalkModeStatusTool];

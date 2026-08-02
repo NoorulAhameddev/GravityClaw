@@ -1,4 +1,4 @@
-declare module "cohere" {
+declare module 'cohere' {
   export interface CohereClientOptions {
     apiKey: string;
     baseUrl?: string;

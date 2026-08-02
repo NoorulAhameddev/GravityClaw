@@ -1,6 +1,7 @@
 ## Plan: Gravity Claw UI/UX Enhancement Roadmap
 
 ### TL;DR
+
 Transform Gravity Claw from backend-heavy (95% complete) to full-featured (90%+ completion) by systematically implementing missing UI layers: settings dashboard, analytics dashboard, admin panel, and materializing placeholder sections. Phased approach: **Phase 1 (Foundations)** builds reusable dashboard components; **Phase 2 (Core Dashboards)** delivers analytics and settings; **Phase 3 (Advanced Features)** completes admin tools and real plugin/memory sections. Decision: Continue vanilla JS/CSS (no framework) for consistency, use component library pattern from existing code, leverage backend tools that already exist.
 
 ---
@@ -8,19 +9,23 @@ Transform Gravity Claw from backend-heavy (95% complete) to full-featured (90%+ 
 ## Phase 1: Foundation & Component Library (Weeks 1-2)
 
 ### Step 1.1: Create Dashboard Container Layout
+
 **Goal:** Establish reusable dashboard page template that all new pages will inherit from.
 
 **Files to create:**
+
 - `public/dashboards.html` — Master layout with sidebar nav, breadcrumbs, main content area
 - `public/dashboards.css` — Dashboard-specific grid layout (header, sidebar, content, footer)
 - `public/dashboard-common.js` — Shared logic (nav highlighting, page switching, state mgmt)
 
 **Key patterns from existing code:**
+
 - Reuse `.sidebar` structure from `public/index.html`
 - Leverage CSS variables from `public/style.css`
 - Follow WebSocket connection pattern from `public/app.js`
 
 **What it contains:**
+
 - Left nav with tabs (Chat, Settings, Analytics, Admin, Plugins, Memory)
 - Breadcrumb trail (e.g., "Settings > Voice")
 - Hero header with page title/description
@@ -28,9 +33,11 @@ Transform Gravity Claw from backend-heavy (95% complete) to full-featured (90%+ 
 - Footer with version + status
 
 ### Step 1.2: Build Reusable Component Kit
+
 **Goal:** Before building dashboards, establish atomic UI components.
 
 **Files to create:**
+
 - `public/components/card.js` — Card container (title, footer, actions)
 - `public/components/stat-block.js` — Metric display (label, value, sparkline)
 - `public/components/toggle.js` — Switch component for boolean settings
@@ -39,31 +46,35 @@ Transform Gravity Claw from backend-heavy (95% complete) to full-featured (90%+ 
 - `public/components/badge.js` — Role/status badges
 
 **Implementation style:**
+
 - Follow function-based component pattern (not React, pure functions)
 - Each component returns HTML string + event handlers
 - Leverage event delegation from `public/app.js` pattern
 
 **Example pattern:**
+
 ```javascript
 // From public/app.js pattern - extend this for components
 function createCard(title, content, actions = []) {
-    const card = document.createElement('div');
-    card.className = 'dashboard-card';
-    card.innerHTML = `
+  const card = document.createElement('div');
+  card.className = 'dashboard-card';
+  card.innerHTML = `
         <div class="card-header">
             <h3>${title}</h3>
         </div>
         <div class="card-body">${content}</div>
-        <div class="card-footer">${actions.map(a => `<button>${a.label}</button>`).join('')}</div>
+        <div class="card-footer">${actions.map((a) => `<button>${a.label}</button>`).join('')}</div>
     `;
-    return card;
+  return card;
 }
 ```
 
 ### Step 1.3: Dashboard Navigation System
+
 **Goal:** Route between Chat, Settings, Analytics, Admin, Plugins, Memory pages.
 
 **Implement in:**
+
 - `public/dashboard-common.js` — Add page router logic
 - `public/dashboards.html` — Add nav button handlers
 - `public/dashboards.css` — Page transition animations
@@ -75,14 +86,17 @@ function createCard(title, content, actions = []) {
 ## Phase 2: Core Dashboards (Weeks 3-5)
 
 ### Step 2.1: Settings Dashboard
+
 **Goal:** Surface backend voice/notification settings to the UI.
 
 **Create:**
+
 - `public/pages/settings.html` (content template)
 - `public/pages/settings.js` (logic)
 - `public/pages/settings.css` (styling)
 
 **Sections to implement:**
+
 1. **Voice Settings** — Expose tools from `src/tools/voice-settings.ts`
    - Mode selector (off / transcribe-only / full-voice)
    - TTS provider dropdown (OpenAI / ElevenLabs)
@@ -107,20 +121,24 @@ function createCard(title, content, actions = []) {
    - Account deletion warning (placeholder)
 
 **Backend integration:**
+
 - Call `setVoiceSettings` tool via WebSocket (pattern from `public/app.js`)
 - Call new `setNotificationPreferences` tool (needs implementation in backend)
 - Read settings via new `getSettings` tool
 
 ### Step 2.2: Analytics Dashboard
+
 **Goal:** Visualize token usage, costs, and session stats from backend.
 
 **Create:**
+
 - `public/pages/analytics.html`
 - `public/pages/analytics.js`
 - `public/pages/analytics.css`
 - `public/components/chart.js` — Lightweight charting (CSS bars or SVG)
 
 **Sections to implement:**
+
 1. **Usage Overview** (Top cards)
    - Total tokens this session
    - Total cost (USD)
@@ -147,23 +165,28 @@ function createCard(title, content, actions = []) {
    - Provider
 
 **Backend integration:**
+
 - Call `getUsageStats` from `src/usage.ts`
 - New tool: `getUsageHistory(sessionId, since, limit)` returns array of UsageRecord
 - New tool: `getModelBreakdown(sessionId)` aggregates by model
 
 **Charting approach:**
+
 - Use CSS bar charts (simple `div` with calculated widths)
 - Use HTML canvas for line charts if needed (lightweight library or custom)
 - Fallback: ASCII-style text representation
 
 ### Step 2.3: Session Info & Connection Status Panel
+
 **Goal:** Display current session, device, connected channels.
 
 **Add to:**
+
 - `public/pages/settings.html` (new "Session" section)
 - New tool in backend: `getSessionInfo()` returns { sessionId, userId, channels, devices, connectedAt, uptime }
 
 **Display:**
+
 - Current session ID (copyable)
 - Connected channels (Telegram ✓, WhatsApp ✓, Mobile ✗, WebChat ✓)
 - Connected devices (mobile devices from `src/gateway/mobile.ts`)
@@ -176,14 +199,17 @@ function createCard(title, content, actions = []) {
 ## Phase 3: Admin & Advanced Features (Weeks 6-8)
 
 ### Step 3.1: Admin Panel (Group Management)
+
 **Goal:** Surface group controls for Telegram/WhatsApp admin operations.
 
 **Create:**
+
 - `public/pages/admin.html`
 - `public/pages/admin.js`
 - `public/pages/admin.css`
 
 **Sections:**
+
 1. **Group Overview** (For groups the user is admin in)
    - List all groups (platform, group ID, member count, added admins)
    - Show current user's role (owner/admin/member)
@@ -199,19 +225,23 @@ function createCard(title, content, actions = []) {
    - Filter by tool, user, or date
 
 **Backend integration:**
+
 - Expose `addGroupAdmin`, `removeGroupAdmin`, `getGroupSettings` as tools
 - New tool: `listGroupsForUser()` — return groups where user is admin
 - New tool: `updateGroupToolPermissions(groupId, toolName, enabled)`
 
 ### Step 3.2: MCP Plugins Page (Functional)
+
 **Goal:** Replace placeholder with actual plugin management.
 
 **Create:**
+
 - `public/pages/plugins.html`
 - `public/pages/plugins.js`
 - `public/pages/plugins.css`
 
 **Sections:**
+
 1. **Installed Plugins** (List)
    - Plugin name, version, description
    - Status (loaded, error, disabled)
@@ -229,19 +259,23 @@ function createCard(title, content, actions = []) {
    - Restart button
 
 **Backend integration:**
+
 - Use existing `src/plugins/registry.ts` endpoints
 - New tools: `listPlugins()`, `getPluginDetails(pluginId)`, `togglePlugin(pluginId)`, `configurePlugin(pluginId, config)`
 - Read mcp-servers.json schema for available servers
 
 ### Step 3.3: Memory Vault Page (Functional)
+
 **Goal:** Visualize saved entities, facts, and relationships.
 
 **Create:**
+
 - `public/pages/memory.html`
 - `public/pages/memory.js`
 - `public/pages/memory.css`
 
 **Sections:**
+
 1. **Facts** (Searchable table)
    - Fact ID, content, created_at, last_accessed, relevance score
    - Edit/delete buttons
@@ -258,6 +292,7 @@ function createCard(title, content, actions = []) {
    - Filter by type
 
 **Backend integration:**
+
 - Expose existing memory tools as retrievers:
   - New tool: `listFacts(limit, offset)` from SQLite facts table
   - New tool: `listEntities(limit, offset)` from SQLite entities table
@@ -269,15 +304,18 @@ function createCard(title, content, actions = []) {
 ## Phase 4: Polish & Refinements (Weeks 9-10)
 
 ### Step 4.1: Light Theme & Theme Toggle
+
 **Goal:** Add light mode to match dark, with smooth switching.
 
 **Implement in:**
+
 - `public/style.css` — Add `@media (prefers-color-scheme: light)` overrides
 - `public/dashboards.css` — Same light theme
 - `public/dashboard-common.js` — Add theme toggle logic
 - Store preference in `localStorage`
 
 **Light theme colors:**
+
 - Background: #f9fafb
 - Text primary: #111827
 - Text secondary: #6b7280
@@ -285,33 +323,39 @@ function createCard(title, content, actions = []) {
 - Cards: #ffffff with subtle shadow
 
 ### Step 4.2: Error Boundary & Validation
+
 **Goal:** Handle missing backend tools gracefully.
 
 **Implement in:**
+
 - `public/dashboard-common.js` — Wrap tool calls in try-catch
 - Each dashboard — Show "Feature unavailable" if backend tool missing
 - Console logging for debugging
 
 **Pattern:**
+
 ```javascript
 async function callTool(toolName, args) {
-    try {
-        ws.send(JSON.stringify({ type: 'message', text: `/${toolName} ${JSON.stringify(args)}` }));
-        // await response...
-    } catch (err) {
-        showToast(`${toolName} not available: ${err.message}`, 'warning');
-    }
+  try {
+    ws.send(JSON.stringify({ type: 'message', text: `/${toolName} ${JSON.stringify(args)}` }));
+    // await response...
+  } catch (err) {
+    showToast(`${toolName} not available: ${err.message}`, 'warning');
+  }
 }
 ```
 
 ### Step 4.3: Keyboard Shortcuts Help
+
 **Goal:** Document and implement Cmd+K command palette + global shortcuts.
 
 **Create:**
+
 - `public/components/shortcuts-modal.js`
 - Update `public/dashboard-common.js` to listen for Cmd+K / Ctrl+K
 
 **Shortcuts:**
+
 - `Cmd+K` — Open command palette (search pages, tools)
 - `Cmd+,` — Open settings
 - `Cmd+/` — Show help
@@ -320,9 +364,11 @@ async function callTool(toolName, args) {
 - `Escape` — Close modals
 
 ### Step 4.4: Mobile Dashboard Responsiveness
+
 **Goal:** Ensure all dashboards work on mobile (480px breakpoint).
 
 **Update:**
+
 - All new dashboard CSS files with mobile-specific rules
 - Hide chart details on mobile, show key metrics only
 - Stack tables vertically as cards
@@ -336,19 +382,19 @@ While UI is being built, backend tools need to be created/exposed:
 
 ### New Tools Needed:
 
-| Tool Name | File Impact | Purpose |
-|-----------|-------------|---------|
-| `setNotificationPreferences` | `src/tools/notifications.ts` (new) | Save user notification settings |
-| `getUsageHistory` | `src/usage.ts` | Return time-series usage data |
-| `getModelBreakdown` | `src/usage.ts` | Aggregate costs by model |
-| `getSessionInfo` | `src/index.ts` (extend) | Return current session details |
-| `listGroupsForUser` | `src/groups/index.ts` | Query admin groups |
-| `updateGroupToolPermissions` | `src/groups/index.ts` | Set tool access per group |
-| `listPlugins` | `src/plugins/registry.ts` | Get installed/available plugins |
-| `listFacts` | `src/memory/facts.ts` (new) | Paginated facts retrieval |
-| `listEntities` | `src/memory/entities.ts` | List knowledge graph nodes |
-| `listRelationships` | `src/memory/entities.ts` | List graph edges |
-| `searchMemory` | `src/memory/search.ts` | Semantic search across all memory |
+| Tool Name                    | File Impact                        | Purpose                           |
+| ---------------------------- | ---------------------------------- | --------------------------------- |
+| `setNotificationPreferences` | `src/tools/notifications.ts` (new) | Save user notification settings   |
+| `getUsageHistory`            | `src/usage.ts`                     | Return time-series usage data     |
+| `getModelBreakdown`          | `src/usage.ts`                     | Aggregate costs by model          |
+| `getSessionInfo`             | `src/index.ts` (extend)            | Return current session details    |
+| `listGroupsForUser`          | `src/groups/index.ts`              | Query admin groups                |
+| `updateGroupToolPermissions` | `src/groups/index.ts`              | Set tool access per group         |
+| `listPlugins`                | `src/plugins/registry.ts`          | Get installed/available plugins   |
+| `listFacts`                  | `src/memory/facts.ts` (new)        | Paginated facts retrieval         |
+| `listEntities`               | `src/memory/entities.ts`           | List knowledge graph nodes        |
+| `listRelationships`          | `src/memory/entities.ts`           | List graph edges                  |
+| `searchMemory`               | `src/memory/search.ts`             | Semantic search across all memory |
 
 ---
 
@@ -469,13 +515,13 @@ public/
 
 ## Risks & Mitigation
 
-| Risk | Mitigation |
-|------|-----------|
-| Backend tools not ready in time | Implement frontend skeletons first, use mock data for demo |
-| Performance on large memory datasets | Implement pagination + lazy loading in lists |
-| Mobile layout breaking on 480px | Component library must test all breakpoints early |
-| Dark-to-light theme flicker | Use `prefers-color-scheme` + localStorage + CSS-in-head |
-| WebSocket timeout on slow connections | Add timeout + retry logic in dashboard-common.js |
+| Risk                                  | Mitigation                                                 |
+| ------------------------------------- | ---------------------------------------------------------- |
+| Backend tools not ready in time       | Implement frontend skeletons first, use mock data for demo |
+| Performance on large memory datasets  | Implement pagination + lazy loading in lists               |
+| Mobile layout breaking on 480px       | Component library must test all breakpoints early          |
+| Dark-to-light theme flicker           | Use `prefers-color-scheme` + localStorage + CSS-in-head    |
+| WebSocket timeout on slow connections | Add timeout + retry logic in dashboard-common.js           |
 
 ---
 

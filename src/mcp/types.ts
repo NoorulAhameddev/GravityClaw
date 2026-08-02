@@ -7,7 +7,7 @@
  * JSON-RPC 2.0 Request
  */
 export interface JSONRPCRequest {
-  jsonrpc: "2.0";
+  jsonrpc: '2.0';
   id: string | number;
   method: string;
   params?: any;
@@ -17,7 +17,7 @@ export interface JSONRPCRequest {
  * JSON-RPC 2.0 Response (success)
  */
 export interface JSONRPCResponse {
-  jsonrpc: "2.0";
+  jsonrpc: '2.0';
   id: string | number;
   result?: any;
   error?: JSONRPCError;
@@ -39,7 +39,7 @@ export interface MCPToolSchema {
   name: string;
   description: string;
   inputSchema: {
-    type: "object";
+    type: 'object';
     properties: Record<string, any>;
     required?: string[];
   };
@@ -86,7 +86,7 @@ export interface MCPToolCallRequest {
  */
 export interface MCPToolCallResponse {
   content: Array<{
-    type: "text" | "image" | "resource";
+    type: 'text' | 'image' | 'resource';
     text?: string;
     data?: string;
     mimeType?: string;

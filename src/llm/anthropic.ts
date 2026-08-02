@@ -1,22 +1,25 @@
-import Anthropic from "@anthropic-ai/sdk";
-import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions.js";
-import type OpenAI from "openai";
-import type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
-import { createLogger } from "../logger.ts";
-import { safeJsonParse } from "../utils/json.ts";
+import Anthropic from '@anthropic-ai/sdk';
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+} from 'openai/resources/chat/completions.js';
+import type OpenAI from 'openai';
+import type { LLMProvider, LLMResponse, LLMChatOptions } from '../types/llm.js';
+import { createLogger } from '../logger.ts';
+import { safeJsonParse } from '../utils/json.ts';
 
-const log = createLogger("llm:anthropic");
+const log = createLogger('llm:anthropic');
 
 /**
  * Anthropic Provider
  * Claude models with tool use support
  */
 export class AnthropicProvider implements LLMProvider {
-  readonly name = "anthropic";
+  readonly name = 'anthropic';
   private client: Anthropic;
   private defaultModel: string;
 
-  constructor(apiKey: string, defaultModel: string = "claude-sonnet-4-20250514") {
+  constructor(apiKey: string, defaultModel: string = 'claude-sonnet-4-20250514') {
     this.client = new Anthropic({ apiKey, maxRetries: 3 });
     this.defaultModel = defaultModel;
     log.info(`Anthropic provider initialized with model: ${defaultModel}`);
@@ -25,12 +28,14 @@ export class AnthropicProvider implements LLMProvider {
   async chat(
     messages: ChatCompletionMessageParam[],
     toolDefinitions: ChatCompletionTool[],
-    options?: LLMChatOptions
+    options?: LLMChatOptions,
   ): Promise<LLMResponse> {
     const model = options?.model ?? this.defaultModel;
     const maxTokens = options?.maxTokens ?? 2000;
 
-    log.debug(`Calling Anthropic — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`);
+    log.debug(
+      `Calling Anthropic — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`,
+    );
 
     // Convert OpenAI format to Anthropic format
     const { system, anthropicMessages } = this.convertMessages(messages);
@@ -50,19 +55,21 @@ export class AnthropicProvider implements LLMProvider {
       params.tools = anthropicTools;
     }
 
-    const response = await this.client.messages.create(params, { signal: AbortSignal.timeout(120000) });
+    const response = await this.client.messages.create(params, {
+      signal: AbortSignal.timeout(120000),
+    });
 
     // Convert back to OpenAI format
     const text = response.content
-      .filter((block): block is Anthropic.TextBlock => block.type === "text")
+      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
       .map((block) => block.text)
-      .join("\n");
+      .join('\n');
 
     const toolCalls = response.content
-      .filter((block): block is Anthropic.ToolUseBlock => block.type === "tool_use")
+      .filter((block): block is Anthropic.ToolUseBlock => block.type === 'tool_use')
       .map((block) => ({
         id: block.id,
-        type: "function" as const,
+        type: 'function' as const,
         function: {
           name: block.name,
           arguments: JSON.stringify(block.input),
@@ -70,11 +77,11 @@ export class AnthropicProvider implements LLMProvider {
       }));
 
     log.debug(
-      `Anthropic response — stop: ${response.stop_reason}, text: ${text.length} chars, tools: ${toolCalls.length}`
+      `Anthropic response — stop: ${response.stop_reason}, text: ${text.length} chars, tools: ${toolCalls.length}`,
     );
 
     const result: LLMResponse = {
-      stopReason: response.stop_reason ?? "end_turn",
+      stopReason: response.stop_reason ?? 'end_turn',
       text,
       toolCalls,
     };
@@ -98,51 +105,55 @@ export class AnthropicProvider implements LLMProvider {
     const anthropicMessages: Anthropic.MessageParam[] = [];
 
     for (const msg of messages) {
-      if (msg.role === "system") {
-        system = typeof msg.content === "string" ? msg.content : "";
-      } else if (msg.role === "user") {
+      if (msg.role === 'system') {
+        system = typeof msg.content === 'string' ? msg.content : '';
+      } else if (msg.role === 'user') {
         anthropicMessages.push({
-          role: "user",
-          content: typeof msg.content === "string" ? msg.content : "",
+          role: 'user',
+          content: typeof msg.content === 'string' ? msg.content : '',
         });
-      } else if (msg.role === "assistant") {
+      } else if (msg.role === 'assistant') {
         const content: Array<Anthropic.TextBlock | Anthropic.ToolUseBlock> = [];
-        
+
         if (msg.content) {
-          const textContent = typeof msg.content === "string" ? msg.content : "";
-          content.push({ 
-            type: "text", 
+          const textContent = typeof msg.content === 'string' ? msg.content : '';
+          content.push({
+            type: 'text',
             text: textContent,
             citations: null,
           } as Anthropic.TextBlock);
         }
 
-        if ("tool_calls" in msg && msg.tool_calls) {
+        if ('tool_calls' in msg && msg.tool_calls) {
           for (const toolCall of msg.tool_calls) {
-            const inputResult = safeJsonParse<Record<string, unknown>>(toolCall.function.arguments, {} as Record<string, unknown>, "Anthropic tool call input");
+            const inputResult = safeJsonParse<Record<string, unknown>>(
+              toolCall.function.arguments,
+              {} as Record<string, unknown>,
+              'Anthropic tool call input',
+            );
             content.push({
-              type: "tool_use",
+              type: 'tool_use',
               id: toolCall.id,
               name: toolCall.function.name,
               input: inputResult.success && inputResult.data ? inputResult.data : {},
               caller: {
-                type: "internal" as const,
+                type: 'internal' as const,
                 tool_id: toolCall.id,
-              } as { type: "internal"; tool_id: string },
+              } as { type: 'internal'; tool_id: string },
             } as Anthropic.ToolUseBlock);
           }
         }
 
-        anthropicMessages.push({ role: "assistant", content });
-      } else if (msg.role === "tool") {
+        anthropicMessages.push({ role: 'assistant', content });
+      } else if (msg.role === 'tool') {
         // Anthropic expects tool results as user messages
         anthropicMessages.push({
-          role: "user",
+          role: 'user',
           content: [
             {
-              type: "tool_result",
+              type: 'tool_result',
               tool_use_id: msg.tool_call_id,
-              content: msg.content ?? "",
+              content: msg.content ?? '',
             },
           ],
         });
@@ -155,9 +166,9 @@ export class AnthropicProvider implements LLMProvider {
   private convertTools(tools: ChatCompletionTool[]): Anthropic.Tool[] {
     return tools.map((tool) => ({
       name: tool.function.name,
-      description: tool.function.description ?? "",
+      description: tool.function.description ?? '',
       input_schema: {
-        type: "object",
+        type: 'object',
         ...(tool.function.parameters as Record<string, unknown>),
       } as Anthropic.Tool.InputSchema,
     }));

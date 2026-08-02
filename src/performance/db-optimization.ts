@@ -1,6 +1,6 @@
 /**
  * Database Performance Optimizations
- * 
+ *
  * Provides:
  * - Query caching
  * - Connection pooling helpers
@@ -9,10 +9,10 @@
  * - Query performance monitoring
  */
 
-import { db } from "../db.ts";
-import { createLogger } from "../logger.ts";
+import { db } from '../db.ts';
+import { createLogger } from '../logger.ts';
 
-const log = createLogger("db-optimization");
+const log = createLogger('db-optimization');
 
 // In-memory cache for frequently accessed data
 const sessionSettingsCache = new Map<string, Record<string, unknown>>();
@@ -25,7 +25,7 @@ const CACHE_TTL = 60000; // 60 seconds
  * Initialize performance optimizations
  */
 export function initializePerformanceOptimizations(): void {
-  log.info("Initializing database performance optimizations");
+  log.info('Initializing database performance optimizations');
 
   // Create additional indexes for frequently queried columns
   try {
@@ -36,21 +36,21 @@ export function initializePerformanceOptimizations(): void {
       CREATE INDEX IF NOT EXISTS idx_workflows_session_status ON workflows(session_id, status);
       CREATE INDEX IF NOT EXISTS idx_workflow_tasks_status ON workflow_tasks(workflow_id, status);
     `);
-    log.info("✅ Database indexes created");
+    log.info('✅ Database indexes created');
   } catch (error) {
-    log.warn("Could not create indexes (may already exist)");
+    log.warn('Could not create indexes (may already exist)');
   }
 
   // Set performance pragmas
   try {
-    db.pragma("foreign_keys = ON");
-    db.pragma("synchronous = NORMAL"); // Balance safety/performance
-    db.pragma("temp_store = MEMORY");
-    db.pragma("mmap_size = 30000000"); // 30MB mmap
-    db.pragma("query_only = OFF");
-    log.info("✅ Performance pragmas applied");
+    db.pragma('foreign_keys = ON');
+    db.pragma('synchronous = NORMAL'); // Balance safety/performance
+    db.pragma('temp_store = MEMORY');
+    db.pragma('mmap_size = 30000000'); // 30MB mmap
+    db.pragma('query_only = OFF');
+    log.info('✅ Performance pragmas applied');
   } catch (error) {
-    log.warn("Could not apply pragmas:", { error });
+    log.warn('Could not apply pragmas:', { error });
   }
 
   // Start cache cleanup interval
@@ -68,11 +68,11 @@ export function getCachedSessionSettings(sessionId: string): Record<string, unkn
 
   // Fetch from database
   const row = db
-    .prepare("SELECT settings FROM memory WHERE session_id = ? ORDER BY timestamp DESC LIMIT 1")
+    .prepare('SELECT settings FROM memory WHERE session_id = ? ORDER BY timestamp DESC LIMIT 1')
     .get(sessionId) as { settings: string } | undefined;
 
   if (row) {
-    const settings = JSON.parse(row.settings || "{}");
+    const settings = JSON.parse(row.settings || '{}');
     sessionSettingsCache.set(sessionId, settings);
     return settings;
   }
@@ -85,7 +85,7 @@ export function getCachedSessionSettings(sessionId: string): Record<string, unkn
  */
 export function updateCachedSessionSettings(
   sessionId: string,
-  settings: Record<string, unknown>
+  settings: Record<string, unknown>,
 ): void {
   sessionSettingsCache.set(sessionId, settings);
   // Settings will be persisted by the agent loop
@@ -104,7 +104,7 @@ export function getCachedSessionInfo(sessionId: string): Record<string, unknown>
   const row = db
     .prepare(
       `SELECT COUNT(*) as message_count, MAX(timestamp) as last_active
-       FROM memory WHERE session_id = ?`
+       FROM memory WHERE session_id = ?`,
     )
     .get(sessionId) as { message_count: number; last_active: string } | undefined;
 
@@ -126,13 +126,13 @@ export function getCachedSessionInfo(sessionId: string): Record<string, unknown>
  * More efficient than individual inserts
  */
 export function batchInsertMessages(
-  messages: { sessionId: string; timestamp: string; messageJson: string }[]
+  messages: { sessionId: string; timestamp: string; messageJson: string }[],
 ): void {
   if (messages.length === 0) return;
 
   const insert = db.prepare(
     `INSERT INTO memory (session_id, timestamp, message_json)
-     VALUES (?, ?, ?)`
+     VALUES (?, ?, ?)`,
   );
 
   const transaction = db.transaction(() => {
@@ -149,7 +149,7 @@ export function batchInsertMessages(
  */
 export function queryMultipleSessions(
   sessionIds: string[],
-  limit: number = 50
+  limit: number = 50,
 ): Record<string, unknown[]> {
   const result: Record<string, unknown[]> = {};
 
@@ -158,7 +158,7 @@ export function queryMultipleSessions(
       .prepare(
         `SELECT id, session_id, timestamp, message_json
          FROM memory WHERE session_id = ?
-         ORDER BY timestamp DESC LIMIT ?`
+         ORDER BY timestamp DESC LIMIT ?`,
       )
       .all(sessionId, limit);
 
@@ -178,7 +178,7 @@ export function getTopSessionsByActivity(limit: number = 100): unknown[] {
        FROM memory
        GROUP BY session_id
        ORDER BY message_count DESC
-       LIMIT ?`
+       LIMIT ?`,
     )
     .all(limit);
 }
@@ -189,7 +189,7 @@ export function getTopSessionsByActivity(limit: number = 100): unknown[] {
 export function cleanupOldData(daysOld: number = 30): number {
   const cutoffDate = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000).toISOString();
 
-  const result = db.prepare("DELETE FROM memory WHERE timestamp < ?").run(cutoffDate);
+  const result = db.prepare('DELETE FROM memory WHERE timestamp < ?').run(cutoffDate);
 
   log.info(`Cleaned up ${result.changes} old memory entries`);
 
@@ -204,28 +204,22 @@ export function cleanupOldData(daysOld: number = 30): number {
  * Vacuum database to reclaim space (run periodically)
  */
 export function vacuumDatabase(): void {
-  log.info("Running database VACUUM");
-  db.exec("VACUUM");
-  log.info("✅ Database vacuumed");
+  log.info('Running database VACUUM');
+  db.exec('VACUUM');
+  log.info('✅ Database vacuumed');
 }
 
 /**
  * Get database statistics
  */
 export function getDatabaseStats(): Record<string, unknown> {
-  const pageSize = (db.pragma("page_size", { simple: true }) as number) || 4096;
-  const pageCount = (db.pragma("page_count", { simple: true }) as number) || 0;
-  const freePages = (db.pragma("freelist_count", { simple: true }) as number) || 0;
+  const pageSize = (db.pragma('page_size', { simple: true }) as number) || 4096;
+  const pageCount = (db.pragma('page_count', { simple: true }) as number) || 0;
+  const freePages = (db.pragma('freelist_count', { simple: true }) as number) || 0;
 
-  const memory = db
-    .prepare("SELECT COUNT(*) as count FROM memory")
-    .get() as { count: number };
-  const usage = db
-    .prepare("SELECT COUNT(*) as count FROM usage")
-    .get() as { count: number };
-  const sessions = db
-    .prepare("SELECT COUNT(*) as count FROM sessions")
-    .get() as { count: number };
+  const memory = db.prepare('SELECT COUNT(*) as count FROM memory').get() as { count: number };
+  const usage = db.prepare('SELECT COUNT(*) as count FROM usage').get() as { count: number };
+  const sessions = db.prepare('SELECT COUNT(*) as count FROM sessions').get() as { count: number };
 
   return {
     pageSize,
@@ -242,22 +236,25 @@ export function getDatabaseStats(): Record<string, unknown> {
  * Start automatic cache cleanup
  */
 function startCacheCleanup(): void {
-  setInterval(() => {
-    const now = Date.now();
-    let cleaned = 0;
+  setInterval(
+    () => {
+      const now = Date.now();
+      let cleaned = 0;
 
-    // Clean expired session info cache
-    for (const [key, value] of sessionInfoCache.entries()) {
-      if (now >= value.ttl) {
-        sessionInfoCache.delete(key);
-        cleaned++;
+      // Clean expired session info cache
+      for (const [key, value] of sessionInfoCache.entries()) {
+        if (now >= value.ttl) {
+          sessionInfoCache.delete(key);
+          cleaned++;
+        }
       }
-    }
 
-    if (cleaned > 0) {
-      log.debug(`Cleaned ${cleaned} expired cache entries`);
-    }
-  }, 5 * 60 * 1000); // Every 5 minutes
+      if (cleaned > 0) {
+        log.debug(`Cleaned ${cleaned} expired cache entries`);
+      }
+    },
+    5 * 60 * 1000,
+  ); // Every 5 minutes
 }
 
 /**
@@ -266,7 +263,7 @@ function startCacheCleanup(): void {
 export function flushCaches(): void {
   sessionSettingsCache.clear();
   sessionInfoCache.clear();
-  log.info("✅ Caches flushed");
+  log.info('✅ Caches flushed');
 }
 
 /**

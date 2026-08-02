@@ -2,7 +2,7 @@
  * ═════════════════════════════════════════════════════════════════════════════
  * Touch Gestures Integration Examples
  * ═════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * Examples of how to integrate touch gestures with various dashboard pages
  * and functionality. Copy patterns into your app.js or page-specific files.
  */
@@ -19,7 +19,7 @@ function initializeGestureManager() {
     setTimeout(() => {
       // Initialize with options
       const gestureManager = TouchGestureManager.init({
-        enableLogging: false,  // Set to true for debugging
+        enableLogging: false, // Set to true for debugging
       });
 
       // Store reference globally for access
@@ -48,22 +48,22 @@ function initializeGestureManager() {
 function setupLongPressableElements() {
   const observer = new MutationObserver(() => {
     // Memory facts
-    document.querySelectorAll('.memory-fact:not([data-long-pressable])').forEach(el => {
+    document.querySelectorAll('.memory-fact:not([data-long-pressable])').forEach((el) => {
       el.setAttribute('data-long-pressable', '');
     });
 
     // Chat messages
-    document.querySelectorAll('.message:not([data-long-pressable])').forEach(el => {
+    document.querySelectorAll('.message:not([data-long-pressable])').forEach((el) => {
       el.setAttribute('data-long-pressable', '');
     });
 
     // Generic data items
-    document.querySelectorAll('[data-item]:not([data-long-pressable])').forEach(el => {
+    document.querySelectorAll('[data-item]:not([data-long-pressable])').forEach((el) => {
       el.setAttribute('data-long-pressable', '');
     });
 
     // Chart containers (for zoom)
-    document.querySelectorAll('.chart-container:not([data-chart-zoomable])').forEach(el => {
+    document.querySelectorAll('.chart-container:not([data-chart-zoomable])').forEach((el) => {
       el.setAttribute('data-chart-zoomable', '');
     });
   });
@@ -146,7 +146,7 @@ async function handleDeleteItem(element, itemId) {
 
   try {
     await fetch(`/api/items/${itemId}`, { method: 'DELETE' });
-    
+
     // Animate removal
     element.style.opacity = '0';
     element.style.transform = 'translateX(-20px)';
@@ -168,7 +168,7 @@ async function handleDeleteItem(element, itemId) {
 function setupSwipeNavigation() {
   const originalNavigate = window.navigate;
 
-  window.navigate = function(page) {
+  window.navigate = function (page) {
     // Call original navigate function
     originalNavigate.call(window, page);
 
@@ -220,7 +220,7 @@ function setupSwipeNavigation() {
 function setupPageRefresh() {
   // Dashboard refresh
   const originalLoadDashboard = window.loadDashboard;
-  window.loadDashboard = async function() {
+  window.loadDashboard = async function () {
     console.debug('Refreshing dashboard...');
     try {
       // Call original function
@@ -237,7 +237,7 @@ function setupPageRefresh() {
 
   // Memory refresh
   const originalLoadMemory = window.loadMemory;
-  window.loadMemory = async function() {
+  window.loadMemory = async function () {
     console.debug('Refreshing memory...');
     try {
       if (originalLoadMemory) {
@@ -252,7 +252,7 @@ function setupPageRefresh() {
 
   // Tools refresh
   const originalLoadTools = window.loadTools;
-  window.loadTools = async function() {
+  window.loadTools = async function () {
     console.debug('Refreshing tools...');
     try {
       if (originalLoadTools) {
@@ -296,7 +296,9 @@ function setupGestureSettingsUI() {
  * Detect device type and optimize UI
  */
 function detectAndOptimizeMobile() {
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent,
+  );
   const isTablet = /iPad|Android(?!.*Mobi)/i.test(navigator.userAgent);
   const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
@@ -424,21 +426,21 @@ function setupCustomSwipeHandlers() {
  */
 function setupChartZoom() {
   // Mark all chart containers as zoomable
-  document.querySelectorAll('.chart-container, [data-chart]').forEach(el => {
+  document.querySelectorAll('.chart-container, [data-chart]').forEach((el) => {
     el.setAttribute('data-chart-zoomable', '');
-    
+
     // Add CSS for smooth transitions
     el.style.transition = 'transform 0.3s ease-out';
-    
+
     // Set initial scale
     el.style.transform = 'scale(1)';
   });
 
   // Listen for zoom changes
   const observer = new MutationObserver(() => {
-    document.querySelectorAll('[data-chart-zoomable]:not([data-zoom-setup])').forEach(el => {
+    document.querySelectorAll('[data-chart-zoomable]:not([data-zoom-setup])').forEach((el) => {
       el.setAttribute('data-zoom-setup', 'true');
-      
+
       // Add zoom controls if desired
       const controls = document.createElement('div');
       controls.className = 'zoom-controls';
@@ -455,7 +457,7 @@ function setupChartZoom() {
         <button class="zoom-reset" title="Reset Zoom" style="padding: 8px 12px; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; cursor: pointer;">↺</button>
         <button class="zoom-out" title="Zoom Out" style="padding: 8px 12px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer;">−</button>
       `;
-      
+
       el.parentElement.style.position = 'relative';
       el.parentElement.appendChild(controls);
 

@@ -1,6 +1,6 @@
 /**
  * Performance Tests for Gravity Claw
- * 
+ *
  * Tests that performance:
  * - Doesn't regress more than 10%
  * - Tool execution stays under 50ms
@@ -8,23 +8,20 @@
  * - Latency is acceptable
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { performance } from "perf_hooks";
-import { memoryUsage } from "process";
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { performance } from 'perf_hooks';
+import { memoryUsage } from 'process';
 import {
   trackToolExecution,
   getToolMetrics,
   resetMetrics as resetToolMetrics,
-} from "../performance/tool-optimization.ts";
-import {
-  getMemoryStats,
-  forceCleanup,
-} from "../performance/memory-optimization.ts";
+} from '../performance/tool-optimization.ts';
+import { getMemoryStats, forceCleanup } from '../performance/memory-optimization.ts';
 import {
   trackIterationMetrics,
   getIterationStats,
   clearIterationMetrics,
-} from "../performance/agent-optimization.ts";
+} from '../performance/agent-optimization.ts';
 
 // Baseline metrics from production
 const BASELINE = {
@@ -40,7 +37,7 @@ const TOLERANCE = {
   memory: 50, // MB
 };
 
-describe("Performance", () => {
+describe('Performance', () => {
   beforeEach(() => {
     resetToolMetrics();
     clearIterationMetrics();
@@ -52,9 +49,9 @@ describe("Performance", () => {
     clearIterationMetrics();
   });
 
-  describe("Tool Execution", () => {
-    it("should track tool execution times", () => {
-      const toolName = "testTool";
+  describe('Tool Execution', () => {
+    it('should track tool execution times', () => {
+      const toolName = 'testTool';
       trackToolExecution(toolName, 25);
       trackToolExecution(toolName, 30);
       trackToolExecution(toolName, 35);
@@ -67,21 +64,21 @@ describe("Performance", () => {
       expect(metrics[toolName]!.maxTime).toBe(35);
     });
 
-    it("should keep tool execution under 50ms average", () => {
+    it('should keep tool execution under 50ms average', () => {
       // Simulate 100 tool executions
       for (let i = 0; i < 100; i++) {
         const duration = Math.random() * 45 + 5; // 5-50ms
-        trackToolExecution("fast_tool", duration);
+        trackToolExecution('fast_tool', duration);
       }
 
       const metrics = getToolMetrics();
       expect(metrics.fast_tool!.avgTime).toBeLessThan(50);
     });
 
-    it("should not regress performance by more than allowed tolerance", () => {
+    it('should not regress performance by more than allowed tolerance', () => {
       // Simulate baseline performance
       for (let i = 0; i < 50; i++) {
-        trackToolExecution("critical_tool", BASELINE.toolExecution);
+        trackToolExecution('critical_tool', BASELINE.toolExecution);
       }
 
       const metrics = getToolMetrics();
@@ -90,20 +87,20 @@ describe("Performance", () => {
       expect(metrics.critical_tool!.avgTime).toBeLessThan(maxAllowed);
     });
 
-    it("should track tool errors", () => {
-      trackToolExecution("error_tool", 100, false);
-      trackToolExecution("error_tool", 100, true);
-      trackToolExecution("error_tool", 100, true);
+    it('should track tool errors', () => {
+      trackToolExecution('error_tool', 100, false);
+      trackToolExecution('error_tool', 100, true);
+      trackToolExecution('error_tool', 100, true);
 
       const metrics = getToolMetrics();
       expect(metrics.error_tool!.errors).toBe(2);
     });
   });
 
-  describe("Agent Iteration", () => {
-    it("should track iteration metrics", () => {
+  describe('Agent Iteration', () => {
+    it('should track iteration metrics', () => {
       trackIterationMetrics({
-        sessionId: "test-session",
+        sessionId: 'test-session',
         iterationNumber: 1,
         duration: 150,
         toolCallCount: 2,
@@ -112,7 +109,7 @@ describe("Performance", () => {
       });
 
       trackIterationMetrics({
-        sessionId: "test-session",
+        sessionId: 'test-session',
         iterationNumber: 2,
         duration: 200,
         toolCallCount: 3,
@@ -125,11 +122,11 @@ describe("Performance", () => {
       expect(stats.avgDuration).toBeDefined();
     });
 
-    it("should detect latency regression", () => {
+    it('should detect latency regression', () => {
       // First set of iterations (baseline)
       for (let i = 0; i < 20; i++) {
         trackIterationMetrics({
-          sessionId: "test",
+          sessionId: 'test',
           iterationNumber: i,
           duration: BASELINE.iterationLatency,
           toolCallCount: 1,
@@ -146,8 +143,8 @@ describe("Performance", () => {
     });
   });
 
-  describe("Memory", () => {
-    it("should track memory usage", () => {
+  describe('Memory', () => {
+    it('should track memory usage', () => {
       const stats = getMemoryStats();
 
       expect(stats.heapUsed).toBeDefined();
@@ -156,14 +153,14 @@ describe("Performance", () => {
       expect(stats.rss).toBeDefined();
     });
 
-    it("should not exceed memory limits", () => {
+    it('should not exceed memory limits', () => {
       const stats = getMemoryStats();
       const heapUsedMB = (stats.heapUsed as { MB: string }).MB;
 
       expect(parseFloat(heapUsedMB)).toBeLessThan(500); // 500MB max for tests
     });
 
-    it("should maintain memory within baseline + tolerance", () => {
+    it('should maintain memory within baseline + tolerance', () => {
       const stats = getMemoryStats();
       const heapUsedMB = parseFloat((stats.heapUsed as { MB: string }).MB);
       const maxAllowed = BASELINE.memoryHeap + TOLERANCE.memory;
@@ -173,12 +170,12 @@ describe("Performance", () => {
     });
   });
 
-  describe("Performance Profile", () => {
-    it("should generate performance summary", () => {
+  describe('Performance Profile', () => {
+    it('should generate performance summary', () => {
       // Simulate typical workload
       for (let i = 0; i < 50; i++) {
         const duration = 20 + Math.random() * 30;
-        trackToolExecution("tool1", duration);
+        trackToolExecution('tool1', duration);
       }
 
       for (let i = 0; i < 20; i++) {
@@ -202,15 +199,15 @@ describe("Performance", () => {
       expect((iterationStats.avgDuration as string).length).toBeGreaterThan(0);
     });
 
-    it("should identify performance bottlenecks", () => {
+    it('should identify performance bottlenecks', () => {
       // Fast tool
       for (let i = 0; i < 100; i++) {
-        trackToolExecution("fast_tool", 10);
+        trackToolExecution('fast_tool', 10);
       }
 
       // Slow tool
       for (let i = 0; i < 100; i++) {
-        trackToolExecution("slow_tool", 100);
+        trackToolExecution('slow_tool', 100);
       }
 
       const metrics = getToolMetrics();
@@ -223,8 +220,8 @@ describe("Performance", () => {
     });
   });
 
-  describe("Concurrent Load Simulation", () => {
-    it("should handle concurrent tool executions", async () => {
+  describe('Concurrent Load Simulation', () => {
+    it('should handle concurrent tool executions', async () => {
       const promises = [];
 
       // Simulate 10 concurrent tool executions
@@ -237,7 +234,7 @@ describe("Performance", () => {
             const end = start + duration;
             while (performance.now() < end) {}
             trackToolExecution(`concurrent_tool_${i}`, duration);
-          })
+          }),
         );
       }
 
@@ -247,7 +244,7 @@ describe("Performance", () => {
       expect(Object.keys(metrics).length).toBeGreaterThan(0);
     });
 
-    it("should maintain performance under simulated load", async () => {
+    it('should maintain performance under simulated load', async () => {
       const startTime = performance.now();
       const startMemory = memoryUsage().heapUsed;
 
@@ -270,12 +267,12 @@ describe("Performance", () => {
     });
   });
 
-  describe("Regression Detection", () => {
-    it("should fail if latency regresses significantly", () => {
+  describe('Regression Detection', () => {
+    it('should fail if latency regresses significantly', () => {
       // Simulate regression
       for (let i = 0; i < 30; i++) {
         trackIterationMetrics({
-          sessionId: "regression-test",
+          sessionId: 'regression-test',
           iterationNumber: i,
           duration: BASELINE.iterationLatency * 1.15, // 15% regression
           toolCallCount: 1,
@@ -292,10 +289,10 @@ describe("Performance", () => {
       expect(avgDuration).toBeGreaterThan(maxAllowed);
     });
 
-    it("should pass if performance stays within tolerance", () => {
+    it('should pass if performance stays within tolerance', () => {
       for (let i = 0; i < 30; i++) {
         trackIterationMetrics({
-          sessionId: "good-perf",
+          sessionId: 'good-perf',
           iterationNumber: i,
           duration: BASELINE.iterationLatency * 1.05, // 5% variance
           toolCallCount: 1,

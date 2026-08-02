@@ -22,6 +22,7 @@ The implementation uses the classic token bucket algorithm with the following ch
 - **Consumption**: Each request consumes 1 token
 
 **Example**: With 100 requests/minute and burst size 10:
+
 - User can make 10 requests immediately
 - After 6 seconds, 1 new token is available
 - After 60 seconds, all 100 tokens are available again
@@ -29,11 +30,13 @@ The implementation uses the classic token bucket algorithm with the following ch
 ### Storage Architecture
 
 #### In-Memory (Primary)
+
 - Fast lookups using `Map<string, TokenBucket>`
 - Automatic cleanup every 5 minutes
 - Session-specific to avoid cross-session interference
 
 #### SQLite (Optional Persistence)
+
 - `rate_limits` table: Tracks current state for recovery
 - `rate_limit_history` table: Audit trail of all rate limit checks
 - Useful for distributed deployments or post-restart recovery
@@ -60,20 +63,24 @@ tool: 30 requests/minute, burst 3
 Tools are automatically categorized for appropriate rate limiting:
 
 **Voice Tools:**
+
 - `text_to_speech`, `speak`, `set_voice`
 - `enable_talk_mode`, `disable_talk_mode`, `wake_word`
 
 **Memory Tools:**
+
 - `save_fact`, `recall_facts`, `save_entity`
 - `save_relationship`, `query_graph`, `search_memory_semantic`
 
 **System Tools:**
+
 - `run_shell`, `datetime`, `search_attachments`
 - `read_file`, `write_file`, `list_files`, `delete_file`
 
 ### Development Mode
 
 Set `NODE_ENV=development` to get 10x higher limits:
+
 - Session: 1000 req/min (from 100)
 - Voice: 500 req/min (from 50)
 - Memory: 2000 req/min (from 200)
@@ -87,13 +94,17 @@ Set `NODE_ENV=development` to get 10x higher limits:
 // Before executing each tool
 const rateLimitStatus = rateLimiter.checkRateLimit(sessionId, toolName);
 if (!rateLimitStatus.allowed) {
-    // Return rate limit error to user
-    addToolResult(sessionId, toolCall.id, JSON.stringify({
-        error: "Rate limit exceeded",
-        retryAfter: rateLimitStatus.retryAfter,
-        message: `Try again in ${rateLimitStatus.retryAfter} seconds`
-    }));
-    continue;
+  // Return rate limit error to user
+  addToolResult(
+    sessionId,
+    toolCall.id,
+    JSON.stringify({
+      error: 'Rate limit exceeded',
+      retryAfter: rateLimitStatus.retryAfter,
+      message: `Try again in ${rateLimitStatus.retryAfter} seconds`,
+    }),
+  );
+  continue;
 }
 ```
 
@@ -103,13 +114,15 @@ if (!rateLimitStatus.allowed) {
 // Before executing direct tool calls from WebSocket
 const rateLimitStatus = rateLimiter.checkRateLimit(sessionId, toolName);
 if (!rateLimitStatus.allowed) {
-    ws.send(JSON.stringify({
-        type: "tool_response",
-        id,
-        error: "Rate limit exceeded",
-        retryAfter: rateLimitStatus.retryAfter
-    }));
-    return;
+  ws.send(
+    JSON.stringify({
+      type: 'tool_response',
+      id,
+      error: 'Rate limit exceeded',
+      retryAfter: rateLimitStatus.retryAfter,
+    }),
+  );
+  return;
 }
 ```
 
@@ -130,22 +143,22 @@ Get current usage and remaining quota:
 
 ```json
 {
-    "success": true,
-    "status": {
-        "allowed": true,
-        "tokensAvailable": 87,
-        "requestsThisMinute": 13,
-        "retryAfterSeconds": 3,
-        "resetTime": "2026-03-04T15:42:30.000Z"
-    },
-    "limit": {
-        "requestsPerMinute": 100,
-        "burstSize": 10
-    },
-    "usage": {
-        "percentageUsed": 13
-    },
-    "message": "You have 87 requests available out of 100 per minute."
+  "success": true,
+  "status": {
+    "allowed": true,
+    "tokensAvailable": 87,
+    "requestsThisMinute": 13,
+    "retryAfterSeconds": 3,
+    "resetTime": "2026-03-04T15:42:30.000Z"
+  },
+  "limit": {
+    "requestsPerMinute": 100,
+    "burstSize": 10
+  },
+  "usage": {
+    "percentageUsed": 13
+  },
+  "message": "You have 87 requests available out of 100 per minute."
 }
 ```
 
@@ -155,16 +168,17 @@ Set a custom (lower) rate limit:
 
 ```json
 {
-    "requestsPerMinute": 30
+  "requestsPerMinute": 30
 }
 ```
 
 Returns:
+
 ```json
 {
-    "success": true,
-    "message": "Rate limit updated to 30 requests per minute",
-    "newLimit": 30
+  "success": true,
+  "message": "Rate limit updated to 30 requests per minute",
+  "newLimit": 30
 }
 ```
 
@@ -176,9 +190,9 @@ View rate limit checks over time:
 
 ```json
 {
-    "limit": 50,
-    "sinceMinutesAgo": 60,
-    "toolName": "save_fact"
+  "limit": 50,
+  "sinceMinutesAgo": 60,
+  "toolName": "save_fact"
 }
 ```
 
@@ -196,6 +210,7 @@ Rate limit violations are logged at WARN level:
 ### Dashboard Integration
 
 The dashboard can display:
+
 - Current rate limit status
 - Usage graph over time
 - Approaching limit warnings
@@ -210,9 +225,9 @@ console.log(`${status.tokensAvailable} requests available`);
 
 // Get history
 const history = rateLimiter.getHistory(sessionId, {
-    limit: 100,
-    since: Date.now() - 3600000, // Last hour
-    toolName: "save_fact"
+  limit: 100,
+  since: Date.now() - 3600000, // Last hour
+  toolName: 'save_fact',
 });
 
 // Update custom limit
@@ -247,25 +262,30 @@ Retry-After: 15
 ## Edge Cases & Behavior
 
 ### First Request
+
 - Gets tokens immediately (no waiting)
 - Token bucket is initialized with full burst size
 
 ### Token Refill Timing
+
 - Refill happens on-demand during rate limit checks
 - No background task required
 - Accurate to millisecond precision
 
 ### WebSocket Disconnects
+
 - Limits are NOT reset on disconnect
 - Buckets persist for cleanup interval (5 minutes)
 - This prevents abuse via repeated reconnections
 
 ### Server Restart
+
 - In-memory limits are lost
 - SQLite can persist state if enabled
 - Recommended: Configure `ENABLE_METRICS_PERSISTENCE=true` for recovery
 
 ### Custom Limits
+
 - Users can only lower their limit, not increase it
 - Prevents gaming the system
 - Each session has independent limits
@@ -273,6 +293,7 @@ Retry-After: 15
 ## Database Schema
 
 ### rate_limits Table
+
 ```sql
 CREATE TABLE rate_limits (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -290,6 +311,7 @@ CREATE TABLE rate_limits (
 ```
 
 ### rate_limit_history Table
+
 ```sql
 CREATE TABLE rate_limit_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -346,16 +368,19 @@ Response: "You have 73 requests available out of 100 per minute (73% remaining)"
 ## Performance Considerations
 
 ### Time Complexity
+
 - `checkRateLimit()`: O(1) - direct map lookups
 - `getStatus()`: O(1)
 - `getHistory()`: O(n) where n is history size (typically <100)
 
 ### Space Complexity
+
 - In-memory buckets: O(s) where s = number of active sessions
 - History: O(h) where h = `maxHistorySize` (default 10,000)
 - SQLite tables: Unbounded, but can be cleaned up periodically
 
 ### Optimization Tips
+
 - Set `maxHistorySize` lower for memory-constrained environments
 - Enable cleanup interval to remove stale buckets
 - For multiprocess deployments, use Redis instead of in-memory storage
@@ -375,21 +400,21 @@ Rate limiting can be tested with:
 
 ```typescript
 // In test files
-import { rateLimiter } from "../src/middleware/rate-limit.ts";
+import { rateLimiter } from '../src/middleware/rate-limit.ts';
 
 // Check rate limit
-const status = rateLimiter.checkRateLimit("test-session", "save_fact");
+const status = rateLimiter.checkRateLimit('test-session', 'save_fact');
 expect(status.allowed).toBe(true);
 
 // Hit limit rapidly
 for (let i = 0; i < 35; i++) {
-    const s = rateLimiter.checkRateLimit("test-session", "save_fact");
-    if (i < 30) expect(s.allowed).toBe(true);
-    else expect(s.allowed).toBe(false);
+  const s = rateLimiter.checkRateLimit('test-session', 'save_fact');
+  if (i < 30) expect(s.allowed).toBe(true);
+  else expect(s.allowed).toBe(false);
 }
 
 // Reset
-rateLimiter.resetSessionLimits("test-session");
+rateLimiter.resetSessionLimits('test-session');
 ```
 
 ## Troubleshooting
@@ -397,11 +422,13 @@ rateLimiter.resetSessionLimits("test-session");
 ### Problem: "Rate limit exceeded" errors appearing unexpectedly
 
 **Possible causes:**
+
 1. Default limits are too low for workload - use `update_rate_limits` to adjust
 2. Multiple tools competing for same token bucket
 3. Rapid burst of requests exceeding burst size
 
 **Solutions:**
+
 - Set `NODE_ENV=development` for testing
 - Use `get_rate_limit_status` to check available tokens
 - Space out requests to allow refill time
@@ -409,6 +436,7 @@ rateLimiter.resetSessionLimits("test-session");
 ### Problem: Rate limits not persisting after restart
 
 **Solution:** Enable SQLite persistence:
+
 - Rate limits state will be saved to `rate_limits` table
 - Set environment variable or modify config
 

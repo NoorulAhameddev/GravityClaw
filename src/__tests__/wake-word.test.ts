@@ -1,41 +1,49 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock the wake-word module to avoid TensorFlow.js native binding issues in tests
-vi.mock('../voice/wake-word.ts', () => ({
-  createWakeWordDetector: vi.fn(() => ({
-    start: vi.fn(),
-    stop: vi.fn(),
-    isListening: vi.fn(() => false),
-    updateConfig: vi.fn(),
-    getConfig: vi.fn(() => ({
+vi.mock('../voice/wake-word.ts', () => {
+  const makeDetector = () => {
+    const state = {
       wakePhrase: 'hey claw',
       threshold: 0.75,
       recordingDuration: 5,
       sampleRate: 16000,
       channels: 1,
-    })),
-  })),
-  getAvailableWakeWords: vi.fn(async () => [
-    'zero',
-    'one',
-    'two',
-    'three',
-    'four',
-    'five',
-    'six',
-    'seven',
-    'eight',
-    'nine',
-    'up',
-    'down',
-    'left',
-    'right',
-    'go',
-    'stop',
-    'yes',
-    'no',
-  ]),
-}));
+    };
+    return {
+      start: vi.fn(),
+      stop: vi.fn(),
+      isListening: vi.fn(() => false),
+      updateConfig: vi.fn((config: Partial<typeof state>) => {
+        Object.assign(state, config);
+      }),
+      getConfig: vi.fn(() => ({ ...state })),
+    };
+  };
+  return {
+    createWakeWordDetector: vi.fn(() => makeDetector()),
+    getAvailableWakeWords: vi.fn(async () => [
+      'zero',
+      'one',
+      'two',
+      'three',
+      'four',
+      'five',
+      'six',
+      'seven',
+      'eight',
+      'nine',
+      'up',
+      'down',
+      'left',
+      'right',
+      'go',
+      'stop',
+      'yes',
+      'no',
+    ]),
+  };
+});
 
 import {
   startWakeWordTool,

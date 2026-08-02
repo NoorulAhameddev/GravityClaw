@@ -1,0 +1,17 @@
+dist/
+coverage/
+node_modules/
+gravity.db*
+logs/
+.agent_inbox/
+.agent_outbox/
+.archive/
+lib/
+public/
+dashboard/
+package-lock.json
+bin/graphify-out/
+config/graphify-out/
+scripts/graphify-out/
+tests/graphify-out/
+tests/e2e/graphify-out/

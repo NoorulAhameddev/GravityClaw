@@ -32,6 +32,7 @@ gravityclaw
 ```
 
 This is the default command. It:
+
 - Initializes the database
 - Registers all tools
 - Starts all configured channels
@@ -47,10 +48,12 @@ gravityclaw chat [options]
 ```
 
 **Options:**
+
 - `--session <id>` - Use a specific session ID
 - `--verbose` - Show detailed output including tool calls
 
 **In-chat commands:**
+
 - `clear` - Clear the current session history
 - `exit` or `quit` - Exit chat mode
 
@@ -68,6 +71,7 @@ gravityclaw chat --verbose
 ```
 
 **Features:**
+
 - Colored output (respects `NO_COLOR` environment variable)
 - Real-time agent responses
 - Session persistence
@@ -112,6 +116,7 @@ gravityclaw doctor
    - Platform information
 
 **Exit codes:**
+
 - `0` - All checks passed
 - `1` - Errors found (configuration required)
 
@@ -147,11 +152,13 @@ gravityclaw tools
 ```
 
 **Output:**
+
 - Tools grouped by category (e.g., memory, voice, automation)
 - Tool name and description
 - Total count
 
 **Example output:**
+
 ```
 🛠️  Available Tools
 
@@ -209,6 +216,7 @@ gravityclaw sessions export <session-id> > backup.json
 ```
 
 **Export format:**
+
 ```json
 {
   "sessionId": "cli-123",
@@ -237,6 +245,7 @@ gravityclaw --version
 ```
 
 **Output:**
+
 - Package version
 - Node.js version
 - Platform and architecture
@@ -358,7 +367,7 @@ Export multiple sessions:
 
 ```bash
 # PowerShell
-gravityclaw sessions list | ForEach-Object { 
+gravityclaw sessions list | ForEach-Object {
   if ($_ -match "Session ID: (\S+)") {
     gravityclaw sessions export $matches[1] > "exports/$($matches[1]).json"
   }

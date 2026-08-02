@@ -72,19 +72,19 @@ Complete observability enhancement for Gravity Claw with production-ready loggin
      - Memory usage (heap, RSS, external)
      - Metrics snapshot (requests, tool calls, errors, latencies)
      - Response time: < 100ms
-   
+
    - **GET `/metrics`** - Prometheus text format
      - All metrics in Prometheus scrape format
      - Counters with `_total` suffix
      - Gauges and histograms
      - Percentiles (p50, p95, p99)
      - System uptime metric
-   
+
    - **GET `/api/metrics`** - JSON metrics
      - Structured metrics as JSON
      - Active correlations list
      - Easily parseable for dashboards
-   
+
    - **GET `/api/traces/{traceId}`** - Trace details
      - Full span tree for a trace
      - Span details (name, duration, status)
@@ -156,6 +156,7 @@ Complete observability enhancement for Gravity Claw with production-ready loggin
 ## 🎯 Key Features
 
 ### Logging
+
 - ✅ Structured JSON format option
 - ✅ Context objects (correlationId, sessionId, userId, etc.)
 - ✅ Log levels with filtering
@@ -163,6 +164,7 @@ Complete observability enhancement for Gravity Claw with production-ready loggin
 - ✅ Error stack traces
 
 ### Correlation
+
 - ✅ Automatic ID generation
 - ✅ Async-safe context stack
 - ✅ HTTP header propagation
@@ -170,6 +172,7 @@ Complete observability enhancement for Gravity Claw with production-ready loggin
 - ✅ Custom properties
 
 ### Metrics
+
 - ✅ Counters, Gauges, Histograms
 - ✅ Percentile calculation
 - ✅ Prometheus export format
@@ -178,6 +181,7 @@ Complete observability enhancement for Gravity Claw with production-ready loggin
 - ✅ 7 helper methods
 
 ### Tracing
+
 - ✅ Span management
 - ✅ Parent-child relationships
 - ✅ Event logging
@@ -186,6 +190,7 @@ Complete observability enhancement for Gravity Claw with production-ready loggin
 - ✅ Automatic cleanup
 
 ### OpenTelemetry
+
 - ✅ Span export
 - ✅ Metrics export
 - ✅ Periodic export task
@@ -194,6 +199,7 @@ Complete observability enhancement for Gravity Claw with production-ready loggin
 ## 📊 Metrics Tracked
 
 ### Counters
+
 - `requests_total` - HTTP requests
 - `tool_calls_total` - Total tool executions
 - `tool_calls_success` - Successful tool calls
@@ -204,12 +210,14 @@ Complete observability enhancement for Gravity Claw with production-ready loggin
 - `invalid_messages_total` - Invalid messages
 
 ### Gauges
+
 - `ws_clients` - Active WebSocket connections
 - `memory_facts` - Stored memory facts
 - `memory_entities` - Stored entities
 - `http_requests_total` - By path and status
 
 ### Histograms
+
 - `tool_latency_ms` - Tool execution duration
 - `message_latency_ms` - Message processing duration
 - `db_latency_ms` - Database operation duration
@@ -230,17 +238,18 @@ Complete observability enhancement for Gravity Claw with production-ready loggin
 
 ## 📈 API Endpoints
 
-| Endpoint | Purpose | Response |
-|----------|---------|----------|
-| GET `/api/health` | Comprehensive health | JSON with metrics |
-| GET `/metrics` | Prometheus scrape | Text format |
-| GET `/api/metrics` | JSON metrics | Structured JSON |
-| GET `/api/traces/{id}` | Trace details | Span tree |
-| GET `/api/ws-info` | WebSocket info | Connection stats |
+| Endpoint               | Purpose              | Response          |
+| ---------------------- | -------------------- | ----------------- |
+| GET `/api/health`      | Comprehensive health | JSON with metrics |
+| GET `/metrics`         | Prometheus scrape    | Text format       |
+| GET `/api/metrics`     | JSON metrics         | Structured JSON   |
+| GET `/api/traces/{id}` | Trace details        | Span tree         |
+| GET `/api/ws-info`     | WebSocket info       | Connection stats  |
 
 ## 🚀 Ready to Integrate
 
 All modules are production-ready and can be integrated:
+
 - **Incrementally** - Start with agent loop
 - **Modularly** - Each component works independently
 - **Safely** - Graceful degradation for optional features

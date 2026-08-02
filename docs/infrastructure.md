@@ -23,7 +23,7 @@ A single `docker-compose.yml` runs the app:
 services:
   gravyclaw:
     build: .
-    ports: ["3000:3000"]
+    ports: ['3000:3000']
     volumes:
       - ./.env:/app/.env
       - ./gravity.db:/app/gravity.db
@@ -45,11 +45,11 @@ docker compose up -d
 
 A production compose file (`docker-compose.prod.yml`) targets Docker Swarm with three services:
 
-| Service | Replicas | Resources | Healthcheck |
-|---------|----------|-----------|-------------|
-| **app** | 3 | 1 CPU / 1G | `GET /api/live` |
-| **redis** | 1 | 256M | `redis-cli ping` |
-| **nginx** | 2 | 128M | — |
+| Service   | Replicas | Resources  | Healthcheck      |
+| --------- | -------- | ---------- | ---------------- |
+| **app**   | 3        | 1 CPU / 1G | `GET /api/live`  |
+| **redis** | 1        | 256M       | `redis-cli ping` |
+| **nginx** | 2        | 128M       | —                |
 
 ```bash
 # Deploy to Swarm
@@ -57,11 +57,13 @@ docker stack deploy -c docker-compose.prod.yml gravityclaw
 ```
 
 **Requirements:**
+
 - Docker Swarm cluster initialized
 - SSL certificates mounted at paths in `nginx.conf`
 - Environment variables set (recommended: via Docker secrets)
 
 **nginx** acts as a reverse proxy with:
+
 - `least_conn` load balancing across app replicas
 - HTTP/HTTPS (HTTP/2) on `gravityclaw.local`
 - WebSocket support (`Upgrade`/`Connection` headers)
@@ -92,25 +94,25 @@ terraform init
 
 ### Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `aws_region` | `us-east-1` | AWS region |
-| `environment` | `production` | Environment name |
+| Variable      | Default               | Description                         |
+| ------------- | --------------------- | ----------------------------------- |
+| `aws_region`  | `us-east-1`           | AWS region                          |
+| `environment` | `production`          | Environment name                    |
 | `alarm_email` | `ops@gravityclaw.dev` | CloudWatch alarm notification email |
 
 ### Resources Provisioned
 
-| Resource | Details |
-|----------|---------|
-| **VPC** | `10.0.0.0/16` with public/private subnets |
-| **ECS Cluster** | Fargate launch type |
-| **ECS Task Def** | `registry.gravityclaw.io/gravityclaw:latest`, port 3000, CloudWatch logs |
-| **ECS Service** | Auto-scaling (min 2, max 20, desired 2), 1024 CPU / 2048 MB |
-| **ALB** | Application Load Balancer (DNS exposed as output) |
-| **ElastiCache Redis** | `cache.t3.small` in private subnets |
-| **S3 Bucket** | `gravityclaw-attachments-{environment}` |
-| **Security Groups** | App SG attached to VPC |
-| **CloudWatch** | Dashboard + alarm email |
+| Resource              | Details                                                                  |
+| --------------------- | ------------------------------------------------------------------------ |
+| **VPC**               | `10.0.0.0/16` with public/private subnets                                |
+| **ECS Cluster**       | Fargate launch type                                                      |
+| **ECS Task Def**      | `registry.gravityclaw.io/gravityclaw:latest`, port 3000, CloudWatch logs |
+| **ECS Service**       | Auto-scaling (min 2, max 20, desired 2), 1024 CPU / 2048 MB              |
+| **ALB**               | Application Load Balancer (DNS exposed as output)                        |
+| **ElastiCache Redis** | `cache.t3.small` in private subnets                                      |
+| **S3 Bucket**         | `gravityclaw-attachments-{environment}`                                  |
+| **Security Groups**   | App SG attached to VPC                                                   |
+| **CloudWatch**        | Dashboard + alarm email                                                  |
 
 ### Outputs
 

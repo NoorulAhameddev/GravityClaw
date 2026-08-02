@@ -3,12 +3,12 @@
  * Export usage analytics in JSON or CSV format
  */
 
-import type { Tool } from "../index.js";
-import { db } from "../../db.ts";
-import { createLogger } from "../../logger.ts";
-import { gzipSync } from "zlib";
+import type { Tool } from '../index.js';
+import { db } from '../../db.ts';
+import { createLogger } from '../../logger.ts';
+import { gzipSync } from 'zlib';
 
-const log = createLogger("export-usage");
+const log = createLogger('export-usage');
 
 interface UsageRecord {
   id: number;
@@ -29,10 +29,12 @@ interface UsageExportJSON {
     sessionId?: string | undefined;
     format: string;
     compressed: boolean;
-    dateRange?: {
-      from: string;
-      to: string;
-    } | undefined;
+    dateRange?:
+      | {
+          from: string;
+          to: string;
+        }
+      | undefined;
   };
   summary: {
     totalRecords: number;
@@ -58,11 +60,10 @@ function fetchUsageRecords(
   sessionId?: string,
   dateFrom?: string,
   dateTo?: string,
-  limit: number = 10000
+  limit: number = 10000,
 ): UsageRecord[] {
   try {
-    let query =
-      `SELECT id, timestamp, session_id as sessionId, model, 
+    let query = `SELECT id, timestamp, session_id as sessionId, model, 
               prompt_tokens as promptTokens, completion_tokens as completionTokens, 
               total_tokens as totalTokens, cost, latency_ms as latency, provider 
        FROM usage WHERE 1=1`;
@@ -90,7 +91,7 @@ function fetchUsageRecords(
     const rows = db.prepare(query).all(...params) as UsageRecord[];
     return rows;
   } catch (err) {
-    log.warn("Usage table not available or error reading", { error: err });
+    log.warn('Usage table not available or error reading', { error: err });
     return [];
   }
 }
@@ -111,10 +112,7 @@ function calculateSummary(records: UsageRecord[]) {
     };
   }
 
-  const modelMap = new Map<
-    string,
-    { calls: number; tokens: number; cost: number }
-  >();
+  const modelMap = new Map<string, { calls: number; tokens: number; cost: number }>();
 
   let totalTokens = 0;
   let totalPromptTokens = 0;
@@ -134,7 +132,7 @@ function calculateSummary(records: UsageRecord[]) {
       latencyCount++;
     }
 
-    const model = record.model || "unknown";
+    const model = record.model || 'unknown';
     const existing = modelMap.get(model) || { calls: 0, tokens: 0, cost: 0 };
     modelMap.set(model, {
       calls: existing.calls + 1,
@@ -166,18 +164,18 @@ function calculateSummary(records: UsageRecord[]) {
  */
 function formatAsCSV(records: UsageRecord[]): string {
   const headers = [
-    "Timestamp",
-    "Session ID",
-    "Model",
-    "Prompt Tokens",
-    "Completion Tokens",
-    "Total Tokens",
-    "Cost",
-    "Latency (ms)",
-    "Provider",
+    'Timestamp',
+    'Session ID',
+    'Model',
+    'Prompt Tokens',
+    'Completion Tokens',
+    'Total Tokens',
+    'Cost',
+    'Latency (ms)',
+    'Provider',
   ];
 
-  let csv = headers.join(",") + "\n";
+  let csv = headers.join(',') + '\n';
 
   for (const record of records) {
     const row = [
@@ -188,11 +186,11 @@ function formatAsCSV(records: UsageRecord[]): string {
       record.completionTokens,
       record.totalTokens,
       record.cost.toFixed(6),
-      record.latency || "",
-      `"${record.provider || ""}"`,
+      record.latency || '',
+      `"${record.provider || ''}"`,
     ];
 
-    csv += row.join(",") + "\n";
+    csv += row.join(',') + '\n';
   }
 
   return csv;
@@ -202,36 +200,35 @@ function formatAsCSV(records: UsageRecord[]): string {
  * Export usage stats tool
  */
 export const exportUsageStatsTool: Tool = {
-  name: "exportUsageStats",
-  description:
-    "Export usage analytics and token/cost statistics in JSON or CSV format",
+  name: 'exportUsageStats',
+  description: 'Export usage analytics and token/cost statistics in JSON or CSV format',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       sessionId: {
-        type: "string",
-        description: "Optional session ID to filter by (exports all if omitted)",
+        type: 'string',
+        description: 'Optional session ID to filter by (exports all if omitted)',
       },
       format: {
-        type: "string",
-        enum: ["json", "csv"],
-        description: "Export format (default: json)",
+        type: 'string',
+        enum: ['json', 'csv'],
+        description: 'Export format (default: json)',
       },
       dateFrom: {
-        type: "string",
-        description: "Start date in ISO format (optional)",
+        type: 'string',
+        description: 'Start date in ISO format (optional)',
       },
       dateTo: {
-        type: "string",
-        description: "End date in ISO format (optional)",
+        type: 'string',
+        description: 'End date in ISO format (optional)',
       },
       limit: {
-        type: "number",
-        description: "Maximum number of records to export (default: 10000)",
+        type: 'number',
+        description: 'Maximum number of records to export (default: 10000)',
       },
       compress: {
-        type: "boolean",
-        description: "Enable gzip compression (default: true)",
+        type: 'boolean',
+        description: 'Enable gzip compression (default: true)',
       },
     },
     required: [],
@@ -240,7 +237,7 @@ export const exportUsageStatsTool: Tool = {
     try {
       const {
         sessionId,
-        format = "json",
+        format = 'json',
         dateFrom,
         dateTo,
         limit = 10000,
@@ -255,17 +252,22 @@ export const exportUsageStatsTool: Tool = {
       };
 
       // Fetch usage records
-      const records = fetchUsageRecords(sessionId, dateFrom as string | undefined, dateTo as string | undefined, limit);
+      const records = fetchUsageRecords(
+        sessionId,
+        dateFrom as string | undefined,
+        dateTo as string | undefined,
+        limit,
+      );
 
       if (records.length === 0) {
         return JSON.stringify({
           success: true,
-          warning: "No usage records found",
+          warning: 'No usage records found',
           data: {
             format,
             recordCount: 0,
-            base64: "",
-            filename: `usage-export.${format === "json" ? "json" : "csv"}`,
+            base64: '',
+            filename: `usage-export.${format === 'json' ? 'json' : 'csv'}`,
           },
         });
       }
@@ -275,14 +277,14 @@ export const exportUsageStatsTool: Tool = {
 
       let exportData: string;
 
-      if (format === "json") {
+      if (format === 'json') {
         const jsonExport: UsageExportJSON = {
           metadata: {
             exportDate: new Date().toISOString(),
             sessionId,
             format,
             compressed: compress,
-            dateRange: dateFrom || dateTo ? { from: dateFrom || "", to: dateTo || "" } : undefined,
+            dateRange: dateFrom || dateTo ? { from: dateFrom || '', to: dateTo || '' } : undefined,
           },
           summary,
           records,
@@ -308,28 +310,26 @@ export const exportUsageStatsTool: Tool = {
       let used_compression = false;
       if (compress && exportData.length > 1024) {
         try {
-          const buffer = Buffer.from(exportData, "utf-8");
+          const buffer = Buffer.from(exportData, 'utf-8');
           const compressed = gzipSync(buffer);
-          finalData = compressed.toString("base64");
+          finalData = compressed.toString('base64');
           used_compression = true;
         } catch (err) {
-          log.warn("Compression failed, returning uncompressed", { error: err });
+          log.warn('Compression failed, returning uncompressed', { error: err });
         }
       }
 
       // Encode to base64
       const base64Data = used_compression
         ? finalData
-        : Buffer.from(exportData, "utf-8").toString("base64");
+        : Buffer.from(exportData, 'utf-8').toString('base64');
 
-      const extension = format === "json" ? "json" : "csv";
-      const filename = `usage-export${sessionId ? `-${sessionId}` : ""}.${extension}${
-        used_compression ? ".gz" : ""
+      const extension = format === 'json' ? 'json' : 'csv';
+      const filename = `usage-export${sessionId ? `-${sessionId}` : ''}.${extension}${
+        used_compression ? '.gz' : ''
       }`;
 
-      log.info(
-        `Exported ${records.length} usage records, cost: $${summary.totalCost.toFixed(6)}`
-      );
+      log.info(`Exported ${records.length} usage records, cost: $${summary.totalCost.toFixed(6)}`);
 
       return JSON.stringify({
         success: true,
@@ -344,10 +344,10 @@ export const exportUsageStatsTool: Tool = {
         },
       });
     } catch (err) {
-      log.error("Failed to export usage stats", err);
+      log.error('Failed to export usage stats', err);
       return JSON.stringify({
         success: false,
-        error: err instanceof Error ? err.message : "Unknown error",
+        error: err instanceof Error ? err.message : 'Unknown error',
       });
     }
   },

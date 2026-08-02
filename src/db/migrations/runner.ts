@@ -1,7 +1,7 @@
-import { createLogger } from "../../logger.ts";
-import type { DbProvider } from "../provider.ts";
+import { createLogger } from '../../logger.ts';
+import type { DbProvider } from '../provider.ts';
 
-const log = createLogger("db:migrations");
+const log = createLogger('db:migrations');
 
 interface MigrationRecord {
   id: number;
@@ -37,7 +37,7 @@ export async function runMigrations(db: DbProvider, migrations: Migration[]): Pr
   `);
 
   // Get already-applied migration names
-  const applied = await db.all<MigrationRecord>("SELECT name FROM _migrations ORDER BY id");
+  const applied = await db.all<MigrationRecord>('SELECT name FROM _migrations ORDER BY id');
   const appliedNames = new Set(applied.map((r) => r.name));
 
   let lastIndex = -1;
@@ -53,11 +53,7 @@ export async function runMigrations(db: DbProvider, migrations: Migration[]): Pr
 
     await db.transaction(async (txDb) => {
       await migration.up(txDb);
-      await txDb.run(
-        "INSERT INTO _migrations (id, name) VALUES (?, ?)",
-        i + 1,
-        migration.name,
-      );
+      await txDb.run('INSERT INTO _migrations (id, name) VALUES (?, ?)', i + 1, migration.name);
     });
 
     log.info(`Migration applied: ${migration.name}`);
@@ -65,7 +61,7 @@ export async function runMigrations(db: DbProvider, migrations: Migration[]): Pr
   }
 
   if (lastIndex === -1) {
-    log.info("All migrations already applied");
+    log.info('All migrations already applied');
   } else {
     log.info(`Applied ${lastIndex + 1} migration(s)`);
   }
@@ -81,7 +77,7 @@ export async function rollbackMigrations(
   steps = 1,
 ): Promise<void> {
   const applied = await db.all<MigrationRecord>(
-    "SELECT name FROM _migrations ORDER BY id DESC LIMIT ?",
+    'SELECT name FROM _migrations ORDER BY id DESC LIMIT ?',
     steps,
   );
 
@@ -100,7 +96,7 @@ export async function rollbackMigrations(
 
     await db.transaction(async (txDb) => {
       await migration.down!(txDb);
-      await txDb.run("DELETE FROM _migrations WHERE name = ?", migration.name);
+      await txDb.run('DELETE FROM _migrations WHERE name = ?', migration.name);
     });
 
     log.info(`Rollback complete: ${migration.name}`);

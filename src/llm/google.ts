@@ -1,23 +1,33 @@
-import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
-import type { Content, Part, Tool as GeminiTool, FunctionDeclaration, ModelParams, GenerateContentRequest } from "@google/generative-ai";
-import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions.js";
-import type OpenAI from "openai";
-import type { LLMProvider, LLMResponse, LLMChatOptions } from "../types/llm.js";
-import { createLogger } from "../logger.ts";
-import { safeJsonParse } from "../utils/json.ts";
+import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
+import type {
+  Content,
+  Part,
+  Tool as GeminiTool,
+  FunctionDeclaration,
+  ModelParams,
+  GenerateContentRequest,
+} from '@google/generative-ai';
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+} from 'openai/resources/chat/completions.js';
+import type OpenAI from 'openai';
+import type { LLMProvider, LLMResponse, LLMChatOptions } from '../types/llm.js';
+import { createLogger } from '../logger.ts';
+import { safeJsonParse } from '../utils/json.ts';
 
-const log = createLogger("llm:google");
+const log = createLogger('llm:google');
 
 /**
  * Google Gemini Provider
  * Access to Gemini models with function calling support
  */
 export class GoogleProvider implements LLMProvider {
-  readonly name = "google";
+  readonly name = 'google';
   private client: GoogleGenerativeAI;
   private defaultModel: string;
 
-  constructor(apiKey: string, defaultModel: string = "gemini-2.0-flash-exp") {
+  constructor(apiKey: string, defaultModel: string = 'gemini-2.0-flash-exp') {
     this.client = new GoogleGenerativeAI(apiKey);
     this.defaultModel = defaultModel;
     log.info(`Google provider initialized with model: ${defaultModel}`);
@@ -26,11 +36,13 @@ export class GoogleProvider implements LLMProvider {
   async chat(
     messages: ChatCompletionMessageParam[],
     toolDefinitions: ChatCompletionTool[],
-    options?: LLMChatOptions
+    options?: LLMChatOptions,
   ): Promise<LLMResponse> {
     const modelName = options?.model ?? this.defaultModel;
-    
-    log.debug(`Calling Google Gemini — model: ${modelName}, messages: ${messages.length}, tools: ${toolDefinitions.length}`);
+
+    log.debug(
+      `Calling Google Gemini — model: ${modelName}, messages: ${messages.length}, tools: ${toolDefinitions.length}`,
+    );
 
     const { systemInstruction, contents } = this.convertMessages(messages);
     const tools = this.convertTools(toolDefinitions);
@@ -48,10 +60,10 @@ export class GoogleProvider implements LLMProvider {
 
     const model: GenerativeModel = this.client.getGenerativeModel(modelParams);
 
-    const generationConfig: GenerateContentRequest["generationConfig"] = {
+    const generationConfig: GenerateContentRequest['generationConfig'] = {
       maxOutputTokens: options?.maxTokens ?? 2000,
     };
-    
+
     if (options?.temperature !== undefined) {
       generationConfig.temperature = options.temperature;
     }
@@ -59,21 +71,24 @@ export class GoogleProvider implements LLMProvider {
       generationConfig.topP = options.topP;
     }
 
-    const result = await model.generateContent({
-      contents,
-      generationConfig,
-    }, { signal: AbortSignal.timeout(120000) });
+    const result = await model.generateContent(
+      {
+        contents,
+        generationConfig,
+      },
+      { signal: AbortSignal.timeout(120000) },
+    );
 
     const response = result.response;
     const candidate = response.candidates?.[0];
-    
+
     if (!candidate) {
-      throw new Error("Google Gemini returned no candidates");
+      throw new Error('Google Gemini returned no candidates');
     }
 
-    let text = "";
-    let thought = "";
-    let thoughtSignature = "";
+    let text = '';
+    let thought = '';
+    let thoughtSignature = '';
     const toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] = [];
 
     for (const part of candidate.content.parts) {
@@ -91,7 +106,7 @@ export class GoogleProvider implements LLMProvider {
       } else if (part.functionCall) {
         toolCalls.push({
           id: `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          type: "function",
+          type: 'function',
           function: {
             name: part.functionCall.name,
             arguments: JSON.stringify(part.functionCall.args),
@@ -101,11 +116,11 @@ export class GoogleProvider implements LLMProvider {
     }
 
     log.debug(
-      `Google response — stop: ${candidate.finishReason}, text: ${text.length} chars, tools: ${toolCalls.length}, thought: ${Boolean(thought)}`
+      `Google response — stop: ${candidate.finishReason}, text: ${text.length} chars, tools: ${toolCalls.length}, thought: ${Boolean(thought)}`,
     );
 
     const llmResponse: LLMResponse = {
-      stopReason: candidate.finishReason ?? "STOP",
+      stopReason: candidate.finishReason ?? 'STOP',
       text,
       toolCalls,
       thought,
@@ -131,26 +146,28 @@ export class GoogleProvider implements LLMProvider {
     let systemInstruction: string | undefined;
     const contents: Content[] = [];
 
-    for (const msg of (messages as Array<ChatCompletionMessageParam & { thought?: string; thoughtSignature?: string; name?: string }>)) {
-      if (msg.role === "system") {
-        systemInstruction = typeof msg.content === "string" ? msg.content : "";
-      } else if (msg.role === "user") {
+    for (const msg of messages as Array<
+      ChatCompletionMessageParam & { thought?: string; thoughtSignature?: string; name?: string }
+    >) {
+      if (msg.role === 'system') {
+        systemInstruction = typeof msg.content === 'string' ? msg.content : '';
+      } else if (msg.role === 'user') {
         contents.push({
-          role: "user",
-          parts: [{ text: typeof msg.content === "string" ? msg.content : "" }],
+          role: 'user',
+          parts: [{ text: typeof msg.content === 'string' ? msg.content : '' }],
         });
-      } else if (msg.role === "assistant") {
+      } else if (msg.role === 'assistant') {
         const parts: Part[] = [];
-        
+
         if (msg.thought && msg.thoughtSignature) {
           parts.push({
             thought: msg.thought,
-            thought_signature: msg.thoughtSignature
+            thought_signature: msg.thoughtSignature,
           } as any);
         }
 
         if (msg.content) {
-          const content = typeof msg.content === "string" ? msg.content : "";
+          const content = typeof msg.content === 'string' ? msg.content : '';
           parts.push({ text: content });
         }
 
@@ -160,8 +177,12 @@ export class GoogleProvider implements LLMProvider {
 
         if (msg.tool_calls) {
           for (const toolCall of msg.tool_calls) {
-            const argsResult = safeJsonParse<Record<string, unknown>>(toolCall.function.arguments, {} as Record<string, unknown>, "Google tool call args");
-            
+            const argsResult = safeJsonParse<Record<string, unknown>>(
+              toolCall.function.arguments,
+              {} as Record<string, unknown>,
+              'Google tool call args',
+            );
+
             const functionCall = {
               name: toolCall.function.name,
               args: argsResult.success && argsResult.data ? argsResult.data : {},
@@ -176,17 +197,19 @@ export class GoogleProvider implements LLMProvider {
           }
         }
 
-        contents.push({ role: "model", parts });
-      } else if (msg.role === "tool") {
+        contents.push({ role: 'model', parts });
+      } else if (msg.role === 'tool') {
         // Google expects function responses as function response parts
         contents.push({
-          role: "function",
-          parts: [{
-            functionResponse: {
-              name: msg.name || "tool_result",
-              response: { result: msg.content },
+          role: 'function',
+          parts: [
+            {
+              functionResponse: {
+                name: msg.name || 'tool_result',
+                response: { result: msg.content },
+              },
             },
-          }],
+          ],
         });
       }
     }
@@ -199,7 +222,7 @@ export class GoogleProvider implements LLMProvider {
 
     const functionDeclarations: FunctionDeclaration[] = tools.map((tool) => ({
       name: tool.function.name,
-      description: tool.function.description ?? "",
+      description: tool.function.description ?? '',
       parameters: tool.function.parameters as any,
     }));
 

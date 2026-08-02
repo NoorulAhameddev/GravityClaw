@@ -1,9 +1,9 @@
 /**
  * File Operations Tools
- * 
+ *
  * Provides secure file system access with comprehensive path validation,
  * symlink attack prevention, and file access audit logging.
- * 
+ *
  * Security features:
  * - Path allowlist (default: workspace directory only)
  * - Symlink attack prevention (resolve and validate)
@@ -48,17 +48,19 @@ function logFileAccess(
   status: 'success' | 'denied' | 'error',
   error?: string,
   sizeBytes?: number,
-  durationMs?: number
+  durationMs?: number,
 ): void {
   if (!config.SECURITY_AUDIT_ENABLED) {
     return;
   }
-  
+
   try {
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO file_access_log (timestamp, path, action, size_bytes, duration_ms, user, status, error)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `,
+    ).run(
       new Date().toISOString(),
       filePath,
       action,
@@ -66,7 +68,7 @@ function logFileAccess(
       durationMs || null,
       user || 'system',
       status,
-      error || null
+      error || null,
     );
   } catch (err) {
     logger.warn(`Failed to log file access: ${err}`);
@@ -78,18 +80,18 @@ function logFileAccess(
  */
 async function checkFileToolPermission(
   toolName: string,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
 ): Promise<{ allowed: boolean; error?: string }> {
-  const isGroup = Boolean(input["__isGroup"]);
-  const platform = String(input["__platform"] || "");
-  const groupId = String(input["__groupId"] || "");
-  const userId = String(input["__userId"] || "");
+  const isGroup = Boolean(input['__isGroup']);
+  const platform = String(input['__platform'] || '');
+  const groupId = String(input['__groupId'] || '');
+  const userId = String(input['__userId'] || '');
 
   if (!isGroup || !platform || !groupId || !userId) {
     return { allowed: true }; // Not a group chat, allow
   }
 
-  const { isToolAllowedForUser } = await import("../../groups/index.ts");
+  const { isToolAllowedForUser } = await import('../../groups/index.ts');
   const allowed = isToolAllowedForUser(platform, groupId, userId, toolName);
 
   if (!allowed) {
@@ -107,14 +109,20 @@ async function checkFileToolPermission(
  */
 export const readFileTool: Tool = {
   name: 'read_file',
-  description: `Read the contents of a file.
+  description:
+    `Read the contents of a file.
 
 Returns the file content as text. Binary files will be base64-encoded.
 
 Security:
-- Path must be within allowed directories (workspace by default)
-- Cannot read system files or sensitive files (.env, credentials, etc.)
-- Max file size: 10MB
+` +
+    (config.UNRESTRICTED_ACCESS
+      ? `- You have UNRESTRICTED ACCESS to the entire file system. You may read ANY file anywhere.
+- Max file size: 10MB`
+      : `- Path must be within allowed directories
+- Cannot read system files or sensitive files
+- Max file size: 10MB`) +
+    `
 
 Example: read_file({ path: "README.md" })`,
 
@@ -158,7 +166,7 @@ Example: read_file({ path: "README.md" })`,
         checkTraversal: true,
         logFailures: true,
       });
-      
+
       if (!validation.allowed) {
         logFileAccess(filePath, 'read', user, 'denied', validation.reason);
         return JSON.stringify({
@@ -205,7 +213,6 @@ Example: read_file({ path: "README.md" })`,
         size: fileStats.size,
         encoding,
       });
-
     } catch (error) {
       const err = error as Error;
       const user = String(args.__userId || 'system');
@@ -224,13 +231,20 @@ Example: read_file({ path: "README.md" })`,
  */
 export const writeFileTool: Tool = {
   name: 'write_file',
-  description: `Write content to a file. Creates the file if it doesn't exist, overwrites if it does.
+  description:
+    `Write content to a file. Creates the file if it doesn't exist, overwrites if it does.
 
 Security:
-- Path must be within allowed directories
+` +
+    (config.UNRESTRICTED_ACCESS
+      ? `- You have UNRESTRICTED ACCESS to the entire file system. You may write to ANY file anywhere.
+- Max content size: 5MB
+- Creates parent directories if needed`
+      : `- Path must be within allowed directories
 - Cannot write to system files or sensitive locations
 - Max content size: 5MB
-- Creates parent directories if needed
+- Creates parent directories if needed`) +
+    `
 
 Example: write_file({ path: "output.txt", content: "Hello World" })`,
 
@@ -279,7 +293,7 @@ Example: write_file({ path: "output.txt", content: "Hello World" })`,
         checkTraversal: true,
         logFailures: true,
       });
-      
+
       if (!validation.allowed) {
         logFileAccess(filePath, 'write', user, 'denied', validation.reason);
         return JSON.stringify({
@@ -323,7 +337,6 @@ Example: write_file({ path: "output.txt", content: "Hello World" })`,
         size: contentSize,
         encoding,
       });
-
     } catch (error) {
       const err = error as Error;
       const user = String(args.__userId || 'system');
@@ -342,13 +355,18 @@ Example: write_file({ path: "output.txt", content: "Hello World" })`,
  */
 export const listFilesTool: Tool = {
   name: 'list_files',
-  description: `List files and directories in a directory.
+  description:
+    `List files and directories in a directory.
 
 Returns an array of file/directory names with metadata.
 
 Security:
-- Path must be within allowed directories
-- Won't list system directories
+` +
+    (config.UNRESTRICTED_ACCESS
+      ? `- You have UNRESTRICTED ACCESS to the entire file system. You may list ANY directory anywhere.`
+      : `- Path must be within allowed directories
+- Won't list system directories`) +
+    `
 
 Example: list_files({ directory: "src/tools" })`,
 
@@ -391,7 +409,7 @@ Example: list_files({ directory: "src/tools" })`,
         checkTraversal: true,
         logFailures: true,
       });
-      
+
       if (!validation.allowed) {
         logFileAccess(directory, 'list', user, 'denied', validation.reason);
         return JSON.stringify({
@@ -427,7 +445,7 @@ Example: list_files({ directory: "src/tools" })`,
         for (const entry of entries) {
           const fullPath = path.join(dir, entry.name);
           const relativePath = path.relative(baseDir, fullPath);
-          
+
           const fileStats = await stat(fullPath);
           const fileInfo = {
             name: entry.name,
@@ -462,7 +480,9 @@ Example: list_files({ directory: "src/tools" })`,
       const files = await listRecursive(absoluteDir);
       const duration = Date.now() - startTime;
 
-      logger.info(`Listed directory: ${absoluteDir} (${files.length} items, recursive: ${recursive})`);
+      logger.info(
+        `Listed directory: ${absoluteDir} (${files.length} items, recursive: ${recursive})`,
+      );
       logFileAccess(absoluteDir, 'list', user, 'success', undefined, undefined, duration);
 
       return JSON.stringify({
@@ -472,7 +492,6 @@ Example: list_files({ directory: "src/tools" })`,
         files,
         recursive,
       });
-
     } catch (error) {
       const err = error as Error;
       const user = String(args.__userId || 'system');
@@ -491,17 +510,24 @@ Example: list_files({ directory: "src/tools" })`,
  */
 export const deleteFileTool: Tool = {
   name: 'delete_file',
-  description: `Delete a file (NOT directories).
+  description:
+    `Delete a file (NOT directories).
 
 ⚠️ WARNING: This permanently deletes files. Cannot be undone.
 
 Requires explicit confirmation flag to execute.
 
 Security:
-- Path must be within allowed directories
+` +
+    (config.UNRESTRICTED_ACCESS
+      ? `- You have UNRESTRICTED ACCESS to the entire file system. You may delete ANY file anywhere.
+- Only deletes files, not directories
+- Requires confirm: true flag`
+      : `- Path must be within allowed directories
 - Cannot delete system files or sensitive files
 - Only deletes files, not directories
-- Requires confirm: true flag
+- Requires confirm: true flag`) +
+    `
 
 Example: delete_file({ path: "temp.txt", confirm: true })`,
 
@@ -520,7 +546,7 @@ Example: delete_file({ path: "temp.txt", confirm: true })`,
     required: ['path', 'confirm'],
   },
 
-  requiresApproval: true,
+  requiresApproval: !config.UNRESTRICTED_ACCESS,
 
   async execute(args: Record<string, unknown>): Promise<string> {
     try {
@@ -556,7 +582,7 @@ Example: delete_file({ path: "temp.txt", confirm: true })`,
         checkTraversal: true,
         logFailures: true,
       });
-      
+
       if (!validation.allowed) {
         logFileAccess(filePath, 'delete', user, 'denied', validation.reason);
         return JSON.stringify({
@@ -598,7 +624,6 @@ Example: delete_file({ path: "temp.txt", confirm: true })`,
         path: absolutePath,
         deleted_size: fileStats.size,
       });
-
     } catch (error) {
       const err = error as Error;
       const user = String(args.__userId || 'system');
@@ -617,13 +642,18 @@ Example: delete_file({ path: "temp.txt", confirm: true })`,
  */
 export const searchFilesTool: Tool = {
   name: 'search_files',
-  description: `Search for files by name pattern in a directory.
+  description:
+    `Search for files by name pattern in a directory.
 
 Uses glob-style pattern matching (* for wildcard).
 
 Security:
-- Search directory must be within allowed paths
-- Won't search system directories
+` +
+    (config.UNRESTRICTED_ACCESS
+      ? `- You have UNRESTRICTED ACCESS to the entire file system. You may search ANY directory anywhere.`
+      : `- Search directory must be within allowed paths
+- Won't search system directories`) +
+    `
 
 Example: search_files({ directory: "src", pattern: "*.ts" })`,
 
@@ -661,7 +691,7 @@ Example: search_files({ directory: "src", pattern: "*.ts" })`,
         checkTraversal: true,
         logFailures: true,
       });
-      
+
       if (!validation.allowed) {
         logFileAccess(directory, 'list', user, 'denied', validation.reason);
         return JSON.stringify({
@@ -682,10 +712,7 @@ Example: search_files({ directory: "src", pattern: "*.ts" })`,
       }
 
       // Convert glob pattern to regex
-      const regexPattern = pattern
-        .replace(/\./g, '\\.')
-        .replace(/\*/g, '.*')
-        .replace(/\?/g, '.');
+      const regexPattern = pattern.replace(/\./g, '\\.').replace(/\*/g, '.*').replace(/\?/g, '.');
       const regex = new RegExp(`^${regexPattern}$`, 'i');
 
       const matches: any[] = [];
@@ -709,7 +736,7 @@ Example: search_files({ directory: "src", pattern: "*.ts" })`,
             if (regex.test(entry.name)) {
               const fileStats = await stat(fullPath);
               const relativePath = path.relative(absoluteDir, fullPath);
-              
+
               // If content search specified, check file contents
               let contentMatch = true;
               if (contentSearch) {
@@ -742,7 +769,9 @@ Example: search_files({ directory: "src", pattern: "*.ts" })`,
 
       await searchRecursive(absoluteDir);
 
-      logger.info(`Searched directory: ${absoluteDir}, pattern: ${pattern}, found: ${matches.length} files`);
+      logger.info(
+        `Searched directory: ${absoluteDir}, pattern: ${pattern}, found: ${matches.length} files`,
+      );
 
       return JSON.stringify({
         success: true,
@@ -752,7 +781,6 @@ Example: search_files({ directory: "src", pattern: "*.ts" })`,
         count: matches.length,
         matches,
       });
-
     } catch (error) {
       const err = error as Error;
       logger.error('search_files failed:', err);

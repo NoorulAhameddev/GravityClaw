@@ -1,7 +1,7 @@
-import { URL } from "url";
-import { createLogger } from "../logger.ts";
+import { URL } from 'url';
+import { createLogger } from '../logger.ts';
 
-const log = createLogger("url-validator");
+const log = createLogger('url-validator');
 
 const PRIVATE_IP_RANGES = [
   /^127\./,
@@ -29,9 +29,12 @@ const BLOCKED_HOSTNAMES = [
   /169\.254\.169\.254$/,
 ];
 
-const ALLOWED_PROTOCOLS = ["http:", "https:"];
+const ALLOWED_PROTOCOLS = ['http:', 'https:'];
 
-const BLOCKED_PORTS = [22, 23, 25, 53, 110, 135, 139, 143, 445, 1433, 1521, 2049, 3306, 3389, 5432, 6379, 8080, 8443, 9200, 9300, 11211, 27017];
+const BLOCKED_PORTS = [
+  22, 23, 25, 53, 110, 135, 139, 143, 445, 1433, 1521, 2049, 3306, 3389, 5432, 6379, 8080, 8443,
+  9200, 9300, 11211, 27017,
+];
 
 export interface UrlValidationResult {
   valid: boolean;
@@ -52,30 +55,36 @@ export function validateUrl(
   try {
     parsed = new URL(urlStr);
   } catch {
-    return { valid: false, error: "Invalid URL format" };
+    return { valid: false, error: 'Invalid URL format' };
   }
 
   if (!ALLOWED_PROTOCOLS.includes(parsed.protocol)) {
-    return { valid: false, error: `Protocol "${parsed.protocol}" is not allowed. Only http: and https: are permitted.` };
+    return {
+      valid: false,
+      error: `Protocol "${parsed.protocol}" is not allowed. Only http: and https: are permitted.`,
+    };
   }
 
   const hostname = parsed.hostname.toLowerCase();
 
-  if (BLOCKED_HOSTNAMES.some(p => p.test(hostname))) {
-    return { valid: false, error: "URL points to a blocked internal service" };
+  if (BLOCKED_HOSTNAMES.some((p) => p.test(hostname))) {
+    return { valid: false, error: 'URL points to a blocked internal service' };
   }
 
   if (!options?.allowPrivate && isPrivateHost(hostname)) {
-    if (!options?.allowLocalhost || !(hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1")) {
-      return { valid: false, error: "URL points to a private or internal network address" };
+    if (
+      !options?.allowLocalhost ||
+      !(hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1')
+    ) {
+      return { valid: false, error: 'URL points to a private or internal network address' };
     }
   }
 
-  if (options?.extraBlockedHostnames?.some(p => p.test(hostname))) {
-    return { valid: false, error: "URL points to a blocked hostname" };
+  if (options?.extraBlockedHostnames?.some((p) => p.test(hostname))) {
+    return { valid: false, error: 'URL points to a blocked hostname' };
   }
 
-  const port = parsed.port ? parseInt(parsed.port, 10) : (parsed.protocol === "https:" ? 443 : 80);
+  const port = parsed.port ? parseInt(parsed.port, 10) : parsed.protocol === 'https:' ? 443 : 80;
   if (options?.allowedPorts && !options.allowedPorts.includes(port)) {
     return { valid: false, error: `Port ${port} is not in the allowed list` };
   } else if (!options?.allowedPorts && BLOCKED_PORTS.includes(port)) {

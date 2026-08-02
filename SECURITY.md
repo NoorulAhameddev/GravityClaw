@@ -11,6 +11,7 @@
 Please report any security vulnerabilities to the maintainers directly via email or by opening a GitHub Security Advisory. Do not disclose vulnerabilities publicly until a patch has been released.
 
 ### What to include
+
 - A description of the vulnerability.
 - Steps to reproduce the issue.
 - Potential impact.
@@ -18,6 +19,7 @@ Please report any security vulnerabilities to the maintainers directly via email
 ## Security Features
 
 GravityClaw implements the following security features by default:
+
 - Constant-time comparison for API keys and WebSocket tokens.
 - Strict input sanitization against LLM prompt injection and jailbreaking.
 - Whitelisted environment variable passing for MCP child processes.

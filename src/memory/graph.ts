@@ -1,10 +1,10 @@
-import { db } from "../db.ts";
-import { createLogger } from "../logger.ts";
-import type { GraphEntity, GraphRelationship, GraphQueryResult } from "../types/memory.js";
+import { db } from '../db.ts';
+import { createLogger } from '../logger.ts';
+import type { GraphEntity, GraphRelationship, GraphQueryResult } from '../types/memory.js';
 
-export type { GraphEntity, GraphRelationship, GraphQueryResult } from "../types/memory.js";
+export type { GraphEntity, GraphRelationship, GraphQueryResult } from '../types/memory.js';
 
-const log = createLogger("graph");
+const log = createLogger('graph');
 
 // Table creation is now handled centrally by src/db/migrations/schema.ts
 
@@ -54,7 +54,7 @@ function touchEntitiesById(sessionId: string, entityIds: number[]): void {
     return;
   }
 
-  const placeholders = entityIds.map(() => "?").join(",");
+  const placeholders = entityIds.map(() => '?').join(',');
   db.prepare(
     `
       UPDATE entities
@@ -62,7 +62,7 @@ function touchEntitiesById(sessionId: string, entityIds: number[]): void {
           last_accessed = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP
       WHERE session_id = ? AND id IN (${placeholders})
-    `
+    `,
   ).run(sessionId, ...entityIds);
 }
 
@@ -88,25 +88,24 @@ export function saveEntity(
   sessionId: string,
   name: string,
   type: string,
-  properties: Record<string, unknown> = {}
+  properties: Record<string, unknown> = {},
 ): GraphEntity {
   const normalizedName = normalizeEntityName(name);
-  const normalizedType = type.trim() || "unknown";
+  const normalizedType = type.trim() || 'unknown';
 
   if (!sessionId.trim()) {
-    throw new Error("sessionId is required");
+    throw new Error('sessionId is required');
   }
   if (!normalizedName) {
-    throw new Error("entity name is required");
+    throw new Error('entity name is required');
   }
 
   const existing = db
     .prepare(
-      `SELECT id, session_id, name, type, properties FROM entities WHERE session_id = ? AND name = ?`
+      `SELECT id, session_id, name, type, properties FROM entities WHERE session_id = ? AND name = ?`,
     )
     .get(sessionId, normalizedName) as
-    | { id: number; session_id: string; name: string; type: string; properties: string }
-    | undefined;
+    { id: number; session_id: string; name: string; type: string; properties: string } | undefined;
 
   const incomingProps = properties ?? {};
   if (existing) {
@@ -120,7 +119,7 @@ export function saveEntity(
         UPDATE entities
         SET type = ?, properties = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `
+      `,
     ).run(normalizedType, JSON.stringify(mergedProperties), existing.id);
 
     const updated = db
@@ -156,7 +155,9 @@ export function saveEntity(
 export function getEntityByName(sessionId: string, name: string): GraphEntity | null {
   const normalizedName = normalizeEntityName(name);
   const row = db
-    .prepare(`SELECT id, session_id, name, type, properties, access_count, last_accessed FROM entities WHERE session_id = ? AND name = ?`)
+    .prepare(
+      `SELECT id, session_id, name, type, properties, access_count, last_accessed FROM entities WHERE session_id = ? AND name = ?`,
+    )
     .get(sessionId, normalizedName) as
     | {
         id: number;
@@ -176,7 +177,9 @@ export function getEntityByName(sessionId: string, name: string): GraphEntity | 
   touchEntitiesById(sessionId, [row.id]);
 
   const refreshed = db
-    .prepare(`SELECT id, session_id, name, type, properties, access_count, last_accessed FROM entities WHERE id = ?`)
+    .prepare(
+      `SELECT id, session_id, name, type, properties, access_count, last_accessed FROM entities WHERE id = ?`,
+    )
     .get(row.id) as {
     id: number;
     session_id: string;
@@ -195,19 +198,19 @@ export function saveRelationship(
   entity1Name: string,
   relationType: string,
   entity2Name: string,
-  metadata: Record<string, unknown> = {}
+  metadata: Record<string, unknown> = {},
 ): GraphRelationship {
   if (!sessionId.trim()) {
-    throw new Error("sessionId is required");
+    throw new Error('sessionId is required');
   }
 
   const normalizedRelationType = relationType.trim();
   if (!normalizedRelationType) {
-    throw new Error("relation type is required");
+    throw new Error('relation type is required');
   }
 
-  const entity1 = saveEntity(sessionId, entity1Name, "unknown");
-  const entity2 = saveEntity(sessionId, entity2Name, "unknown");
+  const entity1 = saveEntity(sessionId, entity1Name, 'unknown');
+  const entity2 = saveEntity(sessionId, entity2Name, 'unknown');
 
   const existing = db
     .prepare(
@@ -215,7 +218,7 @@ export function saveRelationship(
       SELECT id, session_id, from_id, to_id, relation_type, metadata
       FROM relationships
       WHERE session_id = ? AND from_id = ? AND to_id = ? AND relation_type = ?
-      `
+      `,
     )
     .get(sessionId, entity1.id, entity2.id, normalizedRelationType) as
     | {
@@ -236,12 +239,12 @@ export function saveRelationship(
 
     db.prepare(`UPDATE relationships SET metadata = ? WHERE id = ?`).run(
       JSON.stringify(mergedMetadata),
-      existing.id
+      existing.id,
     );
 
     const updated = db
       .prepare(
-        `SELECT id, session_id, from_id, to_id, relation_type, metadata FROM relationships WHERE id = ?`
+        `SELECT id, session_id, from_id, to_id, relation_type, metadata FROM relationships WHERE id = ?`,
       )
       .get(existing.id) as {
       id: number;
@@ -257,13 +260,13 @@ export function saveRelationship(
 
   const insert = db
     .prepare(
-      `INSERT INTO relationships (session_id, from_id, to_id, relation_type, metadata) VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO relationships (session_id, from_id, to_id, relation_type, metadata) VALUES (?, ?, ?, ?, ?)`,
     )
     .run(sessionId, entity1.id, entity2.id, normalizedRelationType, JSON.stringify(metadata));
 
   const created = db
     .prepare(
-      `SELECT id, session_id, from_id, to_id, relation_type, metadata FROM relationships WHERE id = ?`
+      `SELECT id, session_id, from_id, to_id, relation_type, metadata FROM relationships WHERE id = ?`,
     )
     .get(insert.lastInsertRowid) as {
     id: number;
@@ -277,7 +280,11 @@ export function saveRelationship(
   return mapRelationshipRow(created);
 }
 
-export function queryGraph(sessionId: string, entityName: string, depth = 2): GraphQueryResult | null {
+export function queryGraph(
+  sessionId: string,
+  entityName: string,
+  depth = 2,
+): GraphQueryResult | null {
   const root = getEntityByName(sessionId, entityName);
   if (!root) {
     return null;
@@ -295,7 +302,7 @@ export function queryGraph(sessionId: string, entityName: string, depth = 2): Gr
       break;
     }
 
-    const placeholders = frontier.map(() => "?").join(",");
+    const placeholders = frontier.map(() => '?').join(',');
     const relRows = db
       .prepare(
         `
@@ -303,7 +310,7 @@ export function queryGraph(sessionId: string, entityName: string, depth = 2): Gr
         FROM relationships
         WHERE session_id = ?
           AND (from_id IN (${placeholders}) OR to_id IN (${placeholders}))
-      `
+      `,
       )
       .all(sessionId, ...frontier, ...frontier) as Array<{
       id: number;
@@ -333,10 +340,10 @@ export function queryGraph(sessionId: string, entityName: string, depth = 2): Gr
   }
 
   const entityIds = [...visited];
-  const entityPlaceholders = entityIds.map(() => "?").join(",");
+  const entityPlaceholders = entityIds.map(() => '?').join(',');
   const entitiesRows = db
     .prepare(
-      `SELECT id, session_id, name, type, properties, access_count, last_accessed FROM entities WHERE session_id = ? AND id IN (${entityPlaceholders})`
+      `SELECT id, session_id, name, type, properties, access_count, last_accessed FROM entities WHERE session_id = ? AND id IN (${entityPlaceholders})`,
     )
     .all(sessionId, ...entityIds) as Array<{
     id: number;
@@ -354,8 +361,8 @@ export function queryGraph(sessionId: string, entityName: string, depth = 2): Gr
       ? (db
           .prepare(
             `SELECT id, session_id, from_id, to_id, relation_type, metadata FROM relationships WHERE session_id = ? AND id IN (${relIdList
-              .map(() => "?")
-              .join(",")})`
+              .map(() => '?')
+              .join(',')})`,
           )
           .all(sessionId, ...relIdList) as Array<{
           id: number;
@@ -393,9 +400,9 @@ export function formatGraphAsMermaid(result: GraphQueryResult): string {
   const entityMap = new Map<number, GraphEntity>(result.entities.map((e) => [e.id, e]));
 
   const escapeLabel = (value: string): string =>
-    value.replace(/"/g, "'").replace(/\n/g, " ").trim();
+    value.replace(/"/g, "'").replace(/\n/g, ' ').trim();
 
-  const lines: string[] = ["graph TD"];
+  const lines: string[] = ['graph TD'];
 
   for (const entity of result.entities) {
     const nodeId = `E${entity.id}`;
@@ -415,5 +422,5 @@ export function formatGraphAsMermaid(result: GraphQueryResult): string {
     lines.push(`  ${fromNode} -->|"${relLabel}"| ${toNode}`);
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }

@@ -1,26 +1,31 @@
-import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions.js";
-import type OpenAI from "openai";
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+} from 'openai/resources/chat/completions.js';
+import type OpenAI from 'openai';
 
-export type MessageRole = "user" | "assistant" | "system" | "tool";
+export type MessageRole = 'user' | 'assistant' | 'system' | 'tool';
 
 export interface Message {
-    role: MessageRole;
-    content: string | Array<{
-        type: "text" | "tool_use" | "tool_result" | "image" | "document";
+  role: MessageRole;
+  content:
+    | string
+    | Array<{
+        type: 'text' | 'tool_use' | 'tool_result' | 'image' | 'document';
         id?: string;
         name?: string;
         text?: string;
         content?: string;
         is_error?: boolean;
         source?: {
-            type: string;
-            id: string;
+          type: string;
+          id: string;
         };
-    }>;
-    name?: string;
-    tool_calls?: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[];
-    thought?: string;
-    thoughtSignature?: string;
+      }>;
+  name?: string;
+  tool_calls?: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[];
+  thought?: string;
+  thoughtSignature?: string;
 }
 
 export interface LLMResponse {
@@ -43,12 +48,12 @@ export interface LLMProvider {
   chat(
     messages: ChatCompletionMessageParam[],
     toolDefinitions: ChatCompletionTool[],
-    options?: LLMChatOptions
+    options?: LLMChatOptions,
   ): Promise<LLMResponse>;
   chatStream?(
     messages: ChatCompletionMessageParam[],
     toolDefinitions: ChatCompletionTool[],
-    options?: LLMChatOptions & { onToken?: (token: string, done: boolean) => void }
+    options?: LLMChatOptions & { onToken?: (token: string, done: boolean) => void },
   ): Promise<LLMResponse>;
   listModels?(): Promise<string[]>;
   countTokens?(messages: ChatCompletionMessageParam[]): number;

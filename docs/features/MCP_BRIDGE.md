@@ -11,6 +11,7 @@ The MCP Bridge (`scripts/mcp-bridge/`) is a dedicated process that translates be
 To use the MCP bridge, define your MCP servers in `config/mcp-servers.schema.json` or in your `.env` configuration.
 
 Example `.env`:
+
 ```bash
 MCP_SERVERS='{"postgres": {"command": "npx", "args": ["@modelcontextprotocol/server-postgres", "postgres://localhost/mydb"]}}'
 ```
@@ -20,6 +21,7 @@ MCP_SERVERS='{"postgres": {"command": "npx", "args": ["@modelcontextprotocol/ser
 The bridge can be run independently for testing or started automatically as part of the GravityClaw main process.
 
 To run it independently:
+
 ```bash
 cd scripts/mcp-bridge
 npm install

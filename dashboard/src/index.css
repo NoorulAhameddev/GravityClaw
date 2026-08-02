@@ -1,5 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap');
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   --color-bg: #0a0a0a;
@@ -14,19 +14,19 @@
   --color-text-bright: #ffffff;
   --color-muted: #a78b7d;
   --color-muted-dark: #584237;
-  
+
   /* Option C Style Archetype Accents */
   --color-accent: #f97316; /* Safety Orange */
   --color-accent-hover: #ea580c;
   --color-accent-glow: rgba(249, 115, 22, 0.2);
   --color-accent2: #ffca45; /* Caution Yellow */
   --color-accent2-glow: rgba(255, 202, 69, 0.2);
-  
+
   --color-success: #22c55e;
   --color-warning: #eab308;
   --color-danger: #ef4444;
   --color-info: #3b82f6;
-  
+
   --shadow-card: none;
   --shadow-glow: 4px 4px 0px #3f3f46;
   --shadow-glow-teal: 4px 4px 0px #292930;
@@ -35,8 +35,9 @@
 @layer base {
   body {
     background-color: #0a0a0a;
-    background-image: linear-gradient(rgba(18, 19, 25, 0.3) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(18, 19, 25, 0.3) 1px, transparent 1px);
+    background-image:
+      linear-gradient(rgba(18, 19, 25, 0.3) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(18, 19, 25, 0.3) 1px, transparent 1px);
     background-size: 20px 20px;
     @apply text-text antialiased;
     margin: 0;
@@ -46,18 +47,24 @@
   }
 
   /* Global Brutalist Overrides */
-  .brutalist, .brutalist * {
+  .brutalist,
+  .brutalist * {
     border-radius: 0px !important;
     box-shadow: none !important;
     text-shadow: none !important;
   }
 
   /* Focus and input states */
-  input, textarea, select, button {
+  input,
+  textarea,
+  select,
+  button {
     transition: none !important;
   }
 
-  input:focus, textarea:focus, select:focus {
+  input:focus,
+  textarea:focus,
+  select:focus {
     border-color: #ffca45 !important; /* Focus Caution Yellow */
     background-color: #1b1b21 !important;
   }
@@ -115,12 +122,19 @@
 
 /* scanline effect */
 .scanlines::after {
-  content: " ";
+  content: ' ';
   display: block;
   position: absolute;
-  top: 0; left: 0; bottom: 0; right: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background:
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+    linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
   z-index: 99999;
-  background-size: 100% 2px, 3px 100%;
+  background-size:
+    100% 2px,
+    3px 100%;
   pointer-events: none;
 }

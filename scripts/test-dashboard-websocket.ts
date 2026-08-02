@@ -23,7 +23,7 @@ const totalSockets = 4;
 for (let i = 0; i < totalSockets; i++) {
   const ws = new WebSocket('ws://localhost:3000');
   sockets.push(ws);
-  
+
   ws.on('open', () => {
     readySockets++;
     if (readySockets === totalSockets) {
@@ -62,23 +62,31 @@ async function runTests() {
   console.log('Testing Dashboard Tools:\n');
 
   try {
-    // Use different sockets and different session IDs for each test  
+    // Use different sockets and different session IDs for each test
     // Stagger tests with delays to allow rate limiter to reset
     console.log('1. Testing getSessionInfo...');
-    const sessionInfo = await testTool(0, 'getSessionInfo', { sessionId: `session-${Date.now()}-1` });
+    const sessionInfo = await testTool(0, 'getSessionInfo', {
+      sessionId: `session-${Date.now()}-1`,
+    });
     console.log(`   ✅ Success: sessionId=${sessionInfo.data.sessionId}`);
-    
+
     console.log('\n2. Testing getUsageStats...');
     const usageStats = await testTool(1, 'getUsageStats', { sessionId: `session-${Date.now()}-2` });
     console.log(`   ✅ Success: totalCalls=${usageStats.data.totalCalls}`);
-    
+
     console.log('\n3. Testing getNotificationPreferences...');
-    const notifPrefs = await testTool(2, 'getNotificationPreferences', { sessionId: `session-${Date.now()}-3` });
+    const notifPrefs = await testTool(2, 'getNotificationPreferences', {
+      sessionId: `session-${Date.now()}-3`,
+    });
     console.log(`   ✅ Success: frequency=${notifPrefs.data.frequency}`);
-    
+
     console.log('\n4. Testing getVoiceSettings...');
-    const voiceSettings = await testTool(3, 'getVoiceSettings', { __sessionId: `session-${Date.now()}-4` });
-    console.log(`   ✅ Success: voiceMode=${voiceSettings.voiceMode}, voiceEnabled=${voiceSettings.voiceEnabled}`);
+    const voiceSettings = await testTool(3, 'getVoiceSettings', {
+      __sessionId: `session-${Date.now()}-4`,
+    });
+    console.log(
+      `   ✅ Success: voiceMode=${voiceSettings.voiceMode}, voiceEnabled=${voiceSettings.voiceEnabled}`,
+    );
 
     console.log('\n✅ All critical dashboard tools are working!');
     console.log('\nKey Findings:');
@@ -87,17 +95,17 @@ async function runTests() {
     console.log('- ✅ Voice settings tools receive __sessionId parameter correctly');
     console.log('- ✅ Frontend will automatically pass args through without modification');
     console.log('\nFrontend Integration Status:');
-    console.log('- Voice mode: Fixed to use mode enum (\'off\' | \'full-voice\')');
+    console.log("- Voice mode: Fixed to use mode enum ('off' | 'full-voice')");
     console.log('- Voice toggle: Now converts boolean to correct mode value');
     console.log('- Data mapping: Voice response uses voiceEnabled field');
     console.log('- Session injection: Automatic via WebChat handler');
-    
+
     process.exit(0);
   } catch (err) {
     console.error('\n❌ Test failed:', err);
     process.exit(1);
   } finally {
-    sockets.forEach(ws => ws.close());
+    sockets.forEach((ws) => ws.close());
   }
 }
 
@@ -113,15 +121,17 @@ async function testTool(socketIndex: number, toolName: string, args: Record<stri
     pendingCalls.set(id, {
       resolve,
       reject,
-      timeout
+      timeout,
     });
 
-    ws.send(JSON.stringify({
-      type: 'tool_call',
-      id,
-      tool: toolName,
-      args
-    }));
+    ws.send(
+      JSON.stringify({
+        type: 'tool_call',
+        id,
+        tool: toolName,
+        args,
+      }),
+    );
   });
 }
 

@@ -12,9 +12,9 @@ An ADR is a short document capturing:
 
 ## Index
 
-| ID | Title | Date | Status |
-|----|-------|------|--------|
-| _No ADRs yet_ | | | |
+| ID            | Title | Date | Status |
+| ------------- | ----- | ---- | ------ |
+| _No ADRs yet_ |       |      |        |
 
 ## Template
 

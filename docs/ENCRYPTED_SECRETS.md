@@ -57,13 +57,13 @@ Secrets are stored in `secrets.enc.json`:
 ### 3. Use Secrets in Code
 
 ```typescript
-import { decryptAllSecrets } from "./src/secrets.js";
-import { config } from "./src/config.js";
+import { decryptAllSecrets } from './src/secrets.js';
+import { config } from './src/config.js';
 
-const secrets = await decryptAllSecrets("secrets.enc.json", config.MASTER_KEY!);
+const secrets = await decryptAllSecrets('secrets.enc.json', config.MASTER_KEY!);
 
-const apiKey = secrets.get("MY_API_KEY");
-console.log("Decrypted API key:", apiKey);
+const apiKey = secrets.get('MY_API_KEY');
+console.log('Decrypted API key:', apiKey);
 ```
 
 ## CLI Commands
@@ -88,6 +88,7 @@ node scripts/encrypt-secret.ts --list
 ```
 
 Output:
+
 ```
 📋 Secrets in secrets.enc.json:
 
@@ -107,6 +108,7 @@ node scripts/encrypt-secret.ts --view MY_API_KEY
 ```
 
 Output:
+
 ```
 🔑 Secret 'MY_API_KEY':
 
@@ -126,6 +128,7 @@ node scripts/encrypt-secret.ts --encrypt "my-secret"
 ```
 
 Output:
+
 ```json
 {
   "iv": "a1b2c3d4e5f6...",
@@ -271,6 +274,7 @@ npm test secrets.test.ts
 ```
 
 Tests cover:
+
 - Encryption/decryption correctness
 - Key derivation
 - Tamper detection

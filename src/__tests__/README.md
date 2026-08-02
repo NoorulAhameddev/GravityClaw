@@ -50,6 +50,7 @@ describe('Feature Name', () => {
 Target coverage: >80% for business logic
 
 Current test files:
+
 - ✅ LLM history management
 - ✅ Agent configuration and tool registry
 - ⏳ Tool implementations (datetime, shell)

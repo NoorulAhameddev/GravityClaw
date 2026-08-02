@@ -12,6 +12,7 @@ npm run test:coverage
 ```
 
 Run a single test file:
+
 ```bash
 npx vitest run --config config/vitest.config.ts src/__tests__/agent.test.ts
 ```
@@ -23,6 +24,7 @@ Gravity Claw is a personal AI agent with a tool-use loop that spans multiple com
 **Request flow:** Channel (Telegram/WhatsApp/WebChat) → `ChannelRouter` → `runAgent()` → `callClaude()` (LLM orchestrator) → Tool execution → repeat until no tool calls.
 
 **Key files:**
+
 - `src/agent.ts` — The agentic loop (`runAgent()`). Executes tool calls, feeds results back, respects `AGENT_MAX_ITERATIONS`.
 - `src/llm/orchestrator.ts` — `callClaude()`: persists history to SQLite, resolves per-session provider/model overrides, injects memory facts and attachment context into the system prompt.
 - `src/tools/index.ts` — `ToolRegistry` (Map-based). All tools are registered here at startup in `src/index.ts`.
@@ -34,6 +36,7 @@ Gravity Claw is a personal AI agent with a tool-use loop that spans multiple com
 **LLM providers** (`src/llm/`): `openrouter`, `openai`, `anthropic`, `google`, `groq`, `deepseek`, `ollama`, `failover`. All implement `LLMProvider` from `src/types/llm.ts`. Selected via `LLM_PROVIDER` env var; sessions can override per-call.
 
 **Memory is hybrid:**
+
 - SQLite `memory` table: conversation history (JSON rows per message)
 - `src/memory/graph.ts`: in-process knowledge graph (entities + relationships)
 - `src/memory/markdown.ts`: persistent facts injected into the system prompt
@@ -44,41 +47,52 @@ Gravity Claw is a personal AI agent with a tool-use loop that spans multiple com
 ## Key Conventions
 
 ### Tool interface
+
 Every tool must satisfy:
+
 ```typescript
 interface Tool {
   name: string;
   description: string;
-  inputSchema: { type: "object"; properties?: Record<string, unknown>; required?: string[] };
-  execute(input: Record<string, unknown>): Promise<string>;  // always returns string
+  inputSchema: { type: 'object'; properties?: Record<string, unknown>; required?: string[] };
+  execute(input: Record<string, unknown>): Promise<string>; // always returns string
 }
 ```
+
 Structured responses use `JSON.stringify({ success, ... })`. Register in `src/index.ts` and export from the category's `index.ts`.
 
 ### Context injected into tool inputs
+
 The agent injects these fields alongside user-supplied args — tools can read them:
+
 ```
 __sessionId, __userId, __platform, __groupId, __isGroup
 ```
 
 ### Adding new things
+
 - **Tool**: Add to `src/tools/<category>/`, export from category `index.ts`, register in `src/index.ts`.
 - **LLM provider**: Extend `LLMProvider` in `src/llm/`, add a case in `createSingleProvider()` in `src/llm/index.ts`.
 - **Channel**: Implement `Channel` interface from `src/types/channels.ts`, register in `ChannelRouter` in `src/index.ts`.
 - **Plugin** (runtime extension): See `src/plugins/README.md`. Create `plugin.json` + entry module exporting a `Plugin` object.
-- **Skill** (prompt/knowledge asset): Create a `.md` file in `skills/`. Skills are *not* runtime modules — they guide LLM behavior.
+- **Skill** (prompt/knowledge asset): Create a `.md` file in `skills/`. Skills are _not_ runtime modules — they guide LLM behavior.
 
 ### Logging
+
 Use `createLogger(prefix)` from `src/logger.ts` — never `console.log` directly. Log level is controlled by `LOG_LEVEL` env var.
 
 ### Imports
+
 Source files use `.ts` extensions in imports (e.g., `import { foo } from "./bar.ts"`). Type re-exports use `.js` (e.g., `export type { Foo } from "../types/foo.js"`).
 
 ### Config access
+
 Import `config` from `src/config.ts`. Do not read `process.env` directly elsewhere — the Zod schema is the contract.
 
 ### Commit messages
+
 Follow [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `refactor:`, etc.
 
 ### Tests
+
 Test files live in `src/__tests__/`. Use Vitest globals (`describe`, `it`, `expect`). Tests that use the database should use a unique test session ID and clean up in `afterEach`. Integration tests requiring live API calls go in `src/__tests__/manual/`.

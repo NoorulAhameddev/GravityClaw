@@ -1,6 +1,6 @@
 /**
  * Tests for File Operations Tools
- * 
+ *
  * Tests all 5 file operation tools:
  * - read_file
  * - write_file
@@ -52,7 +52,7 @@ describe('File Operations Tools', () => {
           }
         }
       };
-      
+
       await removeRecursive(TEST_DIR);
       await rmdir(TEST_DIR);
     }
@@ -175,7 +175,7 @@ describe('File Operations Tools', () => {
 
       expect(parsed.success).toBe(true);
       expect(fs.existsSync(testFile)).toBe(true);
-      
+
       const written = fs.readFileSync(testFile, 'utf8');
       expect(written).toBe(testContent);
     });
@@ -276,7 +276,7 @@ describe('File Operations Tools', () => {
       expect(parsed.success).toBe(true);
       expect(parsed.recursive).toBe(true);
       expect(parsed.count).toBeGreaterThanOrEqual(3); // root.txt, subdir, nested.txt
-      
+
       const paths = parsed.files.map((f: any) => f.path);
       expect(paths).toContain('root.txt');
       expect(paths.some((p: string) => p.includes('nested.txt'))).toBe(true);
@@ -290,7 +290,7 @@ describe('File Operations Tools', () => {
 
       expect(parsed.success).toBe(true);
       const file = parsed.files.find((f: any) => f.name === 'meta.txt');
-      
+
       expect(file).toBeDefined();
       expect(file.type).toBe('file');
       expect(file.size).toBeGreaterThan(0);
@@ -391,7 +391,7 @@ describe('File Operations Tools', () => {
 
       expect(parsed.success).toBe(true);
       expect(parsed.count).toBe(2);
-      
+
       const names = parsed.matches.map((m: any) => m.name);
       expect(names).toContain('test1.ts');
       expect(names).toContain('test2.ts');

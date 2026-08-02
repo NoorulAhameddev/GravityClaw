@@ -4,7 +4,7 @@
  * ═════════════════════════════════════════════════════════════════════════════
  * Touch Gestures Quick Reference Guide
  * ═════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * Common use cases and code snippets for developers
  */
 
@@ -36,7 +36,7 @@ window._gestureManager?.setPreference('swipeSensitivity', 1.5);
 window._gestureManager?.setPreference('swipeEnabled', false);
 
 // Programmatic navigation (works cross-browser)
-navigate('dashboard');  // Uses existing navigate() function
+navigate('dashboard'); // Uses existing navigate() function
 
 // ═════════════════════════════════════════════════════════════════════════════
 // 2. Pull-to-Refresh
@@ -65,7 +65,7 @@ document.querySelector('.item')?.setAttribute('data-long-pressable', '');
 // Listen for context menu actions
 document.addEventListener('contextmenu-action', (e) => {
   const { action, element } = e.detail;
-  
+
   if (action === 'copy') {
     console.log('User wants to copy:', element.textContent);
   } else if (action === 'edit') {
@@ -106,11 +106,11 @@ if ('vibrate' in navigator) {
 
 // Trigger haptic feedback programmatically
 const manager = window._gestureManager;
-manager?.vibration?.light();           // 10ms vibration
-manager?.vibration?.medium();          // 30ms vibration
-manager?.vibration?.strong();          // 100ms vibration
-manager?.vibration?.vibrate(50);       // Custom duration
-manager?.vibration?.pattern([100, 50, 100]);  // Pattern: vibrate, pause, vibrate
+manager?.vibration?.light(); // 10ms vibration
+manager?.vibration?.medium(); // 30ms vibration
+manager?.vibration?.strong(); // 100ms vibration
+manager?.vibration?.vibrate(50); // Custom duration
+manager?.vibration?.pattern([100, 50, 100]); // Pattern: vibrate, pause, vibrate
 
 // Disable all haptics
 window._gestureManager?.setPreference('hapticFeedbackEnabled', false);
@@ -156,12 +156,12 @@ GestureAPI.setPreference('swipeSensitivity', 1.2);
 GestureAPI.resetAll();
 
 // Trigger haptics
-GestureAPI.haptic('light');    // or 'medium', 'strong'
-GestureAPI.haptic(25);          // Custom milliseconds
+GestureAPI.haptic('light'); // or 'medium', 'strong'
+GestureAPI.haptic(25); // Custom milliseconds
 
 // Show toast notification
 GestureAPI.notify('Action completed!');
-GestureAPI.notify('Warning!', 3000);  // 3 second duration
+GestureAPI.notify('Warning!', 3000); // 3 second duration
 
 // Check touch support
 if (GestureAPI.isSupported()) {
@@ -212,7 +212,7 @@ if (document.getElementById('gesture-settings')) {
 
 // Check PWA installation status
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(regs => {
+  navigator.serviceWorker.getRegistrations().then((regs) => {
     console.log('Service Workers installed:', regs.length);
   });
 }
@@ -222,7 +222,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   console.log('PWA install prompt ready');
   // Show custom install button if desired
-  e.prompt();  // Show install prompt
+  e.prompt(); // Show install prompt
 });
 
 // Check if app is already installed
@@ -231,8 +231,8 @@ if (window.matchMedia('(display-mode: standalone)').matches) {
 }
 
 // Clear service worker cache (debugging)
-caches.keys().then(names => {
-  names.forEach(name => caches.delete(name));
+caches.keys().then((names) => {
+  names.forEach((name) => caches.delete(name));
   console.log('Cache cleared');
 });
 
@@ -242,9 +242,9 @@ caches.keys().then(names => {
 
 // Example 1: Long-pressable list items
 function setupLongPressableList() {
-  document.querySelectorAll('.list-item').forEach(item => {
+  document.querySelectorAll('.list-item').forEach((item) => {
     item.setAttribute('data-long-pressable', '');
-    item.dataset.id = item.id;  // Store ID for actions
+    item.dataset.id = item.id; // Store ID for actions
   });
 
   document.addEventListener('contextmenu-action', (e) => {
@@ -252,12 +252,11 @@ function setupLongPressableList() {
     const itemId = element.dataset.id;
 
     if (action === 'delete') {
-      fetch(`/api/items/${itemId}`, { method: 'DELETE' })
-        .then(() => {
-          element.remove();
-          GestureAPI.notify('Deleted');
-          GestureAPI.haptic('medium');
-        });
+      fetch(`/api/items/${itemId}`, { method: 'DELETE' }).then(() => {
+        element.remove();
+        GestureAPI.notify('Deleted');
+        GestureAPI.haptic('medium');
+      });
     } else if (action === 'edit') {
       window.location.href = `/edit/${itemId}`;
     }
@@ -274,17 +273,17 @@ function setupZoomableChart() {
 // Example 3: Smart refresh with loading state
 async function handleSmartRefresh(page) {
   const loader = document.querySelector('.refresh-loader');
-  
+
   try {
     loader?.classList.add('visible');
-    
+
     // Fetch fresh data
     const response = await fetch(`/api/${page}/refresh`);
     const data = await response.json();
-    
+
     // Update UI
     updatePageContent(data);
-    
+
     GestureAPI.notify('Refreshed!');
     GestureAPI.haptic('light');
   } catch (error) {
@@ -297,7 +296,7 @@ async function handleSmartRefresh(page) {
 
 // Example 4: Copy with feedback
 function setupCopyButtons() {
-  document.querySelectorAll('[data-copy]').forEach(el => {
+  document.querySelectorAll('[data-copy]').forEach((el) => {
     el.setAttribute('data-long-pressable', '');
   });
 
@@ -305,7 +304,7 @@ function setupCopyButtons() {
     if (e.detail.action === 'copy') {
       const text = e.detail.element.textContent;
       navigator.clipboard.writeText(text);
-      
+
       GestureAPI.notify('📋 Copied!');
       GestureAPI.haptic('light');
     }
@@ -382,12 +381,12 @@ function simulateSwipe(direction, distance = 100) {
 function testHaptics() {
   console.log('🔊 LIGHT (10ms)');
   GestureAPI.haptic('light');
-  
+
   setTimeout(() => {
     console.log('🔊 MEDIUM (30ms)');
     GestureAPI.haptic('medium');
   }, 200);
-  
+
   setTimeout(() => {
     console.log('🔊 STRONG (100ms)');
     GestureAPI.haptic('strong');
@@ -407,12 +406,12 @@ function testHaptics() {
 function initPageGestures(pageName) {
   if (pageName === 'dashboard') {
     // Dashboard-specific setup
-    document.querySelectorAll('.metric').forEach(m => {
+    document.querySelectorAll('.metric').forEach((m) => {
       m.setAttribute('data-long-pressable', '');
     });
   } else if (pageName === 'memory') {
     // Memory-specific setup
-    document.querySelectorAll('.fact').forEach(f => {
+    document.querySelectorAll('.fact').forEach((f) => {
       f.setAttribute('data-long-pressable', '');
     });
   }
@@ -429,20 +428,18 @@ if (GestureAPI.isSupported()) {
 
 // Pattern 3: Progressive enhancement
 const baseFeatures = {
-  navigation: 'keyboard',   // Always available
-  refresh: 'menu',          // Always available
-  copy: 'double-click',     // Desktop
+  navigation: 'keyboard', // Always available
+  refresh: 'menu', // Always available
+  copy: 'double-click', // Desktop
 };
 
 const enhancedFeatures = {
-  navigation: 'swipe',      // Mobile
-  refresh: 'pull-down',     // Mobile
-  copy: 'long-press',       // Mobile
+  navigation: 'swipe', // Mobile
+  refresh: 'pull-down', // Mobile
+  copy: 'long-press', // Mobile
 };
 
-const activeFeatures = GestureAPI.isSupported() 
-  ? enhancedFeatures 
-  : baseFeatures;
+const activeFeatures = GestureAPI.isSupported() ? enhancedFeatures : baseFeatures;
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Ready-to-Use Functions
@@ -455,7 +452,7 @@ function setupAllGestures() {
   setupLongPressableList();
   setupZoomableChart();
   setupCopyButtons();
-  
+
   console.log('✓ All gestures configured');
 }
 

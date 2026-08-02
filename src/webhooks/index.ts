@@ -1,11 +1,11 @@
-import { db } from "../db.ts";
-import { createLogger } from "../logger.ts";
-import { config } from "../config.ts";
-import { getActualPort } from "../lib/runtime.ts";
-import type { Tool } from "../tools/index.js";
-import crypto from "crypto";
+import { db } from '../db.ts';
+import { createLogger } from '../logger.ts';
+import { config } from '../config.ts';
+import { getActualPort } from '../lib/runtime.ts';
+import type { Tool } from '../tools/index.js';
+import crypto from 'crypto';
 
-const log = createLogger("webhooks");
+const log = createLogger('webhooks');
 
 // Webhooks schema initialization is handled by src/db/migrations/schema.ts
 
@@ -35,27 +35,17 @@ export interface WebhookDelivery {
  * Generate HMAC signature for webhook payload
  */
 export function generateSignature(payload: string, secret: string): string {
-  return crypto
-    .createHmac("sha256", secret)
-    .update(payload)
-    .digest("hex");
+  return crypto.createHmac('sha256', secret).update(payload).digest('hex');
 }
 
 /**
  * Verify HMAC signature
  */
-export function verifySignature(
-  payload: string,
-  signature: string,
-  secret: string
-): boolean {
+export function verifySignature(payload: string, signature: string, secret: string): boolean {
   const expected = generateSignature(payload, secret);
   // Use timing-safe comparison
   try {
-    return crypto.timingSafeEqual(
-      Buffer.from(signature, "hex"),
-      Buffer.from(expected, "hex")
-    );
+    return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected, 'hex'));
   } catch {
     return false;
   }
@@ -65,7 +55,7 @@ export function verifySignature(
  * Generate secure random secret
  */
 function generateSecret(): string {
-  return crypto.randomBytes(32).toString("hex");
+  return crypto.randomBytes(32).toString('hex');
 }
 
 /**
@@ -88,7 +78,7 @@ export function createWebhook(params: {
   try {
     // Check if webhook with same name already exists for this session
     const existing = db
-      .prepare("SELECT id FROM webhooks WHERE name = ? AND session_id = ?")
+      .prepare('SELECT id FROM webhooks WHERE name = ? AND session_id = ?')
       .get(params.name, params.sessionId) as { id: number } | undefined;
 
     if (existing) {
@@ -98,9 +88,7 @@ export function createWebhook(params: {
     const secret = params.generateSecret !== false ? generateSecret() : null;
 
     const result = db
-      .prepare(
-        "INSERT INTO webhooks (name, session_id, secret, created_by) VALUES (?, ?, ?, ?)"
-      )
+      .prepare('INSERT INTO webhooks (name, session_id, secret, created_by) VALUES (?, ?, ?, ?)')
       .run(params.name, params.sessionId, secret, params.createdBy || null);
 
     const webhookId = result.lastInsertRowid as number;
@@ -124,10 +112,10 @@ export function listWebhooks(sessionId: string, allSessions: boolean = false): W
     let params: any[];
 
     if (allSessions) {
-      query = "SELECT * FROM webhooks ORDER BY created_at DESC";
+      query = 'SELECT * FROM webhooks ORDER BY created_at DESC';
       params = [];
     } else {
-      query = "SELECT * FROM webhooks WHERE session_id = ? ORDER BY created_at DESC";
+      query = 'SELECT * FROM webhooks WHERE session_id = ? ORDER BY created_at DESC';
       params = [sessionId];
     }
 
@@ -152,9 +140,7 @@ export function listWebhooks(sessionId: string, allSessions: boolean = false): W
  */
 export function getWebhook(webhookId: number): Webhook | null {
   try {
-    const row = db
-      .prepare("SELECT * FROM webhooks WHERE id = ?")
-      .get(webhookId) as any;
+    const row = db.prepare('SELECT * FROM webhooks WHERE id = ?').get(webhookId) as any;
 
     if (!row) {
       return null;
@@ -180,7 +166,7 @@ export function getWebhook(webhookId: number): Webhook | null {
 export function getWebhookByName(name: string, sessionId: string): Webhook | null {
   try {
     const row = db
-      .prepare("SELECT * FROM webhooks WHERE name = ? AND session_id = ?")
+      .prepare('SELECT * FROM webhooks WHERE name = ? AND session_id = ?')
       .get(name, sessionId) as any;
 
     if (!row) {
@@ -196,7 +182,9 @@ export function getWebhookByName(name: string, sessionId: string): Webhook | nul
       createdBy: row.created_by,
     };
   } catch (error) {
-    log.error(`Error getting webhook by name - name: ${name}, sessionId: ${sessionId}, error: ${error}`);
+    log.error(
+      `Error getting webhook by name - name: ${name}, sessionId: ${sessionId}, error: ${error}`,
+    );
     return null;
   }
 }
@@ -211,7 +199,7 @@ export function deleteWebhook(webhookId: number): boolean {
       throw new Error(`Webhook with ID ${webhookId} not found`);
     }
 
-    const result = db.prepare("DELETE FROM webhooks WHERE id = ?").run(webhookId);
+    const result = db.prepare('DELETE FROM webhooks WHERE id = ?').run(webhookId);
 
     if (result.changes === 0) {
       return false;
@@ -233,11 +221,11 @@ export function recordDelivery(
   payload: string,
   status: string,
   responseCode?: number,
-  error?: string
+  error?: string,
 ): number {
   const result = db
     .prepare(
-      "INSERT INTO webhook_deliveries (webhook_id, payload, status, response_code, error) VALUES (?, ?, ?, ?, ?)"
+      'INSERT INTO webhook_deliveries (webhook_id, payload, status, response_code, error) VALUES (?, ?, ?, ?, ?)',
     )
     .run(webhookId, payload, status, responseCode ?? null, error ?? null);
   return result.lastInsertRowid as number;
@@ -250,7 +238,7 @@ export function getLastFailedDelivery(webhookId: number): WebhookDelivery | null
   try {
     const row = db
       .prepare(
-        "SELECT * FROM webhook_deliveries WHERE webhook_id = ? AND status = 'failed' ORDER BY created_at DESC LIMIT 1"
+        "SELECT * FROM webhook_deliveries WHERE webhook_id = ? AND status = 'failed' ORDER BY created_at DESC LIMIT 1",
       )
       .get(webhookId) as any;
 
@@ -276,34 +264,34 @@ export function getLastFailedDelivery(webhookId: number): WebhookDelivery | null
  * Creates a new webhook endpoint for the current session
  */
 const createWebhookTool: Tool = {
-  name: "create_webhook",
+  name: 'create_webhook',
   description:
-    "Create a new webhook endpoint that can receive external HTTP POST requests. Returns a URL that external services can call to trigger actions in this session. Automatically generates a secure secret for HMAC signature verification.",
+    'Create a new webhook endpoint that can receive external HTTP POST requests. Returns a URL that external services can call to trigger actions in this session. Automatically generates a secure secret for HMAC signature verification.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       name: {
-        type: "string",
+        type: 'string',
         description:
           "Unique name for this webhook (e.g., 'github_push', 'stripe_payment'). Must be unique within the session.",
       },
       session_id: {
-        type: "string",
-        description: "Session ID to associate this webhook with (usually current session)",
+        type: 'string',
+        description: 'Session ID to associate this webhook with (usually current session)',
       },
     },
-    required: ["name", "session_id"],
+    required: ['name', 'session_id'],
   },
   execute: async (params: any): Promise<string> => {
     try {
-      if (!params.name || typeof params.name !== "string") {
+      if (!params.name || typeof params.name !== 'string') {
         return JSON.stringify({
           success: false,
           error: "Missing or invalid 'name' parameter",
         });
       }
 
-      if (!params.session_id || typeof params.session_id !== "string") {
+      if (!params.session_id || typeof params.session_id !== 'string') {
         return JSON.stringify({
           success: false,
           error: "Missing or invalid 'session_id' parameter",
@@ -333,7 +321,7 @@ const createWebhookTool: Tool = {
       log.error(`Error in create_webhook tool: ${error}`);
       return JSON.stringify({
         success: false,
-        error: error.message || "Failed to create webhook",
+        error: error.message || 'Failed to create webhook',
       });
     }
   },
@@ -344,22 +332,22 @@ const createWebhookTool: Tool = {
  * Lists all webhooks for the current session
  */
 const listWebhooksTool: Tool = {
-  name: "list_webhooks",
+  name: 'list_webhooks',
   description:
-    "List all webhook endpoints for the current session or all sessions. Shows webhook URLs and metadata.",
+    'List all webhook endpoints for the current session or all sessions. Shows webhook URLs and metadata.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       session_id: {
-        type: "string",
-        description: "Session ID to list webhooks for (usually current session)",
+        type: 'string',
+        description: 'Session ID to list webhooks for (usually current session)',
       },
       all_sessions: {
-        type: "boolean",
-        description: "If true, list webhooks from all sessions (default: false)",
+        type: 'boolean',
+        description: 'If true, list webhooks from all sessions (default: false)',
       },
     },
-    required: ["session_id"],
+    required: ['session_id'],
   },
   execute: async (params: any): Promise<string> => {
     try {
@@ -390,7 +378,7 @@ const listWebhooksTool: Tool = {
       log.error(`Error in list_webhooks tool: ${error}`);
       return JSON.stringify({
         success: false,
-        error: error.message || "Failed to list webhooks",
+        error: error.message || 'Failed to list webhooks',
       });
     }
   },
@@ -401,22 +389,22 @@ const listWebhooksTool: Tool = {
  * Deletes a webhook by ID
  */
 const deleteWebhookTool: Tool = {
-  name: "delete_webhook",
+  name: 'delete_webhook',
   description:
-    "Permanently delete a webhook endpoint by its ID. The webhook URL will no longer accept requests.",
+    'Permanently delete a webhook endpoint by its ID. The webhook URL will no longer accept requests.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       webhook_id: {
-        type: "number",
-        description: "The ID of the webhook to delete",
+        type: 'number',
+        description: 'The ID of the webhook to delete',
       },
     },
-    required: ["webhook_id"],
+    required: ['webhook_id'],
   },
   execute: async (params: any): Promise<string> => {
     try {
-      if (!params.webhook_id || typeof params.webhook_id !== "number") {
+      if (!params.webhook_id || typeof params.webhook_id !== 'number') {
         return JSON.stringify({
           success: false,
           error: "Missing or invalid 'webhook_id' parameter",
@@ -441,7 +429,7 @@ const deleteWebhookTool: Tool = {
       log.error(`Error in delete_webhook tool: ${error}`);
       return JSON.stringify({
         success: false,
-        error: error.message || "Failed to delete webhook",
+        error: error.message || 'Failed to delete webhook',
       });
     }
   },
@@ -452,22 +440,22 @@ const deleteWebhookTool: Tool = {
  * Replays the last failed delivery for a webhook
  */
 const replayWebhookTool: Tool = {
-  name: "replay_webhook",
+  name: 'replay_webhook',
   description:
-    "Replay the last failed delivery for a webhook. Re-sends the failed payload to the webhook URL and records the new delivery attempt.",
+    'Replay the last failed delivery for a webhook. Re-sends the failed payload to the webhook URL and records the new delivery attempt.',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       webhook_id: {
-        type: "number",
-        description: "The ID of the webhook to replay",
+        type: 'number',
+        description: 'The ID of the webhook to replay',
       },
     },
-    required: ["webhook_id"],
+    required: ['webhook_id'],
   },
   execute: async (params: any): Promise<string> => {
     try {
-      if (!params.webhook_id || typeof params.webhook_id !== "number") {
+      if (!params.webhook_id || typeof params.webhook_id !== 'number') {
         return JSON.stringify({
           success: false,
           error: "Missing or invalid 'webhook_id' parameter",
@@ -493,12 +481,12 @@ const replayWebhookTool: Tool = {
       const url = getWebhookUrl(webhook.sessionId, webhook.name);
 
       const headers: Record<string, string> = {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       };
 
       if (webhook.secret) {
         const signature = generateSignature(delivery.payload, webhook.secret);
-        headers["X-Webhook-Signature"] = signature;
+        headers['X-Webhook-Signature'] = signature;
       }
 
       let responseCode: number | undefined;
@@ -507,18 +495,18 @@ const replayWebhookTool: Tool = {
 
       try {
         const response = await fetch(url, {
-          method: "POST",
+          method: 'POST',
           headers,
           body: delivery.payload,
         });
         responseCode = response.status;
-        status = response.ok ? "success" : "failed";
+        status = response.ok ? 'success' : 'failed';
         if (!response.ok) {
           errorMsg = `HTTP ${response.status}: ${response.statusText}`;
         }
       } catch (err: any) {
-        status = "failed";
-        errorMsg = err.message || "Network error";
+        status = 'failed';
+        errorMsg = err.message || 'Network error';
       }
 
       const newDeliveryId = recordDelivery(
@@ -526,11 +514,11 @@ const replayWebhookTool: Tool = {
         delivery.payload,
         status,
         responseCode,
-        errorMsg
+        errorMsg,
       );
 
       return JSON.stringify({
-        success: status === "success",
+        success: status === 'success',
         delivery_id: newDeliveryId,
         status,
         response_code: responseCode,
@@ -540,7 +528,7 @@ const replayWebhookTool: Tool = {
       log.error(`Error in replay_webhook tool: ${error}`);
       return JSON.stringify({
         success: false,
-        error: error.message || "Failed to replay webhook",
+        error: error.message || 'Failed to replay webhook',
       });
     }
   },

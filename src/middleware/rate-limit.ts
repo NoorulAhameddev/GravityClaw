@@ -1,9 +1,9 @@
 /**
  * Rate Limiting Middleware with Token Bucket Algorithm
- * 
+ *
  * Implements per-session and per-tool rate limiting using the Token Bucket algorithm.
  * Supports both in-memory and SQLite persistence for distributed systems.
- * 
+ *
  * Features:
  * - Token bucket algorithm for smooth rate limiting
  * - Per-session and per-tool limits
@@ -13,11 +13,11 @@
  * - Dashboard integration
  */
 
-import { db } from "../db.ts";
-import { createLogger } from "../logger.ts";
-import { config } from "../config.ts";
+import { db } from '../db.ts';
+import { createLogger } from '../logger.ts';
+import { config } from '../config.ts';
 
-const log = createLogger("rate-limit");
+const log = createLogger('rate-limit');
 
 /**
  * Rate limit configuration per category
@@ -71,41 +71,41 @@ export interface RateLimitHistoryEntry {
  */
 const DEFAULT_CONFIGS: Record<string, RateLimitConfig> = {
   // Session-wide limit
-  "session": {
+  session: {
     requestsPerMinute: 100,
     burstSize: 100,
     refillInterval: 60000, // 60 seconds
   },
   // Tool categories
-  "voice": {
+  voice: {
     requestsPerMinute: 50,
     burstSize: 5,
     refillInterval: 60000,
   },
-  "memory": {
+  memory: {
     requestsPerMinute: 200,
     burstSize: 20,
     refillInterval: 60000,
   },
-  "system": {
+  system: {
     requestsPerMinute: 500,
     burstSize: 50,
     refillInterval: 60000,
   },
   // Per-tool limit
-  "tool": {
+  tool: {
     requestsPerMinute: 30,
     burstSize: 3,
     refillInterval: 60000,
   },
   // LLM API limit
-  "llm": {
+  llm: {
     requestsPerMinute: 60,
     burstSize: 20,
     refillInterval: 60000,
   },
   // HTTP endpoint limit
-  "http": {
+  http: {
     requestsPerMinute: 120,
     burstSize: 30,
     refillInterval: 60000,
@@ -117,35 +117,39 @@ const DEFAULT_CONFIGS: Record<string, RateLimitConfig> = {
  */
 const TOOL_CATEGORIES: Record<string, string> = {
   // Voice tools
-  "text_to_speech": "voice",
-  "speak": "voice",
-  "set_voice": "voice",
-  "enable_talk_mode": "voice",
-  "disable_talk_mode": "voice",
-  "wake_word": "voice",
-  
+  text_to_speech: 'voice',
+  speak: 'voice',
+  set_voice: 'voice',
+  enable_talk_mode: 'voice',
+  disable_talk_mode: 'voice',
+  wake_word: 'voice',
+
   // Memory tools
-  "save_fact": "memory",
-  "recall_facts": "memory",
-  "save_entity": "memory",
-  "save_relationship": "memory",
-  "query_graph": "memory",
-  "search_memory_semantic": "memory",
-  "search_facts": "memory",
-  "search_entities": "memory",
-  "search_relationships": "memory",
-  
+  save_fact: 'memory',
+  recall_facts: 'memory',
+  save_entity: 'memory',
+  save_relationship: 'memory',
+  query_graph: 'memory',
+  search_memory_semantic: 'memory',
+  search_facts: 'memory',
+  search_entities: 'memory',
+  search_relationships: 'memory',
+
   // System tools
-  "run_shell": "system",
-  "datetime": "system",
-  "search_attachments": "system",
-  "read_file": "system",
-  "write_file": "system",
-  "list_files": "system",
-  "delete_file": "system",
-  
+  run_shell: 'system',
+  datetime: 'system',
+  search_attachments: 'system',
+  read_file: 'system',
+  write_file: 'system',
+  list_files: 'system',
+  delete_file: 'system',
+
   // LLM API
-  "llm_api_call": "llm",
+  llm_api_call: 'llm',
+
+  // HTTP requests
+  http: 'http',
+  http_request: 'http',
 };
 
 /**
@@ -158,7 +162,7 @@ export class RateLimiter {
   private customLimitsMap: Map<string, number> = new Map();
   private maxHistorySize: number = 10000;
   private cleanupIntervalMs: number = 5 * 60 * 1000; // 5 minutes
-  private isEnvironmentDev: boolean = (process.env.NODE_ENV || "development") === "development";
+  private isEnvironmentDev: boolean = (process.env.NODE_ENV || 'development') === 'development';
 
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -186,14 +190,15 @@ export class RateLimiter {
    * Get rate limit configuration for a key
    */
   private getConfig(key: string): RateLimitConfig {
-    return DEFAULT_CONFIGS[key] || DEFAULT_CONFIGS["tool"]!;
+    return DEFAULT_CONFIGS[key] || DEFAULT_CONFIGS['tool']!;
   }
 
   /**
    * Get tool category for rate limiting
    */
   private getToolCategory(toolName: string): string {
-    return TOOL_CATEGORIES[toolName] || "tool";
+    if (toolName.startsWith('http:') || toolName.startsWith('webhook:')) return 'http';
+    return TOOL_CATEGORIES[toolName] || 'tool';
   }
 
   /**
@@ -201,13 +206,16 @@ export class RateLimiter {
    */
   private getBucket(identifier: string): TokenBucket {
     let bucket = this.buckets.get(identifier);
-    
+
     if (!bucket) {
       // Extract config category from compound keys like 'session:xyz', 'tool:xyz:voice'
-      const configKey = identifier.startsWith("session:") ? "session"
-        : identifier.startsWith("tool:") ? identifier.split(":").slice(2).join(":") || "tool"
-        : identifier.startsWith("http:") || identifier.startsWith("webhook:") ? "http"
-        : identifier;
+      const configKey = identifier.startsWith('session:')
+        ? 'session'
+        : identifier.startsWith('tool:')
+          ? identifier.split(':').pop() || 'tool'
+          : identifier.startsWith('http:') || identifier.startsWith('webhook:')
+            ? 'http'
+            : identifier;
       bucket = {
         tokens: this.getConfig(configKey).burstSize,
         lastRefillTime: Date.now(),
@@ -230,11 +238,8 @@ export class RateLimiter {
 
     if (refills > 0) {
       const tokensPerRefill = config.requestsPerMinute / (60000 / config.refillInterval);
-      const newTokens = Math.min(
-        config.burstSize,
-        bucket.tokens + refills * tokensPerRefill
-      );
-      
+      const newTokens = Math.min(config.burstSize, bucket.tokens + refills * tokensPerRefill);
+
       bucket.tokens = newTokens;
       bucket.lastRefillTime = now - (elapsed % config.refillInterval);
       bucket.requestCount = 0;
@@ -255,7 +260,7 @@ export class RateLimiter {
   checkRateLimit(
     sessionId: string,
     toolName: string,
-    options?: { customLimitRpm?: number }
+    options?: { customLimitRpm?: number },
   ): RateLimitStatus {
     const toolCategory = this.getToolCategory(toolName);
     const now = Date.now();
@@ -263,8 +268,8 @@ export class RateLimiter {
     // Check session-level limit
     const sessionKey = `session:${sessionId}`;
     const sessionBucket = this.getBucket(sessionKey);
-    const sessionConfig = this.getConfig("session");
-    
+    const sessionConfig = this.getConfig('session');
+
     // Check if custom limit is set (from session settings)
     const effectiveSessionLimit = options?.customLimitRpm || sessionConfig.requestsPerMinute;
     const effectiveSessionConfig: RateLimitConfig = {
@@ -285,19 +290,18 @@ export class RateLimiter {
     // Only apply specific-tool limit for uncategorized tools
     let specificToolAllowed = true;
     let specificToolBucket: TokenBucket | undefined;
-    if (toolCategory === "tool") {
+    if (toolCategory === 'tool') {
       const specificToolKey = `tool:${sessionId}:${toolName}`;
       specificToolBucket = this.getBucket(specificToolKey);
-      const specificToolConfig = this.getConfig("tool");
+      const specificToolConfig = this.getConfig('tool');
       this.refillTokens(specificToolBucket, specificToolConfig);
       specificToolAllowed = specificToolBucket.tokens >= tokensRequired;
     }
 
-
     // Determine if allowed
     const sessionAllowed = sessionBucket.tokens >= tokensRequired;
     const toolAllowed = toolBucket.tokens >= tokensRequired;
-    
+
     const allowed = sessionAllowed && toolAllowed && specificToolAllowed;
 
     // Update history
@@ -317,7 +321,7 @@ export class RateLimiter {
       sessionBucket.tokens -= tokensRequired;
       toolBucket.tokens -= tokensRequired;
       if (specificToolBucket) specificToolBucket.tokens -= tokensRequired;
-      
+
       sessionBucket.requestCount++;
       toolBucket.requestCount++;
       if (specificToolBucket) specificToolBucket.requestCount++;
@@ -326,15 +330,15 @@ export class RateLimiter {
       sessionBucket.hitCount++;
       toolBucket.hitCount++;
       if (specificToolBucket) specificToolBucket.hitCount++;
-      
+
       sessionBucket.lastHitTime = now;
       toolBucket.lastHitTime = now;
       if (specificToolBucket) specificToolBucket.lastHitTime = now;
 
       // Log if too many hits
-      if (sessionBucket.hitCount > 5 && (now - (sessionBucket.lastHitTime || 0)) < 60000) {
+      if (sessionBucket.hitCount > 5 && now - (sessionBucket.lastHitTime || 0) < 60000) {
         log.warn(
-          `⚠️ Session ${sessionId} hit rate limit ${sessionBucket.hitCount} times in 1 minute`
+          `⚠️ Session ${sessionId} hit rate limit ${sessionBucket.hitCount} times in 1 minute`,
         );
       }
     }
@@ -367,7 +371,7 @@ export class RateLimiter {
     const now = Date.now();
     const sessionKey = `session:${sessionId}`;
     const sessionBucket = this.getBucket(sessionKey);
-    const sessionConfig = this.getConfig("session");
+    const sessionConfig = this.getConfig('session');
     const customRpm = this.customLimitsMap.get(sessionId);
     const effectiveRpm = customRpm ?? sessionConfig.requestsPerMinute;
 
@@ -395,12 +399,12 @@ export class RateLimiter {
    * Users can only lower their limits, not increase them
    */
   updateCustomLimit(sessionId: string, newLimitRpm: number): boolean {
-    const defaultLimit = DEFAULT_CONFIGS["session"]!.requestsPerMinute;
-    
+    const defaultLimit = DEFAULT_CONFIGS['session']!.requestsPerMinute;
+
     if (newLimitRpm < 1 || newLimitRpm > defaultLimit) {
       log.warn(
         `Invalid custom limit for ${sessionId}: ${newLimitRpm} ` +
-        `(must be between 1 and ${defaultLimit})`
+          `(must be between 1 and ${defaultLimit})`,
       );
       return false;
     }
@@ -408,7 +412,8 @@ export class RateLimiter {
     this.customLimitsMap.set(sessionId, newLimitRpm);
 
     try {
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO rate_limits (
           session_id, identifier, tokens, last_refill_time, 
           request_count, hit_count, custom_limit_rpm, updated_at
@@ -417,7 +422,8 @@ export class RateLimiter {
         ON CONFLICT(session_id, identifier) DO UPDATE SET
           custom_limit_rpm = excluded.custom_limit_rpm,
           updated_at = excluded.updated_at
-      `).run(
+      `,
+      ).run(
         sessionId,
         `session:${sessionId}`,
         newLimitRpm,
@@ -425,13 +431,13 @@ export class RateLimiter {
         0,
         0,
         newLimitRpm,
-        Date.now()
+        Date.now(),
       );
 
       log.info(`Custom rate limit set for ${sessionId}: ${newLimitRpm} req/min`);
       return true;
     } catch (err) {
-      log.error("Failed to update custom rate limit", err);
+      log.error('Failed to update custom rate limit', err);
       return false;
     }
   }
@@ -441,14 +447,18 @@ export class RateLimiter {
    */
   getHistory(
     sessionId: string,
-    options?: { limit?: number | undefined; since?: number | undefined; toolName?: string | undefined }
+    options?: {
+      limit?: number | undefined;
+      since?: number | undefined;
+      toolName?: string | undefined;
+    },
   ): RateLimitHistoryEntry[] {
     const limit = options?.limit || 100;
     const since = options?.since || Date.now() - 3600000; // 1 hour ago by default
     const toolName = options?.toolName;
 
     return this.history
-      .filter(entry => {
+      .filter((entry) => {
         const matchesSession = entry.sessionId === sessionId;
         const matchesTime = entry.timestamp >= since;
         const matchesTool = !toolName || entry.toolName === toolName;
@@ -469,8 +479,8 @@ export class RateLimiter {
     }
 
     // Optionally persist to SQLite (async, non-blocking)
-    this.persistHistoryToDb(entry).catch(err => {
-      log.debug("Failed to persist rate limit history", err);
+    this.persistHistoryToDb(entry).catch((err) => {
+      log.debug('Failed to persist rate limit history', err);
     });
   }
 
@@ -479,22 +489,24 @@ export class RateLimiter {
    */
   private async persistHistoryToDb(entry: RateLimitHistoryEntry): Promise<void> {
     try {
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO rate_limit_history (
           timestamp, session_id, tool_name, allowed, tokens_available, created_at
         )
         VALUES (?, ?, ?, ?, ?, ?)
-      `).run(
+      `,
+      ).run(
         entry.timestamp,
         entry.sessionId,
         entry.toolName,
         entry.allowed ? 1 : 0,
         entry.tokensAvailable,
-        Date.now()
+        Date.now(),
       );
     } catch (err) {
       // Silently fail for history persistence
-      log.debug("Failed to save rate limit history to DB", { error: err });
+      log.debug('Failed to save rate limit history to DB', { error: err });
     }
   }
 
@@ -520,15 +532,19 @@ export class RateLimiter {
 
     // Clean old history from database (should not be called often)
     try {
-      const result = db.prepare(`
+      const result = db
+        .prepare(
+          `
         DELETE FROM rate_limit_history WHERE created_at < ?
-      `).run(oneHourAgo);
-      
+      `,
+        )
+        .run(oneHourAgo);
+
       if ((result.changes || 0) > 0) {
         log.debug(`Cleaned ${result.changes} old rate limit history entries`);
       }
     } catch (err) {
-      log.debug("Failed to cleanup rate limit history from DB", { error: err });
+      log.debug('Failed to cleanup rate limit history from DB', { error: err });
     }
   }
 
@@ -546,13 +562,13 @@ export class RateLimiter {
       this.customLimitsMap.delete(sessionId);
 
       // Clear database entries
-      db.prepare("DELETE FROM rate_limits WHERE session_id = ?").run(sessionId);
-      db.prepare("DELETE FROM rate_limit_history WHERE session_id = ?").run(sessionId);
+      db.prepare('DELETE FROM rate_limits WHERE session_id = ?').run(sessionId);
+      db.prepare('DELETE FROM rate_limit_history WHERE session_id = ?').run(sessionId);
 
       log.info(`Rate limits reset for session ${sessionId}`);
       return true;
     } catch (err) {
-      log.error("Failed to reset rate limits", err);
+      log.error('Failed to reset rate limits', err);
       return false;
     }
   }
@@ -606,7 +622,7 @@ export function rateLimitMiddleware(sessionIdOrOptions?: string | RateLimitMiddl
   let sessionId: string | undefined;
   let options: RateLimitMiddlewareOptions = {};
 
-  if (typeof sessionIdOrOptions === "string") {
+  if (typeof sessionIdOrOptions === 'string') {
     sessionId = sessionIdOrOptions;
   } else if (sessionIdOrOptions) {
     options = sessionIdOrOptions;
@@ -614,20 +630,25 @@ export function rateLimitMiddleware(sessionIdOrOptions?: string | RateLimitMiddl
 
   return (req: any, res: any, next: any) => {
     const identifier = options.prefix
-      ? `${options.prefix}:${req.ip || "unknown"}`
-      : sessionId || req.query.sessionId || req.body?.sessionId || req.ip || "anonymous";
+      ? `${options.prefix}:${req.ip || 'unknown'}`
+      : sessionId || req.query.sessionId || req.body?.sessionId || req.ip || 'anonymous';
 
-    const category = options.prefix ? `http:${options.prefix}` : "http_request";
-    const status = rateLimiter.checkRateLimit(identifier, category);
+    const category = options.prefix ? `http:${options.prefix}` : 'http_request';
+    const status =
+      options.maxRequests !== undefined
+        ? rateLimiter.checkRateLimit(identifier, category, {
+            customLimitRpm: options.maxRequests as number,
+          })
+        : rateLimiter.checkRateLimit(identifier, category);
 
-    res.set("X-RateLimit-Limit", String(status.limit.requestsPerMinute));
-    res.set("X-RateLimit-Remaining", String(Math.floor(status.tokensAvailable)));
-    res.set("X-RateLimit-Reset", String(Math.floor(status.resetTime / 1000)));
+    res.set('X-RateLimit-Limit', String(status.limit.requestsPerMinute));
+    res.set('X-RateLimit-Remaining', String(Math.floor(status.tokensAvailable)));
+    res.set('X-RateLimit-Reset', String(Math.floor(status.resetTime / 1000)));
 
     if (!status.allowed) {
-      res.set("Retry-After", String(status.retryAfter));
+      res.set('Retry-After', String(status.retryAfter));
       return res.status(429).json({
-        error: "Rate limit exceeded",
+        error: 'Rate limit exceeded',
         retryAfter: status.retryAfter,
         resetTime: status.resetTime,
         message: `Too many requests. Try again in ${status.retryAfter} seconds.`,
@@ -648,7 +669,7 @@ export function createRateLimitErrorResponse(status: RateLimitStatus): {
   message: string;
 } {
   return {
-    error: "Rate limit exceeded",
+    error: 'Rate limit exceeded',
     retryAfter: status.retryAfter,
     resetTime: status.resetTime,
     message: `Too many requests. Try again in ${status.retryAfter} seconds.`,

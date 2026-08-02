@@ -20,16 +20,21 @@ const voiceSettingsStore = new Map<
  * Get voice settings for a session
  */
 export function getVoiceSettings(sessionId: string) {
-  return voiceSettingsStore.get(sessionId) || {
-    mode: 'off' as const,
-    ttsProvider: 'openai' as const,
-  };
+  return (
+    voiceSettingsStore.get(sessionId) || {
+      mode: 'off' as const,
+      ttsProvider: 'openai' as const,
+    }
+  );
 }
 
 /**
  * Set voice settings for a session
  */
-export function setVoiceSettings(sessionId: string, settings: Partial<ReturnType<typeof getVoiceSettings>>) {
+export function setVoiceSettings(
+  sessionId: string,
+  settings: Partial<ReturnType<typeof getVoiceSettings>>,
+) {
   const current = getVoiceSettings(sessionId);
   const updated = { ...current, ...settings };
   voiceSettingsStore.set(sessionId, updated);
@@ -95,7 +100,8 @@ export const setVoiceModeTool: Tool = {
  */
 export const setTTSProviderTool: Tool = {
   name: 'set_tts_provider',
-  description: 'Set text-to-speech provider for voice responses. Choose between OpenAI and ElevenLabs.',
+  description:
+    'Set text-to-speech provider for voice responses. Choose between OpenAI and ElevenLabs.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -137,7 +143,9 @@ export const setTTSProviderTool: Tool = {
 
       const updated = setVoiceSettings(__sessionId, updateObj);
 
-      logger.info(`[${__sessionId}] TTS provider set to: ${provider}${voiceId ? ` (voice: ${voiceId})` : ''}`);
+      logger.info(
+        `[${__sessionId}] TTS provider set to: ${provider}${voiceId ? ` (voice: ${voiceId})` : ''}`,
+      );
 
       return JSON.stringify({
         success: true,

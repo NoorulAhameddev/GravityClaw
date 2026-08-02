@@ -3,6 +3,7 @@
 This guide covers deploying Gravity Claw across different environments: local development, VPS (Ubuntu/Debian), and Docker-based production setups.
 
 **Table of Contents:**
+
 1. [Local Development Setup](#1-local-development-setup)
 2. [VPS Deployment (Ubuntu/Debian)](#2-vps-deployment-ubuntudebian)
 3. [Docker Deployment](#3-docker-deployment)
@@ -81,15 +82,15 @@ npm run cli -- doctor
 
 ### Development Commands
 
-| Command | Purpose |
-|---------|---------|
-| `npm run dev` | Start with hot reload (tsx watch) — auto-restarts on file changes |
-| `npm start` | Start production server (one-time execution) |
-| `npm run cli -- chat` | Interactive REPL for testing agent |
-| `npm run cli -- doctor` | Run diagnostics and health checks |
-| `npm run test` | Run tests in watch mode |
-| `npm run test:run` | Run all tests once |
-| `npm run typecheck` | TypeScript validation without emitting |
+| Command                 | Purpose                                                           |
+| ----------------------- | ----------------------------------------------------------------- |
+| `npm run dev`           | Start with hot reload (tsx watch) — auto-restarts on file changes |
+| `npm start`             | Start production server (one-time execution)                      |
+| `npm run cli -- chat`   | Interactive REPL for testing agent                                |
+| `npm run cli -- doctor` | Run diagnostics and health checks                                 |
+| `npm run test`          | Run tests in watch mode                                           |
+| `npm run test:run`      | Run all tests once                                                |
+| `npm run typecheck`     | TypeScript validation without emitting                            |
 
 ### Hot Reload Workflow
 
@@ -107,6 +108,7 @@ npm run cli -- chat
 ```
 
 **Tips:**
+
 - Keep logs window open to see real-time debug output
 - Set `LOG_LEVEL=debug` in `.env` for verbose output
 - Use `npm run test` to run tests alongside development
@@ -119,11 +121,13 @@ npm run cli -- chat
 ### System Requirements
 
 **Minimum:**
+
 - 2GB RAM (1GB for Node + 1GB buffer for peak loads)
 - 30GB storage (SQLite DB, logs, memory files)
 - 1 vCPU (adequate for single agent instance)
 
 **Recommended:**
+
 - 4GB+ RAM
 - 50GB+ SSD storage
 - 2+ vCPUs for higher throughput
@@ -206,6 +210,7 @@ nano /opt/gravyclaw/.env
 ```
 
 **Minimum .env for VPS:**
+
 ```bash
 # Telegram
 TELEGRAM_BOT_TOKEN=your_token_here
@@ -342,21 +347,21 @@ services:
     container_name: gravyclaw
     restart: always
     volumes:
-      - ./.env:/app/.env          # Environment variables
-      - ./gravity.db:/app/gravity.db      # Database (persisted)
-      - ./secrets.enc.json:/app/secrets.enc.json  # Encrypted secrets
-      - ./memory-files:/app/memory-files  # Memory cache
-      - ./logs:/app/logs          # Application logs
-      - ./baileys_auth_info:/app/baileys_auth_info  # WhatsApp session
+      - ./.env:/app/.env # Environment variables
+      - ./gravity.db:/app/gravity.db # Database (persisted)
+      - ./secrets.enc.json:/app/secrets.enc.json # Encrypted secrets
+      - ./memory-files:/app/memory-files # Memory cache
+      - ./logs:/app/logs # Application logs
+      - ./baileys_auth_info:/app/baileys_auth_info # WhatsApp session
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - NODE_ENV=production
     logging:
-      driver: "json-file"
+      driver: 'json-file'
       options:
-        max-size: "10m"         # Rotate logs at 10MB
-        max-file: "3"           # Keep 3 rotated files (30MB total)
+        max-size: '10m' # Rotate logs at 10MB
+        max-file: '3' # Keep 3 rotated files (30MB total)
 ```
 
 ### Deploy with Docker Compose
@@ -387,13 +392,13 @@ docker-compose down -v
 
 ### Volume Mapping Details
 
-| Host Path | Container Path | Purpose |
-|-----------|----------------|---------|
-| `./.env` | `/app/.env` | Environment configuration |
-| `./gravity.db` | `/app/gravity.db` | SQLite database (persistent) |
-| `./secrets.enc.json` | `/app/secrets.enc.json` | Encrypted API keys |
-| `./memory-files` | `/app/memory-files` | Knowledge graph & fact files |
-| `./logs` | `/app/logs` | Application logs |
+| Host Path             | Container Path           | Purpose                      |
+| --------------------- | ------------------------ | ---------------------------- |
+| `./.env`              | `/app/.env`              | Environment configuration    |
+| `./gravity.db`        | `/app/gravity.db`        | SQLite database (persistent) |
+| `./secrets.enc.json`  | `/app/secrets.enc.json`  | Encrypted API keys           |
+| `./memory-files`      | `/app/memory-files`      | Knowledge graph & fact files |
+| `./logs`              | `/app/logs`              | Application logs             |
 | `./baileys_auth_info` | `/app/baileys_auth_info` | WhatsApp socket session data |
 
 ### Environment Variable Handling
@@ -596,6 +601,7 @@ RECOMMENDATIONS_DAILY_CRON=0 9 * * *
 **🔒 Important Security Practices:**
 
 1. **Never commit `.env` to git** — Use `.env.example` as template instead:
+
    ```bash
    echo ".env" >> .gitignore
    cp .env.example .env
@@ -603,6 +609,7 @@ RECOMMENDATIONS_DAILY_CRON=0 9 * * *
    ```
 
 2. **Protect MASTER_KEY** — Generate a strong key:
+
    ```bash
    node scripts/encrypt-secret.ts --generate-key
    # Copy output and set MASTER_KEY=xxx in .env
@@ -613,20 +620,23 @@ RECOMMENDATIONS_DAILY_CRON=0 9 * * *
    - Telegram bot tokens (via @BotFather)
 
 4. **Use Separate Keys for Environments:**
+
    ```bash
    # .env.production
    OPENAI_API_KEY=prod-key-xxx
-   
+
    # .env.staging
    OPENAI_API_KEY=staging-key-xxx
    ```
 
 5. **Limit Telegram User IDs** — Only authorized users
+
    ```bash
    TELEGRAM_ALLOWED_USER_ID=123456789  # Your user ID only
    ```
 
 6. **Path Allowlist for File Operations:**
+
    ```bash
    PATH_ALLOWLIST=/home/user/documents,/tmp/uploads
    # Empty = no file operations allowed
@@ -744,12 +754,12 @@ const app = express();
 const port = 443;
 
 const options = {
-    key: fs.readFileSync('/etc/letsencrypt/live/yourdomain.com/privkey.pem'),
-    cert: fs.readFileSync('/etc/letsencrypt/live/yourdomain.com/fullchain.pem')
+  key: fs.readFileSync('/etc/letsencrypt/live/yourdomain.com/privkey.pem'),
+  cert: fs.readFileSync('/etc/letsencrypt/live/yourdomain.com/fullchain.pem'),
 };
 
 https.createServer(options, app).listen(port, () => {
-    console.log(`HTTPS server running on port ${port}`);
+  console.log(`HTTPS server running on port ${port}`);
 });
 ```
 
@@ -780,11 +790,11 @@ server {
     listen 80;
     listen [::]:80;
     server_name yourdomain.com api.yourdomain.com;
-    
+
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
-    
+
     location / {
         return 301 https://$server_name$request_uri;
     }
@@ -913,13 +923,13 @@ yourdomain.com api.yourdomain.com {
         path /ws
         header Connection Upgrade
     }
-    
+
     reverse_proxy @websocket localhost:3000 {
         header_uri -X-Forwarded-For
         header_up X-Forwarded-For {http.request.remote.host}
         header_up X-Forwarded-Proto {http.request.proto}
         header_up Host {http.request.host}
-        
+
         # Keep websocket connections alive
         websocket
     }
@@ -1017,69 +1027,70 @@ Create file at project root:
 module.exports = {
   apps: [
     {
-      name: "gravyclaw",
-      script: "./src/index.ts",
-      interpreter: "tsx",
+      name: 'gravyclaw',
+      script: './src/index.ts',
+      interpreter: 'tsx',
       instances: 1,
-      exec_mode: "cluster",        // Can be "fork" for single process
-      
+      exec_mode: 'cluster', // Can be "fork" for single process
+
       // Environment
       env: {
-        NODE_ENV: "production",
-        LOG_LEVEL: "info",
-        PORT: 3000
+        NODE_ENV: 'production',
+        LOG_LEVEL: 'info',
+        PORT: 3000,
       },
       env_staging: {
-        NODE_ENV: "staging",
-        LOG_LEVEL: "debug",
-        PORT: 3001
+        NODE_ENV: 'staging',
+        LOG_LEVEL: 'debug',
+        PORT: 3001,
       },
       env_development: {
-        NODE_ENV: "development",
-        LOG_LEVEL: "debug",
-        PORT: 3000
+        NODE_ENV: 'development',
+        LOG_LEVEL: 'debug',
+        PORT: 3000,
       },
-      
+
       // Restart policies
-      restart_delay: 4000,          // Delay between restarts (ms)
-      max_restarts: 10,             // Max restarts in cron window
-      min_uptime: "10s",            // Min uptime before prev crash considered
-      
+      restart_delay: 4000, // Delay between restarts (ms)
+      max_restarts: 10, // Max restarts in cron window
+      min_uptime: '10s', // Min uptime before prev crash considered
+
       // Logs
-      error_file: "./logs/pm2-error.log",
-      out_file: "./logs/pm2-out.log",
-      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
-      
+      error_file: './logs/pm2-error.log',
+      out_file: './logs/pm2-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+
       // Watch mode (optional, for development)
-      watch: ["src"],               // Auto-restart on file changes
-      ignore_watch: ["logs", "node_modules", ".git"],
+      watch: ['src'], // Auto-restart on file changes
+      ignore_watch: ['logs', 'node_modules', '.git'],
       watch_delay: 2000,
-      
+
       // Memory limit (auto-restart if exceeded)
-      max_memory_restart: "500M",
-      
+      max_memory_restart: '500M',
+
       // Shutdown
-      kill_timeout: 5000,           // Time to wait before force kill
-      listen_timeout: 3000,         // Time for app to listen on port
-      
+      kill_timeout: 5000, // Time to wait before force kill
+      listen_timeout: 3000, // Time for app to listen on port
+
       // Other
       merge_logs: true,
       autorestart: true,
       exp_backoff_restart_delay: 100,
-    }
+    },
   ],
 
   // Deploy configuration (optional)
   deploy: {
     production: {
-      user: "gravyclaw",
-      host: "yourdomain.com",
-      ref: "origin/main",
-      repo: "https://github.com/noorulahamed/gravityclaw.git",
-      path: "/opt/gravyclaw",
-      "post-deploy": "npm install && npm run typecheck && pm2 reload ecosystem.config.js --env production"
-    }
-  }
+      user: 'gravyclaw',
+      host: 'yourdomain.com',
+      ref: 'origin/main',
+      repo: 'https://github.com/noorulahamed/gravityclaw.git',
+      path: '/opt/gravyclaw',
+      'post-deploy':
+        'npm install && npm run typecheck && pm2 reload ecosystem.config.js --env production',
+    },
+  },
 };
 ```
 
@@ -1231,6 +1242,7 @@ gravity.db-shm  # Shared memory file
 ```
 
 **Why WAL?**
+
 - Better concurrency (readers don't block writers)
 - Faster transactions
 - Crash recovery
@@ -1448,22 +1460,22 @@ import { db } from './db.ts';
 const app = express();
 
 app.get('/health', (req, res) => {
-    try {
-        // Check database
-        const result = db.prepare('SELECT 1').get();
-        
-        return res.json({
-            status: 'ok',
-            timestamp: new Date().toISOString(),
-            uptime: process.uptime(),
-            memory: process.memoryUsage()
-        });
-    } catch (err) {
-        return res.status(503).json({
-            status: 'error',
-            error: err instanceof Error ? err.message : 'Unknown error'
-        });
-    }
+  try {
+    // Check database
+    const result = db.prepare('SELECT 1').get();
+
+    return res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+    });
+  } catch (err) {
+    return res.status(503).json({
+      status: 'error',
+      error: err instanceof Error ? err.message : 'Unknown error',
+    });
+  }
 });
 ```
 
@@ -1483,6 +1495,7 @@ check_http -H localhost -u /health -e 200
 ### Monitoring Best Practices
 
 1. **Resource Monitoring:**
+
    ```bash
    # Monitor CPU/Memory continuously
    while true; do
@@ -1494,19 +1507,21 @@ check_http -H localhost -u /health -e 200
    ```
 
 2. **Log Analysis:**
+
    ```bash
    # Count messages per prefix
    awk -F']' '{print $2}' logs/app.log | sort | uniq -c | sort -rn
-   
+
    # Errors per hour
    grep ERROR logs/app.log | awk -F'T' '{print $2}' | cut -d: -f1 | sort | uniq -c
    ```
 
 3. **Alerting Setup** (example with PM2):
+
    ```bash
    # PM2 auto-restart on memory limit
    pm2 start app --max-memory-restart 500M
-   
+
    # Website monitoring (external)
    # Use: https://uptimerobot.com or similar
    ```
@@ -1672,6 +1687,7 @@ b2 sync --threads 4 /opt/backups/gravyclaw b2://my-bucket/gravyclaw/
 ### Single Instance Limitations
 
 A single instance supports:
+
 - **~100-1000** concurrent user conversations (depending on LLM API rate limits)
 - **~10-100** tool executions per second (depends on tool complexity)
 - **~1GB** SQLite database (practical limit before performance degrades)
@@ -1702,20 +1718,23 @@ For multi-instance setup:
 ```
 
 **Requirements:**
+
 1. Switch from SQLite to PostgreSQL
+
    ```bash
    # Would require code changes to use postgres driver
    npm install --save pg
    ```
 
 2. Load balancer (Nginx):
+
    ```nginx
    upstream gravyclaw_backend {
        server node1.internal:3000 weight=1;
        server node2.internal:3000 weight=1;
        keepalive 32;
    }
-   
+
    server {
        listen 80;
        location / {
@@ -1735,10 +1754,10 @@ Optimize for larger single instance:
 
 ```sql
 -- Create indexes for common queries
-CREATE INDEX idx_memory_session_timestamp 
+CREATE INDEX idx_memory_session_timestamp
   ON memory(session_id, timestamp DESC);
 
-CREATE INDEX idx_agent_swarms_status 
+CREATE INDEX idx_agent_swarms_status
   ON agent_swarms(status);
 
 -- Analyze for query optimization
@@ -1775,9 +1794,9 @@ dbs:
 import PgBoss from 'pg-boss';
 
 const boss = new PgBoss({
-    host: 'postgres.internal',
-    database: 'gravyclaw',
-    max: 10  // Connection pool size
+  host: 'postgres.internal',
+  database: 'gravyclaw',
+  max: 10, // Connection pool size
 });
 
 await boss.start();
@@ -1789,9 +1808,9 @@ await boss.start();
 import rateLimit from 'express-rate-limit';
 
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100,                  // Limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP'
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP',
 });
 
 app.use('/api/', limiter);
@@ -1804,15 +1823,15 @@ app.use('/api/', limiter);
 import redis from 'redis';
 
 const client = redis.createClient({
-    host: 'redis.internal',
-    port: 6379
+  host: 'redis.internal',
+  port: 6379,
 });
 
 // Cache conversation summaries
 await client.set(
-    `session:${sessionId}:summary`,
-    JSON.stringify(summary),
-    { EX: 3600 }  // 1 hour TTL
+  `session:${sessionId}:summary`,
+  JSON.stringify(summary),
+  { EX: 3600 }, // 1 hour TTL
 );
 ```
 

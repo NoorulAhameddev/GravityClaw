@@ -2,7 +2,7 @@
  * ═════════════════════════════════════════════════════════════════════════════
  * Gesture Settings UI Component
  * ═════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * Provides UI for configuring touch gestures and preferences
  * Include in dashboard settings page
  */
@@ -237,11 +237,26 @@ class GestureSettingsPanel {
     if (saveBtn) {
       saveBtn.addEventListener('click', () => {
         manager.setPreference('swipeEnabled', panel.querySelector('#swipe-enabled').checked);
-        manager.setPreference('pullToRefreshEnabled', panel.querySelector('#pull-to-refresh-enabled').checked);
-        manager.setPreference('longPressEnabled', panel.querySelector('#long-press-enabled').checked);
-        manager.setPreference('pinchZoomEnabled', panel.querySelector('#pinch-zoom-enabled').checked);
-        manager.setPreference('hapticFeedbackEnabled', panel.querySelector('#haptic-enabled').checked);
-        manager.setPreference('swipeSensitivity', parseFloat(panel.querySelector('#swipe-sensitivity').value));
+        manager.setPreference(
+          'pullToRefreshEnabled',
+          panel.querySelector('#pull-to-refresh-enabled').checked,
+        );
+        manager.setPreference(
+          'longPressEnabled',
+          panel.querySelector('#long-press-enabled').checked,
+        );
+        manager.setPreference(
+          'pinchZoomEnabled',
+          panel.querySelector('#pinch-zoom-enabled').checked,
+        );
+        manager.setPreference(
+          'hapticFeedbackEnabled',
+          panel.querySelector('#haptic-enabled').checked,
+        );
+        manager.setPreference(
+          'swipeSensitivity',
+          parseFloat(panel.querySelector('#swipe-sensitivity').value),
+        );
 
         saveBtn.textContent = '✓ Saved';
         saveBtn.style.background = 'var(--green)';

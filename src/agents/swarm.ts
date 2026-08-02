@@ -1,13 +1,13 @@
-import { db } from "../db.ts";
-import { createLogger } from "../logger.ts";
-import { getProvider } from "../llm/index.ts";
-import { addUserMessage, addAssistantMessage } from "../llm/index.ts";
-import { config } from "../config.ts";
-import type { OrchestratorDependencies } from "../llm/orchestrator.ts";
-import crypto from "crypto";
-import { createSessionDB } from "../db/session-isolation.ts";
+import { db } from '../db.ts';
+import { createLogger } from '../logger.ts';
+import { getProvider } from '../llm/index.ts';
+import { addUserMessage, addAssistantMessage } from '../llm/index.ts';
+import { config } from '../config.ts';
+import type { OrchestratorDependencies } from '../llm/orchestrator.ts';
+import crypto from 'crypto';
+import { createSessionDB } from '../db/session-isolation.ts';
 
-const log = createLogger("swarm");
+const log = createLogger('swarm');
 
 /**
  * Generate fallback response when LLM fails
@@ -15,15 +15,18 @@ const log = createLogger("swarm");
 function generateFallbackResponse(role: string, task: string): string {
   const fallbacks: Record<string, string> = {
     researcher: `Based on my analysis of "${task}":\n\nThis task requires research and investigation. Given the current context, I would recommend:\n\n1. Identifying key information sources\n2. Breaking down the problem into smaller components\n3. Analyzing available data and patterns\n\nNote: This is a fallback response as the LLM service was unavailable.`,
-    
+
     coder: `For the task "${task}":\n\nI would approach this by:\n1. Understanding the requirements\n2. Designing a solution structure\n3. Implementing the code with proper error handling\n4. Testing the implementation\n\nNote: This is a fallback response as the LLM service was unavailable.`,
-    
+
     reviewer: `Reviewing the task "${task}":\n\nKey considerations:\n- Code correctness and efficiency\n- Edge cases and error handling  \n- Security and performance\n- Best practices compliance\n\nNote: This is a fallback response as the LLM service was unavailable.`,
-    
+
     summarizer: `Summary for task "${task}":\n\nThe swarm has analyzed this task and identified key points that need attention. The multi-agent approach allows for comprehensive coverage of different aspects of this request.\n\nNote: This is a fallback response as the LLM service was unavailable.`,
   };
-  
-  return fallbacks[role] || `Task "${task}" processed. Note: This is a fallback response as the LLM service was unavailable.`;
+
+  return (
+    fallbacks[role] ||
+    `Task "${task}" processed. Note: This is a fallback response as the LLM service was unavailable.`
+  );
 }
 
 /**
@@ -38,7 +41,7 @@ export interface SwarmConfig {
   /**
    * Roles for agents: researcher, coder, reviewer, summarizer
    */
-  roles: ("researcher" | "coder" | "reviewer" | "summarizer")[];
+  roles: ('researcher' | 'coder' | 'reviewer' | 'summarizer')[];
 
   /**
    * Maximum number of concurrent agents running
@@ -91,13 +94,13 @@ export interface SwarmResult {
   sessionId: string;
   role: string;
   content: string;
-  status: "completed" | "failed" | "timeout" | "degraded";
+  status: 'completed' | 'failed' | 'timeout' | 'degraded';
 }
 
 interface SpawnResult {
   sessionId: string;
   content: string;
-  status: "completed" | "failed" | "degraded";
+  status: 'completed' | 'failed' | 'degraded';
 }
 
 // Legacy return type for backward compatibility with tests
@@ -136,45 +139,43 @@ export class AgentSwarm {
   async spawnAgent(role: string, task: string): Promise<SpawnResult> {
     this.iterationCount++;
     if (this.iterationCount > MAX_SWARM_ITERATIONS) {
-        log.warn(`Swarm iteration cap reached (${MAX_SWARM_ITERATIONS})`);
-        return {
-            sessionId: 'capped',
-            content: 'Swarm iteration limit reached to prevent runaway loops.',
-            status: 'degraded'
-        };
+      log.warn(`Swarm iteration cap reached (${MAX_SWARM_ITERATIONS})`);
+      return {
+        sessionId: 'capped',
+        content: 'Swarm iteration limit reached to prevent runaway loops.',
+        status: 'degraded',
+      };
     }
     // Mock budget of 100 for now
     return this.executeAgentWithGuardrails(role, task, 100);
   }
 
-  async executeAgentWithGuardrails(role: string, task: string, budget: number): Promise<SpawnResult> {
-    const childSessionId = `${this.parentSessionId}-${role}-${crypto.randomBytes(4).toString("hex")}`;
+  async executeAgentWithGuardrails(
+    role: string,
+    task: string,
+    budget: number,
+  ): Promise<SpawnResult> {
+    const childSessionId = `${this.parentSessionId}-${role}-${crypto.randomBytes(4).toString('hex')}`;
     const timestamp = new Date().toISOString();
-    
+
     const truncatedTask = task.length > 4000 ? task.substring(0, 4000) + '... [TRUNCATED]' : task;
-    
+
     if (budget <= 0) {
-        return { sessionId: childSessionId, content: 'Budget exhausted', status: 'degraded' };
+      return { sessionId: childSessionId, content: 'Budget exhausted', status: 'degraded' };
     }
-    
+
     // Create session-scoped DB for child
     const childDB = createSessionDB(childSessionId, this.parentSessionId);
 
     try {
-      // Use child's session-scoped DB
-      childDB.prepare(
+      // agent_swarms metadata is orchestration bookkeeping (not child memory),
+      // so write it via the base db to avoid session-isolation rejection of the parent ID
+      db.prepare(
         `INSERT INTO agent_swarms (id, parent_session_id, child_session_id, role, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      ).run(
-        crypto.randomUUID(),
-        this.parentSessionId,
-        childSessionId,
-        role,
-        "spawned",
-        timestamp
-      );
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run(crypto.randomUUID(), this.parentSessionId, childSessionId, role, 'spawned', timestamp);
 
-      const taskStr = typeof task === "string" ? task : String(task ?? "");
+      const taskStr = typeof task === 'string' ? task : String(task ?? '');
       log.info(`Spawned ${role} agent: ${childSessionId} for task: "${taskStr}"`);
 
       // Get system prompt for this role
@@ -193,61 +194,63 @@ export class AgentSwarm {
       const provider = getProvider();
 
       // Add assistant's initial response
-      const systemPromptContent: string = (ROLE_PROMPTS[role] || ROLE_PROMPTS.researcher) ?? "You are a helpful assistant.";
+      const systemPromptContent: string =
+        (ROLE_PROMPTS[role] || ROLE_PROMPTS.researcher) ?? 'You are a helpful assistant.';
       log.debug(`[${role}] Calling LLM with task: ${taskStr.substring(0, 50)}...`);
-      
+
       const response = await provider.chat(
         [
-          { role: "system" as const, content: systemPromptContent },
-          { role: "user" as const, content: truncatedTask },
+          { role: 'system' as const, content: systemPromptContent },
+          { role: 'user' as const, content: truncatedTask },
         ],
         [],
-        { maxTokens: 500 } // Output limit
+        { maxTokens: 500 }, // Output limit
       );
 
-      log.debug(`[${role}] LLM response: ${response.text?.substring(0, 100) ?? 'empty'} | stopReason: ${response.stopReason}`);
+      log.debug(
+        `[${role}] LLM response: ${response.text?.substring(0, 100) ?? 'empty'} | stopReason: ${response.stopReason}`,
+      );
 
-      let content = "";
+      let content = '';
       if (response.text && response.text.trim()) {
         content = response.text;
         addAssistantMessage(childSessionId, response.text, childOrchestratorDeps);
 
         // Update status to completed
-        childDB.prepare(`UPDATE agent_swarms SET status = ? WHERE child_session_id = ?`).run(
-          "completed",
-          childSessionId
-        );
+        childDB
+          .prepare(`UPDATE agent_swarms SET status = ? WHERE child_session_id = ?`)
+          .run('completed', childSessionId);
       } else {
-        log.warn(`No response text from LLM for agent ${role}, session: ${childSessionId}, stopReason: ${response.stopReason}`);
-        
+        log.warn(
+          `No response text from LLM for agent ${role}, session: ${childSessionId}, stopReason: ${response.stopReason}`,
+        );
+
         // Generate fallback content based on role
         const fallbackContent = `⚠️ [FALLBACK RESPONSE — LLM unavailable]\n\n${generateFallbackResponse(role, task)}`;
         content = fallbackContent;
         addAssistantMessage(childSessionId, fallbackContent, childOrchestratorDeps);
-        
-        childDB.prepare(`UPDATE agent_swarms SET status = ? WHERE child_session_id = ?`).run(
-          "degraded",
-          childSessionId
-        );
+
+        childDB
+          .prepare(`UPDATE agent_swarms SET status = ? WHERE child_session_id = ?`)
+          .run('degraded', childSessionId);
       }
 
       return {
         sessionId: childSessionId,
         content,
-        status: response.text?.trim() ? "completed" : "degraded",
+        status: response.text?.trim() ? 'completed' : 'degraded',
       };
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       const errStack = error instanceof Error ? error.stack : '';
       log.error(`Error spawning ${role} agent: ${errMsg}\nStack: ${errStack}`);
-      childDB.prepare(`UPDATE agent_swarms SET status = ? WHERE child_session_id = ?`).run(
-        "failed",
-        childSessionId
-      );
+      childDB
+        .prepare(`UPDATE agent_swarms SET status = ? WHERE child_session_id = ?`)
+        .run('failed', childSessionId);
       return {
         sessionId: childSessionId,
         content: `Error: ${errMsg}`,
-        status: "failed",
+        status: 'failed',
       };
     }
   }
@@ -260,7 +263,7 @@ export class AgentSwarm {
    */
   async orchestrate(
     mainTask: string,
-    subTasks: string[]
+    subTasks: string[],
   ): Promise<{
     mainTask: string;
     agentResults: SwarmResult[];
@@ -269,7 +272,11 @@ export class AgentSwarm {
     log.info(`Orchestrating swarm for main task: "${mainTask}" with ${subTasks.length} subtasks`);
 
     // Record the swarm orchestration task
-    addUserMessage(this.parentSessionId, `Main task: ${mainTask}\n\nSubtasks: ${subTasks.join(", ")}`, this.parentOrchestratorDeps);
+    addUserMessage(
+      this.parentSessionId,
+      `Main task: ${mainTask}\n\nSubtasks: ${subTasks.join(', ')}`,
+      this.parentOrchestratorDeps,
+    );
 
     const agentResults: SwarmResult[] = [];
     const roles = this.config.roles;
@@ -291,14 +298,14 @@ export class AgentSwarm {
 
       const promise = (async () => {
         const result = await this.spawnAgent(role, subtask);
-        
+
         agentResults.push({
           sessionId: result.sessionId,
           role,
           content: result.content,
           status: result.status,
         });
-        
+
         activeAgents--;
       })();
 
@@ -307,7 +314,7 @@ export class AgentSwarm {
 
     // Wait for all agents to complete (with timeout)
     const timeoutPromise = new Promise<void>((_, reject) => {
-      setTimeout(() => reject(new Error("Swarm orchestration timeout")), 300000); // 5 minutes
+      setTimeout(() => reject(new Error('Swarm orchestration timeout')), 300000); // 5 minutes
     });
 
     try {
@@ -318,7 +325,9 @@ export class AgentSwarm {
 
     // Log agent results for debugging
     for (const r of agentResults) {
-      log.info(`Agent result: role=${r.role}, status=${r.status}, content=${r.content?.substring(0, 100)}`);
+      log.info(
+        `Agent result: role=${r.role}, status=${r.status}, content=${r.content?.substring(0, 100)}`,
+      );
     }
 
     // Aggregate results
@@ -345,19 +354,19 @@ export class AgentSwarm {
     const agentOutputs: string[] = [];
 
     for (const result of results) {
-      if (result.status === "completed" && result.content) {
+      if (result.status === 'completed' && result.content) {
         agentOutputs.push(`Session ${result.sessionId} (${result.role}):\n${result.content}`);
       }
     }
 
     if (agentOutputs.length === 0) {
-      return "No results to aggregate from agents.";
+      return 'No results to aggregate from agents.';
     }
 
     // Use the summarizer role to aggregate the results
     const aggregationPrompt = `You are an excellent summarizer. Synthesize the following results from multiple specialist agents into a cohesive, well-organized summary:
 
-${agentOutputs.join("\n\n---\n\n")}
+${agentOutputs.join('\n\n---\n\n')}
 
 Provide a comprehensive synthesis that:
 1. Integrates insights from all agents
@@ -367,19 +376,21 @@ Provide a comprehensive synthesis that:
 
     try {
       const provider = getProvider();
-      const summarizerPrompt: string = ROLE_PROMPTS.summarizer ?? "You are a summarizer agent that aggregates results from multiple agents.";
+      const summarizerPrompt: string =
+        ROLE_PROMPTS.summarizer ??
+        'You are a summarizer agent that aggregates results from multiple agents.';
       const response = await provider.chat(
         [
           {
-            role: "system" as const,
+            role: 'system' as const,
             content: summarizerPrompt,
           },
           {
-            role: "user" as const,
+            role: 'user' as const,
             content: aggregationPrompt,
           },
         ],
-        []
+        [],
       );
 
       if (response.text) {
@@ -387,7 +398,7 @@ Provide a comprehensive synthesis that:
         return response.text;
       }
 
-      return "Could not generate aggregated result.";
+      return 'Could not generate aggregated result.';
     } catch (error) {
       log.error(`Error aggregating results: ${error}`);
       return `Error during aggregation: ${error instanceof Error ? error.message : String(error)}`;

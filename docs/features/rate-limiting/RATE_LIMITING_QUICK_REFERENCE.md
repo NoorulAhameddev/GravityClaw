@@ -11,25 +11,25 @@ Gravity Claw includes a built-in **Token Bucket Rate Limiter** that protects aga
 
 ## Key Locations
 
-| File | Purpose |
-|------|---------|
-| `src/middleware/rate-limit.ts` | Core rate limiter implementation |
-| `src/tools/system/rate-limit-tools.ts` | User-facing rate limit tools |
-| `src/agent.ts` | Agent-level integration |
-| `src/channels/webchat.ts` | WebSocket integration |
-| `src/__tests__/rate-limit.test.ts` | Test suite |
-| `docs/RATE_LIMITING.md` | Full documentation |
+| File                                   | Purpose                          |
+| -------------------------------------- | -------------------------------- |
+| `src/middleware/rate-limit.ts`         | Core rate limiter implementation |
+| `src/tools/system/rate-limit-tools.ts` | User-facing rate limit tools     |
+| `src/agent.ts`                         | Agent-level integration          |
+| `src/channels/webchat.ts`              | WebSocket integration            |
+| `src/__tests__/rate-limit.test.ts`     | Test suite                       |
+| `docs/RATE_LIMITING.md`                | Full documentation               |
 
 ## For Developers
 
 ### Check Rate Limit Before Tool Execution
 
 ```typescript
-import { rateLimiter } from "./middleware/rate-limit.ts";
+import { rateLimiter } from './middleware/rate-limit.ts';
 
 const status = rateLimiter.checkRateLimit(sessionId, toolName);
 if (!status.allowed) {
-    return { error: "Rate limit exceeded", retryAfter: status.retryAfter };
+  return { error: 'Rate limit exceeded', retryAfter: status.retryAfter };
 }
 // Execute tool here
 ```
@@ -45,8 +45,8 @@ console.log(`${status.tokensAvailable} requests available`);
 
 ```typescript
 const history = rateLimiter.getHistory(sessionId, {
-    limit: 100,
-    since: Date.now() - 3600000 // Last hour
+  limit: 100,
+  since: Date.now() - 3600000, // Last hour
 });
 ```
 
@@ -84,13 +84,13 @@ Response: List of recent limit violations with timestamps
 
 ## Default Limits
 
-| Category | Requests/Min | Burst | Cost |
-|----------|--------------|-------|------|
-| Session (global) | 100 | 10 | User quota |
-| Voice tools | 50 | 5 | TTS expensive |
-| Memory tools | 200 | 20 | Storage intensive |
-| System tools | 500 | 50 | Local operations |
-| Individual tool | 30 | 3 | Per-tool guard |
+| Category         | Requests/Min | Burst | Cost              |
+| ---------------- | ------------ | ----- | ----------------- |
+| Session (global) | 100          | 10    | User quota        |
+| Voice tools      | 50           | 5     | TTS expensive     |
+| Memory tools     | 200          | 20    | Storage intensive |
+| System tools     | 500          | 50    | Local operations  |
+| Individual tool  | 30           | 3     | Per-tool guard    |
 
 ## Development Mode
 
@@ -108,14 +108,15 @@ When limit is exceeded:
 
 ```json
 {
-    "error": "Rate limit exceeded",
-    "retryAfter": 15,
-    "resetTime": 1709552790000,
-    "message": "Too many requests. Try again in 15 seconds."
+  "error": "Rate limit exceeded",
+  "retryAfter": 15,
+  "resetTime": 1709552790000,
+  "message": "Too many requests. Try again in 15 seconds."
 }
 ```
 
 HTTP Headers:
+
 ```
 X-RateLimit-Limit: 100
 X-RateLimit-Remaining: 42

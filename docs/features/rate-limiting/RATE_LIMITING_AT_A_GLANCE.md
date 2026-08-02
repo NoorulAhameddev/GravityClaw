@@ -3,6 +3,7 @@
 ## ✅ Implementation Complete
 
 ### Core Components
+
 ```
 ✓ src/middleware/rate-limit.ts (360 lines)
   └─ RateLimiter class with Token Bucket algorithm
@@ -23,6 +24,7 @@
 ```
 
 ### Default Rate Limits
+
 ```
 Global (Session):    100 requests/min, burst 10
 Voice tools:          50 requests/min, burst 5
@@ -32,6 +34,7 @@ Per-specific tool:    30 requests/min, burst 3
 ```
 
 ### Development Mode
+
 ```
 NODE_ENV=development
 → All limits automatically 10x higher
@@ -43,6 +46,7 @@ NODE_ENV=development
 ## 📊 How It Works
 
 ### Token Bucket Flow
+
 ```
 User Session Created
    ↓
@@ -60,6 +64,7 @@ Refill Schedule
 ```
 
 ### Error Response
+
 ```
 HTTP 429 Too Many Requests
 {
@@ -81,6 +86,7 @@ Retry-After: 15
 ## 🎯 For Different Users
 
 ### End Users
+
 ```
 "How many requests do I have left?"
 → Agent uses: get_rate_limit_status()
@@ -96,13 +102,14 @@ Retry-After: 15
 ```
 
 ### Developers
+
 ```typescript
-import { rateLimiter } from "./middleware/rate-limit.ts";
+import { rateLimiter } from './middleware/rate-limit.ts';
 
 // Check before executing
 const status = rateLimiter.checkRateLimit(sessionId, toolName);
 if (!status.allowed) {
-    return { error: "Rate limit exceeded" };
+  return { error: 'Rate limit exceeded' };
 }
 
 // Get status
@@ -114,6 +121,7 @@ const history = rateLimiter.getHistory(sessionId);
 ```
 
 ### Admins/DevOps
+
 ```bash
 # Development mode
 NODE_ENV=development npm run dev
@@ -122,7 +130,7 @@ NODE_ENV=development npm run dev
 sqlite3 gravity.db "SELECT * FROM rate_limits LIMIT 5;"
 
 # Find violations
-sqlite3 gravity.db "SELECT session_id, COUNT(*) FROM rate_limit_history 
+sqlite3 gravity.db "SELECT session_id, COUNT(*) FROM rate_limit_history
 WHERE allowed=0 GROUP BY session_id HAVING COUNT(*) > 5;"
 
 # Reset a user
@@ -166,11 +174,13 @@ docs/
 ## 🚀 Quick Start (5 minutes)
 
 ### 1. Deploy (No setup needed!)
+
 ```bash
 npm run dev  # Works immediately
 ```
 
 ### 2. Test Rate Limiting
+
 ```bash
 # Make 10+ rapid requests to a tool
 # After burst (10 tokens), you'll see:
@@ -178,12 +188,14 @@ npm run dev  # Works immediately
 ```
 
 ### 3. Check Your Quota
+
 ```
 Ask the agent: "How many requests do I have left?"
 Response: "You have 87 requests available out of 100 per minute"
 ```
 
 ### 4. Development Testing
+
 ```bash
 NODE_ENV=development npm run dev
 # Now limits are 10x higher (1000/min instead of 100)
@@ -194,6 +206,7 @@ NODE_ENV=development npm run dev
 ## 🔍 Behind the Scenes
 
 ### Database Tables
+
 ```sql
 -- Stores current bucket state
 rate_limits:
@@ -205,6 +218,7 @@ rate_limit_history:
 ```
 
 ### Integration Points
+
 ```
 1. Agent Loop (src/agent.ts)
    ├─ Before each tool execution
@@ -246,18 +260,21 @@ npx vitest run src/__tests__/rate-limit.test.ts
 ## 🎁 What You Get
 
 ### Immediate Benefits
+
 - ✅ Protection against abuse by default
 - ✅ Fair resource allocation across users
 - ✅ Zero breaking changes
 - ✅ Works out of the box
 
 ### Day 2 Features
+
 - ✅ User-configurable limits
 - ✅ Full audit trail of usage
 - ✅ Development mode for testing
 - ✅ Customizable if needed
 
 ### Future Ready
+
 - ✅ Redis-ready architecture
 - ✅ User tier support (coming soon)
 - ✅ Daily/weekly quotas (add-on)
@@ -291,18 +308,23 @@ Production Ready:           ✅ Yes
 ## 📞 Questions?
 
 ### For Architecture Questions
+
 → See `RATE_LIMITING.md`
 
 ### For Configuration
+
 → See `RATE_LIMITING_CONFIG.ts`
 
 ### For Code Examples
+
 → See `examples/rate-limiting-examples.ts`
 
 ### For Common Issues
+
 → See `RATE_LIMITING_QUICK_REFERENCE.md`
 
 ### For Validation
+
 → See `RATE_LIMITING_VALIDATION.ts`
 
 ---

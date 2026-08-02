@@ -32,18 +32,18 @@ CREATE TABLE IF NOT EXISTS memory (
 
 ```typescript
 export interface SessionSettings {
-  provider?: string;                  // e.g., "anthropic", "openai", "groq"
-  model?: string;                     // e.g., "claude-3-5-sonnet", "gpt-4"
-  
+  provider?: string; // e.g., "anthropic", "openai", "groq"
+  model?: string; // e.g., "claude-3-5-sonnet", "gpt-4"
+
   // Future settings (not yet implemented)
-  thinkingLevel?: "off" | "low" | "medium" | "high";
+  thinkingLevel?: 'off' | 'low' | 'medium' | 'high';
   voiceMode?: boolean;
   ttsProvider?: string;
   heartbeatInterval?: number;
   customSystemPrompt?: string;
   temperature?: number;
   maxTokens?: number;
-  
+
   // Allow custom fields
   [key: string]: unknown;
 }
@@ -60,6 +60,7 @@ export interface SessionSettings {
 Shows the current provider and model for this session. If no session overrides exist, shows global config values.
 
 **Example output:**
+
 ```
 📊 Current model configuration
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -80,6 +81,7 @@ Use: /model <model-name>
 Changes the model while keeping the current provider. Useful when switching between models from the same provider.
 
 **Example:**
+
 ```
 /model claude-3-5-sonnet-20241022
 ```
@@ -93,6 +95,7 @@ Changes the model while keeping the current provider. Useful when switching betw
 Changes both the provider and model in one command.
 
 **Supported providers:**
+
 - `openrouter` - Access 200+ models via OpenRouter
 - `anthropic` - Claude models direct from Anthropic
 - `openai` - GPT models direct from OpenAI
@@ -102,6 +105,7 @@ Changes both the provider and model in one command.
 - `ollama` - Local models via Ollama
 
 **Example commands:**
+
 ```
 /model openai gpt-4o
 /model anthropic claude-3-5-sonnet
@@ -151,25 +155,25 @@ getSessionStats(sessionId: string): {
 
 ```typescript
 export async function callClaude(
-    sessionId: string,
-    toolDefinitions: ChatCompletionTool[]
+  sessionId: string,
+  toolDefinitions: ChatCompletionTool[],
 ): Promise<ClaudeResponse> {
-    // ... load conversation history ...
+  // ... load conversation history ...
 
-    // Check for session-specific provider/model overrides
-    const sessionSettings = getSessionSettings(sessionId);
-    let provider = getProvider(); // Default global provider
+  // Check for session-specific provider/model overrides
+  const sessionSettings = getSessionSettings(sessionId);
+  let provider = getProvider(); // Default global provider
 
-    if (sessionSettings.provider || sessionSettings.model) {
-        // Session has custom provider/model settings - create temporary provider
-        const sessionProvider = sessionSettings.provider || config.LLM_PROVIDER;
-        const sessionModel = sessionSettings.model || config.LLM_MODEL;
-        
-        // Create provider with session-specific settings
-        provider = createProvider();
-    }
+  if (sessionSettings.provider || sessionSettings.model) {
+    // Session has custom provider/model settings - create temporary provider
+    const sessionProvider = sessionSettings.provider || config.LLM_PROVIDER;
+    const sessionModel = sessionSettings.model || config.LLM_MODEL;
 
-    return await provider.chat(messages, toolDefinitions);
+    // Create provider with session-specific settings
+    provider = createProvider();
+  }
+
+  return await provider.chat(messages, toolDefinitions);
 }
 ```
 
@@ -179,28 +183,28 @@ export async function callClaude(
 
 ```typescript
 // /model - Show current model config
-if (message === "/model") {
+if (message === '/model') {
   const sessionSettings = getSessionSettings(sessionId);
   const currentProvider = sessionSettings.provider || config.LLM_PROVIDER;
   const currentModel = sessionSettings.model || config.LLM_MODEL;
-  
+
   return `📊 Current model configuration\n...`;
 }
 
 // /model <model> - Change model
 // /model <provider> <model> - Change both
-if (message.startsWith("/model ")) {
+if (message.startsWith('/model ')) {
   const parts = message.split(/\s+/).slice(1);
-  
+
   let provider = sessionSettings.provider || config.LLM_PROVIDER;
   let model = sessionSettings.model || config.LLM_MODEL;
-  
+
   // Parse arguments and update settings
   // ...
-  
-  await updateSessionSetting(sessionId, "provider", provider);
-  await updateSessionSetting(sessionId, "model", model);
-  
+
+  await updateSessionSetting(sessionId, 'provider', provider);
+  await updateSessionSetting(sessionId, 'model', model);
+
   return `✅ Model updated: ${provider} / ${model}`;
 }
 ```
@@ -210,11 +214,13 @@ if (message.startsWith("/model ")) {
 ### 1. Cost Optimization
 
 Use cheaper models for simple tasks:
+
 ```
 /model openrouter meta-llama/llama-3.2-3b-instruct:free
 ```
 
 Use powerful models for complex tasks:
+
 ```
 /model anthropic claude-3-opus
 ```
@@ -222,6 +228,7 @@ Use powerful models for complex tasks:
 ### 2. Feature Testing
 
 Test different models in the same conversation:
+
 ```
 /model openai gpt-4o
 (ask question)
@@ -232,6 +239,7 @@ Test different models in the same conversation:
 ### 3. Local Development
 
 Switch to local Ollama for offline work:
+
 ```
 /model ollama llama3.2
 ```
@@ -239,11 +247,13 @@ Switch to local Ollama for offline work:
 ### 4. Speed vs Quality
 
 Fast responses with Groq:
+
 ```
 /model groq llama-3.3-70b-versatile
 ```
 
 Best quality with Claude:
+
 ```
 /model anthropic claude-3-5-sonnet-20241022
 ```
@@ -251,6 +261,7 @@ Best quality with Claude:
 ## Session Isolation
 
 Each session is completely isolated:
+
 - Settings in Session A don't affect Session B
 - Different Telegram chats have different session IDs
 - Different WhatsApp contacts have different session IDs
@@ -263,21 +274,25 @@ The settings column is added automatically on first run:
 ```typescript
 // Add settings column to memory table (migration)
 try {
-  db.prepare(`
+  db.prepare(
+    `
     ALTER TABLE memory 
     ADD COLUMN settings TEXT DEFAULT '{}'
-  `).run();
-  log.info("Added settings column to memory table");
+  `,
+  ).run();
+  log.info('Added settings column to memory table');
 } catch (err) {
   // Column already exists or other error - continue
 }
 
 // Set empty settings for existing rows
-db.prepare(`
+db.prepare(
+  `
   UPDATE memory 
   SET settings = '{}' 
   WHERE settings IS NULL
-`).run();
+`,
+).run();
 ```
 
 ## Testing
@@ -312,23 +327,23 @@ Planned features for session settings:
 
 ### Command Interface
 
-| Command | Arguments | Description |
-|---------|-----------|-------------|
-| `/model` | none | Show current provider and model |
-| `/model <model>` | model name | Change model keeping current provider |
-| `/model <provider> <model>` | provider, model | Change both provider and model |
+| Command                     | Arguments       | Description                           |
+| --------------------------- | --------------- | ------------------------------------- |
+| `/model`                    | none            | Show current provider and model       |
+| `/model <model>`            | model name      | Change model keeping current provider |
+| `/model <provider> <model>` | provider, model | Change both provider and model        |
 
 ### Supported Providers
 
-| Provider | Configuration Required | Notes |
-|----------|------------------------|-------|
-| `openrouter` | `OPENROUTER_API_KEY` | 200+ models, default provider |
-| `anthropic` | `ANTHROPIC_API_KEY` | Claude 3.5 Sonnet, Opus, Haiku |
-| `openai` | `OPENAI_API_KEY` | GPT-4o, GPT-4, GPT-3.5 |
-| `google` | `GOOGLE_API_KEY` | Gemini 1.5 Pro/Flash |
-| `groq` | `GROQ_API_KEY` | Llama 3, fast inference |
-| `deepseek` | `DEEPSEEK_API_KEY` | DeepSeek R1, V3 |
-| `ollama` | None (local) | Requires Ollama running locally |
+| Provider     | Configuration Required | Notes                           |
+| ------------ | ---------------------- | ------------------------------- |
+| `openrouter` | `OPENROUTER_API_KEY`   | 200+ models, default provider   |
+| `anthropic`  | `ANTHROPIC_API_KEY`    | Claude 3.5 Sonnet, Opus, Haiku  |
+| `openai`     | `OPENAI_API_KEY`       | GPT-4o, GPT-4, GPT-3.5          |
+| `google`     | `GOOGLE_API_KEY`       | Gemini 1.5 Pro/Flash            |
+| `groq`       | `GROQ_API_KEY`         | Llama 3, fast inference         |
+| `deepseek`   | `DEEPSEEK_API_KEY`     | DeepSeek R1, V3                 |
+| `ollama`     | None (local)           | Requires Ollama running locally |
 
 ## Error Handling
 
@@ -366,12 +381,14 @@ When setting settings for a brand new session with no messages, a placeholder sy
 ## Example Workflow
 
 1. **Start new conversation**
+
    ```
    User: Hello!
    Agent: Hi! How can I help you?
    ```
 
 2. **Check current model**
+
    ```
    User: /model
    Agent: Provider: openrouter
@@ -379,12 +396,14 @@ When setting settings for a brand new session with no messages, a placeholder sy
    ```
 
 3. **Switch to more powerful model**
+
    ```
    User: /model anthropic claude-3-5-sonnet
    Agent: ✅ Model updated successfully
    ```
 
 4. **Continue conversation with new model**
+
    ```
    User: Write me a complex analysis...
    Agent: (responds using Claude 3.5 Sonnet)
@@ -401,6 +420,7 @@ When setting settings for a brand new session with no messages, a placeholder sy
 ### Settings not persisting
 
 Check that:
+
 1. Database writes are successful (check logs)
 2. Session ID is consistent
 3. Settings column exists in memory table
@@ -408,6 +428,7 @@ Check that:
 ### Provider not switching
 
 Verify:
+
 1. API key is configured for target provider
 2. Provider name is spelled correctly
 3. Check logs for provider creation errors
@@ -415,6 +436,7 @@ Verify:
 ### Model not found
 
 Ensure:
+
 1. Model name is valid for the provider
 2. Use `/models` command to list available models
 3. Check provider documentation for model names

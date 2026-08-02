@@ -14,7 +14,7 @@ vi.mock('../config.js', async (importOriginal) => {
       OPENAI_API_KEY: 'test-api-key',
       WAKE_WORD_PHRASE: 'hey claw',
       WAKE_WORD_THRESHOLD: 0.75,
-    }
+    },
   };
 });
 
@@ -60,9 +60,9 @@ vi.mock('../voice/talk-mode.ts', () => {
 });
 
 // Import after mocking
-import { 
-  startTalkModeTool, 
-  stopTalkModeTool, 
+import {
+  startTalkModeTool,
+  stopTalkModeTool,
   getTalkModeStatusTool,
 } from '../tools/voice/talk-mode.ts';
 
@@ -81,7 +81,7 @@ describe('Talk Mode', () => {
     };
     mockHandlerState.callbacks = null;
   });
-  
+
   describe('Tool Metadata', () => {
     it('startTalkModeTool should have correct metadata', () => {
       expect(startTalkModeTool.name).toBe('start_talk_mode');
@@ -136,7 +136,7 @@ describe('Talk Mode', () => {
     it('should start with default configuration', async () => {
       const result = await startTalkModeTool.execute({});
       const response = JSON.parse(result);
-      
+
       expect(response.success).toBe(true);
       expect(response.config).toBeDefined();
       expect(response.config.wake_phrase).toBe('hey claw');
@@ -148,7 +148,7 @@ describe('Talk Mode', () => {
         wake_phrase: 'hey assistant',
       });
       const response = JSON.parse(result);
-      
+
       expect(response.success).toBe(true);
       expect(response.config.wake_phrase).toBe('hey assistant');
     });
@@ -158,7 +158,7 @@ describe('Talk Mode', () => {
         wake_threshold: 0.9,
       });
       const response = JSON.parse(result);
-      
+
       expect(response.success).toBe(true);
       expect(response.config.wake_threshold).toBe(0.9);
     });
@@ -168,7 +168,7 @@ describe('Talk Mode', () => {
         silence_duration: 2000,
       });
       const response = JSON.parse(result);
-      
+
       expect(response.success).toBe(true);
       expect(response.config.silence_duration).toBe(2000);
     });
@@ -178,7 +178,7 @@ describe('Talk Mode', () => {
     it('should report not active when stopped', async () => {
       const result = await getTalkModeStatusTool.execute({});
       const response = JSON.parse(result);
-      
+
       expect(response.success).toBe(true);
       expect(response.is_active).toBe(false);
       expect(response.status).toContain('Stopped');
@@ -187,7 +187,7 @@ describe('Talk Mode', () => {
     it('should include compatibility information', async () => {
       const result = await getTalkModeStatusTool.execute({});
       const response = JSON.parse(result);
-      
+
       expect(response.success).toBe(true);
       expect(response.compatibility).toBeDefined();
       expect(response.compatibility.desktop).toBe(true);
@@ -198,7 +198,7 @@ describe('Talk Mode', () => {
     it('should include current configuration', async () => {
       const result = await getTalkModeStatusTool.execute({});
       const response = JSON.parse(result);
-      
+
       expect(response.success).toBe(true);
       // Config might be null if not initialized
       if (response.config) {
@@ -211,13 +211,13 @@ describe('Talk Mode', () => {
   describe('Error Handling', () => {
     it('should prevent starting talk mode twice', async () => {
       await startTalkModeTool.execute({});
-      
+
       const result = await startTalkModeTool.execute({});
       const response = JSON.parse(result);
-      
+
       expect(response.success).toBe(false);
       expect(response.error).toContain('already running');
-      
+
       // Cleanup
       await stopTalkModeTool.execute({});
     });
@@ -225,7 +225,7 @@ describe('Talk Mode', () => {
     it('should handle stop when not running gracefully', async () => {
       const result = await stopTalkModeTool.execute({});
       const response = JSON.parse(result);
-      
+
       expect(response.success).toBe(false);
       expect(response.error).toContain('not');
     });
@@ -252,18 +252,18 @@ describe('Talk Mode', () => {
       const status1 = await getTalkModeStatusTool.execute({});
       const statusResponse1 = JSON.parse(status1);
       expect(statusResponse1.success).toBe(true);
-      
+
       // Start talk mode
       const start = await startTalkModeTool.execute({});
       const startResponse = JSON.parse(start);
       expect(startResponse.success).toBe(true);
-      
+
       // Check status while running
       const status2 = await getTalkModeStatusTool.execute({});
       const statusResponse2 = JSON.parse(status2);
       expect(statusResponse2.success).toBe(true);
       expect(statusResponse2.is_active).toBe(true);
-      
+
       // Stop talk mode
       const stop = await stopTalkModeTool.execute({});
       const stopResponse = JSON.parse(stop);
@@ -280,13 +280,13 @@ describe('Talk Mode', () => {
         max_recording_duration: 45,
       });
       const response = JSON.parse(result);
-      
+
       expect(response.success).toBe(true);
       expect(response.config.wake_phrase).toBe('hello robot');
       expect(response.config.wake_threshold).toBe(0.8);
       expect(response.config.silence_duration).toBe(2000);
       expect(response.config.max_recording_duration).toBe(45);
-      
+
       // Cleanup
       await stopTalkModeTool.execute({});
     });
@@ -296,21 +296,21 @@ describe('Talk Mode', () => {
     it('should provide usage instructions when starting', async () => {
       const result = await startTalkModeTool.execute({});
       const response = JSON.parse(result);
-      
+
       expect(response.success).toBe(true);
       expect(response.instructions).toBeDefined();
       expect(response.instructions).toContain('wake phrase');
-      
+
       // Cleanup
       await stopTalkModeTool.execute({});
     });
 
     it('should provide helpful message when stopping', async () => {
       await startTalkModeTool.execute({});
-      
+
       const result = await stopTalkModeTool.execute({});
       const response = JSON.parse(result);
-      
+
       expect(response.success).toBe(true);
       expect(response.message).toBeDefined();
       expect(response.message).toContain('stopped');
@@ -339,7 +339,7 @@ describe('Talk Mode', () => {
     it('should return JSON with success field', async () => {
       const result = await getTalkModeStatusTool.execute({});
       const response = JSON.parse(result);
-      
+
       expect(response).toHaveProperty('success');
       expect(typeof response.success).toBe('boolean');
     });
@@ -347,7 +347,7 @@ describe('Talk Mode', () => {
     it('should return error field on failure', async () => {
       const result = await stopTalkModeTool.execute({});
       const response = JSON.parse(result);
-      
+
       if (!response.success) {
         expect(response).toHaveProperty('error');
         expect(typeof response.error).toBe('string');

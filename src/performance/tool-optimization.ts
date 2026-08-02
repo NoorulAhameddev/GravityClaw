@@ -1,6 +1,6 @@
 /**
  * Tool Execution Performance Optimization
- * 
+ *
  * Provides:
  * - Tool caching
  * - Lazy loading
@@ -8,10 +8,10 @@
  * - Execution metrics
  */
 
-import { createLogger } from "../logger.ts";
-import { performance } from "perf_hooks";
+import { createLogger } from '../logger.ts';
+import { performance } from 'perf_hooks';
 
-const log = createLogger("tool-optimization");
+const log = createLogger('tool-optimization');
 
 interface ToolExecutionMetrics {
   name: string;
@@ -34,7 +34,7 @@ const TOOL_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 export function trackToolExecution(
   toolName: string,
   executionTime: number,
-  error: boolean = false
+  error: boolean = false,
 ): void {
   let metrics = toolMetrics.get(toolName);
 
@@ -64,7 +64,7 @@ export function trackToolExecution(
   // Log slow executions
   if (executionTime > 100) {
     log.warn(
-      `Slow tool execution: ${toolName} took ${executionTime.toFixed(2)}ms (avg: ${metrics.avgTime.toFixed(2)}ms)`
+      `Slow tool execution: ${toolName} took ${executionTime.toFixed(2)}ms (avg: ${metrics.avgTime.toFixed(2)}ms)`,
     );
   }
 }
@@ -134,9 +134,7 @@ export function getToolErrorRates(): Record<string, number> {
 
   for (const [name, metrics] of toolMetrics) {
     const errorRate =
-      metrics.executionCount > 0
-        ? (metrics.errors / metrics.executionCount) * 100
-        : 0;
+      metrics.executionCount > 0 ? (metrics.errors / metrics.executionCount) * 100 : 0;
     result[name] = parseFloat(errorRate.toFixed(2));
   }
 
@@ -166,7 +164,7 @@ export function clearOldCacheEntries(): number {
 export function resetMetrics(): void {
   toolMetrics.clear();
   toolCache.clear();
-  log.info("Tool metrics reset");
+  log.info('Tool metrics reset');
 }
 
 /**

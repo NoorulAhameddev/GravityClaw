@@ -1,22 +1,21 @@
 /**
  * Group Management Module
- * 
+ *
  * Handles group chat settings, admin permissions, and tool restrictions.
  */
 
-import { db } from "../db.ts";
-import { createLogger } from "../logger.ts";
-import "./schema.ts"; // Initialize tables
+import { db } from '../db.ts';
+import { createLogger } from '../logger.ts';
 
-const log = createLogger("groups");
+const log = createLogger('groups');
 
 export interface GroupSettings {
   platform: string;
   groupId: string;
   botUsername?: string;
-  voiceMode: "off" | "transcribe-only" | "full-voice";
-  thinkingLevel: "off" | "low" | "medium" | "high";
-  ttsProvider: "openai" | "elevenlabs";
+  voiceMode: 'off' | 'transcribe-only' | 'full-voice';
+  thinkingLevel: 'off' | 'low' | 'medium' | 'high';
+  ttsProvider: 'openai' | 'elevenlabs';
   enabledTools: string[];
   disabledTools: string[];
   settingsJson: Record<string, unknown>;
@@ -26,15 +25,15 @@ export interface GroupSettings {
  * Dangerous tools that require admin privileges
  */
 export const DANGEROUS_TOOLS = [
-  "run_shell",
-  "read_file",
-  "write_file",
-  "list_files",
-  "delete_file",
-  "execute_code",
-  "create_file",
-  "move_file",
-  "copy_file",
+  'run_shell',
+  'read_file',
+  'write_file',
+  'list_files',
+  'delete_file',
+  'execute_code',
+  'create_file',
+  'move_file',
+  'copy_file',
 ];
 
 /**
@@ -42,22 +41,24 @@ export const DANGEROUS_TOOLS = [
  */
 export function getGroupSessionId(platform: string, groupId: string): string {
   const existing = db
-    .prepare("SELECT session_id FROM group_sessions WHERE platform = ? AND group_id = ?")
+    .prepare('SELECT session_id FROM group_sessions WHERE platform = ? AND group_id = ?')
     .get(platform, groupId) as { session_id: string } | undefined;
 
   if (existing) {
     // Update last message timestamp
     db.prepare(
-      "UPDATE group_sessions SET last_message_at = CURRENT_TIMESTAMP WHERE platform = ? AND group_id = ?"
+      'UPDATE group_sessions SET last_message_at = CURRENT_TIMESTAMP WHERE platform = ? AND group_id = ?',
     ).run(platform, groupId);
     return existing.session_id;
   }
 
   // Create new session for this group
   const sessionId = `${platform}-group-${groupId}-${Date.now()}`;
-  db.prepare(
-    "INSERT INTO group_sessions (platform, group_id, session_id) VALUES (?, ?, ?)"
-  ).run(platform, groupId, sessionId);
+  db.prepare('INSERT INTO group_sessions (platform, group_id, session_id) VALUES (?, ?, ?)').run(
+    platform,
+    groupId,
+    sessionId,
+  );
 
   log.info(`Created new group session: ${sessionId}`);
   return sessionId;
@@ -80,7 +81,7 @@ export function getGroupSettings(platform: string, groupId: string): GroupSettin
   }
 
   const row = db
-    .prepare("SELECT * FROM group_settings WHERE platform = ? AND group_id = ?")
+    .prepare('SELECT * FROM group_settings WHERE platform = ? AND group_id = ?')
     .get(platform, groupId) as GroupSettingsRow | undefined;
 
   if (!row) {
@@ -88,9 +89,9 @@ export function getGroupSettings(platform: string, groupId: string): GroupSettin
     return {
       platform,
       groupId,
-      voiceMode: "off",
-      thinkingLevel: "medium",
-      ttsProvider: "openai",
+      voiceMode: 'off',
+      thinkingLevel: 'medium',
+      ttsProvider: 'openai',
       enabledTools: [],
       disabledTools: [],
       settingsJson: {},
@@ -101,12 +102,12 @@ export function getGroupSettings(platform: string, groupId: string): GroupSettin
     platform: row.platform,
     groupId: row.group_id,
     ...(row.bot_username ? { botUsername: row.bot_username } : {}),
-    voiceMode: (row.voice_mode || "off") as GroupSettings["voiceMode"],
-    thinkingLevel: (row.thinking_level || "medium") as GroupSettings["thinkingLevel"],
-    ttsProvider: (row.tts_provider || "openai") as GroupSettings["ttsProvider"],
-    enabledTools: JSON.parse(row.enabled_tools || "[]"),
-    disabledTools: JSON.parse(row.disabled_tools || "[]"),
-    settingsJson: JSON.parse(row.settings_json || "{}"),
+    voiceMode: (row.voice_mode || 'off') as GroupSettings['voiceMode'],
+    thinkingLevel: (row.thinking_level || 'medium') as GroupSettings['thinkingLevel'],
+    ttsProvider: (row.tts_provider || 'openai') as GroupSettings['ttsProvider'],
+    enabledTools: JSON.parse(row.enabled_tools || '[]'),
+    disabledTools: JSON.parse(row.disabled_tools || '[]'),
+    settingsJson: JSON.parse(row.settings_json || '{}'),
   };
 }
 
@@ -116,12 +117,13 @@ export function getGroupSettings(platform: string, groupId: string): GroupSettin
 export function updateGroupSettings(
   platform: string,
   groupId: string,
-  settings: Partial<Omit<GroupSettings, "platform" | "groupId">>
+  settings: Partial<Omit<GroupSettings, 'platform' | 'groupId'>>,
 ): void {
   const current = getGroupSettings(platform, groupId);
   const merged = { ...current, ...settings };
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO group_settings 
       (platform, group_id, bot_username, voice_mode, thinking_level, tts_provider, 
        enabled_tools, disabled_tools, settings_json, updated_at)
@@ -135,7 +137,8 @@ export function updateGroupSettings(
       disabled_tools = excluded.disabled_tools,
       settings_json = excluded.settings_json,
       updated_at = CURRENT_TIMESTAMP
-  `).run(
+  `,
+  ).run(
     platform,
     groupId,
     merged.botUsername || null,
@@ -144,7 +147,7 @@ export function updateGroupSettings(
     merged.ttsProvider,
     JSON.stringify(merged.enabledTools),
     JSON.stringify(merged.disabledTools),
-    JSON.stringify(merged.settingsJson)
+    JSON.stringify(merged.settingsJson),
   );
 
   log.info(`Updated group settings for ${platform}:${groupId}`);
@@ -155,9 +158,7 @@ export function updateGroupSettings(
  */
 export function isGroupAdmin(platform: string, groupId: string, userId: string): boolean {
   const row = db
-    .prepare(
-      "SELECT 1 FROM group_admins WHERE platform = ? AND group_id = ? AND user_id = ?"
-    )
+    .prepare('SELECT 1 FROM group_admins WHERE platform = ? AND group_id = ? AND user_id = ?')
     .get(platform, groupId, userId);
 
   return !!row;
@@ -170,14 +171,16 @@ export function addGroupAdmin(
   platform: string,
   groupId: string,
   userId: string,
-  isOwner: boolean = false
+  isOwner: boolean = false,
 ): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO group_admins (platform, group_id, user_id, is_owner)
     VALUES (?, ?, ?, ?)
     ON CONFLICT(platform, group_id, user_id) DO UPDATE SET
       is_owner = excluded.is_owner
-  `).run(platform, groupId, userId, isOwner ? 1 : 0);
+  `,
+  ).run(platform, groupId, userId, isOwner ? 1 : 0);
 
   log.info(`Added admin ${userId} to group ${platform}:${groupId}`);
 }
@@ -186,9 +189,11 @@ export function addGroupAdmin(
  * Remove admin from group
  */
 export function removeGroupAdmin(platform: string, groupId: string, userId: string): void {
-  db.prepare(
-    "DELETE FROM group_admins WHERE platform = ? AND group_id = ? AND user_id = ?"
-  ).run(platform, groupId, userId);
+  db.prepare('DELETE FROM group_admins WHERE platform = ? AND group_id = ? AND user_id = ?').run(
+    platform,
+    groupId,
+    userId,
+  );
 
   log.info(`Removed admin ${userId} from group ${platform}:${groupId}`);
 }
@@ -196,14 +201,17 @@ export function removeGroupAdmin(platform: string, groupId: string, userId: stri
 /**
  * Get all admins for a group
  */
-export function getGroupAdmins(platform: string, groupId: string): Array<{
+export function getGroupAdmins(
+  platform: string,
+  groupId: string,
+): Array<{
   userId: string;
   isOwner: boolean;
   addedAt: string;
 }> {
   const rows = db
     .prepare(
-      "SELECT user_id, is_owner, added_at FROM group_admins WHERE platform = ? AND group_id = ?"
+      'SELECT user_id, is_owner, added_at FROM group_admins WHERE platform = ? AND group_id = ?',
     )
     .all(platform, groupId) as any[];
 
@@ -221,7 +229,7 @@ export function isToolAllowedForUser(
   platform: string,
   groupId: string,
   userId: string,
-  toolName: string
+  toolName: string,
 ): boolean {
   // Check if tool is dangerous
   const isDangerous = DANGEROUS_TOOLS.includes(toolName);
@@ -250,8 +258,8 @@ export function isToolAllowedForUser(
  */
 export function isBotMentioned(text: string, botUsername: string): boolean {
   if (!botUsername) return false;
-  
-  const mentionPattern = new RegExp(`@${botUsername}\\b`, "i");
+
+  const mentionPattern = new RegExp(`@${botUsername}\\b`, 'i');
   return mentionPattern.test(text);
 }
 
@@ -260,7 +268,7 @@ export function isBotMentioned(text: string, botUsername: string): boolean {
  */
 export function removeBotMention(text: string, botUsername: string): string {
   if (!botUsername) return text;
-  
-  const mentionPattern = new RegExp(`@${botUsername}\\s*`, "gi");
-  return text.replace(mentionPattern, "").trim();
+
+  const mentionPattern = new RegExp(`@${botUsername}\\s*`, 'gi');
+  return text.replace(mentionPattern, '').trim();
 }

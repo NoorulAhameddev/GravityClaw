@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getVoiceSettings, setVoiceSettings, setVoiceModeTool, setTTSProviderTool, getVoiceSettingsTool } from '../tools/voice/voice-settings.ts';
+import {
+  getVoiceSettings,
+  setVoiceSettings,
+  setVoiceModeTool,
+  setTTSProviderTool,
+  getVoiceSettingsTool,
+} from '../tools/voice/voice-settings.ts';
 
 describe('Voice Settings Management', () => {
   beforeEach(() => {
@@ -17,7 +23,7 @@ describe('Voice Settings Management', () => {
     it('should return stored settings for existing sessions', () => {
       const sessionId = 'test-session-123';
       setVoiceSettings(sessionId, { mode: 'full-voice', ttsProvider: 'elevenlabs' });
-      
+
       const settings = getVoiceSettings(sessionId);
       expect(settings.mode).toBe('full-voice');
       expect(settings.ttsProvider).toBe('elevenlabs');
@@ -28,7 +34,7 @@ describe('Voice Settings Management', () => {
     it('should update voice mode', () => {
       const sessionId = 'test-session-1';
       const result = setVoiceSettings(sessionId, { mode: 'transcribe-only' });
-      
+
       expect(result.mode).toBe('transcribe-only');
       expect(getVoiceSettings(sessionId).mode).toBe('transcribe-only');
     });
@@ -36,7 +42,7 @@ describe('Voice Settings Management', () => {
     it('should update TTS provider', () => {
       const sessionId = 'test-session-2';
       const result = setVoiceSettings(sessionId, { ttsProvider: 'elevenlabs' });
-      
+
       expect(result.ttsProvider).toBe('elevenlabs');
       expect(getVoiceSettings(sessionId).ttsProvider).toBe('elevenlabs');
     });
@@ -44,7 +50,7 @@ describe('Voice Settings Management', () => {
     it('should update voice ID', () => {
       const sessionId = 'test-session-3';
       const result = setVoiceSettings(sessionId, { voiceId: 'rachel' });
-      
+
       expect(result.voiceId).toBe('rachel');
       expect(getVoiceSettings(sessionId).voiceId).toBe('rachel');
     });
@@ -53,7 +59,7 @@ describe('Voice Settings Management', () => {
       const sessionId = 'test-session-4';
       setVoiceSettings(sessionId, { mode: 'full-voice', ttsProvider: 'openai' });
       setVoiceSettings(sessionId, { ttsProvider: 'elevenlabs' });
-      
+
       const settings = getVoiceSettings(sessionId);
       expect(settings.mode).toBe('full-voice');
       expect(settings.ttsProvider).toBe('elevenlabs');
@@ -79,17 +85,17 @@ describe('Voice Settings Management', () => {
         mode: 'full-voice',
         __sessionId: 'session-voice-test',
       };
-      
+
       const result = await setVoiceModeTool.execute(input as any);
       const parsed = JSON.parse(result);
-      
+
       expect(parsed.success).toBe(true);
       expect(parsed.mode).toBe('full-voice');
     });
 
     it('should accept all valid modes', async () => {
       const modes = ['off', 'transcribe-only', 'full-voice'];
-      
+
       for (const mode of modes) {
         const result = await setVoiceModeTool.execute({
           mode,
@@ -129,10 +135,10 @@ describe('Voice Settings Management', () => {
         provider: 'elevenlabs',
         __sessionId: 'session-tts-test',
       };
-      
+
       const result = await setTTSProviderTool.execute(input as any);
       const parsed = JSON.parse(result);
-      
+
       expect(parsed.success).toBe(true);
       expect(parsed.ttsProvider).toBe('elevenlabs');
     });
@@ -143,17 +149,17 @@ describe('Voice Settings Management', () => {
         voiceId: 'rachel',
         __sessionId: 'session-voice-id-test',
       };
-      
+
       const result = await setTTSProviderTool.execute(input as any);
       const parsed = JSON.parse(result);
-      
+
       expect(parsed.success).toBe(true);
       expect(parsed.voiceId).toBe('rachel');
     });
 
     it('should accept all valid providers', async () => {
       const providers = ['openai', 'elevenlabs'];
-      
+
       for (const provider of providers) {
         const result = await setTTSProviderTool.execute({
           provider,
@@ -184,13 +190,17 @@ describe('Voice Settings Management', () => {
 
     it('should return current settings', async () => {
       const sessionId = 'settings-test-session';
-      setVoiceSettings(sessionId, { mode: 'full-voice', ttsProvider: 'elevenlabs', voiceId: 'bella' });
-      
+      setVoiceSettings(sessionId, {
+        mode: 'full-voice',
+        ttsProvider: 'elevenlabs',
+        voiceId: 'bella',
+      });
+
       const result = await getVoiceSettingsTool.execute({
         __sessionId: sessionId,
       } as any);
       const parsed = JSON.parse(result);
-      
+
       expect(parsed.success).toBe(true);
       expect(parsed.voiceMode).toBe('full-voice');
       expect(parsed.ttsProvider).toBe('elevenlabs');
@@ -202,7 +212,7 @@ describe('Voice Settings Management', () => {
         __sessionId: 'new-settings-session',
       } as any);
       const parsed = JSON.parse(result);
-      
+
       expect(parsed.success).toBe(true);
       expect(parsed.voiceMode).toBe('off');
       expect(parsed.ttsProvider).toBe('openai');
@@ -212,12 +222,12 @@ describe('Voice Settings Management', () => {
     it('should indicate when voice is enabled', async () => {
       const sessionId = 'enabled-test';
       setVoiceSettings(sessionId, { mode: 'full-voice' });
-      
+
       const result = await getVoiceSettingsTool.execute({
         __sessionId: sessionId,
       } as any);
       const parsed = JSON.parse(result);
-      
+
       expect(parsed.voiceEnabled).toBe(true);
     });
 
@@ -231,12 +241,12 @@ describe('Voice Settings Management', () => {
   describe('Voice Settings Workflow', () => {
     it('should complete a full user workflow', async () => {
       const sessionId = 'workflow-test';
-      
+
       // Step 1: Get initial settings
       let result = await getVoiceSettingsTool.execute({ __sessionId: sessionId } as any);
       let parsed = JSON.parse(result);
       expect(parsed.voiceMode).toBe('off');
-      
+
       // Step 2: Enable voice mode
       result = await setVoiceModeTool.execute({
         mode: 'full-voice',
@@ -244,7 +254,7 @@ describe('Voice Settings Management', () => {
       } as any);
       parsed = JSON.parse(result);
       expect(parsed.success).toBe(true);
-      
+
       // Step 3: Switch to ElevenLabs
       result = await setTTSProviderTool.execute({
         provider: 'elevenlabs',
@@ -253,7 +263,7 @@ describe('Voice Settings Management', () => {
       } as any);
       parsed = JSON.parse(result);
       expect(parsed.success).toBe(true);
-      
+
       // Step 4: Verify settings
       result = await getVoiceSettingsTool.execute({ __sessionId: sessionId } as any);
       parsed = JSON.parse(result);
@@ -265,17 +275,17 @@ describe('Voice Settings Management', () => {
 
     it('should handle provider switching', async () => {
       const sessionId = 'switch-test';
-      
+
       // Start with ElevenLabs
       setVoiceSettings(sessionId, { ttsProvider: 'elevenlabs', voiceId: 'bella' });
-      
+
       // Switch to OpenAI (voiceId becomes irrelevant)
       const result = await setTTSProviderTool.execute({
         provider: 'openai',
         __sessionId: sessionId,
       } as any);
       const parsed = JSON.parse(result);
-      
+
       expect(parsed.ttsProvider).toBe('openai');
       expect(getVoiceSettings(sessionId).ttsProvider).toBe('openai');
     });
@@ -284,10 +294,10 @@ describe('Voice Settings Management', () => {
   describe('Voice Settings Persistence', () => {
     it('should maintain settings across multiple calls', () => {
       const sessionId = 'persistence-test';
-      
+
       setVoiceSettings(sessionId, { mode: 'transcribe-only' });
       expect(getVoiceSettings(sessionId).mode).toBe('transcribe-only');
-      
+
       setVoiceSettings(sessionId, { ttsProvider: 'elevenlabs' });
       expect(getVoiceSettings(sessionId).mode).toBe('transcribe-only');
       expect(getVoiceSettings(sessionId).ttsProvider).toBe('elevenlabs');
@@ -296,10 +306,10 @@ describe('Voice Settings Management', () => {
     it('should isolate sessions from each other', () => {
       const session1 = 'session-1';
       const session2 = 'session-2';
-      
+
       setVoiceSettings(session1, { mode: 'full-voice', ttsProvider: 'openai' });
       setVoiceSettings(session2, { mode: 'off', ttsProvider: 'elevenlabs' });
-      
+
       expect(getVoiceSettings(session1).mode).toBe('full-voice');
       expect(getVoiceSettings(session2).mode).toBe('off');
     });

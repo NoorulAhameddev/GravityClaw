@@ -3,12 +3,12 @@
  * Export knowledge graph in JSON or GraphML format
  */
 
-import type { Tool } from "../index.js";
-import { db } from "../../db.ts";
-import { createLogger } from "../../logger.ts";
-import { gzipSync } from "zlib";
+import type { Tool } from '../index.js';
+import { db } from '../../db.ts';
+import { createLogger } from '../../logger.ts';
+import { gzipSync } from 'zlib';
 
-const log = createLogger("export-graph");
+const log = createLogger('export-graph');
 
 interface GraphNode {
   id: number;
@@ -56,7 +56,7 @@ function fetchNodes(sessionId: string): GraphNode[] {
         `SELECT id, name, type, properties, access_count as accessCount, 
                 last_accessed as lastAccessed 
          FROM entities WHERE session_id = ? 
-         ORDER BY access_count DESC`
+         ORDER BY access_count DESC`,
       )
       .all(sessionId) as any[];
 
@@ -69,7 +69,7 @@ function fetchNodes(sessionId: string): GraphNode[] {
       lastAccessed: row.lastAccessed,
     }));
   } catch (err) {
-    log.warn("Error fetching nodes", { error: err });
+    log.warn('Error fetching nodes', { error: err });
     return [];
   }
 }
@@ -88,7 +88,7 @@ function fetchEdges(sessionId: string): GraphEdge[] {
          LEFT JOIN entities e1 ON r.from_id = e1.id 
          LEFT JOIN entities e2 ON r.to_id = e2.id 
          WHERE r.session_id = ? 
-         ORDER BY r.created_at DESC`
+         ORDER BY r.created_at DESC`,
       )
       .all(sessionId) as any[];
 
@@ -102,7 +102,7 @@ function fetchEdges(sessionId: string): GraphEdge[] {
       metadata: row.metadata ? JSON.parse(row.metadata) : {},
     }));
   } catch (err) {
-    log.warn("Error fetching edges", { error: err });
+    log.warn('Error fetching edges', { error: err });
     return [];
   }
 }
@@ -119,8 +119,7 @@ function calculateStats(nodes: GraphNode[], edges: GraphEdge[]) {
   }
 
   for (const edge of edges) {
-    relationshipTypes[edge.relationType] =
-      (relationshipTypes[edge.relationType] || 0) + 1;
+    relationshipTypes[edge.relationType] = (relationshipTypes[edge.relationType] || 0) + 1;
   }
 
   return {
@@ -134,11 +133,7 @@ function calculateStats(nodes: GraphNode[], edges: GraphEdge[]) {
 /**
  * Format graph as GraphML (XML format for graph tools)
  */
-function formatAsGraphML(
-  sessionId: string,
-  nodes: GraphNode[],
-  edges: GraphEdge[]
-): string {
+function formatAsGraphML(sessionId: string, nodes: GraphNode[], edges: GraphEdge[]): string {
   let graphml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
   graphml += `<graphml xmlns="http://graphml.graphdrawing.org/xmlformat/graphml/1.0/graphml.xsd">\n`;
   graphml += `  <graph id="KnowledgeGraph" edgedefault="directed">\n`;
@@ -158,8 +153,7 @@ function formatAsGraphML(
 
     // Add properties
     for (const [key, value] of Object.entries(node.properties)) {
-      const strValue =
-        typeof value === "string" ? value : JSON.stringify(value);
+      const strValue = typeof value === 'string' ? value : JSON.stringify(value);
       graphml += `      <data key="prop_${escapeXml(key)}">${escapeXml(strValue)}</data>\n`;
     }
 
@@ -170,17 +164,14 @@ function formatAsGraphML(
   for (const edge of edges) {
     const edgeLabel =
       edge.relationType +
-      (edge.sourceLabel && edge.targetLabel
-        ? `: ${edge.sourceLabel} → ${edge.targetLabel}`
-        : "");
+      (edge.sourceLabel && edge.targetLabel ? `: ${edge.sourceLabel} → ${edge.targetLabel}` : '');
 
     graphml += `    <edge id="edge_${edge.id}" source="node_${edge.source}" target="node_${edge.target}" label="${escapeXml(edgeLabel)}">\n`;
     graphml += `      <data key="relationType">${escapeXml(edge.relationType)}</data>\n`;
 
     // Add metadata
     for (const [key, value] of Object.entries(edge.metadata)) {
-      const strValue =
-        typeof value === "string" ? value : JSON.stringify(value);
+      const strValue = typeof value === 'string' ? value : JSON.stringify(value);
       graphml += `      <data key="meta_${escapeXml(key)}">${escapeXml(strValue)}</data>\n`;
     }
 
@@ -197,44 +188,47 @@ function formatAsGraphML(
  * Escape XML special characters
  */
 function escapeXml(str: string): string {
-  if (typeof str !== "string") return "";
+  if (typeof str !== 'string') return '';
   return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 /**
  * Export knowledge graph tool
  */
 export const exportGraphTool: Tool = {
-  name: "exportGraph",
-  description:
-    "Export knowledge graph (entities and relationships) in JSON or GraphML format",
+  name: 'exportGraph',
+  description: 'Export knowledge graph (entities and relationships) in JSON or GraphML format',
   inputSchema: {
-    type: "object",
+    type: 'object',
     properties: {
       sessionId: {
-        type: "string",
-        description: "Session ID to export graph for",
+        type: 'string',
+        description: 'Session ID to export graph for',
       },
       format: {
-        type: "string",
-        enum: ["json", "graphml"],
-        description: "Export format (default: json)",
+        type: 'string',
+        enum: ['json', 'graphml'],
+        description: 'Export format (default: json)',
       },
       compress: {
-        type: "boolean",
-        description: "Enable gzip compression (default: true)",
+        type: 'boolean',
+        description: 'Enable gzip compression (default: true)',
       },
     },
-    required: ["sessionId"],
+    required: ['sessionId'],
   },
   async execute(input: Record<string, unknown>): Promise<string> {
     try {
-      const { sessionId, format = "json", compress = true } = input as {
+      const {
+        sessionId,
+        format = 'json',
+        compress = true,
+      } = input as {
         sessionId: string;
         format?: string;
         compress?: boolean;
@@ -243,7 +237,7 @@ export const exportGraphTool: Tool = {
       if (!sessionId.trim()) {
         return JSON.stringify({
           success: false,
-          error: "sessionId is required",
+          error: 'sessionId is required',
         });
       }
 
@@ -254,11 +248,11 @@ export const exportGraphTool: Tool = {
       if (nodes.length === 0) {
         return JSON.stringify({
           success: true,
-          warning: "No graph data found for this session",
+          warning: 'No graph data found for this session',
           data: {
             format,
-            base64: "",
-            filename: `graph-${sessionId}.${format === "json" ? "json" : "graphml"}`,
+            base64: '',
+            filename: `graph-${sessionId}.${format === 'json' ? 'json' : 'graphml'}`,
           },
         });
       }
@@ -268,7 +262,7 @@ export const exportGraphTool: Tool = {
 
       let exportData: string;
 
-      if (format === "json") {
+      if (format === 'json') {
         const jsonExport: GraphExportJSON = {
           metadata: {
             exportDate: new Date().toISOString(),
@@ -291,27 +285,25 @@ export const exportGraphTool: Tool = {
       let used_compression = false;
       if (compress && exportData.length > 1024) {
         try {
-          const buffer = Buffer.from(exportData, "utf-8");
+          const buffer = Buffer.from(exportData, 'utf-8');
           const compressed = gzipSync(buffer);
-          finalData = compressed.toString("base64");
+          finalData = compressed.toString('base64');
           used_compression = true;
         } catch (err) {
-          log.warn("Compression failed, returning uncompressed", { error: err });
+          log.warn('Compression failed, returning uncompressed', { error: err });
         }
       }
 
       // Encode to base64
       const base64Data = used_compression
         ? finalData
-        : Buffer.from(exportData, "utf-8").toString("base64");
+        : Buffer.from(exportData, 'utf-8').toString('base64');
 
-      const extension = format === "json" ? "json" : "graphml";
-      const filename = `graph-${sessionId}.${extension}${
-        used_compression ? ".gz" : ""
-      }`;
+      const extension = format === 'json' ? 'json' : 'graphml';
+      const filename = `graph-${sessionId}.${extension}${used_compression ? '.gz' : ''}`;
 
       log.info(
-        `Exported graph for session ${sessionId}: ${nodes.length} nodes, ${edges.length} edges`
+        `Exported graph for session ${sessionId}: ${nodes.length} nodes, ${edges.length} edges`,
       );
 
       return JSON.stringify({
@@ -326,10 +318,10 @@ export const exportGraphTool: Tool = {
         },
       });
     } catch (err) {
-      log.error("Failed to export graph", err);
+      log.error('Failed to export graph', err);
       return JSON.stringify({
         success: false,
-        error: err instanceof Error ? err.message : "Unknown error",
+        error: err instanceof Error ? err.message : 'Unknown error',
       });
     }
   },

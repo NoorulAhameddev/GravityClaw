@@ -3,6 +3,7 @@
 ## Mandatory Security Checks
 
 Before ANY commit:
+
 - [ ] No hardcoded secrets (API keys, passwords, tokens)
 - [ ] All user inputs validated
 - [ ] SQL injection prevention (parameterized queries)
@@ -22,6 +23,7 @@ Before ANY commit:
 ## Security Response Protocol
 
 If security issue found:
+
 1. STOP immediately
 2. Use **security-reviewer** agent
 3. Fix CRITICAL issues before continuing

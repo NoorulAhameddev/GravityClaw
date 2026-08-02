@@ -1,23 +1,26 @@
-import OpenAI from "openai";
-import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions.js";
-import type { LLMProvider, LLMResponse, LLMChatOptions, Message } from "../types/llm.js";
-import { createLogger } from "../logger.ts";
+import OpenAI from 'openai';
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+} from 'openai/resources/chat/completions.js';
+import type { LLMProvider, LLMResponse, LLMChatOptions, Message } from '../types/llm.js';
+import { createLogger } from '../logger.ts';
 
-const log = createLogger("llm:deepseek");
+const log = createLogger('llm:deepseek');
 
 /**
  * DeepSeek Provider
  * Chinese LLM with strong coding capabilities, OpenAI-compatible API
  */
 export class DeepSeekProvider implements LLMProvider {
-  readonly name = "deepseek";
+  readonly name = 'deepseek';
   private client: OpenAI;
   private defaultModel: string;
 
-  constructor(apiKey: string, defaultModel: string = "deepseek-chat") {
+  constructor(apiKey: string, defaultModel: string = 'deepseek-chat') {
     this.client = new OpenAI({
       apiKey,
-      baseURL: "https://api.deepseek.com/v1",
+      baseURL: 'https://api.deepseek.com/v1',
       timeout: 120000,
     });
     this.defaultModel = defaultModel;
@@ -27,16 +30,18 @@ export class DeepSeekProvider implements LLMProvider {
   async chat(
     messages: ChatCompletionMessageParam[],
     toolDefinitions: ChatCompletionTool[],
-    options?: LLMChatOptions
+    options?: LLMChatOptions,
   ): Promise<LLMResponse> {
     const model = options?.model ?? this.defaultModel;
     const maxTokens = options?.maxTokens ?? 2000;
     const hasTools = toolDefinitions.length > 0;
 
-    log.debug(`Calling DeepSeek — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`);
+    log.debug(
+      `Calling DeepSeek — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`,
+    );
 
     const mappedMessages = messages.map((msg) => {
-      if (msg.role === "assistant") {
+      if (msg.role === 'assistant') {
         const assistantMsg = msg as Message & { reasoning_content?: string };
         if (assistantMsg.thought && !assistantMsg.reasoning_content) {
           const { thought, ...rest } = assistantMsg;
@@ -50,29 +55,38 @@ export class DeepSeekProvider implements LLMProvider {
     });
 
     const params = hasTools
-      ? { model, max_tokens: maxTokens, tools: toolDefinitions, tool_choice: "auto" as const, messages: mappedMessages as ChatCompletionMessageParam[] }
+      ? {
+          model,
+          max_tokens: maxTokens,
+          tools: toolDefinitions,
+          tool_choice: 'auto' as const,
+          messages: mappedMessages as ChatCompletionMessageParam[],
+        }
       : { model, max_tokens: maxTokens, messages: mappedMessages as ChatCompletionMessageParam[] };
 
-    const response = await this.client.chat.completions.create(params, { signal: AbortSignal.timeout(120000) });
+    const response = await this.client.chat.completions.create(params, {
+      signal: AbortSignal.timeout(120000),
+    });
     const choice = response.choices[0];
-    if (!choice) throw new Error("DeepSeek returned no choices");
+    if (!choice) throw new Error('DeepSeek returned no choices');
 
     const msg = choice.message;
-    const text = msg.content ?? "";
+    const text = msg.content ?? '';
     const toolCalls = msg.tool_calls ?? [];
-    const thought = (msg as unknown as Record<string, unknown>).reasoning_content as string | undefined;
+    const thought = (msg as unknown as Record<string, unknown>).reasoning_content as
+      string | undefined;
 
     log.debug(
-      `DeepSeek response — stop: ${choice.finish_reason}, text: ${text.length} chars, tools: ${toolCalls.length}`
+      `DeepSeek response — stop: ${choice.finish_reason}, text: ${text.length} chars, tools: ${toolCalls.length}`,
     );
 
     const result: LLMResponse = {
-      stopReason: choice.finish_reason ?? "stop",
+      stopReason: choice.finish_reason ?? 'stop',
       text,
       toolCalls,
     };
 
-    if (typeof thought === "string" && thought) {
+    if (typeof thought === 'string' && thought) {
       result.thought = thought;
     }
 

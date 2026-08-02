@@ -1,4 +1,4 @@
-import type { Migration } from "./runner.ts";
+import type { Migration } from './runner.ts';
 
 /**
  * All database migrations, ordered by dependency.
@@ -11,8 +11,8 @@ import type { Migration } from "./runner.ts";
  */
 export const migrations: Migration[] = [
   {
-    name: "20240101_0000_initial_schema",
-    description: "Core tables: memory, sessions, usage",
+    name: '20240101_0000_initial_schema',
+    description: 'Core tables: memory, sessions, usage',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS memory (
@@ -28,8 +28,8 @@ export const migrations: Migration[] = [
     },
   },
   {
-    name: "20240101_0001_sessions",
-    description: "Sessions table for per-session metadata and settings",
+    name: '20240101_0001_sessions',
+    description: 'Sessions table for per-session metadata and settings',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS sessions (
@@ -43,8 +43,8 @@ export const migrations: Migration[] = [
     },
   },
   {
-    name: "20240101_0002_session_settings",
-    description: "Dedicated session_settings table (replacing settings in memory table)",
+    name: '20240101_0002_session_settings',
+    description: 'Dedicated session_settings table (replacing settings in memory table)',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS session_settings (
@@ -73,12 +73,12 @@ export const migrations: Migration[] = [
       `);
     },
     down: async (db) => {
-      await db.exec("DROP TABLE IF EXISTS session_settings");
+      await db.exec('DROP TABLE IF EXISTS session_settings');
     },
   },
   {
-    name: "20240101_0003_fact_stats",
-    description: "Fact statistics for memory management",
+    name: '20240101_0003_fact_stats',
+    description: 'Fact statistics for memory management',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS fact_stats (
@@ -99,8 +99,8 @@ export const migrations: Migration[] = [
     },
   },
   {
-    name: "20240101_0004_entities_relationships",
-    description: "Knowledge graph entities and relationships",
+    name: '20240101_0004_entities_relationships',
+    description: 'Knowledge graph entities and relationships',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS entities (
@@ -135,8 +135,8 @@ export const migrations: Migration[] = [
     },
   },
   {
-    name: "20240101_0005_attachments",
-    description: "File attachments reference",
+    name: '20240101_0005_attachments',
+    description: 'File attachments reference',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS attachments (
@@ -155,8 +155,8 @@ export const migrations: Migration[] = [
     },
   },
   {
-    name: "20240101_0006_agent_swarms",
-    description: "Multi-agent swarm orchestration tracking",
+    name: '20240101_0006_agent_swarms',
+    description: 'Multi-agent swarm orchestration tracking',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS agent_swarms (
@@ -173,8 +173,8 @@ export const migrations: Migration[] = [
     },
   },
   {
-    name: "20240101_0007_workflows",
-    description: "Mesh workflow orchestration",
+    name: '20240101_0007_workflows',
+    description: 'Mesh workflow orchestration',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS workflows (
@@ -207,8 +207,8 @@ export const migrations: Migration[] = [
     },
   },
   {
-    name: "20240101_0008_scheduled_tasks",
-    description: "Cron-based scheduled task system",
+    name: '20240101_0008_scheduled_tasks',
+    description: 'Cron-based scheduled task system',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS scheduled_tasks (
@@ -243,8 +243,8 @@ export const migrations: Migration[] = [
     },
   },
   {
-    name: "20240101_0009_security_audit_logs",
-    description: "Security audit logging tables",
+    name: '20240101_0009_security_audit_logs',
+    description: 'Security audit logging tables',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS secret_access_log (
@@ -278,8 +278,8 @@ export const migrations: Migration[] = [
     },
   },
   {
-    name: "20240101_0010_usage_tracking",
-    description: "LLM usage tracking and rate limiting",
+    name: '20240101_0010_usage_tracking',
+    description: 'LLM usage tracking and rate limiting',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS usage (
@@ -327,8 +327,8 @@ export const migrations: Migration[] = [
     },
   },
   {
-    name: "20240101_0011_webhooks",
-    description: "Webhook registration and delivery tracking",
+    name: '20240101_0011_webhooks',
+    description: 'Webhook registration and delivery tracking',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS webhooks (
@@ -357,8 +357,8 @@ export const migrations: Migration[] = [
     },
   },
   {
-    name: "20240101_0012_groups",
-    description: "Group settings, admins, and session management",
+    name: '20240101_0012_groups',
+    description: 'Group settings, admins, and session management',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS group_settings (
@@ -404,8 +404,8 @@ export const migrations: Migration[] = [
     },
   },
   {
-    name: "20240101_0013_background_tasks",
-    description: "Async background task queue",
+    name: '20240101_0013_background_tasks',
+    description: 'Async background task queue',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS background_tasks (
@@ -437,8 +437,8 @@ export const migrations: Migration[] = [
     },
   },
   {
-    name: "20240101_0014_recommendations",
-    description: "Smart recommendation event tracking",
+    name: '20240101_0014_recommendations',
+    description: 'Smart recommendation event tracking',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS recommendation_events (
@@ -454,8 +454,8 @@ export const migrations: Migration[] = [
     },
   },
   {
-    name: "20240101_0015_execution_plans",
-    description: "Agent execution plans for planning mode",
+    name: '20240101_0015_execution_plans',
+    description: 'Agent execution plans for planning mode',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS execution_plans (
@@ -476,8 +476,8 @@ export const migrations: Migration[] = [
     },
   },
   {
-    name: "20240101_0016_metrics",
-    description: "Performance metrics storage",
+    name: '20240101_0016_metrics',
+    description: 'Performance metrics storage',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS metrics (
@@ -496,8 +496,8 @@ export const migrations: Migration[] = [
   },
 
   {
-    name: "20240101_0017_fk_constraints",
-    description: "Add foreign key constraints to session-scoped tables",
+    name: '20240101_0017_fk_constraints',
+    description: 'Add foreign key constraints to session-scoped tables',
     up: async (db) => {
       // For SQLite, ALTER TABLE ADD FOREIGN KEY is not supported directly,
       // but in PostgreSQL it is. To support both cleanly without dropping and recreating 12+ tables in SQLite,
@@ -505,14 +505,26 @@ export const migrations: Migration[] = [
       // Wait, the plan says to just run ALTER TABLE ADD FOREIGN KEY which SQLite actually doesn't support!
       // But since the plan explicitly gave ALTER TABLE statements, let's just run them and ignore errors on SQLite.
       const tables = [
-        "memory", "usage", "fact_stats", "attachments", "agent_swarms",
-        "workflows", "execution_plans", "background_tasks", "recommendation_events",
-        "metrics", "group_settings", "group_sessions", "webhooks"
+        'memory',
+        'usage',
+        'fact_stats',
+        'attachments',
+        'agent_swarms',
+        'workflows',
+        'execution_plans',
+        'background_tasks',
+        'recommendation_events',
+        'metrics',
+        'group_settings',
+        'group_sessions',
+        'webhooks',
       ];
-      
+
       for (const table of tables) {
         try {
-          await db.exec(`ALTER TABLE ${table} ADD FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE;`);
+          await db.exec(
+            `ALTER TABLE ${table} ADD FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE;`,
+          );
         } catch (err) {
           // Ignore errors in SQLite since ALTER TABLE ADD FOREIGN KEY is not supported
         }
@@ -520,8 +532,8 @@ export const migrations: Migration[] = [
     },
   },
   {
-    name: "20260719_0001_audit_and_users",
-    description: "Add audit_log and users tables for Phase 4 compliance",
+    name: '20260719_0001_audit_and_users',
+    description: 'Add audit_log and users tables for Phase 4 compliance',
     up: async (db) => {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS audit_log (
@@ -550,6 +562,291 @@ export const migrations: Migration[] = [
           updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
       `);
+    },
+  },
+  {
+    name: '20260801_0001_agent_messaging',
+    description: 'Inter-agent messaging and permissions tables',
+    up: async (db) => {
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS messages (
+          id TEXT PRIMARY KEY,
+          from_session_id TEXT NOT NULL,
+          to_session_id TEXT NOT NULL,
+          content TEXT NOT NULL,
+          timestamp TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_messages_from_session ON messages(from_session_id);
+        CREATE INDEX IF NOT EXISTS idx_messages_to_session ON messages(to_session_id);
+        CREATE INDEX IF NOT EXISTS idx_messages_to_timestamp ON messages(to_session_id, timestamp);
+
+        CREATE TABLE IF NOT EXISTS permissions (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL,
+          target_session_id TEXT NOT NULL,
+          can_read INTEGER NOT NULL DEFAULT 0,
+          can_write INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_permissions_session_target ON permissions(session_id, target_session_id);
+      `);
+    },
+    down: async (db) => {
+      await db.exec('DROP TABLE IF EXISTS permissions');
+      await db.exec('DROP TABLE IF EXISTS messages');
+    },
+  },
+  {
+    name: '20260802_0001_sqlite_fk_fix',
+    description: 'Fix foreign key constraints for SQLite',
+    up: async (db) => {
+      let isSqlite = false;
+      try {
+        const pragmaResult = await db.all("PRAGMA foreign_key_list('memory')");
+        if (pragmaResult.length === 0) {
+          isSqlite = true;
+        }
+      } catch (err) {
+        // Postgres throws syntax error here
+      }
+
+      if (isSqlite) {
+        // We are already inside a transaction provided by runner.ts
+        // PRAGMA foreign_keys = OFF is a no-op inside a transaction, but since these are child tables,
+        // we can safely drop and recreate them.
+
+        // memory
+        await db.exec(`
+          CREATE TABLE new_memory (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              session_id TEXT NOT NULL,
+              timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+              message_json TEXT NOT NULL,
+              settings TEXT DEFAULT '{}',
+              FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            );
+            INSERT INTO new_memory SELECT * FROM memory WHERE session_id IN (SELECT id FROM sessions);
+            DROP TABLE memory;
+            ALTER TABLE new_memory RENAME TO memory;
+            CREATE INDEX idx_memory_session_id ON memory(session_id);
+            CREATE INDEX idx_memory_session_timestamp ON memory(session_id, timestamp DESC);
+          `);
+
+        // usage
+        await db.exec(`
+            CREATE TABLE new_usage (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+              session_id TEXT NOT NULL,
+              model TEXT NOT NULL,
+              prompt_tokens INTEGER NOT NULL,
+              completion_tokens INTEGER NOT NULL,
+              total_tokens INTEGER NOT NULL,
+              cost REAL NOT NULL,
+              latency_ms INTEGER,
+              provider TEXT,
+              FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            );
+            INSERT INTO new_usage SELECT * FROM usage WHERE session_id IN (SELECT id FROM sessions);
+            DROP TABLE usage;
+            ALTER TABLE new_usage RENAME TO usage;
+            CREATE INDEX idx_usage_session ON usage(session_id);
+            CREATE INDEX idx_usage_timestamp ON usage(timestamp);
+            CREATE INDEX idx_usage_model ON usage(model);
+          `);
+
+        // fact_stats
+        await db.exec(`
+            CREATE TABLE new_fact_stats (
+              session_id TEXT NOT NULL,
+              fact_hash TEXT NOT NULL,
+              fact_text TEXT NOT NULL,
+              category TEXT NOT NULL,
+              access_count INTEGER DEFAULT 0,
+              last_accessed DATETIME,
+              importance REAL DEFAULT 0,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              PRIMARY KEY (session_id, fact_hash),
+              FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            );
+            INSERT INTO new_fact_stats SELECT * FROM fact_stats WHERE session_id IN (SELECT id FROM sessions);
+            DROP TABLE fact_stats;
+            ALTER TABLE new_fact_stats RENAME TO fact_stats;
+            CREATE INDEX idx_fact_stats_session ON fact_stats(session_id);
+            CREATE INDEX idx_fact_stats_last_accessed ON fact_stats(last_accessed);
+          `);
+
+        // attachments
+        await db.exec(`
+            CREATE TABLE new_attachments (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              session_id TEXT NOT NULL,
+              type TEXT NOT NULL,
+              url TEXT,
+              base64_data TEXT,
+              extracted_text TEXT,
+              timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+              FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            );
+            INSERT INTO new_attachments SELECT * FROM attachments WHERE session_id IN (SELECT id FROM sessions);
+            DROP TABLE attachments;
+            ALTER TABLE new_attachments RENAME TO attachments;
+            CREATE INDEX idx_attachments_session ON attachments(session_id);
+            CREATE INDEX idx_attachments_type ON attachments(type);
+            CREATE INDEX idx_attachments_timestamp ON attachments(timestamp);
+          `);
+
+        // agent_swarms
+        await db.exec(`
+            CREATE TABLE new_agent_swarms (
+              id TEXT PRIMARY KEY,
+              parent_session_id TEXT NOT NULL,
+              child_session_id TEXT NOT NULL,
+              role TEXT NOT NULL,
+              status TEXT NOT NULL DEFAULT 'spawned',
+              created_at TIMESTAMP NOT NULL,
+              FOREIGN KEY(parent_session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+              FOREIGN KEY(child_session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            );
+            INSERT INTO new_agent_swarms SELECT * FROM agent_swarms WHERE parent_session_id IN (SELECT id FROM sessions) AND child_session_id IN (SELECT id FROM sessions);
+            DROP TABLE agent_swarms;
+            ALTER TABLE new_agent_swarms RENAME TO agent_swarms;
+            CREATE INDEX idx_swarm_parent ON agent_swarms(parent_session_id);
+            CREATE INDEX idx_swarm_child ON agent_swarms(child_session_id);
+          `);
+
+        // workflows
+        await db.exec(`
+            CREATE TABLE new_workflows (
+              id TEXT PRIMARY KEY,
+              session_id TEXT NOT NULL,
+              goal TEXT NOT NULL,
+              tasks_json TEXT NOT NULL,
+              status TEXT NOT NULL DEFAULT 'pending',
+              progress REAL NOT NULL DEFAULT 0,
+              created_at TIMESTAMP NOT NULL,
+              completed_at TIMESTAMP,
+              FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            );
+            INSERT INTO new_workflows SELECT * FROM workflows WHERE session_id IN (SELECT id FROM sessions);
+            DROP TABLE workflows;
+            ALTER TABLE new_workflows RENAME TO workflows;
+            CREATE INDEX idx_workflow_session ON workflows(session_id);
+            CREATE INDEX idx_workflow_status ON workflows(status);
+          `);
+
+        // execution_plans
+        await db.exec(`
+            CREATE TABLE new_execution_plans (
+              id TEXT PRIMARY KEY,
+              session_id TEXT NOT NULL,
+              run_id TEXT NOT NULL,
+              goal TEXT NOT NULL,
+              steps_json TEXT NOT NULL,
+              current_step_index INTEGER NOT NULL DEFAULT 0,
+              status TEXT NOT NULL DEFAULT 'active',
+              created_at DATETIME NOT NULL,
+              updated_at DATETIME NOT NULL,
+              FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            );
+            INSERT INTO new_execution_plans SELECT * FROM execution_plans WHERE session_id IN (SELECT id FROM sessions);
+            DROP TABLE execution_plans;
+            ALTER TABLE new_execution_plans RENAME TO execution_plans;
+            CREATE INDEX idx_execution_plans_run_id ON execution_plans(run_id);
+            CREATE INDEX idx_execution_plans_session ON execution_plans(session_id);
+            CREATE INDEX idx_execution_plans_status ON execution_plans(status);
+          `);
+
+        // background_tasks
+        await db.exec(`
+            CREATE TABLE new_background_tasks (
+              id TEXT PRIMARY KEY,
+              session_id TEXT NOT NULL,
+              run_id TEXT NOT NULL,
+              source TEXT NOT NULL DEFAULT 'agent',
+              tool_name TEXT NOT NULL,
+              input_json TEXT NOT NULL,
+              user_id TEXT,
+              platform TEXT,
+              group_id TEXT,
+              is_group INTEGER DEFAULT 0,
+              attempt INTEGER NOT NULL DEFAULT 0,
+              max_retries INTEGER NOT NULL DEFAULT 3,
+              status TEXT NOT NULL DEFAULT 'queued',
+              result_json TEXT,
+              error TEXT,
+              workflow_id TEXT,
+              workflow_task_id TEXT,
+              available_at DATETIME NOT NULL,
+              created_at DATETIME NOT NULL,
+              updated_at DATETIME NOT NULL,
+              FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            );
+            INSERT INTO new_background_tasks SELECT * FROM background_tasks WHERE session_id IN (SELECT id FROM sessions);
+            DROP TABLE background_tasks;
+            ALTER TABLE new_background_tasks RENAME TO background_tasks;
+            CREATE INDEX idx_background_tasks_session ON background_tasks(session_id);
+            CREATE INDEX idx_background_tasks_status ON background_tasks(status);
+            CREATE INDEX idx_background_tasks_workflow ON background_tasks(workflow_id, workflow_task_id);
+          `);
+
+        // recommendation_events
+        await db.exec(`
+            CREATE TABLE new_recommendation_events (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              session_id TEXT NOT NULL,
+              date_key TEXT NOT NULL,
+              suggestions_json TEXT NOT NULL,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            );
+            INSERT INTO new_recommendation_events SELECT * FROM recommendation_events WHERE session_id IN (SELECT id FROM sessions);
+            DROP TABLE recommendation_events;
+            ALTER TABLE new_recommendation_events RENAME TO recommendation_events;
+            CREATE INDEX idx_recommendation_events_session ON recommendation_events(session_id);
+            CREATE INDEX idx_recommendation_events_date ON recommendation_events(date_key);
+          `);
+
+        // group_sessions
+        await db.exec(`
+            CREATE TABLE new_group_sessions (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              platform TEXT NOT NULL,
+              group_id TEXT NOT NULL,
+              session_id TEXT NOT NULL UNIQUE,
+              last_message_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE(platform, group_id),
+              FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            );
+            INSERT INTO new_group_sessions SELECT * FROM group_sessions WHERE session_id IN (SELECT id FROM sessions);
+            DROP TABLE group_sessions;
+            ALTER TABLE new_group_sessions RENAME TO group_sessions;
+            CREATE INDEX idx_group_sessions_platform_group ON group_sessions(platform, group_id);
+            CREATE INDEX idx_group_sessions_session_id ON group_sessions(session_id);
+          `);
+
+        // webhooks
+        await db.exec(`
+            CREATE TABLE new_webhooks (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              name TEXT NOT NULL,
+              session_id TEXT NOT NULL,
+              secret TEXT,
+              created_by TEXT,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE(name, session_id),
+              FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            );
+            INSERT INTO new_webhooks SELECT * FROM webhooks WHERE session_id IN (SELECT id FROM sessions);
+            DROP TABLE webhooks;
+            ALTER TABLE new_webhooks RENAME TO webhooks;
+            CREATE INDEX idx_webhooks_session ON webhooks(session_id);
+          `);
+
+        await db.exec('PRAGMA foreign_keys = ON;');
+      }
     },
   },
 ];

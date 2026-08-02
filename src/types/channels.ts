@@ -15,5 +15,5 @@ export interface Channel {
   stop(): Promise<void>;
   sendMessage(chatId: string, text: string): Promise<void>;
   sendTyping?(chatId: string): Promise<void>;
-  preferredFormat?: "markdown" | "html" | "plaintext" | "whatsapp";
+  preferredFormat?: 'markdown' | 'html' | 'plaintext' | 'whatsapp';
 }

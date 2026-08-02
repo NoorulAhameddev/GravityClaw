@@ -20,7 +20,7 @@
 | **File** | [.env](.env#L1) |
 | **Line** | 1 |
 | **Type** | Telegram Bot Token |
-| **Secret** | `8459757685:AAGlySd4JwPzTUx0j4I00rfeikT7uFqsnxI` |
+| **Secret** | `[REDACTED_TELEGRAM_BOT_TOKEN]` |
 | **Risk Level** | 🔴 **CRITICAL** |
 | **Impact** | Anyone with this token can: Send/receive messages as the bot, access bot commands, manipulate message content, impersonate the bot |
 | **Status** | ⚠️ **EXPOSED IN PLAINTEXT** |
@@ -267,7 +267,7 @@ node scripts/encrypt-secret.ts --generate-key
 echo "MASTER_KEY=<generated-key>" >> .env
 
 # 3. Add Telegram token to encrypted storage
-node scripts/encrypt-secret.ts --add TELEGRAM_BOT_TOKEN "8459757685:AAGlySd4JwPzTUx0j4I00rfeikT7uFqsnxI"
+node scripts/encrypt-secret.ts --add TELEGRAM_BOT_TOKEN "[REDACTED_TELEGRAM_BOT_TOKEN]"
 
 # 4. Update config to load from encrypted storage
 # See: docs/ENCRYPTED_SECRETS.md

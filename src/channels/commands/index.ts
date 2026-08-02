@@ -1,4 +1,4 @@
-import type { Channel, UnifiedMessage } from "../../types/channels.js";
+import type { Channel, UnifiedMessage } from '../../types/channels.js';
 
 export interface CommandContext {
   msg: UnifiedMessage;

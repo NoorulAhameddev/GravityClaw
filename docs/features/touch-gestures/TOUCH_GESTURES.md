@@ -44,7 +44,7 @@ Configure gestures before initialization:
 
 ```javascript
 const opts = {
-  enableLogging: true,  // Debug logging
+  enableLogging: true, // Debug logging
 };
 const gestureManager = TouchGestureManager.init(opts);
 ```
@@ -77,17 +77,19 @@ if (gestureManager.isSupported()) {
 **Gesture**: Swipe left (next page) or right (previous page)
 
 **Configuration**:
+
 ```javascript
 GESTURE_CONFIG.swipe = {
-  minDistance: 50,        // Minimum swipe distance (px)
-  maxDistance: 500,       // Maximum swipe distance (px)
-  minVelocity: 0.5,       // Minimum velocity (px/ms)
-  maxTime: 500,           // Maximum time for swipe (ms)
+  minDistance: 50, // Minimum swipe distance (px)
+  maxDistance: 500, // Maximum swipe distance (px)
+  minVelocity: 0.5, // Minimum velocity (px/ms)
+  maxTime: 500, // Maximum time for swipe (ms)
   enabled: true,
 };
 ```
 
 **Pages Navigated**:
+
 - Chat
 - Dashboard
 - Memory
@@ -95,10 +97,12 @@ GESTURE_CONFIG.swipe = {
 - Tools
 
 **Visual Feedback**:
+
 - Swipe indicator gradient overlay
 - Light haptic feedback on completion
 
 **Accessibility**:
+
 - Arrow keys: Left/Right to navigate
 - Ctrl/Cmd+1/2/3: Jump to specific page
 
@@ -107,16 +111,18 @@ GESTURE_CONFIG.swipe = {
 **Gesture**: Pull down from top of page
 
 **Configuration**:
+
 ```javascript
 GESTURE_CONFIG.pullToRefresh = {
-  minDistance: 80,        // Minimum pull distance (px)
-  maxDistance: 200,       // Maximum pull distance (px)
+  minDistance: 80, // Minimum pull distance (px)
+  maxDistance: 200, // Maximum pull distance (px)
   enabled: true,
-  resistance: 0.5,        // Display distance multiplier
+  resistance: 0.5, // Display distance multiplier
 };
 ```
 
 **Refresh Actions**:
+
 - **Chat**: Re-connect WebSocket, reload messages
 - **Dashboard**: Call `loadDashboard()`
 - **Memory**: Call `loadMemory()`
@@ -124,12 +130,14 @@ GESTURE_CONFIG.pullToRefresh = {
 - **Canvas**: Call `loadCanvas()`
 
 **Visual Feedback**:
+
 - Rotating spinner indicator
 - Progress animation
 - Color change when ready to refresh
 - Auto-dismiss after completion
 
 **Implementation**:
+
 ```javascript
 // Custom refresh handler (optional)
 window.onPageRefresh = async (currentPage) => {
@@ -143,15 +151,17 @@ window.onPageRefresh = async (currentPage) => {
 **Gesture**: Long press (500ms) on element with `data-long-pressable` attribute
 
 **Configuration**:
+
 ```javascript
 GESTURE_CONFIG.longPress = {
-  duration: 500,          // Long press duration (ms)
+  duration: 500, // Long press duration (ms)
   enabled: true,
-  vibration: 50,          // Vibration strength (ms)
+  vibration: 50, // Vibration strength (ms)
 };
 ```
 
 **Menu Options**:
+
 1. **Copy** - Copy element text to clipboard
 2. **Edit** - Dispatch `item-edit` event
 3. **Delete** - Dispatch `item-delete` event
@@ -161,13 +171,9 @@ GESTURE_CONFIG.longPress = {
 
 ```html
 <!-- Add data-long-pressable attribute -->
-<div class="memory-fact" data-long-pressable>
-  Important fact
-</div>
+<div class="memory-fact" data-long-pressable>Important fact</div>
 
-<div class="message" data-long-pressable>
-  Message content
-</div>
+<div class="message" data-long-pressable>Message content</div>
 ```
 
 **Listening for Actions**:
@@ -175,7 +181,7 @@ GESTURE_CONFIG.longPress = {
 ```javascript
 document.addEventListener('contextmenu-action', (e) => {
   const { action, element } = e.detail;
-  
+
   if (action === 'copy') {
     // Handle copy
   } else if (action === 'edit') {
@@ -193,13 +199,14 @@ document.addEventListener('contextmenu-action', (e) => {
 **Gesture**: Two-finger pinch or double-tap to zoom
 
 **Configuration**:
+
 ```javascript
 GESTURE_CONFIG.pinchZoom = {
-  minZoom: 1.0,           // Minimum zoom level
-  maxZoom: 3.0,           // Maximum zoom level
-  doubleTapZoom: 1.5,     // Double tap zoom level
+  minZoom: 1.0, // Minimum zoom level
+  maxZoom: 3.0, // Maximum zoom level
+  doubleTapZoom: 1.5, // Double tap zoom level
   enabled: true,
-  vibration: 20,          // Light vibration (ms)
+  vibration: 20, // Light vibration (ms)
 };
 ```
 
@@ -213,18 +220,20 @@ GESTURE_CONFIG.pinchZoom = {
 ```
 
 **Controls**:
+
 - **Two-finger pinch**: Continuous zoom
 - **Double-tap**: Reset to 1x zoom (with light vibration)
 
 ### 5. Haptic Feedback
 
 **Configuration**:
+
 ```javascript
 GESTURE_CONFIG.haptics = {
   enabled: true,
-  light: 10,              // Light vibration (ms)
-  medium: 30,             // Medium vibration (ms)
-  strong: 100,            // Strong vibration (ms)
+  light: 10, // Light vibration (ms)
+  medium: 30, // Medium vibration (ms)
+  strong: 100, // Strong vibration (ms)
 };
 ```
 
@@ -234,18 +243,19 @@ GESTURE_CONFIG.haptics = {
 const manager = TouchGestureManager.instance;
 
 // Simple vibrations
-await manager.vibration.light();      // 10ms
-await manager.vibration.medium();     // 30ms
-await manager.vibration.strong();     // 100ms
+await manager.vibration.light(); // 10ms
+await manager.vibration.medium(); // 30ms
+await manager.vibration.strong(); // 100ms
 
 // Custom vibration
-await manager.vibration.vibrate(50);  // 50ms
+await manager.vibration.vibrate(50); // 50ms
 
 // Vibration patterns (pause between)
-await manager.vibration.pattern([100, 50, 100]);  // Vibrate 100ms, pause 50ms, vibrate 100ms
+await manager.vibration.pattern([100, 50, 100]); // Vibrate 100ms, pause 50ms, vibrate 100ms
 ```
 
 **Browser Support**:
+
 - iOS 13+: Light vibrations only
 - Android: Full support
 - Check with `'vibrate' in navigator`
@@ -256,37 +266,47 @@ Automatically applied CSS:
 
 ```css
 /* Minimum touch target size: 44x44px */
-button, a, [role="button"] {
+button,
+a,
+[role='button'] {
   min-height: 44px;
   min-width: 44px;
 }
 
 /* Input fields: larger for easier typing */
-input[type="text"],
-input[type="email"],
+input[type='text'],
+input[type='email'],
 textarea,
 select {
   min-height: 48px;
-  font-size: 16px;  /* Prevents iOS zoom on focus */
+  font-size: 16px; /* Prevents iOS zoom on focus */
 }
 
 /* Safe area support for notches */
 @supports (padding: max(0px)) {
   body {
-    padding: max(12px, env(safe-area-inset-*));
+    padding: max(12px, env(safe-area-inset- *));
   }
 }
 
 /* Responsive font sizes */
 @media (max-width: 768px) {
-  body { font-size: 16px; }
-  h1 { font-size: 24px; }
-  h2 { font-size: 20px; }
+  body {
+    font-size: 16px;
+  }
+  h1 {
+    font-size: 24px;
+  }
+  h2 {
+    font-size: 20px;
+  }
 }
 
 /* Disable hover on touch devices */
 @media (hover: none) {
-  button:hover { background: unset; }
+  button:hover {
+    background: unset;
+  }
 }
 ```
 
@@ -295,6 +315,7 @@ select {
 ### Progressive Web App Features
 
 **Manifest File** (`manifest.json`):
+
 - App name and icon
 - Start URL and display mode
 - Theme colors
@@ -303,11 +324,13 @@ select {
 - Screenshots for app store
 
 **Installation Prompt**:
+
 - Automatically shown 30 seconds after first visit
 - "Install App" button appears in bottom-right
 - Customizable via `beforeinstallprompt` event
 
 **Offline Support**:
+
 - Service Worker caches essential assets
 - Network-first strategy for API calls
 - Cache-first strategy for static files
@@ -316,18 +339,21 @@ select {
 ### Manual Installation
 
 **iOS**:
+
 1. Open in Safari
 2. Tap Share → Add to Home Screen
 3. Name the app
 4. Add to home screen
 
 **Android**:
+
 1. Open in Chrome
 2. Tap menu (three dots)
 3. Tap "Install app" or "Add to Home Screen"
 4. Confirm installation
 
 **Desktop**:
+
 1. Open in Chrome/Edge
 2. Address bar shows install icon
 3. Click to install as standalone app
@@ -349,6 +375,7 @@ Add gesture settings panel to your dashboard:
 ```
 
 **Settings Available**:
+
 - Enable/disable each gesture
 - Adjust swipe sensitivity (0.5x to 2.0x)
 - Toggle haptic feedback
@@ -358,26 +385,26 @@ Add gesture settings panel to your dashboard:
 
 ## Keyboard Shortcuts (Non-Touch Fallback)
 
-| Shortcut | Action |
-|----------|--------|
-| Arrow Left | Previous page (swipe right) |
-| Arrow Right | Next page (swipe left) |
-| Ctrl+R | Refresh current page |
-| Ctrl+1 | Navigate to Chat |
-| Ctrl+2 | Navigate to Dashboard |
-| Ctrl+3 | Navigate to Memory |
+| Shortcut    | Action                      |
+| ----------- | --------------------------- |
+| Arrow Left  | Previous page (swipe right) |
+| Arrow Right | Next page (swipe left)      |
+| Ctrl+R      | Refresh current page        |
+| Ctrl+1      | Navigate to Chat            |
+| Ctrl+2      | Navigate to Dashboard       |
+| Ctrl+3      | Navigate to Memory          |
 
 ## Browser Compatibility
 
-| Feature | iOS | Android | Desktop | Notes |
-|---------|-----|---------|---------|-------|
-| Swipe Navigation | ✓ | ✓ | ✓ | Mouse drag simulates swipe |
-| Pull-to-Refresh | ✓ | ✓ | Partial | Not useful on desktop |
-| Long-Press | ✓ | ✓ | ✓ | 500ms threshold |
-| Pinch-to-Zoom | ✓ | ✓ | ✗ | Requires 2-finger touch |
-| Haptic/Vibration | ✓ | ✓ | ✗ | Not supported on desktop |
-| PWA Install | ✓ iOS17+ | ✓ Chrome | ✓ Chrome/Edge | Browser dependent |
-| Service Worker | ✓ | ✓ | ✓ | HTTPS required |
+| Feature          | iOS      | Android  | Desktop       | Notes                      |
+| ---------------- | -------- | -------- | ------------- | -------------------------- |
+| Swipe Navigation | ✓        | ✓        | ✓             | Mouse drag simulates swipe |
+| Pull-to-Refresh  | ✓        | ✓        | Partial       | Not useful on desktop      |
+| Long-Press       | ✓        | ✓        | ✓             | 500ms threshold            |
+| Pinch-to-Zoom    | ✓        | ✓        | ✗             | Requires 2-finger touch    |
+| Haptic/Vibration | ✓        | ✓        | ✗             | Not supported on desktop   |
+| PWA Install      | ✓ iOS17+ | ✓ Chrome | ✓ Chrome/Edge | Browser dependent          |
+| Service Worker   | ✓        | ✓        | ✓             | HTTPS required             |
 
 ### iOS Specific
 
@@ -433,9 +460,15 @@ class CustomGestureDetector {
     this.element.addEventListener('touchend', this.onEnd.bind(this));
   }
 
-  onStart(e) { /* custom logic */ }
-  onMove(e) { /* custom logic */ }
-  onEnd(e) { /* custom logic */ }
+  onStart(e) {
+    /* custom logic */
+  }
+  onMove(e) {
+    /* custom logic */
+  }
+  onEnd(e) {
+    /* custom logic */
+  }
 }
 ```
 
@@ -447,8 +480,10 @@ const manager = TouchGestureManager.init();
 // Add custom detector
 manager.customDetector = new CustomGestureDetector(
   document.body,
-  (result) => { /* handle custom gesture */ },
-  manager.prefs
+  (result) => {
+    /* handle custom gesture */
+  },
+  manager.prefs,
 );
 
 // Disable specific gestures
@@ -466,26 +501,30 @@ window.onPageRefresh = async (page) => {
 ### Gestures Not Working
 
 1. **Check touch support**:
+
 ```javascript
 const manager = TouchGestureManager.instance;
 console.log('Touch supported:', manager.isSupported());
 ```
 
 2. **Check preferences enabled**:
+
 ```javascript
 console.log(manager.getPreferences());
 ```
 
 3. **Enable debug logging**:
+
 ```javascript
 GESTURE_CONFIG.general.enableLogging = true;
 ```
 
 4. **Clear cache**:
+
 ```javascript
 // Clear service worker cache
-navigator.serviceWorker.getRegistrations().then(regs => {
-  regs.forEach(reg => reg.unregister());
+navigator.serviceWorker.getRegistrations().then((regs) => {
+  regs.forEach((reg) => reg.unregister());
 });
 
 // Clear preferences
@@ -515,6 +554,7 @@ manager.resetPreferences();
 ## Performance Tips
 
 1. **Debounce refresh handlers**:
+
 ```javascript
 let refreshing = false;
 window.onPageRefresh = async (page) => {
@@ -529,9 +569,10 @@ window.onPageRefresh = async (page) => {
 ```
 
 2. **Lazy load long-pressable elements**:
+
 ```javascript
 const observer = new MutationObserver(() => {
-  document.querySelectorAll('[data-item]:not([data-long-pressable])').forEach(el => {
+  document.querySelectorAll('[data-item]:not([data-long-pressable])').forEach((el) => {
     el.setAttribute('data-long-pressable', '');
   });
 });
@@ -539,9 +580,10 @@ observer.observe(document.body, { childList: true, subtree: true });
 ```
 
 3. **Limit vibration patterns**:
+
 ```javascript
 // Keep vibrations short
-manager.vibration?.light();  // 10ms
+manager.vibration?.light(); // 10ms
 // Avoid long patterns that drain battery
 // manager.vibration?.pattern([1000, 100, 1000]);  // Bad!
 ```
@@ -568,7 +610,7 @@ document.addEventListener('contextmenu-action', (e) => {
     const itemId = element.dataset.id;
     fetch(`/api/items/${itemId}`, { method: 'DELETE' })
       .then(() => element.remove())
-      .catch(err => console.error('Delete failed:', err));
+      .catch((err) => console.error('Delete failed:', err));
   }
 });
 ```
@@ -582,11 +624,13 @@ document.addEventListener('swipe', (e) => {
 
   const direction = e.detail.direction;
   const nextStep = direction === 'left' ? 1 : -1;
-  
+
   // Navigate to next/previous step in modal
-  modal.dispatchEvent(new CustomEvent('step-change', {
-    detail: { direction: nextStep }
-  }));
+  modal.dispatchEvent(
+    new CustomEvent('step-change', {
+      detail: { direction: nextStep },
+    }),
+  );
 });
 ```
 

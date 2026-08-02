@@ -1,17 +1,17 @@
-import { bootstrapSharedMemory, syncSharedMemoryToVault } from "./shared-memory-lib.js";
+import { bootstrapSharedMemory, syncSharedMemoryToVault } from './shared-memory-lib.js';
 
 function parseArgs(argv) {
   const args = new Map();
 
   for (let i = 0; i < argv.length; i += 1) {
     const part = argv[i];
-    if (!part?.startsWith("--")) {
+    if (!part?.startsWith('--')) {
       continue;
     }
 
     const key = part.slice(2);
     const next = argv[i + 1];
-    if (!next || next.startsWith("--")) {
+    if (!next || next.startsWith('--')) {
       args.set(key, true);
       continue;
     }
@@ -25,13 +25,11 @@ function parseArgs(argv) {
 
 function runOnce(args) {
   const bootstrapResult = bootstrapSharedMemory();
-  const skipVaultSync = Boolean(args.get("skip-vault-sync"));
-  const vaultResult = skipVaultSync
-    ? { success: true, skipped: true }
-    : syncSharedMemoryToVault();
+  const skipVaultSync = Boolean(args.get('skip-vault-sync'));
+  const vaultResult = skipVaultSync ? { success: true, skipped: true } : syncSharedMemoryToVault();
 
-  const bootstrapStatus = bootstrapResult.success ? "ok" : "failed";
-  const vaultStatus = vaultResult.skipped ? "skipped" : (vaultResult.success ? "ok" : "failed");
+  const bootstrapStatus = bootstrapResult.success ? 'ok' : 'failed';
+  const vaultStatus = vaultResult.skipped ? 'skipped' : vaultResult.success ? 'ok' : 'failed';
   console.error(`[SharedMemory] bootstrap=${bootstrapStatus} vault=${vaultStatus}`);
 
   return {
@@ -42,8 +40,8 @@ function runOnce(args) {
 }
 
 const args = parseArgs(process.argv.slice(2));
-const once = Boolean(args.get("once"));
-const intervalMinutes = Number(args.get("interval-minutes") ?? 5);
+const once = Boolean(args.get('once'));
+const intervalMinutes = Number(args.get('interval-minutes') ?? 5);
 
 runOnce(args);
 
@@ -52,4 +50,3 @@ if (!once) {
   console.error(`[SharedMemory] Watching every ${Math.max(1, intervalMinutes)} minute(s)`);
   setInterval(() => runOnce(args), intervalMs);
 }
-

@@ -1,29 +1,29 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { db } from "../db.ts";
-import { createLogger } from "../logger.ts";
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { db } from '../db.ts';
+import { createLogger } from '../logger.ts';
 import type {
   EvolutionConfig,
   EvolutionReport,
   CategoryOrganizerInput,
   CategoryOrganizer,
-} from "../types/memory.js";
+} from '../types/memory.js';
 export type {
   EvolutionConfig,
   EvolutionReport,
   CategoryOrganizerInput,
   CategoryOrganizer,
-} from "../types/memory.js";
+} from '../types/memory.js';
 import {
   readAllFacts,
   rewriteSessionFacts,
   getFactStats,
   touchFactAccess,
   type MarkdownFact,
-} from "./markdown.ts";
+} from './markdown.ts';
 
-const log = createLogger("memory:evolution");
-const EVOLUTION_LOG_PATH = path.resolve(process.cwd(), "logs", "memory-evolution.log");
+const log = createLogger('memory:evolution');
+const EVOLUTION_LOG_PATH = path.resolve(process.cwd(), 'logs', 'memory-evolution.log');
 
 const DEFAULT_CONFIG: EvolutionConfig = {
   duplicateSimilarityThreshold: 0.9,
@@ -34,7 +34,7 @@ const DEFAULT_CONFIG: EvolutionConfig = {
 function tokenize(text: string): string[] {
   return text
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
     .filter((token) => token.length > 1);
 }
@@ -78,7 +78,7 @@ function appendEvolutionLog(report: EvolutionReport): void {
   fs.mkdirSync(dir, { recursive: true });
 
   const line = JSON.stringify(report);
-  fs.appendFileSync(EVOLUTION_LOG_PATH, `${line}\n`, "utf8");
+  fs.appendFileSync(EVOLUTION_LOG_PATH, `${line}\n`, 'utf8');
 }
 
 function isStale(lastAccessed: string | undefined, staleDays: number, now: Date): boolean {
@@ -98,12 +98,12 @@ function isStale(lastAccessed: string | undefined, staleDays: number, now: Date)
 
 function normalizeCategory(value: string): string {
   const cleaned = value.trim().toLowerCase();
-  return cleaned || "general";
+  return cleaned || 'general';
 }
 
 async function reorganizeCategories(
   facts: MarkdownFact[],
-  organizer?: CategoryOrganizer
+  organizer?: CategoryOrganizer,
 ): Promise<{ updatedFacts: MarkdownFact[]; changedCount: number; suggestions: number }> {
   if (!organizer || facts.length === 0) {
     return { updatedFacts: facts, changedCount: 0, suggestions: 0 };
@@ -158,10 +158,10 @@ export async function runMemoryEvolution(
     now?: Date;
     config?: Partial<EvolutionConfig>;
     categoryOrganizer?: CategoryOrganizer;
-  }
+  },
 ): Promise<EvolutionReport> {
   if (!sessionId.trim()) {
-    throw new Error("sessionId is required");
+    throw new Error('sessionId is required');
   }
 
   const now = options?.now ?? new Date();
@@ -260,7 +260,7 @@ export async function runMemoryEvolution(
 
   appendEvolutionLog(report);
   log.info(
-    `Memory evolution complete for ${sessionId}: ${allFacts.length} -> ${evolvedFacts.length} facts`
+    `Memory evolution complete for ${sessionId}: ${allFacts.length} -> ${evolvedFacts.length} facts`,
   );
 
   return report;
@@ -283,7 +283,7 @@ export function getEntityAccessStats(sessionId: string): Array<{
       FROM entities
       WHERE session_id = ?
       ORDER BY access_count DESC, updated_at DESC
-      `
+      `,
     )
     .all(sessionId) as Array<{
     name: string;

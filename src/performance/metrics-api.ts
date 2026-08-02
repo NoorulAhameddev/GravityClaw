@@ -1,6 +1,6 @@
 /**
  * Performance Metrics Endpoints
- * 
+ *
  * Provides HTTP endpoints for accessing performance metrics:
  * - /api/metrics/performance
  * - /api/metrics/memory
@@ -10,40 +10,37 @@
  * - /api/metrics/all
  */
 
-import { createLogger } from "../logger.ts";
-import { Router } from "express";
-import type { Request, Response } from "express";
-import { authMiddleware } from "../middleware/auth.ts";
+import { createLogger } from '../logger.ts';
+import { Router } from 'express';
+import type { Request, Response } from 'express';
+import { authMiddleware } from '../middleware/auth.ts';
 import {
   getMemoryStats,
   getMemoryTrend,
   detectMemoryLeaks,
   getMemorySeries,
-} from "./memory-optimization.ts";
+} from './memory-optimization.ts';
 import {
   getToolMetrics,
   getSlowestTools,
   getMostExecutedTools,
   getToolErrorRates,
   getCacheStats as getToolCacheStats,
-} from "./tool-optimization.ts";
+} from './tool-optimization.ts';
 import {
   getIterationStats,
   getSlowestIterations,
   getSessionsWithMostToolCalls,
   getLatencyTrend,
-} from "./agent-optimization.ts";
-import {
-  getDatabaseStats,
-  getCacheStats as getDBCacheStats,
-} from "./db-optimization.ts";
-import { db } from "../db.ts";
-import { isVectorStoreAvailable } from "../memory/vector.ts";
-import { mcpClient } from "../mcp/index.ts";
-import { isQueueWorkerRunning } from "../queue/index.ts";
-import { config } from "../config.ts";
+} from './agent-optimization.ts';
+import { getDatabaseStats, getCacheStats as getDBCacheStats } from './db-optimization.ts';
+import { db } from '../db.ts';
+import { isVectorStoreAvailable } from '../memory/vector.ts';
+import { mcpClient } from '../mcp/index.ts';
+import { isQueueWorkerRunning } from '../queue/index.ts';
+import { config } from '../config.ts';
 
-const log = createLogger("metrics-api");
+const log = createLogger('metrics-api');
 const router = Router();
 
 router.use(authMiddleware);
@@ -52,7 +49,7 @@ router.use(authMiddleware);
  * GET /api/metrics/performance
  * Overall performance snapshot
  */
-router.get("/performance", (req: Request, res: Response) => {
+router.get('/performance', (req: Request, res: Response) => {
   try {
     const memory = getMemoryStats();
     const iterations = getIterationStats();
@@ -63,7 +60,7 @@ router.get("/performance", (req: Request, res: Response) => {
 
     res.json({
       timestamp: new Date().toISOString(),
-      status: "ok",
+      status: 'ok',
       summary: {
         uptime: process.uptime(),
         memory,
@@ -75,18 +72,18 @@ router.get("/performance", (req: Request, res: Response) => {
         })),
       },
     });
-    } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
-        log.error("Failed to get performance metrics:", error);
-        res.status(500).json({ error: message });
-    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    log.error('Failed to get performance metrics:', error);
+    res.status(500).json({ error: message });
+  }
 });
 
 /**
  * GET /api/metrics/memory
  * Detailed memory statistics
  */
-router.get("/memory", (req: Request, res: Response) => {
+router.get('/memory', (req: Request, res: Response) => {
   try {
     const stats = getMemoryStats();
     const trend = getMemoryTrend();
@@ -100,7 +97,7 @@ router.get("/memory", (req: Request, res: Response) => {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    log.error("Failed to get memory metrics:", error);
+    log.error('Failed to get memory metrics:', error);
     res.status(500).json({ error: message });
   }
 });
@@ -109,7 +106,7 @@ router.get("/memory", (req: Request, res: Response) => {
  * GET /api/metrics/memory-trend
  * Memory trend over time (for graphing)
  */
-router.get("/memory-trend", (req: Request, res: Response) => {
+router.get('/memory-trend', (req: Request, res: Response) => {
   try {
     const series = getMemorySeries();
 
@@ -119,7 +116,7 @@ router.get("/memory-trend", (req: Request, res: Response) => {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    log.error("Failed to get memory trend:", error);
+    log.error('Failed to get memory trend:', error);
     res.status(500).json({ error: message });
   }
 });
@@ -128,15 +125,15 @@ router.get("/memory-trend", (req: Request, res: Response) => {
  * GET /api/metrics/websocket
  * WebSocket connection statistics (requires WSM module)
  */
-router.get("/websocket", (req: Request, res: Response) => {
+router.get('/websocket', (req: Request, res: Response) => {
   try {
     res.json({
       timestamp: new Date().toISOString(),
-      note: "WebSocket metrics available via /api/ws-info",
+      note: 'WebSocket metrics available via /api/ws-info',
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    log.error("Failed to get websocket metrics:", error);
+    log.error('Failed to get websocket metrics:', error);
     res.status(500).json({ error: message });
   }
 });
@@ -145,7 +142,7 @@ router.get("/websocket", (req: Request, res: Response) => {
  * GET /api/metrics/tools
  * Tool execution metrics
  */
-router.get("/tools", (req: Request, res: Response) => {
+router.get('/tools', (req: Request, res: Response) => {
   try {
     const metrics = getToolMetrics();
     const slowest = getSlowestTools(10);
@@ -155,12 +152,9 @@ router.get("/tools", (req: Request, res: Response) => {
 
     const totalExecutions = Object.values(metrics).reduce(
       (sum, m) => sum + (m.executionCount || 0),
-      0
+      0,
     );
-    const totalTime = Object.values(metrics).reduce(
-      (sum, m) => sum + (m.totalTime || 0),
-      0
-    );
+    const totalTime = Object.values(metrics).reduce((sum, m) => sum + (m.totalTime || 0), 0);
 
     res.json({
       timestamp: new Date().toISOString(),
@@ -185,7 +179,7 @@ router.get("/tools", (req: Request, res: Response) => {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    log.error("Failed to get tool metrics:", error);
+    log.error('Failed to get tool metrics:', error);
     res.status(500).json({ error: message });
   }
 });
@@ -194,7 +188,7 @@ router.get("/tools", (req: Request, res: Response) => {
  * GET /api/metrics/iterations
  * Agent iteration metrics
  */
-router.get("/iterations", (req: Request, res: Response) => {
+router.get('/iterations', (req: Request, res: Response) => {
   try {
     const stats = getIterationStats();
     const slowest = getSlowestIterations(10);
@@ -214,7 +208,7 @@ router.get("/iterations", (req: Request, res: Response) => {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    log.error("Failed to get iteration metrics:", error);
+    log.error('Failed to get iteration metrics:', error);
     res.status(500).json({ error: message });
   }
 });
@@ -223,16 +217,22 @@ router.get("/iterations", (req: Request, res: Response) => {
  * GET /api/metrics/database
  * Database statistics and cache info
  */
-router.get("/database", (req: Request, res: Response) => {
+router.get('/database', (req: Request, res: Response) => {
   try {
     const stats = getDatabaseStats();
     const cacheStats = getDBCacheStats();
 
     const counts = {
-      memory: (db.prepare("SELECT COUNT(*) as count FROM memory").get() as { count: number })?.count || 0,
-      usage: (db.prepare("SELECT COUNT(*) as count FROM usage").get() as { count: number })?.count || 0,
-      sessions: (db.prepare("SELECT COUNT(*) as count FROM sessions").get() as { count: number })?.count || 0,
-      workflows: (db.prepare("SELECT COUNT(*) as count FROM workflows").get() as { count: number })?.count || 0,
+      memory:
+        (db.prepare('SELECT COUNT(*) as count FROM memory').get() as { count: number })?.count || 0,
+      usage:
+        (db.prepare('SELECT COUNT(*) as count FROM usage').get() as { count: number })?.count || 0,
+      sessions:
+        (db.prepare('SELECT COUNT(*) as count FROM sessions').get() as { count: number })?.count ||
+        0,
+      workflows:
+        (db.prepare('SELECT COUNT(*) as count FROM workflows').get() as { count: number })?.count ||
+        0,
     };
 
     res.json({
@@ -243,7 +243,7 @@ router.get("/database", (req: Request, res: Response) => {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    log.error("Failed to get database metrics:", error);
+    log.error('Failed to get database metrics:', error);
     res.status(500).json({ error: message });
   }
 });
@@ -252,7 +252,7 @@ router.get("/database", (req: Request, res: Response) => {
  * GET /api/metrics/all
  * Comprehensive metrics snapshot
  */
-router.get("/all", (req: Request, res: Response) => {
+router.get('/all', (req: Request, res: Response) => {
   try {
     const memory = getMemoryStats();
     const tools = getToolMetrics();
@@ -275,14 +275,14 @@ router.get("/all", (req: Request, res: Response) => {
         memory: getMemoryTrend(),
       },
       health: {
-        memoryOk: parseFloat((memory.heapPercent as string)) < 80,
+        memoryOk: parseFloat(memory.heapPercent as string) < 80,
         databaseOk: (database.pageCount as number) < 100000,
-        performanceOk: parseFloat((iterations.avgDuration as string)) < 300,
+        performanceOk: parseFloat(iterations.avgDuration as string) < 300,
       },
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    log.error("Failed to get all metrics:", error);
+    log.error('Failed to get all metrics:', error);
     res.status(500).json({ error: message });
   }
 });
@@ -291,52 +291,51 @@ router.get("/all", (req: Request, res: Response) => {
  * GET /api/metrics/health
  * Simple health check for monitoring
  */
-router.get("/health", (req: Request, res: Response) => {
+router.get('/health', (req: Request, res: Response) => {
   try {
     const memory = getMemoryStats();
     const iterations = getIterationStats();
 
-    const memoryPercent = parseFloat((memory.heapPercent as string)) || 0;
-    const avgLatency = parseFloat((iterations.avgDuration as string)) || 0;
+    const memoryPercent = parseFloat(memory.heapPercent as string) || 0;
+    const avgLatency = parseFloat(iterations.avgDuration as string) || 0;
 
     // Database check
-    let databaseStatus: "ok" | "critical" = "ok";
+    let databaseStatus: 'ok' | 'critical' = 'ok';
     try {
-      db.prepare("SELECT 1").get();
+      db.prepare('SELECT 1').get();
     } catch (dbErr) {
-      log.error("Database health check failed", dbErr);
-      databaseStatus = "critical";
+      log.error('Database health check failed', dbErr);
+      databaseStatus = 'critical';
     }
 
     // Vector store check
     const vectorAvailable = isVectorStoreAvailable();
-    const vectorStatus: "ok" | "degraded" = vectorAvailable ? "ok" : "degraded";
+    const vectorStatus: 'ok' | 'degraded' = vectorAvailable ? 'ok' : 'degraded';
 
     // MCP status check
     const mcpServers = mcpClient.getStatus();
-    let mcpStatus: "ok" | "degraded" | "critical" = "ok";
+    let mcpStatus: 'ok' | 'degraded' | 'critical' = 'ok';
     if (mcpServers.length > 0) {
-      const connectedCount = mcpServers.filter(s => s.connected).length;
+      const connectedCount = mcpServers.filter((s) => s.connected).length;
       if (connectedCount === 0) {
-        mcpStatus = "critical";
+        mcpStatus = 'critical';
       } else if (connectedCount < mcpServers.length) {
-        mcpStatus = "degraded";
+        mcpStatus = 'degraded';
       }
     }
 
     // Queue status check
-    let queueStatus: "ok" | "degraded" = "ok";
+    let queueStatus: 'ok' | 'degraded' = 'ok';
     if (config.QUEUE_ENABLED && !isQueueWorkerRunning()) {
-      queueStatus = "degraded";
+      queueStatus = 'degraded';
     }
 
     const health = {
-      status: "ok" as "ok" | "degraded" | "critical",
+      status: 'ok' as 'ok' | 'degraded' | 'critical',
       timestamp: new Date().toISOString(),
       checks: {
-        memory: memoryPercent < 80 ? "ok" : memoryPercent < 90 ? "degraded" : "critical",
-        performance:
-          avgLatency < 300 ? "ok" : avgLatency < 500 ? "degraded" : "critical",
+        memory: memoryPercent < 80 ? 'ok' : memoryPercent < 90 ? 'degraded' : 'critical',
+        performance: avgLatency < 300 ? 'ok' : avgLatency < 500 ? 'degraded' : 'critical',
         database: databaseStatus,
         vectorStore: vectorStatus,
         mcp: mcpStatus,
@@ -347,94 +346,98 @@ router.get("/health", (req: Request, res: Response) => {
 
     // Set overall status
     if (
-      health.checks.memory === "critical" ||
-      health.checks.performance === "critical" ||
-      health.checks.database === "critical"
+      health.checks.memory === 'critical' ||
+      health.checks.performance === 'critical' ||
+      health.checks.database === 'critical'
     ) {
-      health.status = "critical";
+      health.status = 'critical';
     } else if (
-      health.checks.memory === "degraded" ||
-      health.checks.performance === "degraded" ||
-      health.checks.vectorStore === "degraded" ||
-      health.checks.mcp === "degraded" ||
-      health.checks.mcp === "critical" ||
-      health.checks.queue === "degraded"
+      health.checks.memory === 'degraded' ||
+      health.checks.performance === 'degraded' ||
+      health.checks.vectorStore === 'degraded' ||
+      health.checks.mcp === 'degraded' ||
+      health.checks.mcp === 'critical' ||
+      health.checks.queue === 'degraded'
     ) {
-      health.status = "degraded";
+      health.status = 'degraded';
     }
 
-    const statusCode = health.status === "ok" ? 200 : health.status === "degraded" ? 202 : 503;
+    const statusCode = health.status === 'ok' ? 200 : health.status === 'degraded' ? 202 : 503;
     res.status(statusCode).json(health);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    log.error("Failed to get health metrics:", error);
-    res.status(500).json({ status: "error", error: message });
+    log.error('Failed to get health metrics:', error);
+    res.status(500).json({ status: 'error', error: message });
   }
 });
 
 // Prometheus-format metrics endpoint
-router.get("/prometheus", async (_req: Request, res: Response) => {
+router.get('/prometheus', async (_req: Request, res: Response) => {
   try {
     const memStats = getMemoryStats();
     const toolMetrics = getToolMetrics();
     const dbStats = getDatabaseStats();
     const dbCache = getDBCacheStats();
     const toolCache = getToolCacheStats();
-    const sessionCount = (db.prepare("SELECT COUNT(*) as count FROM sessions").get() as { count: number }).count;
-    const memoryCount = (db.prepare("SELECT COUNT(*) as count FROM memory").get() as { count: number }).count;
+    const sessionCount = (
+      db.prepare('SELECT COUNT(*) as count FROM sessions').get() as { count: number }
+    ).count;
+    const memoryCount = (
+      db.prepare('SELECT COUNT(*) as count FROM memory').get() as { count: number }
+    ).count;
 
     const lines: string[] = [
-      "# HELP gravityclaw_sessions_total Total number of sessions",
-      "# TYPE gravityclaw_sessions_total gauge",
+      '# HELP gravityclaw_sessions_total Total number of sessions',
+      '# TYPE gravityclaw_sessions_total gauge',
       `gravityclaw_sessions_total ${sessionCount}`,
-      "",
-      "# HELP gravityclaw_memory_messages_total Total messages in memory",
-      "# TYPE gravityclaw_memory_messages_total gauge",
+      '',
+      '# HELP gravityclaw_memory_messages_total Total messages in memory',
+      '# TYPE gravityclaw_memory_messages_total gauge',
       `gravityclaw_memory_messages_total ${memoryCount}`,
-      "",
-      "# HELP gravityclaw_heap_used_bytes Heap memory used",
-      "# TYPE gravityclaw_heap_used_bytes gauge",
+      '',
+      '# HELP gravityclaw_heap_used_bytes Heap memory used',
+      '# TYPE gravityclaw_heap_used_bytes gauge',
       `gravityclaw_heap_used_bytes ${(memStats.heapUsed as { bytes?: number })?.bytes ?? 0}`,
-      "",
-      "# HELP gravityclaw_tool_executions_total Total tool executions",
-      "# TYPE gravityclaw_tool_executions_total counter",
+      '',
+      '# HELP gravityclaw_tool_executions_total Total tool executions',
+      '# TYPE gravityclaw_tool_executions_total counter',
       `gravityclaw_tool_executions_total ${toolMetrics.totalExecutions ?? 0}`,
-      "",
-      "# HELP gravityclaw_tool_errors_total Total tool execution errors",
-      "# TYPE gravityclaw_tool_errors_total counter",
+      '',
+      '# HELP gravityclaw_tool_errors_total Total tool execution errors',
+      '# TYPE gravityclaw_tool_errors_total counter',
       `gravityclaw_tool_errors_total ${toolMetrics.totalErrors ?? 0}`,
-      "",
-      "# HELP gravityclaw_tool_cache_entries Tool cache entries",
-      "# TYPE gravityclaw_tool_cache_entries gauge",
+      '',
+      '# HELP gravityclaw_tool_cache_entries Tool cache entries',
+      '# TYPE gravityclaw_tool_cache_entries gauge',
       `gravityclaw_tool_cache_entries ${toolCache.size ?? 0}`,
-      "",
-      "# HELP gravityclaw_db_cache_entries Database cache entries",
-      "# TYPE gravityclaw_db_cache_entries gauge",
+      '',
+      '# HELP gravityclaw_db_cache_entries Database cache entries',
+      '# TYPE gravityclaw_db_cache_entries gauge',
       `gravityclaw_db_cache_entries ${dbCache.size ?? 0}`,
-      "",
-      "# HELP gravityclaw_db_query_count Total database queries",
-      "# TYPE gravityclaw_db_query_count counter",
+      '',
+      '# HELP gravityclaw_db_query_count Total database queries',
+      '# TYPE gravityclaw_db_query_count counter',
       `gravityclaw_db_query_count ${dbStats.totalQueries ?? 0}`,
-      "",
-      "# HELP gravityclaw_uptime_seconds Server uptime",
-      "# TYPE gravityclaw_uptime_seconds gauge",
+      '',
+      '# HELP gravityclaw_uptime_seconds Server uptime',
+      '# TYPE gravityclaw_uptime_seconds gauge',
       `gravityclaw_uptime_seconds ${process.uptime()}`,
-      "",
+      '',
     ];
 
-    res.set("Content-Type", "text/plain; version=0.0.4");
-    res.send(lines.join("\n"));
+    res.set('Content-Type', 'text/plain; version=0.0.4');
+    res.send(lines.join('\n'));
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    log.error("Failed to generate prometheus metrics:", error);
-    res.status(500).send("");
+    log.error('Failed to generate prometheus metrics:', error);
+    res.status(500).send('');
   }
 });
 
 // Track request duration middleware
 export function trackRequestDuration(req: Request, res: Response, next: () => void): void {
   const start = Date.now();
-  res.on("finish", () => {
+  res.on('finish', () => {
     const duration = Date.now() - start;
     log.info(`Request metrics`, {
       method: req.method,
