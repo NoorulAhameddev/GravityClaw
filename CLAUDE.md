@@ -11,12 +11,30 @@ npm run typecheck    # TypeScript check (no emit)
 npm run test:run     # Run all tests once
 npm run test         # Watch mode
 npm run test:coverage
+npm run lint
+npm run build
 ```
 
 Run a single test file:
 
 ```bash
 npx vitest run --config config/vitest.config.ts src/__tests__/agent.test.ts
+```
+
+CI pipeline: `typecheck → lint → test:run → build` (Node 20 + 22 matrix).
+
+### Test environment variables
+
+Tests require these env vars (set in CI secrets and local `.env.test`):
+
+```
+LLM_PROVIDER=mock
+OPENROUTER_API_KEY=sk-or-dummy
+TELEGRAM_BOT_TOKEN=<any>
+TELEGRAM_ALLOWED_USER_ID=<any>
+API_KEY=<32+ chars>
+UNRESTRICTED_ACCESS=false
+NODE_ENV=test
 ```
 
 ## Architecture
@@ -28,14 +46,14 @@ Gravity Claw is a personal AI agent with a tool-use loop spanning multiple commu
 **Core files:**
 
 - `src/agent.ts` — The agentic loop (`runAgent()`). Executes tool calls, feeds results back, respects `AGENT_MAX_ITERATIONS`.
-- `src/llm/orchestrator.ts` — `callClaude()`: persists history to SQLite, resolves per-session provider/model overrides, injects memory facts and attachment context into the system prompt.
+- `src/llm/orchestrator.ts` — `callClaude()`: persists history to SQLite, resolves per-session provider/model overrides (sessions can override per-call), injects memory facts and attachment context into the system prompt.
 - `src/tools/index.ts` — `ToolRegistry` (Map-based). All tools registered at startup in `src/index.ts`.
 - `src/config.ts` — Zod-validated env schema. **Exits process at startup if misconfigured.** Single source of truth for all config.
-- `src/db.ts` — `better-sqlite3` database at `gravity.db` (WAL mode). Initializes all tables on import.
-- `src/session.ts` — Per-session settings (model, provider, thinking level, voice mode) stored as JSON in `memory` table.
+- `src/db.ts` — `better-sqlite3` database at `gravity.db` (WAL mode). Initializes all tables on import. Schema migrations are done inline with try/catch.
+- `src/session.ts` — Per-session settings (model, provider, thinking level, voice mode) stored as JSON in the `settings` column of the `memory` table.
 - `src/channels/router.ts` — `ChannelRouter` multiplexes across all registered channels and handles proactive (outbound) messages.
 
-**LLM providers** (`src/llm/`): `openrouter`, `openai`, `anthropic`, `google`, `groq`, `deepseek`, `ollama`, `failover`. All implement `LLMProvider` from `src/types/llm.ts`. Selected via `LLM_PROVIDER` env var.
+**LLM providers** (`src/llm/`): `openrouter`, `openai`, `anthropic`, `google`, `groq`, `deepseek`, `ollama`, `failover`. All implement `LLMProvider` from `src/types/llm.ts`. Selected via `LLM_PROVIDER` env var; sessions can override per-call.
 
 **Hybrid memory:**
 
@@ -115,8 +133,8 @@ Your personal knowledge base is the Obsidian vault "Zed" at:
 - `0-Inbox/` — Quick capture
 - `1-Daily/` — Daily notes (YYYY-MM-DD.md)
 - `2-Projects/` — Project context files
-- `9-Decisions/` — Decision logs (DEC-001 to DEC-010)
-- `9-Decisions/sessions/` — Session archives (~470 sessions)
+- `9-Decisions/` — Decision logs (DEC-001 to DEC-011)
+- `9-Decisions/sessions/` — Session archives
 
 **Key files:**
 
@@ -129,5 +147,3 @@ Your personal knowledge base is the Obsidian vault "Zed" at:
 - Write session summaries to `9-Decisions/sessions/`
 - Update daily notes in `1-Daily/`
 - Create tasks in `6-Tasks/active/`
-
-The vault contains ~100 sessions of GravityClaw development history that can provide context.
