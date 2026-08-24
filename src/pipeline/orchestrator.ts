@@ -78,6 +78,7 @@ export class Orchestrator {
     let totalToolCalls = 0;
     let consecutiveNoProgress = 0;
     let hitToolLimit = false;
+    let pausedNotice: string | undefined;
     const maxToolsPerIteration = context.config.AGENT_MAX_TOOLS_PER_ITERATION;
     const collectedText: string[] = [];
     const toolExecutionHistory: Array<{
@@ -89,10 +90,12 @@ export class Orchestrator {
 
     while (iteration < context.maxIterations) {
       iteration++;
-      if (
-        !checkSessionDailyLimits(context.sessionId).allowed ||
-        !rateLimiter.checkRateLimit(context.sessionId, 'llm_api_call').allowed
-      ) {
+      if (!checkSessionDailyLimits(context.sessionId).allowed) {
+        pausedNotice = '[Paused: daily token limit reached]';
+        break;
+      }
+      if (!rateLimiter.checkRateLimit(context.sessionId, 'llm_api_call').allowed) {
+        pausedNotice = '[Paused: LLM rate limit reached]';
         break;
       }
 
@@ -184,7 +187,9 @@ export class Orchestrator {
         }),
       );
 
-      for (const result of results) {
+      for (const [index, result] of results.entries()) {
+        const toolCall = parallelBatch[index];
+        if (!toolCall) continue;
         if (result.status === 'fulfilled') {
           const { toolCall, execResult, parsedInput } = result.value;
           const rawResult = ((execResult as any).result ?? execResult.error?.message) as
@@ -232,6 +237,28 @@ export class Orchestrator {
               planText = formatPlanForPrompt(executionPlan);
             }
           }
+        } else {
+          const reason =
+            result.reason instanceof Error ? result.reason.message : String(result.reason);
+          addToolResult(
+            context.sessionId,
+            toolCall.id,
+            JSON.stringify({
+              success: false,
+              error: { type: 'execution', message: reason },
+            }),
+            orchestratorDeps,
+            toolCall.function.name,
+          );
+          toolExecutionHistory.push({
+            name: toolCall.function.name,
+            input: {},
+            result: reason,
+            success: false,
+          });
+          log.warn(
+            `Tool execution rejected for ${toolCall.function.name} (${toolCall.id}): ${reason}`,
+          );
         }
       }
 
@@ -252,10 +279,15 @@ export class Orchestrator {
     }
 
     await new MemoryWriterStage().execute(context, { message: '' });
+    if (pausedNotice) collectedText.push(pausedNotice);
     return {
       text: collectedText.join('\n') || '(no response)',
       toolCallCount: totalToolCalls,
-      hitLimit: hitToolLimit || iteration >= context.maxIterations || consecutiveNoProgress >= 2,
+      hitLimit:
+        hitToolLimit ||
+        iteration >= context.maxIterations ||
+        consecutiveNoProgress >= 2 ||
+        pausedNotice !== undefined,
       toolCalls: toolExecutionHistory,
     };
   }

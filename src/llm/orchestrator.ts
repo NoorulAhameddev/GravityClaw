@@ -396,7 +396,10 @@ export function addToolResult(
 ): void {
   validateSessionId(sessionId);
 
-  const content = result || '(empty result)';
+  const content =
+    typeof result === 'string'
+      ? sanitizeMemoryContent(result) || '(empty result)'
+      : result || '(empty result)';
   const msg: {
     role: string;
     tool_call_id: string;

@@ -104,6 +104,10 @@ export class SqliteTaskQueue implements TaskQueue {
   }
 
   startWorker(workerFn: (task: BackgroundTask) => Promise<void>, concurrency = 5): void {
+    const recovered = storage.requeueStaleProcessingTasks();
+    if (recovered > 0) {
+      log.warn(`Requeued ${recovered} stale processing task(s) left over from a previous run`);
+    }
     this.workerFn = workerFn;
     this.running = true;
     this.runLoop(concurrency);

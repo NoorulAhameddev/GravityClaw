@@ -44,6 +44,7 @@ import {
 import { telemetryLogger } from './lib/telemetry/logger.js';
 import { getTaskQueue } from './queue/index.ts';
 import { startBackgroundWorker } from './queue/worker.ts';
+import { drainBackgroundTasks, getBackgroundTaskCount } from './lib/background.ts';
 import { config } from './config.ts';
 import { closePgPool } from './db-pg.ts';
 import { runWithConcurrencyLimit } from './concurrency.ts';
@@ -315,6 +316,10 @@ async function main() {
     recommendationsRuntime.stop();
     autoDreamRuntime.stop();
     stopBackupScheduler();
+
+    const pendingBackgroundTasks = getBackgroundTaskCount();
+    await drainBackgroundTasks(30_000);
+    log.info(`Background tasks drained (${pendingBackgroundTasks} pending at shutdown)`);
 
     try {
       const backupFilename = await createBackup(db as unknown as Database.Database, dbPath);

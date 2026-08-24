@@ -9,9 +9,16 @@ async function main() {
   const sessions = await client.listSessions();
   console.log('Sessions:', sessions);
 
-  const sessionId = sessions[0]?.id || 'test-session';
-  const response = await client.chat(sessionId, 'Hello, who are you?');
-  console.log('Response:', response);
+  const tools = await client.listTools();
+  console.log('Tools:', tools.map((t) => t.name));
+
+  if (sessions[0]) {
+    const messages = await client.listMemoryMessages(sessions[0].id, 10);
+    console.log('Recent memory:', messages);
+  }
+
+  const usage = await client.getUsage();
+  console.log('Usage:', usage);
 }
 
 main().catch(console.error);

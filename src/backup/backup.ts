@@ -12,6 +12,7 @@ import {
 import { gzipSync, gunzipSync } from 'zlib';
 import { createLogger } from '../logger.ts';
 import { safeJsonParse } from '../utils/json.ts';
+import { resolveSqliteDbPath } from './db-path.ts';
 
 const log = createLogger('backup');
 
@@ -51,6 +52,17 @@ export class BackupManager {
     return this.backupDir;
   }
 
+  private resolveLiveDbPath(dbPath: string): string {
+    const canonical = resolveSqliteDbPath();
+    if (!canonical || !fs.existsSync(canonical)) {
+      return dbPath;
+    }
+    if (path.resolve(canonical) !== path.resolve(dbPath)) {
+      log.warn(`Overriding provided path ${dbPath} with live database at ${canonical}`);
+    }
+    return canonical;
+  }
+
   /**
    * Create a backup of the database
    */
@@ -61,6 +73,7 @@ export class BackupManager {
   ): Promise<string> {
     const encrypt = options?.encrypt !== false;
     const compress = options?.compress !== false;
+    const resolvedDbPath = this.resolveLiveDbPath(dbPath);
 
     const timestamp = new Date()
       .toISOString()
@@ -83,7 +96,7 @@ export class BackupManager {
       } catch (err) {
         log.error('SQLite backup failed, attempting file copy fallback', err, undefined);
         // Fallback: copy the database file
-        fs.copyFileSync(dbPath, tempBackupPath);
+        fs.copyFileSync(resolvedDbPath, tempBackupPath);
       }
 
       // Step 2: Read the backup file
@@ -115,7 +128,7 @@ export class BackupManager {
         checksum: originalChecksum,
         encrypted: encrypt,
         compressed: compress,
-        sourceDbPath: dbPath,
+        sourceDbPath: resolvedDbPath,
       };
 
       // Step 6: Write backup file
@@ -155,6 +168,8 @@ export class BackupManager {
       throw new Error(`Backup file not found: ${backupFilename}`);
     }
 
+    const resolvedDbPath = this.resolveLiveDbPath(dbPath);
+
     try {
       log.info(`Restoring from backup: ${backupFilename}`);
 
@@ -189,14 +204,14 @@ export class BackupManager {
       db.close();
 
       // Step 7: Backup current database before replacing
-      const currentBackupPath = `${dbPath}.backup-before-restore`;
-      if (fs.existsSync(dbPath)) {
-        fs.copyFileSync(dbPath, currentBackupPath);
+      const currentBackupPath = `${resolvedDbPath}.backup-before-restore`;
+      if (fs.existsSync(resolvedDbPath)) {
+        fs.copyFileSync(resolvedDbPath, currentBackupPath);
         log.info(`Backed up current database to ${currentBackupPath}`);
       }
 
       // Step 8: Write restored data
-      fs.writeFileSync(dbPath, backupData);
+      fs.writeFileSync(resolvedDbPath, backupData);
       log.info('Database restored successfully');
 
       // Note: Caller should reopen the database connection

@@ -117,6 +117,21 @@ Test files live in `src/__tests__/`. Use Vitest globals (`describe`, `it`, `expe
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `refactor:`, etc.
 
+## Shared Memory Protocol
+
+**MANDATORY:** At the start of every session, read the shared memory in order:
+1. `D:\Projects\.ai_memory\PROTOCOL.md` — Full shared memory contract
+2. `D:\Projects\.ai_memory\session-state.json` — Current work state
+3. `D:\Projects\.ai_memory\handoffs.jsonl` (last 10 lines) — Recent handoffs
+4. `D:\Projects\Zed\vault-context.md` — Long-term context
+
+**At session end, you MUST:**
+1. Update `D:\Projects\.ai_memory\session-state.json`
+2. Append one handoff to `D:\Projects\.ai_memory\handoffs.jsonl`
+3. Mirror to `D:\Projects\Zed\0-Inbox\session-state.md`
+
+See `D:\Projects\.ai_memory\PROTOCOL.md` for full schema details.
+
 ## Personal Knowledge Base (Zed Vault)
 
 Your personal knowledge base is the Obsidian vault "Zed" at:

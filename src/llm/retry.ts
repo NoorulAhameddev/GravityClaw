@@ -73,6 +73,55 @@ function calculateDelay(attempt: number, maxDelay: number, exponential: boolean)
   return Math.floor(linearDelay + Math.random() * 1000);
 }
 
+const RETRY_AFTER_HEADER = 'retry-after';
+
+function readHeader(headers: unknown, name: string): unknown {
+  if (!headers || typeof headers !== 'object') return null;
+  const getter = (headers as { get?: unknown }).get;
+  if (typeof getter === 'function') {
+    try {
+      return (getter as (key: string) => unknown).call(headers, name);
+    } catch {
+      return null;
+    }
+  }
+  const record = headers as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    if (key.toLowerCase() === name) return record[key];
+  }
+  return null;
+}
+
+function extractErrorHeaders(error: Error): unknown {
+  const candidate = error as { response?: { headers?: unknown }; headers?: unknown };
+  return candidate.response?.headers ?? candidate.headers;
+}
+
+function parseRetryAfterValue(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? Math.max(0, Math.ceil(value)) : null;
+  }
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^\d+$/.test(trimmed)) {
+    return parseInt(trimmed, 10);
+  }
+  const retryAt = Date.parse(trimmed);
+  if (!Number.isNaN(retryAt)) {
+    return Math.max(0, Math.ceil((retryAt - Date.now()) / 1000));
+  }
+  return null;
+}
+
+function parseRetryAfterMs(error: Error): number | null {
+  const raw = readHeader(extractErrorHeaders(error), RETRY_AFTER_HEADER);
+  if (raw === null || raw === undefined) return null;
+  const seconds = parseRetryAfterValue(raw);
+  if (seconds === null) return null;
+  return seconds * 1000;
+}
+
 export async function withRetry<T>(
   fn: () => Promise<T>,
   options: RetryOptions = {},
@@ -108,7 +157,11 @@ export async function withRetry<T>(
         return { success: false, error: lastError, attempts: attempt + 1 };
       }
 
-      const delay = calculateDelay(attempt, maxDelay, exponential);
+      const retryAfterMs = parseRetryAfterMs(lastError);
+      const delay =
+        retryAfterMs !== null
+          ? Math.min(retryAfterMs, maxDelay)
+          : calculateDelay(attempt, maxDelay, exponential);
       log.warn(`Attempt ${attempt + 1} failed: ${lastError.message}, retrying in ${delay}ms...`);
 
       if (options.onRetry) {

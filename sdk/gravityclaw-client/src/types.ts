@@ -1,36 +1,32 @@
 export interface Session {
   id: string;
-  allowMessages?: boolean;
-  createdAt: string;
-  updatedAt: string;
-  messageCount?: number;
-}
-
-export interface ChatResponse {
-  success: boolean;
-  data?: {
-    message: string;
-    sessionId: string;
-  };
-  error?: string;
+  allow_messages?: number;
+  created_at: string;
+  updated_at: string;
+  message_count?: number;
 }
 
 export interface ToolDefinition {
   name: string;
   description: string;
-  inputSchema: {
+  inputSchema?: {
     type: string;
     properties?: Record<string, unknown>;
     required?: string[];
   };
 }
 
-export interface MemoryResult {
+export interface MemoryMessage {
   id: number;
-  sessionId: string;
-  message: string;
+  session_id: string;
   timestamp: string;
-  score?: number;
+  message_json: string;
+}
+
+export interface MemorySessionSummary {
+  session_id: string;
+  message_count: number;
+  last_active: string;
 }
 
 export interface UsageReport {
@@ -41,11 +37,4 @@ export interface UsageReport {
   };
   models: Record<string, { calls: number; tokens: number; cost: number }>;
   avgLatency: number;
-}
-
-export interface StreamChunk {
-  type: 'text' | 'tool_call' | 'error' | 'done';
-  content?: string;
-  toolCall?: Record<string, unknown>;
-  error?: string;
 }

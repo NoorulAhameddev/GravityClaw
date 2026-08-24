@@ -305,3 +305,19 @@ export function updateTaskStatus(taskId: string, status: TaskStatus): void {
     taskId,
   );
 }
+
+export function requeueStaleProcessingTasks(): number {
+  const now = new Date().toISOString();
+  return db.transaction(
+    () =>
+      db
+        .prepare(
+          `
+            UPDATE background_tasks
+            SET status = 'queued', updated_at = ?
+            WHERE status = 'processing'
+        `,
+        )
+        .run(now).changes,
+  )();
+}

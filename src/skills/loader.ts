@@ -21,6 +21,35 @@ import type { Tool } from '../tools/index.ts';
 const execAsync = promisify(exec);
 const log = createLogger('skills');
 
+const ALLOWED_CHILD_ENV_KEYS = [
+  'PATH',
+  'PATHEXT',
+  'SYSTEMROOT',
+  'SYSTEMDRIVE',
+  'TEMP',
+  'TMP',
+  'HOME',
+  'USERPROFILE',
+  'APPDATA',
+  'LOCALAPPDATA',
+  'LANG',
+  'TZ',
+] as const;
+
+const SHELL_METACHAR_PATTERN = /[;&|`$()*<>?\n\r!]/;
+const TEMPLATE_KEY_ESCAPE_PATTERN = /[.*+?^${}()|[\]\\]/g;
+
+function buildChildEnv(extra?: Record<string, string>): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const key of ALLOWED_CHILD_ENV_KEYS) {
+    const value = process.env[key];
+    if (value !== undefined) {
+      env[key] = value;
+    }
+  }
+  return { ...env, ...extra };
+}
+
 /**
  * Skills manager class
  */
@@ -190,45 +219,39 @@ export class SkillsManager {
     // Replace template variables in code
     let code = codeBlock.code;
     for (const [key, value] of Object.entries(args)) {
-      const regex = new RegExp(`\\$\\{${key}\\}`, 'g');
-      code = code.replace(regex, String(value));
+      const strValue = String(value);
+      if (SHELL_METACHAR_PATTERN.test(strValue)) {
+        throw new Error(
+          `[security_policy] Skill tool "${toolName}" rejected argument "${key}": shell metacharacters are not allowed in skill arguments`,
+        );
+      }
+      const escapedKey = key.replace(TEMPLATE_KEY_ESCAPE_PATTERN, '\\$&');
+      const templateRegex = new RegExp(`\\$\\{${escapedKey}\\}`, 'g');
+      code = code.replace(templateRegex, () => strValue);
     }
 
     const startTime = Date.now();
-    const envArgs: Record<string, string> = Object.fromEntries(
-      Object.entries(args).map(([key, value]) => [key, String(value)]),
-    );
 
     try {
       let result;
 
       if (codeBlock.language === 'bash') {
         result = await execAsync(code, {
-          env: {
-            ...process.env,
-            ...skill.frontmatter.env,
-            ...envArgs,
-          },
+          env: buildChildEnv(skill.frontmatter.env),
           timeout: 30000,
         });
       } else if (codeBlock.language === 'python') {
         // Execute Python code
         const pythonCode = code.replace(/`/g, '\\`');
         result = await execAsync(`python -c "${pythonCode}"`, {
-          env: {
-            ...process.env,
-            ...skill.frontmatter.env,
-          },
+          env: buildChildEnv(skill.frontmatter.env),
           timeout: 30000,
         });
       } else if (codeBlock.language === 'javascript' || codeBlock.language === 'typescript') {
         // Execute Node.js code
         const nodeCode = code.replace(/`/g, '\\`');
         result = await execAsync(`node -e "${nodeCode}"`, {
-          env: {
-            ...process.env,
-            ...skill.frontmatter.env,
-          },
+          env: buildChildEnv(skill.frontmatter.env),
           timeout: 30000,
         });
       } else {
@@ -387,6 +410,7 @@ export class SkillsManager {
             properties,
             required,
           },
+          requiresApproval: true,
           execute: async (args: Record<string, unknown>) => {
             const result = await this.executeSkillTool(skillName, toolDef.name, args);
 

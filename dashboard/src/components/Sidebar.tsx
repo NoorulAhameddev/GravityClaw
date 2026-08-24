@@ -12,7 +12,6 @@ import {
   Wrench,
   Zap,
   ShieldCheck,
-  Phone,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -24,8 +23,6 @@ const NAV_ITEMS = [
   { id: 'scheduler', label: 'Scheduler', icon: Calendar },
   { id: 'webhooks', label: 'Webhooks', icon: Webhook },
   { id: 'heartbeats', label: 'Heartbeats', icon: Activity },
-  { type: 'section', label: 'Channels' },
-  { id: 'whatsapp', label: 'WhatsApp', icon: Phone },
   { type: 'section', label: 'System' },
   { id: 'sessions', label: 'Sessions', icon: Users },
   { id: 'memory', label: 'Memory', icon: Database },

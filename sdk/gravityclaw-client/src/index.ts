@@ -1,13 +1,11 @@
 import type {
   Session,
-  ChatResponse,
   ToolDefinition,
-  MemoryResult,
+  MemoryMessage,
+  MemorySessionSummary,
   UsageReport,
-  StreamChunk,
 } from './types.js';
 import { GravityClawError } from './errors.js';
-import { parseStream } from './streaming.js';
 
 interface ClientConfig {
   baseUrl: string;
@@ -41,8 +39,11 @@ export class GravityClawClient {
     return res.json();
   }
 
-  async createSession(config?: Record<string, unknown>): Promise<Session> {
-    return this.request('POST', '/sessions', config);
+  createSession(): Promise<Session> {
+    throw new GravityClawError(
+      501,
+      'Unsupported operation: the GravityClaw server has no POST /api/sessions endpoint and no HTTP chat surface yet. Sessions are created implicitly by channel activity, and chat happens over WebSocket (request a token via GET /api/auth/token).',
+    );
   }
 
   async listSessions(): Promise<Session[]> {
@@ -50,25 +51,18 @@ export class GravityClawClient {
     return result.data;
   }
 
-  async chat(sessionId: string, message: string): Promise<ChatResponse> {
-    return this.request('POST', `/sessions/${sessionId}/chat`, { message });
+  chat(_sessionId: string, _message: string): Promise<never> {
+    throw new GravityClawError(
+      501,
+      'Unsupported operation: the GravityClaw server exposes no HTTP chat endpoint. Chat happens over WebSocket — request a session token via GET /api/auth/token, then connect to the WebSocket endpoint.',
+    );
   }
 
-  async *chatStream(sessionId: string, message: string): AsyncGenerator<StreamChunk> {
-    const res = await fetch(`${this.baseUrl}/api/sessions/${sessionId}/chat/stream`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Api-Key': this.apiKey,
-      },
-      body: JSON.stringify({ message }),
-    });
-
-    if (!res.ok || !res.body) {
-      throw new GravityClawError(res.status, 'Stream request failed');
-    }
-
-    yield* parseStream(res);
+  chatStream(_sessionId: string, _message: string): AsyncGenerator<never> {
+    throw new GravityClawError(
+      501,
+      'Unsupported operation: the GravityClaw server exposes no HTTP SSE/streaming chat endpoint. Streaming chat happens over WebSocket — request a session token via GET /api/auth/token, then connect to the WebSocket endpoint.',
+    );
   }
 
   async listTools(): Promise<ToolDefinition[]> {
@@ -80,15 +74,34 @@ export class GravityClawClient {
   }
 
   async executeTool(name: string, args: Record<string, unknown>): Promise<any> {
-    return this.request('POST', '/tools/execute', { name, args });
+    return this.request('POST', '/tools/execute', { tool: name, input: args });
   }
 
-  async searchMemory(sessionId: string, query: string): Promise<MemoryResult[]> {
-    return this.request('GET', `/sessions/${sessionId}/memory/search`, { query });
+  async listMemoryMessages(sessionId: string, limit?: number): Promise<MemoryMessage[]> {
+    const params = new URLSearchParams({ session: sessionId });
+    if (limit !== undefined) params.set('limit', String(limit));
+    const result = await this.request<{ success: boolean; data: MemoryMessage[] }>(
+      'GET',
+      `/memory?${params.toString()}`,
+    );
+    return result.data;
+  }
+
+  async listMemorySessions(limit?: number): Promise<MemorySessionSummary[]> {
+    const query = limit !== undefined ? `?limit=${limit}` : '';
+    const result = await this.request<{ success: boolean; data: MemorySessionSummary[] }>(
+      'GET',
+      `/memory${query}`,
+    );
+    return result.data;
   }
 
   async getUsage(period: string = '24h'): Promise<UsageReport> {
-    return this.request('GET', `/admin/usage?period=${period}`);
+    const result = await this.request<{ success: boolean; data: UsageReport }>(
+      'GET',
+      `/admin/usage?period=${period}`,
+    );
+    return result.data;
   }
 }
 

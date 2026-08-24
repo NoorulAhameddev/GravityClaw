@@ -1,6 +1,6 @@
 # @gravityclaw/client
 
-TypeScript SDK for the GravityClaw AI Agent Platform.
+TypeScript SDK for the GravityClaw AI Agent Platform HTTP API.
 
 ## Installation
 
@@ -18,18 +18,19 @@ const client = new GravityClawClient({
   apiKey: 'your-api-key',
 });
 
-// List sessions
 const sessions = await client.listSessions();
 
-// Chat
-const response = await client.chat('session-id', 'Hello!');
+const messages = await client.listMemoryMessages(sessions[0].id);
 
-// Stream chat
-for await (const chunk of client.chatStream('session-id', 'Tell me a story')) {
-  if (chunk.type === 'text') console.log(chunk.content);
-}
+const result = await client.executeTool('web_search', { query: 'hello' });
+
+const usage = await client.getUsage();
 ```
 
-## API
+## Chat over WebSocket
 
-See the [full documentation](https://docs.gravityclaw.dev/sdk).
+There is no HTTP chat or streaming endpoint yet — agent chat happens over
+WebSocket. Request a session token via `POST /api/auth/token`, then connect to
+`ws://<host>/?token=<token>&session=<sessionId>`. The `createSession`, `chat`,
+and `chatStream` client methods intentionally throw
+`GravityClawError` (501) until an HTTP surface exists.

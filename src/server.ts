@@ -30,6 +30,7 @@ import { router as healthRouter } from './routes/health.ts';
 import { router as analyticsRouter } from './routes/analytics.ts';
 import { tenantMiddleware } from './middleware/tenant.ts';
 import { ensureAuditTable } from './audit/logger.ts';
+import { apiAuditMiddleware } from './audit/middleware.ts';
 import { errorHandler } from './middleware/errorHandler.ts';
 import { approvalGate } from './middleware/approval.ts';
 import { rateLimitMiddleware, rateLimiter } from './middleware/rate-limit.ts';
@@ -87,6 +88,9 @@ export const wss = new WebSocketServer({ noServer: true });
 // Apply rate limiting to all API and auth routes
 app.use('/api', rateLimitMiddleware({ maxRequests: 120, prefix: 'api' }));
 app.use('/auth', rateLimitMiddleware({ maxRequests: 30, prefix: 'auth' }));
+
+// Audit API requests (method, path, status, duration) before routers
+app.use('/api', apiAuditMiddleware());
 
 // Handle WebSocket upgrades manually to support multiple paths
 server.on('upgrade', (request, socket, head) => {

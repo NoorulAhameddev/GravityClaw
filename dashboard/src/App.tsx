@@ -22,7 +22,6 @@ const Workflows = lazy(() => import('./views/Workflows'));
 const Tools = lazy(() => import('./views/Tools'));
 const Usage = lazy(() => import('./views/Usage'));
 const Admin = lazy(() => import('./views/Admin'));
-const WhatsApp = lazy(() => import('./views/WhatsApp'));
 
 const pageRoutes = [
   { path: '/', element: <Overview /> },
@@ -32,7 +31,6 @@ const pageRoutes = [
   { path: '/scheduler', element: <Scheduler /> },
   { path: '/webhooks', element: <Webhooks /> },
   { path: '/heartbeats', element: <Heartbeats /> },
-  { path: '/whatsapp', element: <WhatsApp /> },
   { path: '/sessions', element: <Sessions /> },
   { path: '/memory', element: <Memory /> },
   { path: '/swarms', element: <Swarms /> },

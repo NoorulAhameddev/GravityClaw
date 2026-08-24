@@ -23,3 +23,29 @@ export function auditMiddleware(event: AuditEvent) {
     next();
   };
 }
+
+export function apiAuditMiddleware() {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      const entry: Record<string, any> = {
+        event: 'api.request',
+        actorId: (req as any).user?.id || req.apiKey || 'anonymous',
+        actorType: req.apiKey ? 'api_key' : 'user',
+        resourceType: req.path.split('/')[1] || 'unknown',
+        resourceId: (req.params as any).id || 'unknown',
+        details: {
+          method: req.method,
+          path: req.originalUrl.split('?')[0],
+          statusCode: res.statusCode,
+          durationMs: Date.now() - start,
+        },
+        success: res.statusCode < 400,
+      };
+      const ua = req.headers['user-agent'];
+      if (ua) entry.userAgent = ua;
+      auditLogger.log(entry as any);
+    });
+    next();
+  };
+}
