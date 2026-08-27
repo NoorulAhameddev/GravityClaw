@@ -52,37 +52,40 @@ function Layout() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden text-text">
+    <div className="flex h-screen overflow-hidden text-text bg-bg">
       <Sidebar
         currentPage={currentPage}
         onNavigate={handleNavigate}
         status={status === 'connected' ? 'ok' : status === 'connecting' ? 'connecting' : 'err'}
       />
       <main role="main" className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* Tactical HUD Header */}
         <header
           role="banner"
-          className="px-8 py-4 flex items-center justify-between border-b border-border/40 bg-surface backdrop-blur-xl flex-shrink-0 relative"
+          className="h-14 px-6 flex items-center justify-between border-b border-border bg-surface shrink-0"
         >
-          <div
-            className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/30 to-transparent"
-            aria-hidden="true"
-          />
-          <h1 className="text-xl font-bold capitalize text-text-bright">{currentPage}</h1>
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-xs text-muted-dark uppercase tracking-wider">
+              WORKSPACE //
+            </span>
+            <h1 className="font-mono text-sm font-bold uppercase tracking-wider text-text-bright">
+              {currentPage}
+            </h1>
+          </div>
+
           <div className="flex items-center gap-4">
+            <div className="hidden sm:flex items-center gap-2 font-mono text-[11px] text-muted border border-border bg-surface2 px-2.5 py-1">
+              <span className="text-muted-dark">MODE:</span>
+              <span className="text-accent font-semibold">SWARM_ORCHESTRATOR</span>
+            </div>
+
             <div
               role="status"
               aria-label={`Connection status: ${status === 'connected' ? 'Live' : status === 'connecting' ? 'Connecting' : 'Offline'}`}
-              className={`flex items-center gap-2 text-xs font-medium px-4 py-2 rounded-full border backdrop-blur-sm
-              ${
-                status === 'connected'
-                  ? 'bg-success/10 text-success border-success/20 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
-                  : status === 'connecting'
-                    ? 'bg-warning/10 text-warning border-warning/20'
-                    : 'bg-danger/10 text-danger border-danger/20'
-              }`}
+              className="flex items-center gap-2 font-mono text-[11px] px-2.5 py-1 border border-border bg-surface2"
             >
               <div
-                className={`w-2 h-2 rounded-full shadow-[0_0_8px_currentColor] ${
+                className={`w-1.5 h-1.5 ${
                   status === 'connected'
                     ? 'bg-success'
                     : status === 'connecting'
@@ -90,14 +93,18 @@ function Layout() {
                       : 'bg-danger'
                 }`}
               />
-              {status === 'connected'
-                ? 'Live'
-                : status === 'connecting'
-                  ? 'Connecting…'
-                  : 'Offline'}
+              <span className="uppercase text-text-bright font-medium">
+                {status === 'connected'
+                  ? 'LIVE'
+                  : status === 'connecting'
+                    ? 'SYNCING...'
+                    : 'OFFLINE'}
+              </span>
             </div>
           </div>
         </header>
+
+        {/* View Content Port */}
         <div className="flex-1 overflow-y-auto p-6">
           <ErrorBoundary key={location.pathname}>
             <Suspense fallback={<LoadingSpinner />}>
@@ -108,9 +115,9 @@ function Layout() {
                 <Route
                   path="*"
                   element={
-                    <div className="flex flex-col items-center justify-center h-full gap-3 text-muted">
-                      <div className="text-lg font-semibold">Page not found</div>
-                      <div className="text-sm">Coming soon</div>
+                    <div className="flex flex-col items-center justify-center h-64 border border-dashed border-border text-muted font-mono text-xs gap-2">
+                      <div className="text-text-bright uppercase font-bold">[404] ROUTE NOT FOUND</div>
+                      <div className="text-muted-dark">MODULE NOT MOUNTED ON ORCHESTRATOR</div>
                     </div>
                   }
                 />

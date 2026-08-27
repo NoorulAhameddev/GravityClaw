@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Zap, DollarSign, Hash, Clock, AlertCircle } from 'lucide-react';
+import { Zap, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
-import { cn } from '../lib/utils';
 
 interface UsagePeriod {
   requests: number;
@@ -36,7 +35,7 @@ export default function Usage() {
         setUsage(res);
         setError(null);
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : 'Failed to load usage');
+        setError(e instanceof Error ? e.message : 'Failed to load usage telemetry');
       } finally {
         setLoading(false);
       }
@@ -46,151 +45,144 @@ export default function Usage() {
     return () => clearInterval(i);
   }, []);
 
-  if (loading && !usage)
+  if (loading && !usage) {
     return (
-      <div className="p-8 flex items-center justify-center h-64 text-muted">
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-          Loading usage data…
-        </div>
+      <div className="hud-panel p-8 text-center font-mono text-xs text-muted">
+        SYNCHRONIZING TOKEN METRICS...
       </div>
     );
+  }
 
-  if (error)
+  if (error) {
     return (
-      <div className="p-8 flex flex-col items-center justify-center h-64 text-red-400 gap-2">
-        <AlertCircle size={24} /> {error}
+      <div className="hud-panel p-8 text-center font-mono text-xs text-danger flex items-center justify-center gap-2">
+        <AlertCircle size={16} />
+        <span>{error}</span>
       </div>
     );
+  }
 
   const b = usage?.byPeriod;
   const models = Object.entries(usage?.models || {});
 
   const periods = [
-    { label: 'Today', data: b?.today },
-    { label: 'This Week', data: b?.week },
-    { label: 'All Time', data: b?.allTime },
+    { label: 'TODAY_INTERVAL', data: b?.today },
+    { label: '7_DAY_WEEKLY_INTERVAL', data: b?.week },
+    { label: 'ALL_TIME_CUMULATIVE', data: b?.allTime },
   ];
 
   return (
-    <div className="p-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-start gap-5 p-6 rounded-2xl bg-surface border border-border">
-        <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
-          <Zap size={20} className="text-accent" />
+    <div className="space-y-6 max-w-7xl">
+      {/* HUD Header */}
+      <div className="hud-panel p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Zap size={18} className="text-accent" />
+          <div>
+            <div className="font-mono text-sm font-bold text-text-bright uppercase">
+              USAGE_METRICS // TOKEN_VELOCITY
+            </div>
+            <div className="text-muted text-xs">
+              Token consumption velocity, inference latency, and model-level cost accounting.
+            </div>
+          </div>
         </div>
-        <div className="space-y-1">
-          <h1 className="text-xl font-bold">Usage & Analytics</h1>
-          <p className="text-sm text-muted">
-            Token consumption, API costs, and latency metrics across all models and time periods.
-          </p>
+
+        <div className="flex items-center gap-2">
+          <span className="hud-tag text-accent">AVG_LATENCY: {Math.round(usage?.avgLatency || 0)}ms</span>
+          <span className="hud-tag">REALTIME_METERING</span>
         </div>
       </div>
 
-      {/* Period Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Period Telemetry Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-xs">
         {periods.map(({ label, data }) => (
-          <div
-            key={label}
-            className="p-5 rounded-xl bg-surface border border-border hover:border-accent/30 transition-colors relative overflow-hidden"
-          >
-            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-accent to-accent/30" />
-            <div className="pl-3">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-muted mb-3">
-                {label}
+          <div key={label} className="hud-panel">
+            <div className="hud-panel-header">
+              <span>{label}</span>
+              <span className="text-accent font-bold">{fmt$(data?.cost)}</span>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <div className="flex justify-between items-center pb-2 border-b border-border-subtle">
+                <span className="text-muted-dark uppercase text-[10px]">API INVOCATIONS</span>
+                <span className="font-bold text-text-bright text-base">
+                  {(data?.requests || 0).toLocaleString()}
+                </span>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs text-muted">
-                    <Zap size={11} />
-                    Requests
-                  </div>
-                  <div className="font-bold text-sm">{(data?.requests || 0).toLocaleString()}</div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs text-muted">
-                    <Hash size={11} />
-                    Tokens
-                  </div>
-                  <div className="font-bold text-sm">{(data?.tokens || 0).toLocaleString()}</div>
-                </div>
-                <div className="flex items-center justify-between border-t border-border pt-2 mt-2">
-                  <div className="flex items-center gap-1.5 text-xs text-muted">
-                    <DollarSign size={11} />
-                    Cost
-                  </div>
-                  <div className="font-bold text-sm text-accent">{fmt$(data?.cost)}</div>
-                </div>
+
+              <div className="flex justify-between items-center pb-2 border-b border-border-subtle">
+                <span className="text-muted-dark uppercase text-[10px]">TOTAL TOKENS BURNED</span>
+                <span className="font-bold text-amber text-base">
+                  {(data?.tokens || 0).toLocaleString()}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center text-[10px] text-muted">
+                <span>ESTIMATED SPEND</span>
+                <span className="font-bold text-success text-xs">{fmt$(data?.cost)}</span>
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Avg Latency */}
-      {usage?.avgLatency != null && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-surface border border-border">
-          <div className="p-2 rounded-lg bg-surface2 text-yellow-400">
-            <Clock size={18} />
+      {/* Model Breakdown Matrix */}
+      <div className="hud-panel">
+        <div className="hud-panel-header">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-accent" />
+            <span>MODEL TELEMETRY & COST LEDGER</span>
           </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted font-semibold">
-              Average Latency
-            </div>
-            <div className="text-xl font-bold">{Math.round(usage.avgLatency)}ms</div>
-          </div>
-        </div>
-      )}
-
-      {/* Models Table */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">🤖</span>
-          <h2 className="text-xs font-bold uppercase tracking-widest text-muted">
-            Model Breakdown
-          </h2>
-          <span className="px-1.5 py-0.5 bg-surface2 rounded text-xs font-mono text-accent">
-            {models.length}
-          </span>
+          <span className="hud-tag">{models.length} MODELS TRACKED</span>
         </div>
 
-        <div className="rounded-xl border border-border bg-surface overflow-hidden">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left font-mono text-xs">
             <thead>
-              <tr className="border-b border-border bg-surface2/50 text-[11px] uppercase tracking-wider text-muted">
-                {['Model', 'Calls', 'Tokens', 'Cost'].map((h) => (
-                  <th key={h} className={cn('px-4 py-3 font-bold', h !== 'Model' && 'text-right')}>
-                    {h}
-                  </th>
-                ))}
+              <tr className="border-b border-border bg-surface2 text-[10px] uppercase tracking-wider text-muted">
+                <th className="px-4 py-2.5 font-semibold">MODEL IDENTIFIER</th>
+                <th className="px-4 py-2.5 font-semibold">TOTAL CALLS</th>
+                <th className="px-4 py-2.5 font-semibold">TOKENS CONSUMED</th>
+                <th className="px-4 py-2.5 font-semibold">EST. COMPUTED COST</th>
+                <th className="px-4 py-2.5 font-semibold">USAGE SHARE</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {models.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-10 text-center text-muted">
-                    No model data yet
+                  <td colSpan={5} className="px-4 py-8 text-center text-muted-dark">
+                    NO MODEL CALL RECORDS FOUND
                   </td>
                 </tr>
               ) : (
-                models
-                  .sort(([, a], [, b]) => b.calls - a.calls)
-                  .map(([model, s]) => (
-                    <tr key={model} className="hover:bg-surface2/30 transition-colors">
+                models.map(([name, m]) => {
+                  const totalTokens = b?.allTime?.tokens || 1;
+                  const pct = Math.round(((m.tokens || 0) / totalTokens) * 100);
+                  return (
+                    <tr key={name} className="hover:bg-surface-hover transition-colors">
+                      <td className="px-4 py-3 font-bold text-text-bright">
+                        {name}
+                      </td>
+                      <td className="px-4 py-3 text-text">
+                        {m.calls?.toLocaleString() || 0}
+                      </td>
+                      <td className="px-4 py-3 text-amber font-semibold">
+                        {m.tokens?.toLocaleString() || 0}
+                      </td>
+                      <td className="px-4 py-3 text-success font-semibold">
+                        {fmt$(m.cost)}
+                      </td>
                       <td className="px-4 py-3">
-                        <code className="text-xs font-mono text-accent">{model}</code>
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold">
-                        {s.calls.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 text-right text-muted">
-                        {s.tokens.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold text-green-400">
-                        {fmt$(s.cost)}
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 bg-surface border border-border h-2 relative">
+                            <div className="bg-accent h-full" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-[10px] text-muted">{pct}%</span>
+                        </div>
                       </td>
                     </tr>
-                  ))
+                  );
+                })
               )}
             </tbody>
           </table>

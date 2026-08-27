@@ -8,7 +8,8 @@ export function cn(...inputs: ClassValue[]) {
 export function getBaseUrl() {
   const port = window.location.port;
   if (port === '5173' || port === '5174' || port === '5175') {
-    return `${window.location.protocol}//${window.location.hostname}:3000`;
+    const backendPort = import.meta.env.VITE_BACKEND_PORT || '4000';
+    return `${window.location.protocol}//${window.location.hostname}:${backendPort}`;
   }
   return '';
 }
@@ -16,11 +17,12 @@ export function getBaseUrl() {
 export function getWsUrl() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = window.location.hostname;
+  const backendPort = import.meta.env.VITE_BACKEND_PORT || '4000';
   const port =
     window.location.port === '5173' ||
     window.location.port === '5174' ||
     window.location.port === '5175'
-      ? ':3000'
+      ? `:${backendPort}`
       : window.location.port
         ? `:${window.location.port}`
         : '';

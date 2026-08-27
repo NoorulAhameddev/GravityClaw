@@ -1,4 +1,4 @@
-import { CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Activity, Radio, Cpu, Network } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface StatusBannerProps {
@@ -14,60 +14,62 @@ export function StatusBanner({ status, uptime, clients, port }: StatusBannerProp
   return (
     <div
       role="region"
-      aria-label="Server status banner"
-      className={cn(
-        'relative overflow-hidden backdrop-blur-xl border rounded-2xl p-6 mb-8 flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-500',
-        isOk
-          ? 'bg-gradient-to-br from-surface to-accent/5 border-accent/20 shadow-[0_0_40px_rgba(99,102,241,0.1)]'
-          : 'bg-gradient-to-br from-surface to-danger/5 border-danger/20',
-      )}
+      aria-label="Server telemetry banner"
+      className="bg-surface border border-border p-4 flex flex-wrap items-center justify-between gap-4 font-mono text-xs"
     >
-      <div
-        className="absolute inset-0 bg-gradient-to-r from-accent/5 via-transparent to-transparent opacity-50"
-        aria-hidden="true"
-      />
-
-      <div className="flex items-center gap-5 relative z-10">
+      {/* Left: Core Server State */}
+      <div className="flex items-center gap-3">
         <div
-          className={cn('text-4xl p-2 rounded-xl', isOk ? 'text-success' : 'text-danger')}
-          aria-hidden="true"
-        >
-          {isOk ? (
-            <CheckCircle2 size={36} className="drop-shadow-[0_0_12px_rgba(16,185,129,0.6)]" />
-          ) : status === 'connecting' ? (
-            <RefreshCw size={36} className="animate-spin" />
-          ) : (
-            <AlertCircle size={36} className="drop-shadow-[0_0_12px_rgba(239,68,68,0.6)]" />
+          className={cn(
+            'w-2 h-2',
+            isOk
+              ? 'bg-success'
+              : status === 'connecting'
+                ? 'bg-warning animate-pulse'
+                : 'bg-danger',
           )}
-        </div>
-        <div className="flex flex-col gap-1">
-          <span className="text-xs text-muted-dark uppercase tracking-widest font-semibold">
-            Server Status
-          </span>
-          <span className="text-xl font-bold text-text-bright">
-            {isOk ? 'Online' : status === 'connecting' ? 'Connecting...' : 'Offline'}
+          aria-hidden="true"
+        />
+        <div className="flex items-center gap-2">
+          <span className="text-muted uppercase tracking-wider text-[11px]">System Status:</span>
+          <span
+            className={cn(
+              'font-bold uppercase tracking-wider px-1.5 py-0.5 border text-[11px]',
+              isOk
+                ? 'text-success border-success/30 bg-success/5'
+                : status === 'connecting'
+                  ? 'text-warning border-warning/30 bg-warning/5'
+                  : 'text-danger border-danger/30 bg-danger/5',
+            )}
+          >
+            {isOk ? 'LIVE // OPERATIONAL' : status === 'connecting' ? 'SYNCING...' : 'DEGRADED'}
           </span>
         </div>
       </div>
 
-      <div className="flex gap-8 relative z-10">
-        <div className="flex flex-col gap-1">
-          <span className="text-[11px] text-muted-dark uppercase tracking-wider font-semibold">
-            Uptime
-          </span>
-          <span className="text-[16px] font-bold text-text-bright">{uptime}</span>
+      {/* Right: Telemetry Matrix */}
+      <div className="flex items-center gap-6 text-muted">
+        <div className="flex items-center gap-2">
+          <Activity size={13} className="text-accent" />
+          <span className="text-muted-dark uppercase text-[10px]">UPTIME:</span>
+          <span className="text-text-bright font-semibold">{uptime}</span>
         </div>
-        <div className="flex flex-col gap-1 text-right">
-          <span className="text-[11px] text-muted-dark uppercase tracking-wider font-semibold">
-            WebSocket Clients
-          </span>
-          <span className="text-[16px] font-bold text-text-bright">{clients}</span>
+
+        <div className="flex items-center gap-2">
+          <Network size={13} className="text-amber" />
+          <span className="text-muted-dark uppercase text-[10px]">WS CLIENTS:</span>
+          <span className="text-text-bright font-semibold">{clients}</span>
         </div>
-        <div className="flex flex-col gap-1 text-right">
-          <span className="text-[11px] text-muted-dark uppercase tracking-wider font-semibold">
-            Port
-          </span>
-          <span className="text-[16px] font-bold text-text-bright">{port}</span>
+
+        <div className="flex items-center gap-2">
+          <Cpu size={13} className="text-muted" />
+          <span className="text-muted-dark uppercase text-[10px]">PORT:</span>
+          <span className="text-text-bright font-semibold">{port}</span>
+        </div>
+
+        <div className="flex items-center gap-2 pl-2 border-l border-border">
+          <Radio size={12} className={isOk ? 'text-success animate-pulse' : 'text-danger'} />
+          <span className="text-[10px] text-muted-dark uppercase tracking-widest">FEED ACTIVE</span>
         </div>
       </div>
     </div>

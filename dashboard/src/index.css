@@ -1,95 +1,95 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 
 @theme {
-  --color-bg: #0a0a0a;
-  --color-bg-gradient: none;
-  --color-surface: #121319;
-  --color-surface-solid: #121319;
-  --color-surface2: #1b1b21;
-  --color-surface-hover: #292930;
-  --color-border: #3f3f46;
-  --color-border-glow: #3f3f46;
-  --color-text: #e3e1ea;
-  --color-text-bright: #ffffff;
-  --color-muted: #a78b7d;
-  --color-muted-dark: #584237;
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 
-  /* Option C Style Archetype Accents */
+  --color-bg: #09090b;
+  --color-surface: #121215;
+  --color-surface-hover: #1a1a20;
+  --color-surface-active: #22222a;
+  --color-surface-solid: #121215;
+  --color-surface2: #18181d;
+  
+  --color-border: #27272a;
+  --color-border-subtle: #1f1f23;
+  --color-border-bright: #3f3f46;
+
+  --color-text: #d4d4d8;
+  --color-text-bright: #fafafa;
+  --color-muted: #71717a;
+  --color-muted-dark: #52525b;
+
+  /* Tactical Industrial Accents */
   --color-accent: #f97316; /* Safety Orange */
   --color-accent-hover: #ea580c;
-  --color-accent-glow: rgba(249, 115, 22, 0.2);
-  --color-accent2: #ffca45; /* Caution Yellow */
-  --color-accent2-glow: rgba(255, 202, 69, 0.2);
+  --color-accent-dim: #9a3412;
+  
+  --color-amber: #f59e0b; /* Caution Gold */
+  --color-amber-dim: #78350f;
 
-  --color-success: #22c55e;
-  --color-warning: #eab308;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
   --color-danger: #ef4444;
-  --color-info: #3b82f6;
-
-  --shadow-card: none;
-  --shadow-glow: 4px 4px 0px #3f3f46;
-  --shadow-glow-teal: 4px 4px 0px #292930;
+  --color-info: #38bdf8;
 }
 
 @layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
   body {
-    background-color: #0a0a0a;
-    background-image:
-      linear-gradient(rgba(18, 19, 25, 0.3) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(18, 19, 25, 0.3) 1px, transparent 1px);
-    background-size: 20px 20px;
-    @apply text-text antialiased;
+    background-color: var(--color-bg);
+    background-image: 
+      radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.04) 1px, transparent 0);
+    background-size: 24px 24px;
+    color: var(--color-text);
+    font-family: var(--font-sans);
     margin: 0;
     display: flex;
     min-height: 100vh;
-    font-family: 'JetBrains Mono', monospace !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Global Brutalist Overrides */
-  .brutalist,
-  .brutalist * {
-    border-radius: 0px !important;
-    box-shadow: none !important;
-    text-shadow: none !important;
-  }
-
-  /* Focus and input states */
+  /* Sharp Tactical Forms */
   input,
   textarea,
   select,
   button {
-    transition: none !important;
+    font-family: inherit;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   }
 
   input:focus,
   textarea:focus,
   select:focus {
-    border-color: #ffca45 !important; /* Focus Caution Yellow */
-    background-color: #1b1b21 !important;
+    outline: none;
+    border-color: var(--color-accent) !important;
+    background-color: var(--color-surface-hover) !important;
   }
 
-  /* Accessibility: Visible focus rings */
   *:focus-visible {
-    outline: 2px solid #ffca45 !important;
-    outline-offset: 2px !important;
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
   }
 
-  /* Custom scrollbars */
+  /* Precision Scrollbars */
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 6px;
+    height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #0a0a0a;
-    border-left: 2px solid #3f3f46;
+    background: #09090b;
   }
   ::-webkit-scrollbar-thumb {
-    background: #3f3f46;
-    border: 2px solid #0a0a0a;
+    background: #27272a;
+    border-radius: 2px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #f97316;
+    background: #3f3f46;
   }
 }
 
@@ -97,44 +97,39 @@
   width: 100%;
 }
 
-/* Custom Tactical HUD Classes */
-.module-header {
-  height: 28px;
-  background-color: #1b1b21;
-  border-bottom: 2px solid #3f3f46;
+/* Tactical HUD Custom Classes */
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.hud-panel {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  position: relative;
+}
+
+.hud-panel-header {
+  height: 32px;
+  background-color: var(--color-surface2);
+  border-bottom: 1px solid var(--color-border);
   padding: 0 12px;
   display: flex;
   align-items: center;
-  font-weight: 700;
-  text-transform: uppercase;
+  justify-content: space-between;
   font-size: 11px;
-  letter-spacing: 0.1em;
-  color: #ffca45; /* Caution Yellow Headers */
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-muted);
 }
 
-.tactical-border {
-  border: 2px solid #3f3f46 !important;
-}
-
-.tactical-active-border {
-  border: 2px solid #f97316 !important;
-}
-
-/* scanline effect */
-.scanlines::after {
-  content: ' ';
-  display: block;
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  right: 0;
-  background:
-    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
-    linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-  z-index: 99999;
-  background-size:
-    100% 2px,
-    3px 100%;
-  pointer-events: none;
+.hud-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }

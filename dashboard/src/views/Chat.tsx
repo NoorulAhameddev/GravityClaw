@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, type JSX } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { Send, Eraser, Bot, User, WifiOff, Copy, CheckCheck } from 'lucide-react';
+import { Send, Eraser, Bot, User, WifiOff, Copy, CheckCheck, Terminal } from 'lucide-react';
 import { cn, getWsUrl } from '../lib/utils';
 
 interface ChatMessage {
@@ -18,7 +18,7 @@ export function Chat() {
   const [isTyping, setIsTyping] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -26,10 +26,12 @@ export function Chat() {
     if (!last) return;
 
     if (last.type === 'message') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsTyping(false);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       setChatMessages((prev) => [...prev, { ...(last as ChatMessage), timestamp: Date.now() }]);
     } else if (last.type === 'typing') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsTyping(true);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 5000);
@@ -62,7 +64,7 @@ export function Chat() {
   };
 
   const clearChat = () => {
-    if (confirm('Clear all messages?')) {
+    if (confirm('Clear terminal conversation log?')) {
       setChatMessages([]);
     }
   };
@@ -75,10 +77,10 @@ export function Chat() {
 
   const formatTime = (timestamp?: number) => {
     if (!timestamp) return '';
-    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
 
-  const renderMessageContent = (text: string | undefined, _index: number) => {
+  const renderMessageContent = (text: string | undefined) => {
     if (!text) return null;
 
     const codeBlockRegex = /```(\w+)?\n?([\s\S]*?)```|`([^`]+)`/g;
@@ -96,15 +98,15 @@ export function Chat() {
         parts.push(
           <code
             key={key++}
-            className="bg-surface2 px-1.5 py-0.5 rounded text-accent font-mono text-[13px]"
+            className="bg-surface2 px-1.5 py-0.5 border border-border text-accent font-mono text-xs"
           >
             {match[3]}
           </code>,
         );
       } else {
         parts.push(
-          <pre key={key++} className="bg-surface2 rounded-lg p-3 my-2 overflow-x-auto">
-            <code className="text-[13px] font-mono text-text">{match[2]}</code>
+          <pre key={key++} className="bg-surface2 border border-border p-3 my-2 overflow-x-auto font-mono text-xs text-text">
+            <code>{match[2]}</code>
           </pre>,
         );
       }
@@ -119,66 +121,53 @@ export function Chat() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-bg relative">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface/50 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-purple-600 flex items-center justify-center">
-            <Bot size={20} className="text-white" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-text">Gravity Claw</h2>
-            <div className="flex items-center gap-1.5">
-              {status === 'connected' ? (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                  <span className="text-xs text-muted">Online</span>
-                </>
-              ) : (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-danger" />
-                  <span className="text-xs text-muted">Disconnected</span>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+    <div className="flex flex-col h-[calc(100vh-8rem)] hud-panel">
+      {/* Terminal Module Header */}
+      <div className="hud-panel-header">
         <div className="flex items-center gap-2">
+          <Terminal size={14} className="text-accent" />
+          <span className="font-mono text-xs font-bold text-text-bright">AGENT_CONSOLE // DIRECT_LINK</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[10px] text-muted">
+            {status === 'connected' ? '[STREAM: LIVE]' : '[STREAM: OFFLINE]'}
+          </span>
           <button
             onClick={clearChat}
-            className="p-2.5 bg-surface hover:bg-surface2 border border-border rounded-xl text-muted hover:text-danger transition-all duration-200 hover:scale-105"
-            title="Clear Chat"
+            className="p-1 text-muted hover:text-danger transition-colors"
+            title="Clear Stream"
           >
-            <Eraser size={18} />
+            <Eraser size={14} />
           </button>
         </div>
       </div>
 
-      {/* Messages */}
+      {/* Message Feed */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-6 scroll-smooth"
+        className="flex-1 overflow-y-auto p-4 space-y-4 font-mono text-xs"
       >
         {chatMessages.length === 0 && (
-          <div className="h-full flex flex-col items-center justify-center text-center px-4">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-accent/20 to-purple-600/20 flex items-center justify-center mb-6">
-              <Bot size={40} className="text-accent opacity-50" />
+          <div className="h-full flex flex-col items-center justify-center text-center p-6 border border-dashed border-border-subtle">
+            <Bot size={32} className="text-accent mb-3" />
+            <div className="font-bold text-text-bright uppercase tracking-wider mb-1">
+              GRAVITY INTERACTIVE CONSOLE
             </div>
-            <h3 className="text-xl font-semibold text-text mb-2">Start a conversation</h3>
-            <p className="text-muted max-w-md">
-              Send a message to begin chatting with Gravity Claw. I can help you with tasks,
-              analysis, and more.
+            <p className="text-muted text-xs max-w-md mb-4">
+              Send real-time instructions to the primary agent runtime. Dispatched tools and reasoning traces will stream here.
             </p>
-            <div className="flex flex-wrap gap-2 mt-6 justify-center">
-              {['Help me with coding', 'Search my memory', 'Schedule a task'].map((suggestion) => (
-                <button
-                  key={suggestion}
-                  onClick={() => setInput(suggestion)}
-                  className="px-4 py-2 bg-surface hover:bg-surface2 border border-border rounded-full text-sm text-muted hover:text-text transition-all duration-200 hover:scale-105"
-                >
-                  {suggestion}
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-2 justify-center font-mono text-[11px]">
+              {['Status report on all swarms', 'Query recent memory facts', 'Audit webhook endpoints'].map(
+                (suggestion) => (
+                  <button
+                    key={suggestion}
+                    onClick={() => setInput(suggestion)}
+                    className="px-2.5 py-1 bg-surface2 hover:bg-surface-hover border border-border text-text hover:text-accent transition-colors"
+                  >
+                    &gt; {suggestion}
+                  </button>
+                ),
+              )}
             </div>
           </div>
         )}
@@ -190,118 +179,90 @@ export function Chat() {
             <div
               key={i}
               className={cn(
-                'flex gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300',
-                isUser ? 'flex-row-reverse' : '',
+                'border p-3 space-y-2',
+                isUser
+                  ? 'border-border bg-surface2/60'
+                  : 'border-accent/30 bg-surface',
               )}
             >
-              <div
-                className={cn(
-                  'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-lg',
-                  isUser
-                    ? 'bg-surface border-2 border-border text-muted'
-                    : 'bg-gradient-to-br from-accent to-purple-600 text-white shadow-accent/20',
-                )}
-              >
-                {isUser ? <User size={18} /> : <Bot size={18} />}
-              </div>
-              <div
-                className={cn(
-                  'max-w-[75%] md:max-w-[65%] px-4 py-3 rounded-2xl relative group',
-                  isUser
-                    ? 'bg-gradient-to-br from-accent to-purple-600 text-white rounded-tr-none shadow-lg shadow-accent/20'
-                    : 'bg-surface border border-border text-text rounded-tl-none shadow-lg',
-                )}
-              >
-                <div className="pr-8">
-                  <p className="whitespace-pre-wrap text-[14px] leading-relaxed">
-                    {renderMessageContent(m.text, i)}
-                  </p>
-                </div>
-
-                {/* Copy button */}
-                {m.text && (
-                  <button
-                    onClick={() => copyMessage(m.text!, i)}
-                    className={cn(
-                      'absolute top-2 right-2 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200',
-                      isUser
-                        ? 'bg-white/10 hover:bg-white/20 text-white'
-                        : 'bg-surface2 hover:bg-border text-muted',
-                    )}
-                    title="Copy message"
-                  >
-                    {copiedId === i ? <CheckCheck size={14} /> : <Copy size={14} />}
-                  </button>
-                )}
-
-                <div
-                  className={cn(
-                    'text-[10px] mt-2 opacity-60 flex items-center gap-1',
-                    isUser ? 'justify-end' : 'justify-start',
+              {/* Message Header */}
+              <div className="flex items-center justify-between border-b border-border/50 pb-1.5 text-[11px]">
+                <div className="flex items-center gap-2">
+                  {isUser ? (
+                    <>
+                      <User size={13} className="text-amber" />
+                      <span className="font-bold text-amber uppercase">[OPERATOR]</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bot size={13} className="text-accent" />
+                      <span className="font-bold text-accent uppercase">[GRAVITY_AGENT]</span>
+                    </>
                   )}
-                >
-                  {formatTime(m.timestamp)}
                 </div>
+
+                <div className="flex items-center gap-2 text-muted-dark">
+                  <span>{formatTime(m.timestamp)}</span>
+                  {m.text && (
+                    <button
+                      onClick={() => copyMessage(m.text!, i)}
+                      className="text-muted hover:text-text-bright transition-colors"
+                      title="Copy payload"
+                    >
+                      {copiedId === i ? <CheckCheck size={12} className="text-success" /> : <Copy size={12} />}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Message Content */}
+              <div className="text-text leading-relaxed whitespace-pre-wrap">
+                {renderMessageContent(m.text)}
               </div>
             </div>
           );
         })}
 
         {isTyping && (
-          <div className="flex gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-purple-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-accent/20">
-              <Bot size={18} />
-            </div>
-            <div className="bg-surface border border-border px-5 py-4 rounded-2xl rounded-tl-none flex items-center gap-1.5 shadow-lg">
-              <span className="w-2 h-2 bg-accent rounded-full animate-bounce [animation-delay:-0.3s]" />
-              <span className="w-2 h-2 bg-accent rounded-full animate-bounce [animation-delay:-0.15s]" />
-              <span className="w-2 h-2 bg-accent rounded-full animate-bounce" />
-            </div>
+          <div className="border border-accent/30 bg-surface p-3 flex items-center gap-2 text-accent">
+            <span className="w-2 h-2 bg-accent animate-ping" />
+            <span className="font-mono text-xs uppercase tracking-wider">AGENT INFERENCE IN PROGRESS...</span>
           </div>
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="p-4 md:p-6 pt-2">
-        <form onSubmit={handleSend} className="relative">
-          <div className="relative bg-surface border border-border rounded-2xl transition-all duration-200 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 shadow-lg">
-            <textarea
+      {/* Command Input Area */}
+      <div className="p-3 border-t border-border bg-surface2">
+        <form onSubmit={handleSend} className="flex gap-2">
+          <div className="flex-1 flex items-center bg-surface border border-border px-3 focus-within:border-accent">
+            <span className="text-accent font-mono mr-2">&gt;</span>
+            <input
               ref={inputRef}
+              type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder="Type a message... (Shift+Enter for new line)"
-              className="w-full bg-transparent px-4 py-3.5 pr-14 text-[14px] focus:outline-none resize-none min-h-[52px] max-h-[200px] placeholder:text-muted/50"
-              rows={1}
+              placeholder="Enter instruction or query..."
+              disabled={status !== 'connected'}
+              className="w-full bg-transparent py-2.5 text-xs font-mono text-text-bright focus:outline-none placeholder:text-muted-dark"
             />
-            <button
-              type="submit"
-              disabled={!input.trim() || status !== 'connected'}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-accent text-white rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-accent-hover transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg shadow-accent/30"
-            >
-              <Send size={18} />
-            </button>
           </div>
-          <p className="text-[10px] text-muted/50 mt-2 text-center">
-            {status === 'connected'
-              ? 'Press Enter to send, Shift+Enter for new line'
-              : 'Reconnecting to server...'}
-          </p>
+          <button
+            type="submit"
+            disabled={!input.trim() || status !== 'connected'}
+            className="px-4 py-2 bg-accent text-white font-mono text-xs font-semibold uppercase tracking-wider hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 shrink-0"
+          >
+            <span>SEND</span>
+            <Send size={13} />
+          </button>
         </form>
-      </div>
 
-      {/* Connection Status Toast */}
-      {status !== 'connected' && (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-danger/90 text-white px-4 py-2 rounded-full text-sm flex items-center gap-2 shadow-lg animate-in slide-in-from-bottom">
-          <WifiOff size={16} />
-          Connection lost. Reconnecting...
-        </div>
-      )}
+        {status !== 'connected' && (
+          <div className="mt-2 text-danger font-mono text-[10px] flex items-center gap-1.5">
+            <WifiOff size={12} />
+            <span>SOCKET DISCONNECTED // RE-ESTABLISHING UPLINK...</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

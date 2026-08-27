@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Heart, Clock, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Activity, Clock, AlertCircle, CheckCircle2, PauseCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
 
@@ -19,6 +19,7 @@ function fmtDate(date: string | null) {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    second: '2-digit',
   });
 }
 
@@ -35,7 +36,7 @@ export default function Heartbeats() {
         setBeats(res.data || []);
         setError(null);
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : 'Failed to fetch heartbeats');
+        setError(e instanceof Error ? e.message : 'Failed to fetch heartbeat monitors');
       } finally {
         setLoading(false);
       }
@@ -45,134 +46,140 @@ export default function Heartbeats() {
     return () => clearInterval(i);
   }, []);
 
-  const active = beats.filter((b) => b.enabled).length;
+  const activeCount = beats.filter((b) => b.enabled).length;
 
   return (
-    <div className="p-8 space-y-6">
-      {/* Agent Identity */}
-      <div className="flex items-start gap-5 p-6 rounded-2xl bg-surface border border-border">
-        <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center text-2xl flex-shrink-0">
-          💓
-        </div>
-        <div className="space-y-2 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-xl font-bold">Heartbeats</h1>
-            <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-green-500/20 text-green-400 rounded-full">
-              Active
-            </span>
-          </div>
-          <p className="text-sm text-muted leading-relaxed">
-            Periodic keep-alive checks that fire prompts to sessions at defined intervals, ensuring
-            agents remain responsive and healthy.
-          </p>
-          <div className="flex flex-wrap gap-2 pt-1">
-            {['Interval Pings', 'Session Health', 'Auto-Recovery', 'Alert on Miss'].map(
-              (cap, i) => (
-                <span
-                  key={cap}
-                  className={cn(
-                    'px-2 py-0.5 text-[10px] rounded font-medium border',
-                    i < 2
-                      ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                      : 'bg-surface2 text-muted border-border',
-                  )}
-                >
-                  {cap}
-                </span>
-              ),
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        {[
-          { label: 'Total', value: beats.length, icon: Heart, color: 'text-pink-400' },
-          { label: 'Active', value: active, icon: CheckCircle, color: 'text-green-400' },
-          { label: 'Disabled', value: beats.length - active, icon: XCircle, color: 'text-muted' },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="p-4 rounded-xl bg-surface border border-border flex items-center gap-3"
-          >
-            <div className={cn('p-2 rounded-lg bg-surface2', s.color)}>
-              <s.icon size={18} />
+    <div className="space-y-6 max-w-7xl">
+      {/* HUD Header */}
+      <div className="hud-panel p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Activity size={18} className="text-accent" />
+          <div>
+            <div className="font-mono text-sm font-bold text-text-bright uppercase">
+              HEARTBEAT_MONITOR // LIVENESS_DAEMON
             </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-muted font-semibold">
-                {s.label}
-              </div>
-              <div className="text-2xl font-bold">{s.value}</div>
+            <div className="text-muted text-xs">
+              Periodic keep-alive probe pings, session liveliness verification, and automated prompt dispatch.
             </div>
           </div>
-        ))}
-      </div>
+        </div>
 
-      {/* Cards Grid */}
-      <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <span className="text-lg">💓</span>
-          <h2 className="text-xs font-bold uppercase tracking-widest text-muted">Heartbeat Jobs</h2>
-          <span className="px-1.5 py-0.5 bg-surface2 rounded text-xs font-mono text-accent">
-            {beats.length}
-          </span>
+          <span className="hud-tag text-accent">PULSE_ACTIVE</span>
+          <span className="hud-tag">AUTO_RECOVERY</span>
+        </div>
+      </div>
+
+      {/* Metrics Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono text-xs">
+        <div className="hud-panel p-4 flex items-center justify-between">
+          <div>
+            <div className="text-muted-dark uppercase text-[10px] tracking-wider mb-1">TOTAL_HEARTBEATS</div>
+            <div className="text-2xl font-bold text-text-bright">{beats.length}</div>
+          </div>
+          <Activity size={16} className="text-accent" />
         </div>
 
-        {loading && beats.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-muted">
-            <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-            Loading…
+        <div className="hud-panel p-4 flex items-center justify-between">
+          <div>
+            <div className="text-muted-dark uppercase text-[10px] tracking-wider mb-1">ACTIVE_PULSES</div>
+            <div className="text-2xl font-bold text-success">{activeCount}</div>
           </div>
-        ) : error ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-red-400">
-            <AlertCircle size={24} />
-            {error}
+          <CheckCircle2 size={16} className="text-success" />
+        </div>
+
+        <div className="hud-panel p-4 flex items-center justify-between">
+          <div>
+            <div className="text-muted-dark uppercase text-[10px] tracking-wider mb-1">PAUSED_PULSES</div>
+            <div className="text-2xl font-bold text-muted">{beats.length - activeCount}</div>
           </div>
-        ) : beats.length === 0 ? (
-          <div className="py-16 text-center text-muted">
-            <Heart size={32} className="mx-auto mb-2 opacity-30" />
-            <div>No heartbeat jobs configured</div>
+          <PauseCircle size={16} className="text-muted-dark" />
+        </div>
+      </div>
+
+      {/* Heartbeat Table Panel */}
+      <div className="hud-panel">
+        <div className="hud-panel-header">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-accent" />
+            <span>LIVENESS PROBE REGISTRY</span>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {beats.map((b, idx) => (
-              <div
-                key={idx}
-                className={cn(
-                  'p-5 rounded-xl border bg-surface hover:border-accent/40 transition-all group',
-                  b.enabled ? 'border-green-500/20' : 'border-border',
-                )}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <code className="text-xs font-mono text-accent truncate mr-2">
-                    {b.session_id}
-                  </code>
-                  <span
-                    className={cn(
-                      'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border flex-shrink-0',
-                      b.enabled
-                        ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                        : 'bg-surface2 text-muted border-border',
-                    )}
-                  >
-                    {b.enabled ? 'Active' : 'Off'}
-                  </span>
-                </div>
-                <div className="text-xs text-muted mb-3 line-clamp-2 leading-relaxed">
-                  {b.prompt}
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-muted border-t border-border pt-3">
-                  <div className="flex items-center gap-1.5">
-                    <Clock size={11} />
-                    <span>Every {b.interval_minutes}m</span>
-                  </div>
-                  <div>Last: {fmtDate(b.last_run)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+          <span className="hud-tag">{beats.length} CONFIGURED</span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left font-mono text-xs">
+            <thead>
+              <tr className="border-b border-border bg-surface2 text-[10px] uppercase tracking-wider text-muted">
+                <th className="px-4 py-2.5 font-semibold">TARGET SESSION</th>
+                <th className="px-4 py-2.5 font-semibold">INTERVAL</th>
+                <th className="px-4 py-2.5 font-semibold">DISPATCH PROMPT</th>
+                <th className="px-4 py-2.5 font-semibold">STATE</th>
+                <th className="px-4 py-2.5 font-semibold">LAST PULSE</th>
+                <th className="px-4 py-2.5 font-semibold">INITIALIZED</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {loading && beats.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted">
+                    SYNCHRONIZING PROBE TELEMETRY...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-danger">
+                    <div className="flex items-center justify-center gap-2">
+                      <AlertCircle size={14} />
+                      <span>{error}</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : beats.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted-dark">
+                    NO ACTIVE HEARTBEATS CONFIGURED
+                  </td>
+                </tr>
+              ) : (
+                beats.map((b, i) => (
+                  <tr key={i} className="hover:bg-surface-hover transition-colors">
+                    <td className="px-4 py-3 text-accent font-semibold">
+                      {b.session_id}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <Clock size={12} className="text-muted" />
+                        <span>{b.interval_minutes}m</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-sans text-xs text-text max-w-xs truncate">
+                      {b.prompt || '<DEFAULT_HEALTH_PING>'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={cn(
+                          'px-1.5 py-0.5 border text-[10px] font-bold uppercase tracking-wider',
+                          b.enabled
+                            ? 'border-success/40 bg-success/10 text-success'
+                            : 'border-border bg-surface2 text-muted',
+                        )}
+                      >
+                        {b.enabled ? '[PULSING]' : '[PAUSED]'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-muted-dark text-[11px]">
+                      {fmtDate(b.last_run)}
+                    </td>
+                    <td className="px-4 py-3 text-muted-dark text-[11px]">
+                      {fmtDate(b.created_at)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

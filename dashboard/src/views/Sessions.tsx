@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users, MessageSquare, CheckCircle, XCircle, AlertCircle, Search } from 'lucide-react';
+import { Users, MessageSquare, CheckCircle2, AlertCircle, Search } from 'lucide-react';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
 
@@ -18,6 +18,7 @@ function fmtDate(date: string | null) {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    second: '2-digit',
   });
 }
 
@@ -35,7 +36,7 @@ export default function Sessions() {
         setSessions(res.data || []);
         setError(null);
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : 'Failed to fetch sessions');
+        setError(e instanceof Error ? e.message : 'Failed to fetch active sessions');
       } finally {
         setLoading(false);
       }
@@ -50,151 +51,144 @@ export default function Sessions() {
     return id.toLowerCase().includes(search.toLowerCase());
   });
 
-  const active = sessions.filter((s) => s.allow_messages).length;
+  const activeCount = sessions.filter((s) => s.allow_messages).length;
   const totalMsgs = sessions.reduce((acc, s) => acc + (s.message_count || 0), 0);
 
   return (
-    <div className="p-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-start gap-5 p-6 rounded-2xl bg-surface border border-border">
-        <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center text-2xl flex-shrink-0">
-          💬
-        </div>
-        <div className="space-y-1 min-w-0">
-          <h1 className="text-xl font-bold">Sessions</h1>
-          <p className="text-sm text-muted">
-            Active and historical agent conversation sessions. Each session maintains its own memory
-            and context.
-          </p>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Sessions', value: sessions.length, icon: Users, color: 'text-accent' },
-          { label: 'Active', value: active, icon: CheckCircle, color: 'text-green-400' },
-          {
-            label: 'Stopped',
-            value: sessions.length - active,
-            icon: XCircle,
-            color: 'text-red-400',
-          },
-          {
-            label: 'Total Messages',
-            value: totalMsgs.toLocaleString(),
-            icon: MessageSquare,
-            color: 'text-blue-400',
-          },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="p-4 rounded-xl bg-surface border border-border flex items-center gap-3"
-          >
-            <div className={cn('p-2 rounded-lg bg-surface2', s.color)}>
-              <s.icon size={18} />
+    <div className="space-y-6 max-w-7xl">
+      {/* HUD Header */}
+      <div className="hud-panel p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Users size={18} className="text-accent" />
+          <div>
+            <div className="font-mono text-sm font-bold text-text-bright uppercase">
+              SESSION_MANAGER // CONTEXT_INSTANCES
             </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-muted font-semibold">
-                {s.label}
-              </div>
-              <div className="text-xl font-bold">{s.value}</div>
+            <div className="text-muted text-xs">
+              Live and archived agent conversation sessions with isolated memory namespaces and permissions.
             </div>
           </div>
-        ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="hud-tag text-accent">{sessions.length} INSTANCES</span>
+          <span className="hud-tag">ISOLATED_STATE</span>
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between flex-wrap gap-2">
+      {/* Metrics Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono text-xs">
+        <div className="hud-panel p-4 flex items-center justify-between">
+          <div>
+            <div className="text-muted-dark uppercase text-[10px] tracking-wider mb-1">TOTAL_SESSIONS</div>
+            <div className="text-2xl font-bold text-text-bright">{sessions.length}</div>
+          </div>
+          <Users size={16} className="text-accent" />
+        </div>
+
+        <div className="hud-panel p-4 flex items-center justify-between">
+          <div>
+            <div className="text-muted-dark uppercase text-[10px] tracking-wider mb-1">ACCEPTING_MESSAGES</div>
+            <div className="text-2xl font-bold text-success">{activeCount}</div>
+          </div>
+          <CheckCircle2 size={16} className="text-success" />
+        </div>
+
+        <div className="hud-panel p-4 flex items-center justify-between">
+          <div>
+            <div className="text-muted-dark uppercase text-[10px] tracking-wider mb-1">TOTAL_MESSAGE_TURNS</div>
+            <div className="text-2xl font-bold text-text-bright">{totalMsgs.toLocaleString()}</div>
+          </div>
+          <MessageSquare size={16} className="text-info" />
+        </div>
+      </div>
+
+      {/* Sessions Table Panel */}
+      <div className="hud-panel">
+        <div className="hud-panel-header">
           <div className="flex items-center gap-2">
-            <span className="text-lg">💬</span>
-            <h2 className="text-xs font-bold uppercase tracking-widest text-muted">All Sessions</h2>
-            <span className="px-1.5 py-0.5 bg-surface2 rounded text-xs font-mono text-accent">
-              {filtered.length}
-            </span>
+            <span className="w-1.5 h-1.5 bg-accent" />
+            <span>SESSION NAMESPACE REGISTRY</span>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-green-400 bg-green-500/5 px-2 py-1 rounded-full border border-green-500/10">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> Live
+          <span className="hud-tag">{filtered.length} MATCHED</span>
+        </div>
+
+        {/* Search Bar */}
+        <div className="p-3 border-b border-border bg-surface2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={13} />
+            <input
+              type="text"
+              placeholder="Search session namespace hash..."
+              className="w-full pl-8 pr-3 py-1.5 bg-surface border border-border text-xs font-mono text-text-bright focus:outline-none focus:border-accent"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
         </div>
 
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={13} />
-          <input
-            type="text"
-            placeholder="Search by session ID…"
-            className="w-full pl-8 pr-4 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:border-accent transition-colors"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        <div className="rounded-xl border border-border bg-surface overflow-hidden">
-          <table className="w-full text-left text-sm">
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left font-mono text-xs">
             <thead>
-              <tr className="border-b border-border bg-surface2/50 text-[11px] uppercase tracking-wider text-muted">
-                {['Session ID', 'Messages', 'Status', 'Last Active'].map((h) => (
-                  <th key={h} className="px-4 py-3 font-bold">
-                    {h}
-                  </th>
-                ))}
+              <tr className="border-b border-border bg-surface2 text-[10px] uppercase tracking-wider text-muted">
+                <th className="px-4 py-2.5 font-semibold">SESSION ID / NAMESPACE</th>
+                <th className="px-4 py-2.5 font-semibold">MESSAGE VOLUME</th>
+                <th className="px-4 py-2.5 font-semibold">INGRESS GATE</th>
+                <th className="px-4 py-2.5 font-semibold">LAST ACTIVITY</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading && sessions.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-12 text-center text-muted">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                      Loading…
-                    </div>
+                  <td colSpan={4} className="px-4 py-8 text-center text-muted">
+                    SYNCHRONIZING SESSION DATA...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-12 text-center text-red-400">
-                    <div className="flex flex-col items-center gap-2">
-                      <AlertCircle size={22} />
-                      {error}
+                  <td colSpan={4} className="px-4 py-8 text-center text-danger">
+                    <div className="flex items-center justify-center gap-2">
+                      <AlertCircle size={14} />
+                      <span>{error}</span>
                     </div>
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-12 text-center text-muted">
-                    No sessions found
+                  <td colSpan={4} className="px-4 py-8 text-center text-muted-dark">
+                    NO SESSIONS MATCHED QUERY
                   </td>
                 </tr>
               ) : (
-                filtered.map((s, idx) => {
-                  const sid = s.id || s.session_id || `session-${idx}`;
+                filtered.map((s, i) => {
+                  const sid = s.id || s.session_id || `session-${i}`;
                   return (
-                    <tr key={sid} className="hover:bg-surface2/30 transition-colors group">
-                      <td className="px-4 py-3">
-                        <code className="text-xs font-mono text-accent group-hover:text-accent-hover">
-                          {sid}
-                        </code>
+                    <tr key={sid} className="hover:bg-surface-hover transition-colors">
+                      <td className="px-4 py-3 font-bold text-accent">
+                        {sid}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5 text-sm">
+                      <td className="px-4 py-3 text-text-bright">
+                        <div className="flex items-center gap-1.5">
                           <MessageSquare size={12} className="text-muted" />
-                          <span className="font-semibold">{s.message_count}</span>
+                          <span>{s.message_count || 0} turns</span>
                         </div>
                       </td>
                       <td className="px-4 py-3">
                         <span
                           className={cn(
-                            'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border',
+                            'px-1.5 py-0.5 border text-[10px] font-bold uppercase tracking-wider',
                             s.allow_messages
-                              ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                              : 'bg-red-500/10 text-red-400 border-red-500/20',
+                              ? 'border-success/40 bg-success/10 text-success'
+                              : 'border-border bg-surface2 text-muted',
                           )}
                         >
-                          {s.allow_messages ? 'Active' : 'Stopped'}
+                          {s.allow_messages ? '[ACCEPTING_INPUT]' : '[LOCKED]'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-muted">{fmtDate(s.updated_at)}</td>
+                      <td className="px-4 py-3 text-muted-dark text-[11px]">
+                        {fmtDate(s.updated_at)}
+                      </td>
                     </tr>
                   );
                 })

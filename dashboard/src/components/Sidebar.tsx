@@ -17,22 +17,22 @@ import { cn } from '../lib/utils';
 
 const NAV_ITEMS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'chat', label: 'Chat', icon: MessageSquare },
-  { id: 'canvas', label: 'Canvas', icon: Box },
+  { id: 'chat', label: 'Chat Terminal', icon: MessageSquare },
+  { id: 'canvas', label: 'Canvas Viewport', icon: Box },
   { type: 'section', label: 'Automation' },
   { id: 'scheduler', label: 'Scheduler', icon: Calendar },
   { id: 'webhooks', label: 'Webhooks', icon: Webhook },
   { id: 'heartbeats', label: 'Heartbeats', icon: Activity },
-  { type: 'section', label: 'System' },
+  { type: 'section', label: 'System Memory' },
   { id: 'sessions', label: 'Sessions', icon: Users },
-  { id: 'memory', label: 'Memory', icon: Database },
+  { id: 'memory', label: 'Memory Bank', icon: Database },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-  { type: 'section', label: 'Advanced' },
+  { type: 'section', label: 'Orchestration' },
   { id: 'swarms', label: 'Swarms', icon: Box },
   { id: 'workflows', label: 'Workflows', icon: GitBranch },
-  { id: 'tools', label: 'Tools', icon: Wrench },
-  { id: 'usage', label: 'Usage', icon: Zap },
-  { id: 'admin', label: 'Admin', icon: ShieldCheck },
+  { id: 'tools', label: 'Tool Registry', icon: Wrench },
+  { id: 'usage', label: 'Usage & Cost', icon: Zap },
+  { id: 'admin', label: 'Admin Control', icon: ShieldCheck },
 ];
 
 interface SidebarProps {
@@ -46,31 +46,35 @@ export function Sidebar({ currentPage, onNavigate, status }: SidebarProps) {
     <aside
       role="navigation"
       aria-label="Main navigation"
-      className="w-[240px] bg-surface backdrop-blur-xl border-r border-border/50 flex flex-col flex-shrink-0 h-screen overflow-y-auto relative"
+      className="w-57.5 bg-surface border-r border-border flex flex-col shrink-0 h-screen overflow-y-auto select-none"
     >
+      {/* Tactical Branding Header */}
       <div
-        className="absolute inset-0 bg-gradient-to-b from-accent/5 to-transparent pointer-events-none"
-        aria-hidden="true"
-      />
-
-      <div
-        className="p-5 pt-[22px] pb-[16px] text-lg font-bold border-b border-border/50 tracking-tight relative"
+        className="h-14 px-4 flex items-center justify-between border-b border-border bg-surface2 shrink-0"
         role="banner"
       >
-        <span className="text-text-bright">Gravity</span>{' '}
-        <span className="text-accent drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]">Claw</span>
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-accent" />
+          <span className="font-mono font-bold text-sm tracking-wider text-text-bright uppercase">
+            Gravity<span className="text-accent">.Claw</span>
+          </span>
+        </div>
+        <span className="font-mono text-[10px] text-muted uppercase tracking-widest px-1.5 py-0.5 border border-border bg-surface">
+          v2.4
+        </span>
       </div>
 
-      <nav aria-label="Sidebar" className="flex-1 py-3 px-2">
+      {/* Navigation Matrix */}
+      <nav aria-label="Sidebar" className="flex-1 py-3 px-2 space-y-0.5">
         {NAV_ITEMS.map((item, i) => {
           if (item.type === 'section') {
             return (
               <div
                 key={i}
                 role="separator"
-                className="px-3 pt-4 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-dark"
+                className="px-3 pt-4 pb-1.5 text-[10px] font-mono font-semibold uppercase tracking-widest text-muted-dark flex items-center gap-2"
               >
-                {item.label}
+                <span>// {item.label}</span>
               </div>
             );
           }
@@ -85,44 +89,54 @@ export function Sidebar({ currentPage, onNavigate, status }: SidebarProps) {
               aria-current={active ? 'page' : undefined}
               aria-label={item.label}
               className={cn(
-                'w-[calc(100%-8px)] mx-[4px] my-[2px] px-3 py-2.5 flex items-center gap-3 rounded-xl transition-all duration-200 text-[13.5px] font-medium',
+                'w-full px-3 py-2 flex items-center gap-2.5 text-xs font-medium border-l-2 transition-colors duration-100 text-left',
                 active
-                  ? 'bg-accent text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]'
-                  : 'text-muted hover:bg-surface-hover hover:text-text-bright',
+                  ? 'border-accent bg-surface-hover text-text-bright font-semibold'
+                  : 'border-transparent text-muted hover:bg-surface-hover/60 hover:text-text',
               )}
             >
               <Icon
-                size={16}
-                className={cn(
-                  'flex-shrink-0',
-                  active && 'drop-shadow-[0_0_6px_rgba(255,255,255,0.5)]',
-                )}
+                size={14}
+                className={cn('shrink-0', active ? 'text-accent' : 'text-muted-dark')}
                 aria-hidden="true"
               />
-              <span>{item.label}</span>
+              <span className="truncate">{item.label}</span>
             </button>
           );
         })}
       </nav>
 
+      {/* Telemetry Footer */}
       <div
         role="status"
         aria-label="Connection status"
-        className="mt-auto p-4 border-t border-border/50 flex items-center gap-3 text-xs text-muted backdrop-blur-sm bg-bg/30"
+        className="h-12 px-4 border-t border-border bg-surface2 flex items-center justify-between font-mono text-[11px] shrink-0"
       >
-        <div
+        <div className="flex items-center gap-2">
+          <div
+            className={cn(
+              'w-1.5 h-1.5',
+              status === 'ok'
+                ? 'bg-success'
+                : status === 'err'
+                  ? 'bg-danger'
+                  : 'bg-warning animate-pulse',
+            )}
+            aria-hidden="true"
+          />
+          <span className="text-muted-dark uppercase tracking-wider">WS</span>
+        </div>
+        <span
           className={cn(
-            'w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]',
+            'font-semibold uppercase tracking-wider',
             status === 'ok'
-              ? 'bg-success text-success'
+              ? 'text-success'
               : status === 'err'
-                ? 'bg-danger text-danger'
-                : 'bg-warning text-warning animate-pulse',
+                ? 'text-danger'
+                : 'text-warning',
           )}
-          aria-hidden="true"
-        />
-        <span className="font-medium">
-          {status === 'ok' ? 'Online' : status === 'connecting' ? 'Connecting...' : 'Offline'}
+        >
+          {status === 'ok' ? '[ONLINE]' : status === 'connecting' ? '[CONNECTING]' : '[OFFLINE]'}
         </span>
       </div>
     </aside>

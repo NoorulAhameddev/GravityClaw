@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users, AlertCircle, Network } from 'lucide-react';
+import { Network, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
 
@@ -19,6 +19,7 @@ function fmtDate(date: string | null) {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    second: '2-digit',
   });
 }
 
@@ -35,7 +36,7 @@ export default function Swarms() {
         setSwarms(res.data || []);
         setError(null);
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : 'Failed to fetch swarms');
+        setError(e instanceof Error ? e.message : 'Failed to fetch swarm nodes');
       } finally {
         setLoading(false);
       }
@@ -45,159 +46,134 @@ export default function Swarms() {
     return () => clearInterval(i);
   }, []);
 
-  const statusColor = (s: string) => {
-    if (s === 'active' || s === 'running')
-      return 'bg-green-500/10 text-green-400 border-green-500/20';
-    if (s === 'completed' || s === 'done') return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-    return 'bg-surface2 text-muted border-border';
-  };
+  const activeCount = swarms.filter((s) => s.status === 'active' || s.status === 'running').length;
+  const completedCount = swarms.filter((s) => s.status === 'completed' || s.status === 'done').length;
 
   return (
-    <div className="p-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-start gap-5 p-6 rounded-2xl bg-surface border border-border">
-        <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center text-2xl flex-shrink-0">
-          🐝
-        </div>
-        <div className="space-y-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-xl font-bold">Agent Swarms</h1>
-            <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-accent/20 text-accent rounded-full">
-              Sub-Agent
-            </span>
-          </div>
-          <p className="text-sm text-muted">
-            Coordinated multi-agent networks working in parallel on complex tasks with parent-child
-            session hierarchies.
-          </p>
-          <div className="flex flex-wrap gap-2 pt-1">
-            {['Multi-Agent', 'Parallel Execution', 'Role Assignment', 'Result Aggregation'].map(
-              (cap, i) => (
-                <span
-                  key={cap}
-                  className={cn(
-                    'px-2 py-0.5 text-[10px] rounded font-medium border',
-                    i < 2
-                      ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                      : 'bg-surface2 text-muted border-border',
-                  )}
-                >
-                  {cap}
-                </span>
-              ),
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        {[
-          { label: 'Total Swarms', value: swarms.length, icon: Network, color: 'text-accent' },
-          {
-            label: 'Active',
-            value: swarms.filter((s) => s.status === 'active' || s.status === 'running').length,
-            icon: Users,
-            color: 'text-green-400',
-          },
-          {
-            label: 'Completed',
-            value: swarms.filter((s) => s.status === 'completed' || s.status === 'done').length,
-            icon: Users,
-            color: 'text-blue-400',
-          },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="p-4 rounded-xl bg-surface border border-border flex items-center gap-3"
-          >
-            <div className={cn('p-2 rounded-lg bg-surface2', s.color)}>
-              <s.icon size={18} />
+    <div className="space-y-6 max-w-7xl">
+      {/* HUD Header */}
+      <div className="hud-panel p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Network size={18} className="text-accent" />
+          <div>
+            <div className="font-mono text-sm font-bold text-text-bright uppercase">
+              SWARM_TOPOLOGY // MULTI-AGENT_HIERARCHY
             </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-muted font-semibold">
-                {s.label}
-              </div>
-              <div className="text-2xl font-bold">{s.value}</div>
+            <div className="text-muted text-xs">
+              Coordinated agent networks, task delegation DAGs, and parent-child session handoffs.
             </div>
           </div>
-        ))}
-      </div>
+        </div>
 
-      {/* Table */}
-      <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <span className="text-lg">🐝</span>
-          <h2 className="text-xs font-bold uppercase tracking-widest text-muted">Active Swarms</h2>
-          <span className="px-1.5 py-0.5 bg-surface2 rounded text-xs font-mono text-accent">
-            {swarms.length}
-          </span>
+          <span className="hud-tag text-accent">PARALLEL_EXECUTION</span>
+          <span className="hud-tag">L2_SWARM_ROUTER</span>
+        </div>
+      </div>
+
+      {/* Metrics Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono text-xs">
+        <div className="hud-panel p-4 flex items-center justify-between">
+          <div>
+            <div className="text-muted-dark uppercase text-[10px] tracking-wider mb-1">TOTAL_SWARMS</div>
+            <div className="text-2xl font-bold text-text-bright">{swarms.length}</div>
+          </div>
+          <Network size={16} className="text-accent" />
         </div>
 
-        <div className="rounded-xl border border-border bg-surface overflow-hidden">
-          <table className="w-full text-left text-sm">
+        <div className="hud-panel p-4 flex items-center justify-between">
+          <div>
+            <div className="text-muted-dark uppercase text-[10px] tracking-wider mb-1">ACTIVE_NODES</div>
+            <div className="text-2xl font-bold text-success">{activeCount}</div>
+          </div>
+          <RefreshCw size={16} className={activeCount > 0 ? "text-success animate-spin" : "text-muted-dark"} />
+        </div>
+
+        <div className="hud-panel p-4 flex items-center justify-between">
+          <div>
+            <div className="text-muted-dark uppercase text-[10px] tracking-wider mb-1">COMPLETED_RUNS</div>
+            <div className="text-2xl font-bold text-info">{completedCount}</div>
+          </div>
+          <CheckCircle2 size={16} className="text-info" />
+        </div>
+      </div>
+
+      {/* Swarm Matrix Table */}
+      <div className="hud-panel">
+        <div className="hud-panel-header">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-accent" />
+            <span>SWARM PROCESS REGISTRY</span>
+          </div>
+          <span className="hud-tag">{swarms.length} REGISTERED</span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left font-mono text-xs">
             <thead>
-              <tr className="border-b border-border bg-surface2/50 text-[11px] uppercase tracking-wider text-muted">
-                {['ID', 'Parent Session', 'Child Session', 'Role', 'Status', 'Created'].map((h) => (
-                  <th key={h} className="px-4 py-3 font-bold">
-                    {h}
-                  </th>
-                ))}
+              <tr className="border-b border-border bg-surface2 text-[10px] uppercase tracking-wider text-muted">
+                <th className="px-4 py-2.5 font-semibold">SWARM ID</th>
+                <th className="px-4 py-2.5 font-semibold">PARENT SESSION</th>
+                <th className="px-4 py-2.5 font-semibold">CHILD SESSION</th>
+                <th className="px-4 py-2.5 font-semibold">ROLE</th>
+                <th className="px-4 py-2.5 font-semibold">STATUS</th>
+                <th className="px-4 py-2.5 font-semibold">CREATED</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading && swarms.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-muted">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                      Loading…
-                    </div>
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted">
+                    SYNCHRONIZING SWARM DAG...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-red-400">
-                    <div className="flex flex-col items-center gap-2">
-                      <AlertCircle size={22} />
-                      {error}
+                  <td colSpan={6} className="px-4 py-8 text-center text-danger">
+                    <div className="flex items-center justify-center gap-2">
+                      <AlertCircle size={14} />
+                      <span>{error}</span>
                     </div>
                   </td>
                 </tr>
               ) : swarms.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-muted">
-                    <div className="flex flex-col items-center gap-2 opacity-40">
-                      <span className="text-3xl">🐝</span>No swarms active
-                    </div>
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted-dark">
+                    NO ACTIVE SWARMS REGISTERED
                   </td>
                 </tr>
               ) : (
                 swarms.map((s) => (
-                  <tr key={s.id} className="hover:bg-surface2/30 transition-colors">
-                    <td className="px-4 py-3">
-                      <code className="text-[11px] font-mono text-muted">
-                        {String(s.id).substring(0, 8)}…
-                      </code>
+                  <tr key={s.id} className="hover:bg-surface-hover transition-colors">
+                    <td className="px-4 py-3 font-bold text-text-bright">
+                      {String(s.id).substring(0, 10)}
                     </td>
-                    <td className="px-4 py-3">
-                      <code className="text-xs font-mono text-accent">{s.parent_session_id}</code>
+                    <td className="px-4 py-3 text-accent font-semibold">
+                      {s.parent_session_id}
                     </td>
-                    <td className="px-4 py-3">
-                      <code className="text-xs font-mono text-muted">{s.child_session_id}</code>
+                    <td className="px-4 py-3 text-muted">
+                      {s.child_session_id}
                     </td>
-                    <td className="px-4 py-3 text-xs font-medium">{s.role}</td>
+                    <td className="px-4 py-3 font-sans text-xs text-text font-medium">
+                      {s.role}
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className={cn(
-                          'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border',
-                          statusColor(s.status),
+                          'px-1.5 py-0.5 border text-[10px] font-bold uppercase tracking-wider',
+                          s.status === 'active' || s.status === 'running'
+                            ? 'border-success/40 bg-success/10 text-success'
+                            : s.status === 'completed' || s.status === 'done'
+                              ? 'border-info/40 bg-info/10 text-info'
+                              : 'border-border bg-surface2 text-muted',
                         )}
                       >
-                        {s.status}
+                        [{s.status.toUpperCase()}]
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-muted">{fmtDate(s.created_at)}</td>
+                    <td className="px-4 py-3 text-muted-dark text-[11px]">
+                      {fmtDate(s.created_at)}
+                    </td>
                   </tr>
                 ))
               )}

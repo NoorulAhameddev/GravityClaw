@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Database, MessageSquare, ChevronRight, AlertCircle, Brain } from 'lucide-react';
+import { Database, MessageSquare, ChevronRight, AlertCircle, HardDrive } from 'lucide-react';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
 
@@ -26,6 +26,7 @@ function fmtDate(date: string | null) {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    second: '2-digit',
   });
 }
 
@@ -59,7 +60,7 @@ export default function Memory() {
         }
         setError(null);
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : 'Failed to load memory');
+        setError(e instanceof Error ? e.message : 'Failed to load memory index');
       } finally {
         setLoadingSessions(false);
       }
@@ -81,89 +82,105 @@ export default function Memory() {
   };
 
   return (
-    <div className="p-8 space-y-4 h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
-          <Brain size={20} className="text-accent" />
+    <div className="space-y-4 max-w-7xl">
+      {/* HUD Header */}
+      <div className="hud-panel p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <HardDrive size={18} className="text-accent" />
+          <div>
+            <div className="font-mono text-sm font-bold text-text-bright uppercase">
+              MEMORY_BANK // SQLITE + VECTOR_STORE
+            </div>
+            <div className="text-muted text-xs">
+              Persistent long-term memory, session state archives, and conversational vector embeddings.
+            </div>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl font-bold">Memory Vault</h1>
-          <p className="text-xs text-muted">Conversation history and session memory storage</p>
+
+        <div className="font-mono text-xs text-muted flex items-center gap-2">
+          <span className="text-muted-dark">INDEXED_SESSIONS:</span>
+          <span className="text-accent font-bold">{sessions.length}</span>
         </div>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-          <AlertCircle size={16} /> {error}
+        <div className="flex items-center gap-2 p-3 bg-danger/10 border border-danger/30 text-danger font-mono text-xs">
+          <AlertCircle size={14} />
+          <span>{error}</span>
         </div>
       )}
 
-      <div className="flex gap-4 flex-1 min-h-0" style={{ height: 'calc(100vh - 220px)' }}>
-        {/* Session List */}
-        <div className="w-64 flex-shrink-0 bg-surface border border-border rounded-xl overflow-hidden flex flex-col">
-          <div className="px-4 py-3 border-b border-border bg-surface2/50">
-            <div className="flex items-center gap-2">
-              <Database size={13} className="text-muted" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                Sessions
-              </span>
-              <span className="ml-auto text-xs font-mono text-accent">{sessions.length}</span>
+      {/* Main Split Matrix */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-[calc(100vh-14rem)]">
+        {/* Left: Session Explorer */}
+        <div className="hud-panel flex flex-col md:col-span-1">
+          <div className="hud-panel-header">
+            <div className="flex items-center gap-1.5">
+              <Database size={13} className="text-accent" />
+              <span>SESSION REGISTRY</span>
             </div>
+            <span className="font-mono text-[10px] text-muted">{sessions.length} NODES</span>
           </div>
-          <div className="overflow-y-auto flex-1">
+
+          <div className="flex-1 overflow-y-auto divide-y divide-border font-mono text-xs">
             {loadingSessions ? (
-              <div className="flex items-center justify-center py-8 text-muted">
-                <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              </div>
+              <div className="p-4 text-center text-muted">SCANNING SESSIONS...</div>
             ) : sessions.length === 0 ? (
-              <div className="py-8 text-center text-muted text-sm">No sessions yet</div>
+              <div className="p-6 text-center text-muted-dark space-y-2">
+                <Database size={24} className="mx-auto opacity-30" />
+                <div>NO ACTIVE SESSIONS</div>
+              </div>
             ) : (
               sessions.map((s) => (
                 <button
                   key={s.session_id}
                   onClick={() => selectSession(s.session_id)}
                   className={cn(
-                    'w-full text-left px-4 py-3 border-b border-border hover:bg-surface2/50 transition-colors',
-                    selected === s.session_id && 'bg-accent/10 border-l-2 border-l-accent',
+                    'w-full text-left p-3 hover:bg-surface-hover transition-colors flex items-center justify-between gap-2 group',
+                    selected === s.session_id && 'bg-surface-hover border-l-2 border-l-accent',
                   )}
                 >
-                  <div className="flex items-center justify-between gap-1">
-                    <code className="text-[11px] font-mono text-accent truncate flex-1">
+                  <div className="min-w-0">
+                    <div className="font-bold text-text-bright truncate group-hover:text-accent">
                       {s.session_id}
-                    </code>
-                    <ChevronRight size={12} className="text-muted flex-shrink-0" />
+                    </div>
+                    <div className="text-[10px] text-muted-dark mt-0.5 flex items-center gap-2">
+                      <MessageSquare size={10} />
+                      <span>{s.message_count} msgs</span>
+                      <span>·</span>
+                      <span>{fmtDate(s.last_active)}</span>
+                    </div>
                   </div>
-                  <div className="text-[10px] text-muted mt-0.5 flex items-center gap-2">
-                    <MessageSquare size={10} /> {s.message_count} msgs · {fmtDate(s.last_active)}
-                  </div>
+                  <ChevronRight size={13} className="text-muted-dark group-hover:text-accent shrink-0" />
                 </button>
               ))
             )}
           </div>
         </div>
 
-        {/* Message Panel */}
-        <div className="flex-1 bg-surface border border-border rounded-xl overflow-hidden flex flex-col min-w-0">
-          <div className="px-4 py-3 border-b border-border bg-surface2/50">
-            <code className="text-[11px] font-mono text-muted">
-              {selected || 'Select a session'}
-            </code>
+        {/* Right: Message Stream / Memory Inspector */}
+        <div className="hud-panel flex flex-col md:col-span-3">
+          <div className="hud-panel-header">
+            <span className="font-mono text-xs text-text-bright truncate">
+              INSPECTOR // {selected || 'NO_SELECTION'}
+            </span>
+            <span className="hud-tag">{messages.length} TURNS</span>
           </div>
-          <div className="overflow-y-auto flex-1 p-4 space-y-3">
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 font-mono text-xs">
             {!selected ? (
-              <div className="flex flex-col items-center justify-center h-full text-muted">
-                <Brain size={32} className="opacity-30 mb-2" />
-                Select a session to view messages
+              <div className="h-full flex flex-col items-center justify-center text-muted gap-2">
+                <HardDrive size={32} className="text-muted-dark" />
+                <div className="text-text-bright uppercase font-semibold">NO SESSION SELECTED</div>
+                <div className="text-muted-dark">Select a session from registry to inspect messages</div>
               </div>
             ) : loadingMsgs ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+              <div className="h-full flex items-center justify-center text-muted">
+                FETCHING MEMORY PAYLOADS...
               </div>
             ) : messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-muted">
-                <MessageSquare size={28} className="opacity-30 mb-2" />
-                No messages
+              <div className="h-full flex items-center justify-center text-muted-dark">
+                NO MESSAGES IN SELECTED SESSION
               </div>
             ) : (
               messages.map((row, i) => {
@@ -176,36 +193,38 @@ export default function Memory() {
                 if (!msg) return null;
                 const role = msg.role || 'unknown';
                 const raw = getContent(msg.content);
-                const preview = raw.substring(0, 600);
+
                 return (
                   <div
                     key={i}
                     className={cn(
-                      'p-4 rounded-xl border text-sm leading-relaxed',
+                      'border p-3 space-y-1.5',
                       role === 'user'
-                        ? 'bg-accent/5 border-accent/20 ml-8'
+                        ? 'border-border bg-surface2/60'
                         : role === 'assistant'
-                          ? 'bg-surface2 border-border mr-8'
-                          : 'bg-yellow-500/5 border-yellow-500/20 text-xs',
+                          ? 'border-accent/30 bg-surface'
+                          : 'border-amber/30 bg-surface2/30',
                     )}
                   >
-                    <div
-                      className={cn(
-                        'text-[10px] font-bold uppercase tracking-wider mb-1.5',
-                        role === 'user'
-                          ? 'text-accent'
-                          : role === 'assistant'
-                            ? 'text-green-400'
-                            : 'text-yellow-400',
-                      )}
-                    >
-                      {role}
+                    <div className="flex items-center justify-between border-b border-border/40 pb-1 text-[10px]">
+                      <span
+                        className={cn(
+                          'font-bold uppercase tracking-wider',
+                          role === 'user'
+                            ? 'text-amber'
+                            : role === 'assistant'
+                              ? 'text-accent'
+                              : 'text-info',
+                        )}
+                      >
+                        [{role.toUpperCase()}]
+                      </span>
+                      <span className="text-muted-dark">{fmtDate(row.timestamp)}</span>
                     </div>
-                    <div className="text-text whitespace-pre-wrap break-words">
-                      {preview}
-                      {raw.length > 600 ? '…' : ''}
+
+                    <div className="text-text leading-relaxed whitespace-pre-wrap wrap-break-word">
+                      {raw}
                     </div>
-                    <div className="text-[10px] text-muted mt-2">{fmtDate(row.timestamp)}</div>
                   </div>
                 );
               })

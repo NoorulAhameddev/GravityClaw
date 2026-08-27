@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { GitBranch, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { GitBranch, AlertCircle, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
 
@@ -19,6 +19,7 @@ function fmtDate(date: string | null) {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    second: '2-digit',
   });
 }
 
@@ -35,7 +36,7 @@ export default function Workflows() {
         setWorkflows(res.data || []);
         setError(null);
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : 'Failed to fetch workflows');
+        setError(e instanceof Error ? e.message : 'Failed to fetch active workflows');
       } finally {
         setLoading(false);
       }
@@ -49,136 +50,155 @@ export default function Workflows() {
   const completed = workflows.filter((w) => w.status === 'completed').length;
   const failed = workflows.filter((w) => w.status === 'failed').length;
 
-  const statusConfig = (s: string) => {
-    if (s === 'completed')
-      return { cls: 'bg-green-500/10 text-green-400 border-green-500/20', icon: CheckCircle };
-    if (s === 'running')
-      return { cls: 'bg-blue-500/10 text-blue-400 border-blue-500/20', icon: Clock };
-    if (s === 'failed')
-      return { cls: 'bg-red-500/10 text-red-400 border-red-500/20', icon: XCircle };
-    return { cls: 'bg-surface2 text-muted border-border', icon: Clock };
-  };
-
   return (
-    <div className="p-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-start gap-5 p-6 rounded-2xl bg-surface border border-border">
-        <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
-          <GitBranch size={20} className="text-accent" />
-        </div>
-        <div className="space-y-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-xl font-bold">Workflows</h1>
-            <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-accent/20 text-accent rounded-full">
-              Sub-Agent
-            </span>
-          </div>
-          <p className="text-sm text-muted">
-            Multi-step goal-oriented workflows executed by specialized sub-agents with progress
-            tracking and result aggregation.
-          </p>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Total', value: workflows.length, icon: GitBranch, color: 'text-accent' },
-          { label: 'Running', value: running, icon: Clock, color: 'text-blue-400' },
-          { label: 'Completed', value: completed, icon: CheckCircle, color: 'text-green-400' },
-          { label: 'Failed', value: failed, icon: XCircle, color: 'text-red-400' },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="p-4 rounded-xl bg-surface border border-border flex items-center gap-3"
-          >
-            <div className={cn('p-2 rounded-lg bg-surface2', s.color)}>
-              <s.icon size={18} />
+    <div className="space-y-6 max-w-7xl">
+      {/* HUD Header */}
+      <div className="hud-panel p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <GitBranch size={18} className="text-accent" />
+          <div>
+            <div className="font-mono text-sm font-bold text-text-bright uppercase">
+              WORKFLOW_PIPELINE // EXECUTION_DAG
             </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-muted font-semibold">
-                {s.label}
-              </div>
-              <div className="text-2xl font-bold">{s.value}</div>
+            <div className="text-muted text-xs">
+              Multi-step autonomous agent goal execution with step progress tracking and result aggregation.
             </div>
           </div>
-        ))}
-      </div>
+        </div>
 
-      {/* Cards */}
-      <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <span className="text-lg">🔀</span>
-          <h2 className="text-xs font-bold uppercase tracking-widest text-muted">All Workflows</h2>
-          <span className="px-1.5 py-0.5 bg-surface2 rounded text-xs font-mono text-accent">
-            {workflows.length}
-          </span>
+          <span className="hud-tag text-accent">DAG_ENGINE</span>
+          <span className="hud-tag">STATE_PERSISTENCE</span>
+        </div>
+      </div>
+
+      {/* Metrics Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 font-mono text-xs">
+        <div className="hud-panel p-4 flex items-center justify-between">
+          <div>
+            <div className="text-muted-dark uppercase text-[10px] tracking-wider mb-1">TOTAL_WORKFLOWS</div>
+            <div className="text-2xl font-bold text-text-bright">{workflows.length}</div>
+          </div>
+          <GitBranch size={16} className="text-accent" />
         </div>
 
-        {loading && workflows.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-muted">
-            <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-            Loading…
+        <div className="hud-panel p-4 flex items-center justify-between">
+          <div>
+            <div className="text-muted-dark uppercase text-[10px] tracking-wider mb-1">RUNNING_PIPELINES</div>
+            <div className="text-2xl font-bold text-info">{running}</div>
           </div>
-        ) : error ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-red-400">
-            <AlertCircle size={24} />
-            {error}
+          <RefreshCw size={16} className={running > 0 ? "text-info animate-spin" : "text-muted-dark"} />
+        </div>
+
+        <div className="hud-panel p-4 flex items-center justify-between">
+          <div>
+            <div className="text-muted-dark uppercase text-[10px] tracking-wider mb-1">COMPLETED_SUCCESS</div>
+            <div className="text-2xl font-bold text-success">{completed}</div>
           </div>
-        ) : workflows.length === 0 ? (
-          <div className="py-16 text-center text-muted">
-            <GitBranch size={32} className="mx-auto mb-2 opacity-30" />
-            <div>No workflows yet</div>
+          <CheckCircle2 size={16} className="text-success" />
+        </div>
+
+        <div className="hud-panel p-4 flex items-center justify-between">
+          <div>
+            <div className="text-muted-dark uppercase text-[10px] tracking-wider mb-1">FAILED_EXECUTIONS</div>
+            <div className="text-2xl font-bold text-danger">{failed}</div>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {workflows.map((w, idx) => {
-              const pct = Math.round((w.progress || 0) * 100);
-              const { cls, icon: StatusIcon } = statusConfig(w.status);
-              return (
-                <div
-                  key={idx}
-                  className="p-5 rounded-xl bg-surface border border-border hover:border-accent/30 transition-all"
-                >
-                  <div className="flex items-start justify-between gap-4 mb-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold truncate mb-1" title={w.goal}>
-                        {w.goal}
+          <XCircle size={16} className="text-danger" />
+        </div>
+      </div>
+
+      {/* Workflow Table Panel */}
+      <div className="hud-panel">
+        <div className="hud-panel-header">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-accent" />
+            <span>PIPELINE EXECUTION QUEUE</span>
+          </div>
+          <span className="hud-tag">{workflows.length} PIPELINES</span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left font-mono text-xs">
+            <thead>
+              <tr className="border-b border-border bg-surface2 text-[10px] uppercase tracking-wider text-muted">
+                <th className="px-4 py-2.5 font-semibold">TARGET GOAL</th>
+                <th className="px-4 py-2.5 font-semibold">TARGET SESSION</th>
+                <th className="px-4 py-2.5 font-semibold">PROGRESS</th>
+                <th className="px-4 py-2.5 font-semibold">STATUS</th>
+                <th className="px-4 py-2.5 font-semibold">DISPATCHED</th>
+                <th className="px-4 py-2.5 font-semibold">COMPLETED</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {loading && workflows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted">
+                    SYNCHRONIZING PIPELINE STATE...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-danger">
+                    <div className="flex items-center justify-center gap-2">
+                      <AlertCircle size={14} />
+                      <span>{error}</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : workflows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted-dark">
+                    NO WORKFLOW PIPELINES IN QUEUE
+                  </td>
+                </tr>
+              ) : (
+                workflows.map((w, i) => (
+                  <tr key={i} className="hover:bg-surface-hover transition-colors">
+                    <td className="px-4 py-3 font-sans text-xs text-text-bright font-medium max-w-sm">
+                      {w.goal}
+                    </td>
+                    <td className="px-4 py-3 text-accent font-semibold">
+                      {w.session_id}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-20 bg-surface border border-border h-2 relative">
+                          <div
+                            className="bg-accent h-full"
+                            style={{ width: `${Math.min(100, Math.max(0, w.progress || 0))}%` }}
+                          />
+                        </div>
+                        <span className="text-[11px] text-muted">{w.progress || 0}%</span>
                       </div>
-                      <code className="text-xs font-mono text-muted">{w.session_id}</code>
-                    </div>
-                    <span
-                      className={cn(
-                        'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border flex items-center gap-1 flex-shrink-0',
-                        cls,
-                      )}
-                    >
-                      <StatusIcon size={10} />
-                      {w.status}
-                    </span>
-                  </div>
-                  {/* Progress bar */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-[11px] text-muted">
-                      <span>Progress</span>
-                      <span className="font-mono">{pct}%</span>
-                    </div>
-                    <div className="h-1.5 bg-surface2 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-accent to-accent/60 rounded-full transition-all duration-500"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between mt-3 text-[10px] text-muted">
-                    <div>Started: {fmtDate(w.created_at)}</div>
-                    {w.completed_at && <div>Completed: {fmtDate(w.completed_at)}</div>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={cn(
+                          'px-1.5 py-0.5 border text-[10px] font-bold uppercase tracking-wider',
+                          w.status === 'completed'
+                            ? 'border-success/40 bg-success/10 text-success'
+                            : w.status === 'running'
+                              ? 'border-info/40 bg-info/10 text-info'
+                              : w.status === 'failed'
+                                ? 'border-danger/40 bg-danger/10 text-danger'
+                                : 'border-border bg-surface2 text-muted',
+                        )}
+                      >
+                        [{w.status.toUpperCase()}]
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-muted-dark text-[11px]">
+                      {fmtDate(w.created_at)}
+                    </td>
+                    <td className="px-4 py-3 text-muted-dark text-[11px]">
+                      {fmtDate(w.completed_at)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
