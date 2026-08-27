@@ -135,6 +135,7 @@ Desktop.ini
 .goose/
 .iflow/
 .junie/
+.kilo/
 .kilocode/
 .kiro/
 .kode/
@@ -182,7 +183,8 @@ public/canvas/build/
 !.archive/
 !.archive/README.md
 scripts/archive/
-lib/mobile-companion/graphify-out/
+**/graphify-out/
+domain_mapping.json
 
 # ============================================================================
 # MISCELLANEOUS
