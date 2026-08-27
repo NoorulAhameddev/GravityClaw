@@ -557,7 +557,6 @@ export const notionQueryDatabaseTool: Tool = {
         queryParams.sorts = sorts;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response = await (notion.databases as any).query(queryParams);
 
       const results = response.results.map((page: Record<string, unknown>) => {

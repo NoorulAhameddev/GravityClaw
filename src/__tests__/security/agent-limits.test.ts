@@ -43,6 +43,7 @@ vi.mock('../../llm/index.ts', () => ({
   addUserMessage: vi.fn(),
   addAssistantMessage: vi.fn(),
   addToolResult: vi.fn(),
+  extractThinking: (text?: string) => ({ text: text || '' }),
 }));
 
 vi.mock('ajv', () => {
