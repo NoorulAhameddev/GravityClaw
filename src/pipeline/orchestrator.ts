@@ -4,7 +4,7 @@ import { InputValidatorStage } from './inputValidator.ts';
 import { ContextBuilderStage } from './contextBuilder.ts';
 import { ToolPickerStage } from './toolPicker.ts';
 import { MemoryWriterStage } from './memoryWriter.ts';
-import { addUserMessage, callClaude, addAssistantMessage, addToolResult } from '../llm/index.ts';
+import { addUserMessage, callClaude, addAssistantMessage, addToolResult, extractThinking } from '../llm/index.ts';
 import {
   maybeCreateExecutionPlan,
   formatPlanForPrompt,
@@ -12,6 +12,7 @@ import {
 } from '../planning/index.ts';
 import type { ExecutionPlan, PlanningMode } from '../planning/types.js';
 import { rateLimiter } from '../middleware/rate-limit.ts';
+import { sanitizeParameters } from '../middleware/approval.ts';
 import { checkSessionDailyLimits } from '../usage.ts';
 import { performance } from 'perf_hooks';
 import { createLogger } from '../logger.ts';
@@ -24,6 +25,19 @@ import {
 import { DEFAULT_MAX_RESULT_SIZE_CHARS } from '../constants/toolLimits.ts';
 
 const log = createLogger('pipeline-orchestrator');
+
+function formatToolForApproval(
+  toolName: string,
+  input: Record<string, unknown>,
+): string {
+  const sanitized = sanitizeParameters(input);
+  if (toolName === 'run_shell') {
+    const { command, ...rest } = sanitized;
+    const extras = Object.keys(rest).length > 0 ? `\nargs: ${JSON.stringify(rest)}` : '';
+    return `${toolName} ${typeof command === 'string' ? command : JSON.stringify(command ?? '')}${extras}`;
+  }
+  return `${toolName} ${JSON.stringify(sanitized)}`;
+}
 
 export class Orchestrator {
   private pipeline = new Pipeline();
@@ -126,6 +140,22 @@ export class Orchestrator {
       const remainingTotal = context.maxTotalToolCalls - totalToolCalls;
       const batchSize = Math.max(0, Math.min(maxToolsPerIteration, remainingTotal));
       const parallelBatch = response.toolCalls.slice(0, batchSize);
+      const droppedCalls = response.toolCalls.slice(batchSize);
+      for (const dropped of droppedCalls) {
+        addToolResult(
+          context.sessionId,
+          dropped.id,
+          JSON.stringify({
+            success: false,
+            error: { type: 'execution', message: 'dropped: tool budget exceeded' },
+          }),
+          orchestratorDeps,
+          dropped.function.name,
+        );
+        log.warn(
+          `Tool call dropped for ${dropped.function.name} (${dropped.id}): tool budget exceeded`,
+        );
+      }
       const results = await Promise.allSettled(
         parallelBatch.map(async (toolCall) => {
           totalToolCalls++;
@@ -161,10 +191,9 @@ export class Orchestrator {
             execResult.error?.type === 'approval_required' &&
             context.requestConfirmation
           ) {
-            const commandStr = parsedInput.command
-              ? String(parsedInput.command)
-              : toolCall.function.name;
-            const approved = await context.requestConfirmation(commandStr);
+            const approved = await context.requestConfirmation(
+              formatToolForApproval(toolCall.function.name, parsedInput),
+            );
             if (approved) {
               execResult = await context.executor.execute({
                 toolName: toolCall.function.name,
@@ -280,8 +309,10 @@ export class Orchestrator {
 
     await new MemoryWriterStage().execute(context, { message: '' });
     if (pausedNotice) collectedText.push(pausedNotice);
+    const rawJoined = collectedText.join('\n');
+    const { text: cleanText } = extractThinking(rawJoined);
     return {
-      text: collectedText.join('\n') || '(no response)',
+      text: cleanText || '(no response)',
       toolCallCount: totalToolCalls,
       hitLimit:
         hitToolLimit ||

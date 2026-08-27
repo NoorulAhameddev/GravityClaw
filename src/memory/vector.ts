@@ -10,6 +10,7 @@ import { generateEmbedding, fallbackLocalSemanticSearch } from './supabase.ts';
 import { db } from '../db.ts';
 import type { SemanticSearchResult } from '../types/memory.js';
 import { config } from '../config.ts';
+import { sanitizeUntrustedText } from './sanitize.ts';
 
 const CHROMA_URL = config.CHROMA_URL;
 import { meter } from '../lib/telemetry/metrics.ts';
@@ -103,13 +104,16 @@ export async function upsertVectorMemory(opts: {
 
   if (!content.trim()) return;
 
+  const sanitizedContent = sanitizeUntrustedText(content);
+  if (!sanitizedContent) return;
+
   try {
-    const embedding = await generateEmbedding(content);
+    const embedding = await generateEmbedding(sanitizedContent);
 
     await col.upsert({
       ids: [id],
       embeddings: [embedding],
-      documents: [content],
+      documents: [sanitizedContent],
       metadatas: [
         {
           sessionId,

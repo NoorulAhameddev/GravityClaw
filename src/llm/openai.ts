@@ -5,6 +5,7 @@ import type {
 } from 'openai/resources/chat/completions.js';
 import type { LLMProvider, LLMResponse, LLMChatOptions, StreamCallback } from '../types/llm.js';
 import { createLogger } from '../logger.ts';
+import { extractThinking } from './base.ts';
 
 const log = createLogger('llm:openai');
 
@@ -57,7 +58,12 @@ export class OpenAIProvider implements LLMProvider {
     if (!choice) throw new Error('OpenAI returned no choices');
 
     const msg = choice.message;
-    const text = msg.content ?? '';
+    const msgRecord = msg as unknown as Record<string, unknown>;
+    const rawReasoning = msgRecord.reasoning_content || msgRecord.reasoning;
+    const { text, thought } = extractThinking(
+      msg.content ?? '',
+      typeof rawReasoning === 'string' ? rawReasoning : undefined,
+    );
     const toolCalls = msg.tool_calls ?? [];
 
     log.debug(
@@ -68,6 +74,7 @@ export class OpenAIProvider implements LLMProvider {
       stopReason: choice.finish_reason ?? 'stop',
       text,
       toolCalls,
+      ...(thought ? { thought } : {}),
     };
 
     if (response.usage) {
@@ -150,7 +157,8 @@ export class OpenAIProvider implements LLMProvider {
 
     onToken?.('', true);
 
-    const text = textParts.join('');
+    const rawText = textParts.join('');
+    const { text, thought } = extractThinking(rawText);
     const toolCalls = Array.from(accumulatedToolCalls.values());
 
     log.debug(
@@ -161,6 +169,7 @@ export class OpenAIProvider implements LLMProvider {
       stopReason,
       text,
       toolCalls,
+      ...(thought ? { thought } : {}),
     };
 
     return result;

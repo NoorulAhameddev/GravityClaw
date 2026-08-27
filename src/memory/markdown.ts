@@ -5,6 +5,12 @@ import Fuse from 'fuse.js';
 import { db } from '../db.ts';
 import type { MarkdownFact, FactAccessStat } from '../types/memory.js';
 import { createLogger } from '../logger.ts';
+import {
+  UNTRUSTED_MEMORY_BEGIN,
+  UNTRUSTED_MEMORY_END,
+  UNTRUSTED_MEMORY_HEADER,
+  sanitizeUntrustedText,
+} from './sanitize.ts';
 
 const log = createLogger('memory:markdown');
 
@@ -45,7 +51,11 @@ let memoryRoot = DEFAULT_MEMORY_ROOT;
 // Table creation is now handled centrally by src/db/migrations/schema.ts
 
 function sanitizeSessionId(sessionId: string): string {
-  return sessionId.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const sanitized = sessionId.replace(/[^a-zA-Z0-9._-]/g, '_');
+  if (sanitized.length === 0 || sanitized === '.' || sanitized === '..') {
+    throw new Error(`sessionId is invalid: '${sessionId}'`);
+  }
+  return sanitized;
 }
 
 function normalizeCategory(category: string): string {
@@ -168,10 +178,15 @@ export function rewriteSessionFacts(sessionId: string, facts: MarkdownFact[]): v
   ensureSessionMemoryDir(sessionId);
   const filePath = getSessionFactsFilePath(sessionId);
 
-  const lines = facts.map((entry) => {
+  const sanitizedFacts = facts.map((entry) => ({
+    timestamp: entry.timestamp,
+    category: normalizeCategory(sanitizeUntrustedText(entry.category)),
+    fact: sanitizeUntrustedText(entry.fact),
+  }));
+
+  const lines = sanitizedFacts.map((entry) => {
     const ts = entry.timestamp || new Date().toISOString();
-    const category = normalizeCategory(entry.category);
-    return `- [${ts}] [${category}] ${entry.fact.trim()}`;
+    return `- [${ts}] [${entry.category}] ${entry.fact}`;
   });
 
   const content = lines.length > 0 ? `${lines.join('\n')}\n` : '';
@@ -182,9 +197,8 @@ export function rewriteSessionFacts(sessionId: string, facts: MarkdownFact[]): v
     db.prepare('DELETE FROM fact_stats WHERE session_id = ?').run(sessionId);
 
     // Re-seed access stats for the new consolidated facts so they have history
-    for (const entry of facts) {
-      const normalizedCategory = normalizeCategory(entry.category);
-      touchFactAccess(sessionId, normalizedCategory, entry.fact, {
+    for (const entry of sanitizedFacts) {
+      touchFactAccess(sessionId, entry.category, entry.fact, {
         importanceDelta: 1,
         incrementCount: true,
       });
@@ -220,7 +234,7 @@ function ensureSessionMemoryDir(sessionId: string): void {
 }
 
 export function saveFact(sessionId: string, category: string, fact: string): MarkdownFact {
-  const trimmedFact = fact.trim();
+  const trimmedFact = sanitizeUntrustedText(fact);
   if (!sessionId.trim()) {
     throw new Error('sessionId is required');
   }
@@ -231,10 +245,9 @@ export function saveFact(sessionId: string, category: string, fact: string): Mar
   ensureSessionMemoryDir(sessionId);
 
   const timestamp = new Date().toISOString();
-  const normalizedCategory = normalizeCategory(category);
+  const normalizedCategory = normalizeCategory(sanitizeUntrustedText(category));
   const filePath = getSessionFactsFilePath(sessionId);
   const line = `- [${timestamp}] [${normalizedCategory}] ${trimmedFact}\n`;
-
   fs.appendFileSync(filePath, line, 'utf8');
 
   touchFactAccess(sessionId, normalizedCategory, trimmedFact, {
@@ -317,6 +330,9 @@ export function recallFacts(sessionId: string, query: string, limit = 10): Markd
   return limited;
 }
 
+const FACTS_BLOCK_WRAPPER_OVERHEAD =
+  UNTRUSTED_MEMORY_BEGIN.length + UNTRUSTED_MEMORY_HEADER.length + UNTRUSTED_MEMORY_END.length + 3;
+
 export function loadFactsForPrompt(sessionId: string, maxChars = 4000): string {
   const filePath = getSessionFactsFilePath(sessionId);
   if (!fs.existsSync(filePath)) {
@@ -328,10 +344,15 @@ export function loadFactsForPrompt(sessionId: string, maxChars = 4000): string {
     return '';
   }
 
-  if (content.length <= maxChars) {
-    return content;
+  // Label the whole block as untrusted; keep the label inside the maxChars budget.
+  const innerBudget = Math.max(0, maxChars - FACTS_BLOCK_WRAPPER_OVERHEAD);
+  let inner: string;
+  if (content.length <= innerBudget) {
+    inner = content;
+  } else {
+    const suffix = '\n... [truncated for context window]';
+    inner = content.slice(0, Math.max(0, innerBudget - suffix.length)) + suffix;
   }
 
-  const suffix = '\n... [truncated for context window]';
-  return content.slice(0, Math.max(0, maxChars - suffix.length)) + suffix;
+  return `${UNTRUSTED_MEMORY_BEGIN}\n${UNTRUSTED_MEMORY_HEADER}\n${inner}\n${UNTRUSTED_MEMORY_END}`;
 }

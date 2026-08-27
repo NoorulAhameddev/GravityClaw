@@ -19,7 +19,7 @@ import { createLogger } from '../logger.ts';
 
 const log = createLogger('llm');
 
-export { SYSTEM_PROMPT } from './base.ts';
+export { SYSTEM_PROMPT, extractThinking } from './base.ts';
 export type { LLMProvider, LLMResponse, LLMChatOptions } from '../types/llm.js';
 export { FailoverProvider } from './failover.ts';
 export { OpenRouterProvider } from './openrouter.ts';

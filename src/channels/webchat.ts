@@ -7,6 +7,8 @@ import '../types/websocket.js';
 
 const log = createLogger('webchat');
 
+const WEBCHAT_SESSION_ID = 'webchat:webchat-session';
+
 interface WebChatMessage {
   type: 'message' | 'typing';
   text?: string;
@@ -62,16 +64,27 @@ export class WebChatChannel implements Channel {
           } else if ((parsed as any).type === 'tool_call') {
             const { id, tool: toolName, args, sessionId, approvalRequestId } = parsed as any;
 
+            if (sessionId && sessionId !== WEBCHAT_SESSION_ID) {
+              log.warn(`Cross-session tool_call denied: ${toolName} (requested: ${sessionId})`);
+              ws.send(
+                JSON.stringify({
+                  type: 'tool_response',
+                  id,
+                  error: 'cross-session execution denied',
+                }),
+              );
+              return;
+            }
+
             log.info(`🔧 [WebChat] Tool call: ${toolName} (id: ${id})`);
 
             try {
-              const effectiveSessionId = sessionId || 'webchat-session';
               const execution = await toolExecutor.execute({
                 toolName,
                 input: args || {},
                 approvalRequestId,
                 context: {
-                  sessionId: effectiveSessionId,
+                  sessionId: WEBCHAT_SESSION_ID,
                   userId: 'web-user',
                   platform: 'webchat',
                   source: 'websocket',

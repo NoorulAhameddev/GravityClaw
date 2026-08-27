@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { createLogger } from '../logger.ts';
 import { config as appConfig } from '../config.ts';
 
@@ -13,7 +14,11 @@ export interface ApprovalRequest {
   timestamp: Date;
   status: 'pending' | 'approved' | 'denied' | 'expired';
   expiresAt: Date;
+  requestedBy: string;
   approver?: string;
+  approvedBy?: string;
+  deniedBy?: string;
+  resolutionChannel?: string;
   resolvedAt?: Date;
 }
 
@@ -28,6 +33,23 @@ function parseApprovalTools(): Set<string> {
     return new Set(['run_shell', 'file_delete', 'http_request', 'execute_code']);
   }
   return new Set(appConfig.APPROVAL_REQUIRED_TOOLS.split(',').map((t) => t.trim()));
+}
+
+export function sanitizeParameters(parameters: Record<string, unknown>): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {};
+  const sensitiveKeys = ['password', 'token', 'apiKey', 'secret', 'key'];
+
+  for (const [key, value] of Object.entries(parameters)) {
+    if (sensitiveKeys.some((sk) => key.toLowerCase().includes(sk.toLowerCase()))) {
+      sanitized[key] = '[REDACTED]';
+    } else if (typeof value === 'object' && value !== null) {
+      sanitized[key] = sanitizeParameters(value as Record<string, unknown>);
+    } else {
+      sanitized[key] = value;
+    }
+  }
+
+  return sanitized;
 }
 
 export class ApprovalGate {
@@ -75,13 +97,14 @@ export class ApprovalGate {
     const request: ApprovalRequest = {
       id,
       toolName,
-      parameters: this.sanitizeParameters(parameters),
+      parameters: sanitizeParameters(parameters),
       userId: context.userId,
       sessionId: context.sessionId,
       channel: context.channel,
       timestamp: now,
       status: 'pending',
       expiresAt,
+      requestedBy: context.userId || context.sessionId || context.channel || 'unknown',
     };
 
     this.pendingApprovals.set(id, request);
@@ -113,6 +136,8 @@ export class ApprovalGate {
 
     request.status = 'approved';
     request.approver = approver;
+    request.approvedBy = approver;
+    request.resolutionChannel = 'api';
     request.resolvedAt = new Date();
 
     log.info(`Approved request ${id} by ${approver}`);
@@ -136,6 +161,8 @@ export class ApprovalGate {
 
     request.status = 'denied';
     request.approver = approver;
+    request.deniedBy = approver;
+    request.resolutionChannel = 'api';
     request.resolvedAt = new Date();
 
     log.info(`Denied request ${id} by ${approver}`);
@@ -173,25 +200,8 @@ export class ApprovalGate {
     }
   }
 
-  private sanitizeParameters(parameters: Record<string, unknown>): Record<string, unknown> {
-    const sanitized: Record<string, unknown> = {};
-    const sensitiveKeys = ['password', 'token', 'apiKey', 'secret', 'key'];
-
-    for (const [key, value] of Object.entries(parameters)) {
-      if (sensitiveKeys.some((sk) => key.toLowerCase().includes(sk.toLowerCase()))) {
-        sanitized[key] = '[REDACTED]';
-      } else if (typeof value === 'object' && value !== null) {
-        sanitized[key] = this.sanitizeParameters(value as Record<string, unknown>);
-      } else {
-        sanitized[key] = value;
-      }
-    }
-
-    return sanitized;
-  }
-
   private generateId(): string {
-    return `approval_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    return `approval_${randomUUID()}`;
   }
 
   private expirationTimer: ReturnType<typeof setInterval> | null = null;

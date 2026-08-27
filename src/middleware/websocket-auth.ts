@@ -42,8 +42,9 @@ export function validateWebSocketAuth(
     url.searchParams.get('token') || request.headers['authorization']?.replace('Bearer ', '');
 
   // Allow localhost without authentication or with any key (for development convenience)
-  if (isLocalhost) {
-    const sessionId = url.searchParams.get('session') || 'default';
+  const allowLocalhostBypass = config.NODE_ENV !== 'production' || config.AUTH_ALLOW_LOCALHOST === true;
+  if (isLocalhost && allowLocalhostBypass) {
+    const sessionId = 'local';
     logger.debug(`Allowing local WebSocket connection for session: ${sessionId}`);
     return {
       isAuthenticated: true,

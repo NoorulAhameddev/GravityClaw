@@ -103,8 +103,10 @@ describe('LLM History Management', () => {
       expect(history[0]).toMatchObject({
         role: 'tool',
         tool_call_id: 'call_123',
-        content: 'Tool completed successfully',
       });
+      expect(String((history[0] as any).content)).toContain('Tool completed successfully');
+      expect(String((history[0] as any).content)).toContain('[TOOL_RESULT_BEGIN]');
+      expect(String((history[0] as any).content)).toContain('[TOOL_RESULT_END]');
     });
   });
 

@@ -7,6 +7,7 @@ import {
 } from './consolidationLock.ts';
 import { buildConsolidationPrompt } from './consolidationPrompt.ts';
 import { readAllFacts, rewriteSessionFacts } from './markdown.ts';
+import { sanitizeUntrustedText } from './sanitize.ts';
 import { createLogger } from '../logger.ts';
 import { db } from '../db.ts';
 import { runForkedAgent } from '../lib/forkedAgent.ts';
@@ -137,8 +138,8 @@ export async function executeAutoDream(): Promise<void> {
           if (match && match[1] && match[2]) {
             consolidatedFacts.push({
               timestamp: new Date().toISOString(),
-              category: match[1].trim(),
-              fact: match[2].trim(),
+              category: sanitizeUntrustedText(match[1].trim()),
+              fact: sanitizeUntrustedText(match[2].trim()),
             });
           }
         }

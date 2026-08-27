@@ -135,6 +135,22 @@ export function buildSystemContext(basePrompt: string, ctx: PromptContext): stri
 
 export type ConversationHistory = ChatCompletionMessageParam[];
 
+interface HistoryRow {
+  role: string;
+  content?: unknown;
+  name?: string;
+  tool_call_id?: string;
+  tool_calls?: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[];
+}
+
+function isEmptyAssistantRow(row: HistoryRow): boolean {
+  if (row.role !== 'assistant') return false;
+  if (row.tool_calls && row.tool_calls.length > 0) return false;
+  if (typeof row.content === 'string') return row.content.trim().length === 0;
+  if (Array.isArray(row.content)) return row.content.length === 0;
+  return row.content == null;
+}
+
 /** Retrieves conversation history from SQLite */
 export function getHistory(sessionId: string, deps: OrchestratorDependencies): ConversationHistory {
   validateSessionId(sessionId);
@@ -143,29 +159,63 @@ export function getHistory(sessionId: string, deps: OrchestratorDependencies): C
       'SELECT message_json FROM (SELECT id, message_json, timestamp FROM memory WHERE session_id = ? ORDER BY timestamp DESC, id DESC LIMIT 200) sub ORDER BY timestamp ASC, id ASC',
     )
     .all(sessionId) as { message_json: string }[];
-  const messages = rows.map((row) => JSON.parse(row.message_json));
+  const messages = rows
+    .map((row) => JSON.parse(row.message_json) as HistoryRow)
+    .filter((m) => !isEmptyAssistantRow(m));
 
-  // Token protection: trim oldest history if exceeds MAX_MESSAGES
-  if (messages.length > MAX_MESSAGES) {
-    let trimmed = messages.slice(-MAX_MESSAGES);
-
-    // Find first 'user' message to ensure conversation structure is valid for strict providers
-    const firstUserIndex = trimmed.findIndex((m) => m.role === 'user');
-    if (firstUserIndex > 0) {
-      trimmed = trimmed.slice(firstUserIndex);
-    } else if (firstUserIndex === -1) {
-      // If no user message found in the last MAX_MESSAGES, take the absolute last few turns
-      // and force the first one to be a dummy user message if necessary (rare edge case)
-      log.warn(`No user message found in last ${MAX_MESSAGES} messages during trimming`);
+  // Group messages into atomic turns: a non-tool row plus every immediately
+  // following consecutive tool row, so trimming never separates an assistant
+  // row carrying toolCalls from its role:'tool' children.
+  const groups: HistoryRow[][] = [];
+  let currentGroup: HistoryRow[] = [];
+  for (const msg of messages) {
+    if (msg.role === 'tool') {
+      currentGroup.push(msg);
+      continue;
     }
+    if (currentGroup.length > 0) groups.push(currentGroup);
+    currentGroup = [msg];
+  }
+  if (currentGroup.length > 0) groups.push(currentGroup);
 
-    log.debug(
-      `Trimmed history from ${messages.length} to ${trimmed.length} messages starting with role: ${trimmed[0]?.role}`,
-    );
-    return trimmed;
+  // Token protection: keep the newest groups that fit within MAX_MESSAGES.
+  const selectedGroups: HistoryRow[][] = [];
+  let count = 0;
+  for (let i = groups.length - 1; i >= 0; i--) {
+    const group = groups[i];
+    if (!group) continue;
+    if (count > 0 && count + group.length > MAX_MESSAGES) break;
+    selectedGroups.unshift(group);
+    count += group.length;
+  }
+  let trimmed = selectedGroups.flat();
+
+  // Ensure the window starts with a 'user' message for strict providers.
+  const firstUserIndex = trimmed.findIndex((m) => m.role === 'user');
+  if (firstUserIndex > 0) {
+    trimmed = trimmed.slice(firstUserIndex);
+  } else if (firstUserIndex === -1) {
+    let lastUserSourceIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i]?.role === 'user') {
+        lastUserSourceIndex = i;
+        break;
+      }
+    }
+    if (lastUserSourceIndex > -1) {
+      trimmed = messages.slice(lastUserSourceIndex);
+      log.warn(
+        `No user message in ${MAX_MESSAGES}-message window; expanded window to ${trimmed.length} messages starting at latest user row`,
+      );
+    } else {
+      log.warn(`No user message found in session history during trimming`);
+    }
   }
 
-  return messages;
+  log.debug(
+    `Trimmed history from ${messages.length} to ${trimmed.length} messages starting with role: ${trimmed[0]?.role}`,
+  );
+  return trimmed as unknown as ConversationHistory;
 }
 
 /** Filter to prevent low-quality memory storage for user/assistant messages */
@@ -396,10 +446,8 @@ export function addToolResult(
 ): void {
   validateSessionId(sessionId);
 
-  const content =
-    typeof result === 'string'
-      ? sanitizeMemoryContent(result) || '(empty result)'
-      : result || '(empty result)';
+  const innerContent = result ? result : '(empty result)';
+  const content = `[TOOL_RESULT_BEGIN]\n${innerContent}\n[TOOL_RESULT_END]`;
   const msg: {
     role: string;
     tool_call_id: string;

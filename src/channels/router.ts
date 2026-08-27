@@ -1,4 +1,5 @@
 import type { Channel, UnifiedMessage } from '../types/channels.js';
+import { randomUUID } from 'crypto';
 import { runAgent } from '../agent.ts';
 import { runWithConcurrencyLimit } from '../concurrency.ts';
 import { createLogger } from '../logger.ts';
@@ -28,6 +29,13 @@ import { handleModel, handleModels } from './commands/model.ts';
 
 const log = createLogger('router');
 
+interface PendingConfirmation {
+  id: string;
+  command: string;
+  resolve: (confirmed: boolean) => void;
+  timer: NodeJS.Timeout;
+}
+
 export interface ChannelStatus {
   id: string;
   started: boolean;
@@ -38,11 +46,10 @@ export class ChannelRouter {
   private channels = new Map<string, Channel>();
   private channelStatuses = new Map<string, ChannelStatus>();
 
-  /** Pending dangerous-command confirmations */
-  private pendingConfirmations = new Map<
-    string,
-    { command: string; resolve: (confirmed: boolean) => void }
-  >();
+  /** Pending dangerous-command confirmations, FIFO per chat, each with its own TTL */
+  private pendingConfirmations = new Map<string, PendingConfirmation[]>();
+  private static CONFIRM_YES = new Set(['y', 'yes']);
+  private static CONFIRM_NO = new Set(['n', 'no']);
 
   register(channel: Channel) {
     if (this.channels.has(channel.id)) {
@@ -102,6 +109,65 @@ export class ChannelRouter {
     const sessionId = `${channelId}:${chatId}`;
     db.prepare('DELETE FROM memory WHERE session_id = ?').run(sessionId);
     log.info(`History cleared for ${sessionId}`);
+  }
+
+  private enqueueConfirmation(
+    key: string,
+    command: string,
+    onExpired: () => void,
+  ): Promise<boolean> {
+    const timeoutMinutes = config.APPROVAL_TIMEOUT_MINUTES ?? 5;
+    return new Promise((resolve) => {
+      const entry: PendingConfirmation = {
+        id: randomUUID(),
+        command,
+        resolve,
+        timer: setTimeout(() => {}, 0),
+      };
+      entry.timer = setTimeout(() => {
+        const removed = this.takeConfirmation(key, entry.id);
+        if (!removed) return;
+        resolve(false);
+        onExpired();
+        log.warn(
+          `Confirmation ${entry.id} for ${key} timed out after ${timeoutMinutes}m — denied: ${command}`,
+        );
+      }, Math.max(1, timeoutMinutes) * 60 * 1000);
+
+      const queue = this.pendingConfirmations.get(key);
+      if (queue) {
+        queue.push(entry);
+      } else {
+        this.pendingConfirmations.set(key, [entry]);
+      }
+    });
+  }
+
+  private takeConfirmation(key: string, id: string): PendingConfirmation | undefined {
+    const queue = this.pendingConfirmations.get(key);
+    if (!queue) return undefined;
+    const idx = queue.findIndex((e) => e.id === id);
+    if (idx === -1) return undefined;
+    const removed = queue.splice(idx, 1);
+    const entry = removed[0];
+    if (!entry) return undefined;
+    if (queue.length === 0) this.pendingConfirmations.delete(key);
+    clearTimeout(entry.timer);
+    return entry;
+  }
+
+  private resolveOldestConfirmation(key: string, confirmed: boolean): boolean {
+    const queue = this.pendingConfirmations.get(key);
+    const oldest = queue?.[0];
+    if (!oldest) return false;
+    const entry = this.takeConfirmation(key, oldest.id);
+    if (!entry) return false;
+    entry.resolve(confirmed);
+    return true;
+  }
+
+  public getPendingConfirmationCount(channelId: string, chatId: string): number {
+    return this.pendingConfirmations.get(`${channelId}:${chatId}`)?.length ?? 0;
   }
 
   private async handleMessage(msg: UnifiedMessage) {
@@ -339,20 +405,21 @@ export class ChannelRouter {
       return;
     }
 
-    // Handle y/n replies for confirmations
-    const pending = this.pendingConfirmations.get(key);
-    if (pending) {
-      const answer = msg.text.trim().toLowerCase();
-      if (answer === 'y' || answer === 'yes') {
-        pending.resolve(true);
-        this.pendingConfirmations.delete(key);
-        await channel.sendMessage(msg.chatId, '✅ Confirmed. Executing…');
-      } else {
-        pending.resolve(false);
-        this.pendingConfirmations.delete(key);
-        await channel.sendMessage(msg.chatId, '🚫 Cancelled.');
+    // Handle y/n replies for confirmations — only explicit tokens resolve;
+    // anything else flows through as normal chat
+    const normalized = text.toLowerCase();
+    if (
+      ChannelRouter.CONFIRM_YES.has(normalized) ||
+      ChannelRouter.CONFIRM_NO.has(normalized)
+    ) {
+      const confirmed = ChannelRouter.CONFIRM_YES.has(normalized);
+      if (this.resolveOldestConfirmation(key, confirmed)) {
+        await channel.sendMessage(
+          msg.chatId,
+          confirmed ? '✅ Confirmed. Executing…' : '🚫 Cancelled.',
+        );
+        return;
       }
-      return;
     }
 
     log.info(`Message received via router — channel: ${msg.channelId}, chat: ${msg.chatId}`);
@@ -378,15 +445,21 @@ export class ChannelRouter {
           groupId: msg.groupId,
           isGroup: msg.isGroup,
           requestConfirmation: async (command: string): Promise<boolean> => {
-            return new Promise((resolve) => {
-              this.pendingConfirmations.set(key, { command, resolve });
+            const confirmationPromise = this.enqueueConfirmation(key, command, () => {
               channel
                 .sendMessage(
                   msg.chatId,
-                  `⚠️ *Dangerous command detected*\n\`\`\`\n${command}\n\`\`\`\n\nReply *y* to confirm or *n* to cancel.`,
+                  `⏰ Confirmation timed out after ${config.APPROVAL_TIMEOUT_MINUTES}m — denied.\n\`\`\`\n${command}\n\`\`\``,
                 )
-                .catch((err) => log.error('Failed to send confirmation prompt', err));
+                .catch((err) => log.error('Failed to send confirmation timeout notice', err));
             });
+            channel
+              .sendMessage(
+                msg.chatId,
+                `⚠️ *Approval required*\n\`\`\`\n${command}\n\`\`\`\n\nReply *y* to confirm or *n* to cancel. Ignored requests are denied after ${config.APPROVAL_TIMEOUT_MINUTES}m.`,
+              )
+              .catch((err) => log.error('Failed to send confirmation prompt', err));
+            return confirmationPromise;
           },
           dependencies: {
             config: container.config,

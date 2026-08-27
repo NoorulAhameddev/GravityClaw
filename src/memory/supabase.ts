@@ -5,6 +5,7 @@ import { createLogger } from '../logger.ts';
 import { db } from '../db.ts';
 export { db };
 import type { SemanticSearchResult } from '../types/memory.js';
+import { sanitizeUntrustedText } from './sanitize.ts';
 
 export type { SemanticSearchResult } from '../types/memory.js';
 
@@ -225,7 +226,8 @@ export async function syncMessageToSupabase(input: {
     return false;
   }
 
-  const embedding = await generateEmbedding(input.content);
+  const sanitizedContent = sanitizeUntrustedText(input.content);
+  const embedding = await generateEmbedding(sanitizedContent);
   const { channelId, chatId } = parseSessionId(input.sessionId);
   const adapter = getAdapter();
   const sessionPayload: SessionSyncPayload = {
@@ -239,7 +241,7 @@ export async function syncMessageToSupabase(input: {
     id: `${input.sessionId}:${input.timestamp ?? new Date().toISOString()}:${input.role}`,
     session_id: input.sessionId,
     role: input.role,
-    content: input.content,
+    content: sanitizedContent,
     timestamp: input.timestamp ?? new Date().toISOString(),
     embedding,
   });

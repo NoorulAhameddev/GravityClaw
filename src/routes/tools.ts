@@ -22,11 +22,16 @@ router.get('/', authMiddleware, async (req, res) => {
 router.post('/execute', authMiddleware, validateBody(toolsExecuteSchema), async (req, res) => {
   try {
     const { tool: toolName, input, sessionId, userId, approvalRequestId } = req.body;
+    const derivedSessionId = `api:${toolName}`;
+    if (sessionId && sessionId !== derivedSessionId) {
+      log.warn(`Cross-session tool execution denied: ${toolName} (requested: ${sessionId})`);
+      return res.status(403).json({ error: 'cross-session execution denied' });
+    }
     const execution = await toolExecutor.execute({
       toolName,
       input: input || {},
       approvalRequestId,
-      context: { sessionId: sessionId || `api:${toolName}`, userId, source: 'api' },
+      context: { sessionId: derivedSessionId, userId: 'api-key-holder', source: 'api' },
     });
     if (!execution.success)
       return res.status(500).json({ success: false, error: execution.error?.message });

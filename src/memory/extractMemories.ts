@@ -1,6 +1,7 @@
 import { db } from '../db.ts';
 import { config } from '../config.ts';
 import { saveFact, readAllFacts, getSessionFactsFilePath } from '../memory/markdown.ts';
+import { sanitizeUntrustedText } from './sanitize.ts';
 import { createLogger } from '../logger.ts';
 import { runForkedAgent } from '../lib/forkedAgent.ts';
 
@@ -104,8 +105,8 @@ ${conversation}`;
     for (const line of factLines) {
       const match = line.match(/^- \[([^\]]+)\] (.+)$/);
       if (match && match[1] && match[2]) {
-        const category = match[1];
-        const fact = match[2];
+        const category = sanitizeUntrustedText(match[1]);
+        const fact = sanitizeUntrustedText(match[2]);
         try {
           saveFact(sessionId, category, fact);
           extractedCount++;
