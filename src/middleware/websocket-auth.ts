@@ -23,10 +23,8 @@ export function validateWebSocketAuth(
   request: IncomingMessage,
   pathname: string,
 ): AuthenticatedSocket {
-  // Extract authentication from query parameters or headers
   const url = new URL(request.url || '', `http://${request.headers.host}`);
 
-  // Check if request is from localhost
   const clientIp = request.socket.remoteAddress || '';
   const isLocalhost =
     clientIp === '127.0.0.1' ||
@@ -36,24 +34,17 @@ export function validateWebSocketAuth(
 
   logger.info(`WebSocket auth attempt from IP: "${clientIp}", isLocalhost: ${isLocalhost}`);
 
-  // Try multiple authentication methods
   const apiKey = request.headers['x-api-key'] as string;
   const sessionToken =
     url.searchParams.get('token') || request.headers['authorization']?.replace('Bearer ', '');
 
-  // Allow localhost without authentication or with any key (for development convenience)
+  // Localhost bypass is only allowed in non-production environments
   const allowLocalhostBypass = config.NODE_ENV !== 'production' || config.AUTH_ALLOW_LOCALHOST === true;
   if (isLocalhost && allowLocalhostBypass) {
-    const sessionId = 'local';
-    logger.debug(`Allowing local WebSocket connection for session: ${sessionId}`);
-    return {
-      isAuthenticated: true,
-      sessionId,
-      authTimestamp: Date.now(),
-    };
+    logger.debug(`Allowing local WebSocket connection (dev mode)`);
+    return { isAuthenticated: true, sessionId: 'local', authTimestamp: Date.now() };
   }
 
-  // Require API key in all cases for security
   if (!config.API_KEY) {
     logger.error(`WebSocket rejected - API_KEY not configured`);
     return { isAuthenticated: false, sessionId: 'unconfigured', authTimestamp: Date.now() };
@@ -64,16 +55,7 @@ export function validateWebSocketAuth(
     return { isAuthenticated: false, sessionId: 'unauthenticated', authTimestamp: Date.now() };
   }
 
-  // Validate API key with constant-time comparison
-  if (apiKey) {
-    const apiKeyValid = constantTimeEquals(apiKey, config.API_KEY);
-    if (!apiKeyValid && !sessionToken) {
-      logger.warn(`Invalid API key for WebSocket ${pathname}`);
-      return { isAuthenticated: false, sessionId: 'unauthenticated', authTimestamp: Date.now() };
-    }
-  }
-
-  // Validate session token (JWT or similar)
+  // Attempt session token validation first (it carries richer context)
   if (sessionToken) {
     try {
       const decoded = validateSessionToken(sessionToken);
@@ -85,21 +67,17 @@ export function validateWebSocketAuth(
         authTimestamp: Date.now(),
       };
     } catch (err) {
-      // If token validation fails, check API key as fallback
-      if (!apiKey || !constantTimeEquals(apiKey, config.API_KEY)) {
-        logger.warn(`Invalid session token for WebSocket ${pathname}: ${err}`);
-        return { isAuthenticated: false, sessionId: 'unauthenticated', authTimestamp: Date.now() };
-      }
+      logger.debug(`Session token invalid for ${pathname}: ${err}`);
     }
   }
 
-  // API key authentication successful
-  const sessionId = url.searchParams.get('session') || 'default';
-  return {
-    isAuthenticated: true,
-    sessionId,
-    authTimestamp: Date.now(),
-  };
+  // Fall back to API key validation — session is server-bound, not client-asserted
+  if (apiKey && constantTimeEquals(apiKey, config.API_KEY)) {
+    return { isAuthenticated: true, sessionId: 'api-key-session', authTimestamp: Date.now() };
+  }
+
+  logger.warn(`WebSocket authentication failed for ${pathname}`);
+  return { isAuthenticated: false, sessionId: 'unauthenticated', authTimestamp: Date.now() };
 }
 
 const JWT_ALGORITHM = 'HS256';
@@ -114,9 +92,11 @@ function validateSessionToken(token: string): {
   userId?: string;
   platform?: string;
 } {
+  if (!config.API_KEY) {
+    throw new Error('API_KEY not configured — cannot validate session tokens');
+  }
   try {
-    const apiKey = config.API_KEY || 'default_key_for_validation';
-    const payload = jwt.verify(token, apiKey, {
+    const payload = jwt.verify(token, config.API_KEY, {
       algorithms: [JWT_ALGORITHM],
       issuer: JWT_ISSUER,
     }) as jwt.JwtPayload;
@@ -137,7 +117,9 @@ function validateSessionToken(token: string): {
  * Create session token for WebSocket authentication
  */
 export function createSessionToken(sessionId: string, userId?: string, platform?: string): string {
-  const apiKey = config.API_KEY || 'default_key_for_validation';
+  if (!config.API_KEY) {
+    throw new Error('API_KEY not configured — cannot create session tokens');
+  }
 
   return jwt.sign(
     {
@@ -145,7 +127,7 @@ export function createSessionToken(sessionId: string, userId?: string, platform?
       uid: userId,
       plt: platform,
     },
-    apiKey,
+    config.API_KEY,
     {
       algorithm: JWT_ALGORITHM,
       expiresIn: JWT_EXPIRY,

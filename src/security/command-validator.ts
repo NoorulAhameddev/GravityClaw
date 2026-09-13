@@ -151,21 +151,26 @@ const BLOCKED_NODE_FLAGS = new Set([
 export function validateCommand(command: string): CommandValidation {
   // 1. Parse command into tokens
   const tokens = parseCommand(command);
+  const baseCommand = tokens[0]?.toLowerCase() || '';
+
+  // Strip quoted substrings before checking for chaining/redirection operators
+  // to avoid false positives on legitimate arguments like commit messages (e.g. git commit -m "feat; fix")
+  const unquoted = command.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '');
 
   // 2. Check for chaining operators
   const hasChaining =
-    /[;&|]/.test(command) || tokens.some((t) => t === '&&' || t === '||' || t === ';');
+    /[;&|]/.test(unquoted) || tokens.some((t) => t === '&&' || t === '||' || t === ';');
 
   // 3. Check for redirection
-  const hasRedirection = /[<>|]/.test(command);
+  const hasRedirection = /[<>|]/.test(unquoted);
 
-  // 4. Check for injection attempts
+  // 4. Check for injection attempts (skip -m for git where it is the commit message flag)
   const hasInjection = tokens.some((token) =>
-    DANGEROUS_ARGS.some((arg) => token.toLowerCase() === arg.toLowerCase()),
+    DANGEROUS_ARGS.some((arg) => {
+      if (arg.toLowerCase() === '-m' && baseCommand === 'git') return false;
+      return token.toLowerCase() === arg.toLowerCase();
+    }),
   );
-
-  // 5. Get base command
-  const baseCommand = tokens[0]?.toLowerCase() || '';
 
   // 4b. Check for dangerous environment patterns - handle $VAR and %VAR% formats
   const hasDollarVar = /\$[a-zA-Z_][a-zA-Z0-9_]*/.test(command);

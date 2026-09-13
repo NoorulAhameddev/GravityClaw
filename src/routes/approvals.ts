@@ -17,9 +17,15 @@ export const router = Router();
 
 router.post('/', authMiddleware, validateBody(approvalCreateSchema), async (req, res) => {
   try {
-    const { toolName, parameters, userId, sessionId, channel } = req.body;
+    const { toolName, parameters, userId, sessionId: bodySessionId, channel } = req.body;
+    const authUser = (req as any).user;
+    const sessionId = authUser?.id ? String(authUser.id) : bodySessionId;
+    if (authUser?.id && bodySessionId && String(bodySessionId) !== String(authUser.id)) {
+      log.warn(`Approval session mismatch: body ${bodySessionId} vs auth ${authUser.id}`);
+      return res.status(403).json({ success: false, error: 'SessionId does not match authenticated principal' });
+    }
     const request = await approvalGate.createApprovalRequest(toolName, parameters || {}, {
-      userId,
+      userId: authUser?.id ? String(authUser.id) : userId,
       sessionId,
       channel: channel || 'api',
     });
@@ -32,7 +38,12 @@ router.post('/', authMiddleware, validateBody(approvalCreateSchema), async (req,
 
 router.get('/', authMiddleware, validateQuery(approvalsListQuerySchema), async (req, res) => {
   try {
-    const { sessionId } = req.query;
+    const authUser = (req as any).user;
+    const querySessionId = req.query.sessionId as string | undefined;
+    if (authUser?.id && querySessionId && querySessionId !== String(authUser.id)) {
+      return res.status(403).json({ success: false, error: 'SessionId does not match authenticated principal' });
+    }
+    const sessionId = authUser?.id ? String(authUser.id) : querySessionId;
     let approvals;
     if (sessionId && typeof sessionId === 'string') {
       approvals = approvalGate.getBySession(sessionId);

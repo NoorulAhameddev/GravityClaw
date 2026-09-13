@@ -130,7 +130,7 @@ export function getUsageStats(sessionId?: string, since?: string | Date): UsageS
     }
 
     if (since) {
-      const sinceStr = since instanceof Date ? since.toISOString() : since;
+      // params already contains the since value pushed by the main query block above
       modelQuery += ` AND timestamp >= ?`;
     }
 

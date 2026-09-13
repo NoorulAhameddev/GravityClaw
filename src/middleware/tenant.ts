@@ -32,21 +32,26 @@ export function tenantMiddleware(req: Request, _res: Response, next: NextFunctio
   next();
 }
 
+interface TenantFilterResult {
+  sql: string;
+  params: any[];
+}
+
 export class TenantAwareDb {
   constructor(private tenantId: string) {}
 
   async all(sql: string, params: any[] = []): Promise<any[]> {
     const dbModule = await import('../db.ts');
     const db = dbModule.db;
-    const tenantAwareSql = this.injectTenantFilter(sql);
-    return db.prepare(tenantAwareSql).all(...params) as any[];
+    const { sql: filteredSql, params: filteredParams } = this.injectTenantFilter(sql, params);
+    return db.prepare(filteredSql).all(...filteredParams) as any[];
   }
 
   async get(sql: string, params: any[] = []): Promise<any> {
     const dbModule = await import('../db.ts');
     const db = dbModule.db;
-    const tenantAwareSql = this.injectTenantFilter(sql);
-    return db.prepare(tenantAwareSql).get(...params);
+    const { sql: filteredSql, params: filteredParams } = this.injectTenantFilter(sql, params);
+    return db.prepare(filteredSql).get(...filteredParams);
   }
 
   async run(
@@ -58,18 +63,29 @@ export class TenantAwareDb {
     return db.prepare(sql).run(...params) as any;
   }
 
-  private injectTenantFilter(sql: string): string {
+  /**
+   * Inject a parameterized tenant_id filter into SELECT queries.
+   * Uses ? placeholder — never string interpolation — to prevent SQL injection.
+   */
+  private injectTenantFilter(sql: string, params: any[]): TenantFilterResult {
     const upper = sql.toUpperCase().trim();
-    if (upper.startsWith('SELECT') && !upper.includes('tenant_id')) {
-      const insertPos =
-        upper.indexOf('WHERE') > 0 ? sql.indexOf(upper.match(/WHERE/i)![0]) : sql.length;
-      const prefix = sql.slice(0, insertPos);
-      const suffix = sql.slice(insertPos);
-      if (suffix.trim().toUpperCase().startsWith('WHERE')) {
-        return `${prefix} ${suffix.trim()} AND tenant_id = '${this.tenantId}'`;
-      }
-      return `${sql} WHERE tenant_id = '${this.tenantId}'`;
+
+    if (!upper.startsWith('SELECT') || upper.includes('TENANT_ID')) {
+      return { sql, params };
     }
-    return sql;
+
+    const hasWhere = upper.includes('WHERE');
+
+    if (hasWhere) {
+      return {
+        sql: `${sql} AND tenant_id = ?`,
+        params: [...params, this.tenantId],
+      };
+    }
+
+    return {
+      sql: `${sql} WHERE tenant_id = ?`,
+      params: [...params, this.tenantId],
+    };
   }
 }

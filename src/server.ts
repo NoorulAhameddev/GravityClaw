@@ -114,7 +114,7 @@ server.on('upgrade', (request, socket, head) => {
   }
 
   if (pathname === '/canvas') {
-    const sessionId = auth.sessionId || url.searchParams.get('session') || 'default';
+    const sessionId = auth.sessionId || 'default';
 
     // Handle canvas connections with authentication
     wss.handleUpgrade(request, socket, head, (ws) => {

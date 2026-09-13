@@ -631,7 +631,7 @@ export function rateLimitMiddleware(sessionIdOrOptions?: string | RateLimitMiddl
   return (req: any, res: any, next: any) => {
     const identifier = options.prefix
       ? `${options.prefix}:${req.ip || 'unknown'}`
-      : sessionId || req.query.sessionId || req.body?.sessionId || req.ip || 'anonymous';
+      : sessionId || (req as any).user?.id || req.ip || 'anonymous';
 
     const category = options.prefix ? `http:${options.prefix}` : 'http_request';
     const status =

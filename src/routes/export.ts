@@ -9,7 +9,9 @@ export const router = Router();
 router.get('/download', authMiddleware, validateQuery(exportDownloadQuerySchema), (req, res) => {
   try {
     const { filename, data, format } = req.query;
-    const filename_str = typeof filename === 'string' ? filename : 'export.bin';
+    const filename_str = (typeof filename === 'string' ? filename : 'export.bin')
+      .replace(/["\r\n\\]/g, '_')
+      .replace(/\.\./g, '');
     const buffer = Buffer.from(data as string, 'base64');
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${filename_str}"`);

@@ -28,7 +28,10 @@ function makeShutdownError(): Error {
 }
 
 function acquireSlot(): Promise<void> {
-  if (activeCount < MAX_CONCURRENT) return Promise.resolve();
+  if (activeCount < MAX_CONCURRENT) {
+    activeCount += 1;
+    return Promise.resolve();
+  }
   return new Promise<void>((resolve, reject) => {
     const waiter: SlotWaiter = {
       settled: false,
@@ -48,17 +51,17 @@ function acquireSlot(): Promise<void> {
 }
 
 function releaseSlot(): void {
-  activeCount -= 1;
   while (slotQueue.length > 0) {
     const next = slotQueue.shift();
     if (!next || next.settled) continue;
+    // Hand slot directly to the next queued waiter; activeCount remains claimed
     next.start();
-    break;
+    return;
   }
+  activeCount = Math.max(0, activeCount - 1);
 }
 
 async function executeAgent<T>(sessionId: string, fn: () => Promise<T>): Promise<T> {
-  activeCount += 1;
   const startTime = Date.now();
   try {
     return await fn();
@@ -100,9 +103,7 @@ function enqueueSessionRun<T>(sessionId: string, fn: () => Promise<T>): Promise<
     started = true;
     waitHandles.delete(handle);
     pendingCount -= 1;
-    if (activeCount >= MAX_CONCURRENT) {
-      await acquireSlot();
-    }
+    await acquireSlot();
     return executeAgent(sessionId, fn);
   });
 
@@ -134,6 +135,8 @@ export function clearSessions(): void {
     waiter.fail(makeShutdownError());
   }
   sessionTails.clear();
+  activeCount = 0;
+  pendingCount = 0;
 }
 
 /**

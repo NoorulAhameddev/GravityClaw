@@ -92,7 +92,15 @@ router.post(
   },
   (req: any, res: any) => {
     const token = createSessionToken(req.user?.id || 'sso-user', req.user?.id, 'sso');
-    res.redirect(`/dashboard?token=${token}`);
+    // Set session token as an HttpOnly cookie to prevent exposure via browser
+    // history, server logs, or Referer headers (OWASP: Token in URL).
+    res.cookie('session_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours, matches JWT_EXPIRY
+    });
+    res.redirect('/dashboard');
   },
 );
 

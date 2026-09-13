@@ -222,13 +222,20 @@ function isSymlinkAllowed(filePath: string, allowedPaths: string[]): boolean {
  * Check if path is within any allowed directory
  */
 function isPathInAllowlist(filePath: string, allowedPaths: string[]): boolean {
-  const absolutePath = path.resolve(filePath);
+  let absolutePath = path.resolve(filePath);
+
+  // On Windows, NTFS is case-insensitive — normalize to lowercase to prevent
+  // bypass via mixed-case paths (e.g. C:\WORKSPACE vs C:\workspace)
+  if (process.platform === 'win32') {
+    absolutePath = absolutePath.toLowerCase();
+  }
 
   for (const allowedPath of allowedPaths) {
-    const normalizedAllowed = path.resolve(allowedPath);
+    let normalizedAllowed = path.resolve(allowedPath);
+    if (process.platform === 'win32') {
+      normalizedAllowed = normalizedAllowed.toLowerCase();
+    }
 
-    // Check if absolutePath is within normalizedAllowed
-    // Use path.relative and check if it goes "up" with ..
     const relative = path.relative(normalizedAllowed, absolutePath);
 
     if (!relative.startsWith('..') && relative !== '..') {
@@ -396,13 +403,15 @@ export function getNormalizedPaths(paths: string[]): string[] {
 }
 
 /**
- * Check if any path escapes the allowlist via ..
+ * Check if targetPath stays within basePath (i.e. does not escape via ..).
+ * Returns true when the path is SAFE (contained within basePath).
+ * Returns false when an escape is detected.
+ *
+ * @deprecated Use validatePathAccess for full validation including allowlists.
  */
-export function checkPathEscape(basePath: string, targetPath: string): boolean {
+export function isPathSafe(basePath: string, targetPath: string): boolean {
   const resolved = path.resolve(basePath, targetPath);
   const normalized = path.normalize(resolved);
-
-  // If resolving a path with .. ends up outside the base, it's an escape
   return normalized.startsWith(basePath);
 }
 

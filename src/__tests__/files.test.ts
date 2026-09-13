@@ -26,8 +26,9 @@ const writeFile = promisify(fs.writeFile);
 const unlink = promisify(fs.unlink);
 const rmdir = promisify(fs.rmdir);
 
-// Test directory in workspace
-const TEST_DIR = path.join(process.cwd(), 'test-files-temp');
+// Test directory in workspace (worker-isolated to prevent parallel test collision)
+const workerId = process.env.VITEST_WORKER_ID || '0';
+const TEST_DIR = path.join(process.cwd(), `test-files-temp-${workerId}`);
 
 describe('File Operations Tools', () => {
   beforeEach(async () => {

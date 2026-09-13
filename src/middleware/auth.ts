@@ -57,6 +57,8 @@ function isRateLimited(ip: string): boolean {
 
 export interface AuthenticatedRequest extends Request {
   apiKey?: string;
+  role?: string;
+  user?: { id: string; role: string };
 }
 
 export function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
@@ -84,6 +86,8 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
     // Only allow localhost bypass if explicitly enabled
     if (allowLocalhostBypass && isInternalIp(clientIp)) {
       log.debug(`Allowing local request without API key (dev mode): ${method} ${path}`);
+      req.role = 'admin';
+      req.user = { id: 'localhost-dev', role: 'admin' };
       next();
       return;
     }
@@ -120,15 +124,24 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
   }
 
   req.apiKey = apiKey;
+  req.role = 'admin';
+  req.user = { id: 'api-key-holder', role: 'admin' };
   log.debug(`Authenticated request: ${method} ${path}`);
   next();
 }
 
 export function constantTimeEquals(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
-  return crypto.timingSafeEqual(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
+  const aBuf = Buffer.from(a, 'utf8');
+  const bBuf = Buffer.from(b, 'utf8');
+  // Pad both buffers to the same length before comparing so the comparison
+  // takes the same time regardless of whether lengths differ (eliminates
+  // timing side-channel that would reveal the API key length).
+  const maxLen = Math.max(aBuf.length, bBuf.length);
+  const aPad = Buffer.concat([aBuf, Buffer.alloc(maxLen - aBuf.length)]);
+  const bPad = Buffer.concat([bBuf, Buffer.alloc(maxLen - bBuf.length)]);
+  const bytesEqual = crypto.timingSafeEqual(aPad, bPad);
+  // Length must also match; checked after the fixed-time comparison.
+  return bytesEqual && aBuf.length === bBuf.length;
 }
 
 export function optionalAuthMiddleware(
@@ -144,7 +157,7 @@ export function optionalAuthMiddleware(
     return;
   }
 
-  if (apiKey === config.API_KEY || constantTimeEquals(apiKey, config.API_KEY)) {
+  if (constantTimeEquals(apiKey, config.API_KEY)) {
     req.apiKey = apiKey;
   } else {
     delete req.apiKey;

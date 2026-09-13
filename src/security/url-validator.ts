@@ -17,8 +17,9 @@ const PRIVATE_IP_RANGES = [
 ];
 
 function isPrivateHost(hostname: string): boolean {
+  const normalized = hostname.replace(/^\[|\]$/g, '');
   for (const pattern of PRIVATE_IP_RANGES) {
-    if (pattern.test(hostname)) return true;
+    if (pattern.test(normalized)) return true;
   }
   return false;
 }
@@ -72,9 +73,10 @@ export function validateUrl(
   }
 
   if (!options?.allowPrivate && isPrivateHost(hostname)) {
+    const rawHost = hostname.replace(/^\[|\]$/g, '');
     if (
       !options?.allowLocalhost ||
-      !(hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1')
+      !(rawHost === 'localhost' || rawHost === '127.0.0.1' || rawHost === '::1')
     ) {
       return { valid: false, error: 'URL points to a private or internal network address' };
     }

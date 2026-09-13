@@ -319,6 +319,10 @@ export async function decryptAllSecrets(
   const decrypted = new Map<string, string>();
 
   for (const [name, data] of encrypted.entries()) {
+    // Skip soft-deleted secrets — they must not be accessible after deletion
+    if (data.metadata?.status === 'deleted') {
+      continue;
+    }
     try {
       const plaintext = decryptSecret(data, masterKey);
       decrypted.set(name, plaintext);
