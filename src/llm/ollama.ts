@@ -35,24 +35,68 @@ export class OllamaProvider implements LLMProvider {
       `Calling Ollama — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`,
     );
 
-    // Ollama doesn't support tool roles or tool_calls
-    // Filter and sanitize messages for Ollama compatibility
-    const sanitizedMessages: Array<{ role: string; content: string }> = [];
+    const sanitizedMessages: Array<Record<string, unknown>> = [];
 
     for (const msg of messages) {
-      // Skip tool result messages entirely
+      const raw = msg as unknown as Record<string, unknown>;
+
       if (msg.role === 'tool') {
+        let toolContent = '';
+        if (typeof msg.content === 'string') toolContent = msg.content;
+        else if (Array.isArray(msg.content))
+          toolContent = (msg.content as unknown[])
+            .map((b) => {
+              if (typeof b === 'string') return b;
+              if (typeof b === 'object' && b !== null) {
+                const bb = b as Record<string, unknown>;
+                if (bb.type === 'text') return String(bb.text || '');
+                return JSON.stringify(b);
+              }
+              return String(b);
+            })
+            .join('\n');
+        else if (msg.content) toolContent = String(msg.content);
+
+        if (!toolContent.trim()) continue;
+        sanitizedMessages.push({
+          role: 'tool',
+          content: toolContent,
+        });
+        continue;
+      }
+
+      if (msg.role === 'assistant' && (raw.tool_calls || raw.toolCalls)) {
+        const rawCalls = (raw.tool_calls || raw.toolCalls) as Array<Record<string, unknown>>;
+        const normalizedCalls = rawCalls.map((tc) => {
+          const fn = (tc.function as Record<string, unknown>) || {};
+          let args: unknown = fn.arguments;
+          if (typeof args === 'string') {
+            try {
+              args = JSON.parse(args as string);
+            } catch {
+              // keep as string if not JSON
+            }
+          }
+          return {
+            function: {
+              name: fn.name,
+              arguments: args || {},
+            },
+          };
+        });
+        sanitizedMessages.push({
+          role: 'assistant',
+          content: typeof msg.content === 'string' ? msg.content || '' : '',
+          tool_calls: normalizedCalls,
+        });
         continue;
       }
 
       let content = '';
-
-      // Convert all content to string
       if (typeof msg.content === 'string') {
         content = msg.content;
       } else if (Array.isArray(msg.content)) {
-        // Handle content arrays (multimodal)
-        content = msg.content
+        content = (msg.content as unknown[])
           .map((block: unknown) => {
             if (typeof block === 'string') return block;
             if (typeof block === 'object' && block !== null) {
@@ -65,14 +109,12 @@ export class OllamaProvider implements LLMProvider {
           })
           .join('\n');
       } else if (msg.content) {
-        // Fallback for other content types
         content = String(msg.content);
       } else {
         content = '';
       }
 
-      // Skip empty messages
-      if (!content.trim()) {
+      if (!content.trim() && msg.role !== 'assistant') {
         continue;
       }
 
@@ -82,18 +124,23 @@ export class OllamaProvider implements LLMProvider {
       });
     }
 
-    log.debug(`Ollama sanitized messages: ${sanitizedMessages.length}`);
+    log.debug(`Ollama sanitized messages: ${sanitizedMessages.length}, tools: ${toolDefinitions.length}`);
+
+    const requestBody: Record<string, unknown> = {
+      model,
+      messages: sanitizedMessages,
+      stream: false,
+    };
+    if (toolDefinitions.length > 0) {
+      requestBody.tools = toolDefinitions;
+    }
 
     const resp = await fetch(`${this.baseURL}/api/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model,
-        messages: sanitizedMessages,
-        stream: false,
-      }),
+      body: JSON.stringify(requestBody),
       signal: AbortSignal.timeout(120000),
     });
 
@@ -107,6 +154,10 @@ export class OllamaProvider implements LLMProvider {
       message: {
         role: string;
         content: string;
+        tool_calls?: Array<{
+          id?: string;
+          function: { name: string; arguments: Record<string, unknown> | string };
+        }>;
       };
       done: boolean;
       total_duration: number;
@@ -116,13 +167,32 @@ export class OllamaProvider implements LLMProvider {
     };
 
     const text = data.message.content ?? '';
+    const rawToolCalls = data.message.tool_calls || [];
 
-    log.debug(`Ollama response — text: ${text.length} chars`);
+    log.debug(
+      `Ollama response — text: ${text.length} chars, tool_calls: ${rawToolCalls.length}`,
+    );
+
+    const toolCalls = rawToolCalls.map((tc, idx) => {
+      let argsStr: string;
+      if (typeof tc.function.arguments === 'string') argsStr = tc.function.arguments;
+      else argsStr = JSON.stringify(tc.function.arguments || {});
+      return {
+        id: tc.id || `ollama-${Date.now()}-${idx}`,
+        type: 'function' as const,
+        function: {
+          name: tc.function.name,
+          arguments: argsStr,
+        },
+      };
+    });
+
+    const stopReason = toolCalls.length > 0 ? ('tool_calls' as const) : ('stop' as const);
 
     const result: LLMResponse = {
-      stopReason: 'stop',
+      stopReason,
       text,
-      toolCalls: [],
+      toolCalls,
     };
 
     if (data.prompt_eval_count !== undefined && data.eval_count !== undefined) {
