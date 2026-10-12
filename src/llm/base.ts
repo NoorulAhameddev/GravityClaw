@@ -89,4 +89,3 @@ export function extractThinking(
   const finalThought = thoughts.join('\n\n');
   return finalThought ? { text, thought: finalThought } : { text };
 }
-

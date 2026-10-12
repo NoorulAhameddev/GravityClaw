@@ -30,9 +30,12 @@ export interface ApprovalConfig {
 
 function parseApprovalTools(): Set<string> {
   if (!appConfig.APPROVAL_REQUIRED_TOOLS) {
-    return new Set(['run_shell', 'file_delete', 'http_request', 'execute_code']);
+    return new Set(['run_shell', 'delete_file', 'file_delete', 'http_request', 'execute_code']);
   }
-  return new Set(appConfig.APPROVAL_REQUIRED_TOOLS.split(',').map((t) => t.trim()));
+  const set = new Set(appConfig.APPROVAL_REQUIRED_TOOLS.split(',').map((t) => t.trim()));
+  if (set.has('file_delete')) set.add('delete_file');
+  if (set.has('delete_file')) set.add('file_delete');
+  return set;
 }
 
 export function sanitizeParameters(parameters: Record<string, unknown>): Record<string, unknown> {
@@ -81,6 +84,12 @@ export class ApprovalGate {
   isApprovalRequired(toolName: string): boolean {
     if (appConfig.UNRESTRICTED_ACCESS || !this.config.enabled || !appConfig.APPROVAL_ENABLED) {
       return false;
+    }
+    if (toolName === 'delete_file' && this.config.requiredTools.has('file_delete')) {
+      return true;
+    }
+    if (toolName === 'file_delete' && this.config.requiredTools.has('delete_file')) {
+      return true;
     }
     return this.config.requiredTools.has(toolName);
   }

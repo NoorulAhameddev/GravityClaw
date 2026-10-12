@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdtempSync, writeFileSync, unlinkSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import type { Tool } from './index.ts';
 import { createLogger } from '../logger.ts';
 
@@ -33,6 +33,7 @@ const DANGEROUS_PATTERNS: RegExp[] = [
   /\bprocess\.exit\b/,
   /\bprocess\.kill\b/,
   /\bprocess\.cwd\b/,
+  /\bprocess\.env\b/,
   /\bfs\b/,
   /\bnet\b/,
   /\btls\b/,
@@ -198,12 +199,17 @@ async function executeWithTimeout(
 }
 
 function createSandboxEnv(language: string): Record<string, string> {
+  const defaultPath =
+    process.platform === 'win32'
+      ? `${process.env.SystemRoot || 'C:\\Windows'}\\System32;${dirname(process.execPath)}`
+      : `/usr/bin:/bin:${dirname(process.execPath)}`;
+
   const baseEnv: Record<string, string> = {
     HOME: tmpdir(),
     TEMP: tmpdir(),
     TMP: tmpdir(),
     TMPDIR: tmpdir(),
-    PATH: '',
+    PATH: defaultPath,
     NODE_PATH: '',
     PYTHONPATH: '',
     PYTHONHOME: '',
@@ -296,7 +302,7 @@ export const sandboxTool: Tool = {
           sanitizedCode = sanitizeJavaScript(code);
           tempFile = join(tempDir, 'script.js');
           writeFileSync(tempFile, sanitizedCode, 'utf-8');
-          command = 'node';
+          command = process.execPath;
           args = [
             '--no-warnings',
             '--experimental-vm-modules',

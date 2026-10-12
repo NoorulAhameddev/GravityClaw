@@ -166,7 +166,81 @@ describe('Agent System', () => {
     });
   });
 
-  // Note: Full agent.runAgent() tests would require mocking the LLM API
-  // These tests verify the infrastructure is in place
-  // Integration tests with real API calls should be in separate test suite
+  describe('runAgent End-to-End Execution', () => {
+    beforeEach(async () => {
+      const { setSessionSettings, ensureSession } = await import('../session.ts');
+      ensureSession(testSessionId);
+      setSessionSettings(testSessionId, { provider: 'mock' });
+    });
+
+    it('should execute full runAgent loop and persist messages to SQLite memory', async () => {
+      const { runAgent } = await import('../agent.ts');
+      const { registry } = await import('../tools/index.ts');
+
+      const result = await runAgent({
+        message: 'hello mock agent',
+        sessionId: testSessionId,
+        dependencies: {
+          config,
+          toolRegistry: registry,
+          db,
+        },
+      });
+
+      expect(result).toBeDefined();
+      expect(typeof result.text).toBe('string');
+      expect(result.text.length).toBeGreaterThan(0);
+
+      const history = getHistory(testSessionId, testDeps);
+      expect(history.length).toBeGreaterThanOrEqual(2);
+      expect(history[0]?.role).toBe('user');
+      expect(history[1]?.role).toBe('assistant');
+    });
+
+    it('should execute tool calls and record tool results in conversation', async () => {
+      const { runAgent } = await import('../agent.ts');
+      const { registry } = await import('../tools/index.ts');
+
+      const result = await runAgent({
+        message: 'list files in current directory',
+        sessionId: testSessionId,
+        dependencies: {
+          config,
+          toolRegistry: registry,
+          db,
+        },
+      });
+
+      expect(result).toBeDefined();
+      expect(result.toolCallCount).toBeGreaterThan(0);
+
+      const history = getHistory(testSessionId, testDeps);
+      const hasToolMessage = history.some(
+        (m) =>
+          m.role === 'tool' ||
+          (m as any).tool_call_id ||
+          (typeof m.content === 'string' && m.content.includes('[TOOL_RESULT_BEGIN]')),
+      );
+      expect(hasToolMessage).toBe(true);
+    });
+
+    it('should respect maxIterations bound during tool execution', async () => {
+      const { runAgent } = await import('../agent.ts');
+      const { registry } = await import('../tools/index.ts');
+
+      const result = await runAgent({
+        message: 'run command test',
+        sessionId: testSessionId,
+        maxIterations: 1,
+        dependencies: {
+          config,
+          toolRegistry: registry,
+          db,
+        },
+      });
+
+      expect(result).toBeDefined();
+      expect(result.toolCalls.length).toBeLessThanOrEqual(5);
+    });
+  });
 });

@@ -136,27 +136,33 @@ export class AnthropicProvider implements LLMProvider {
               id: toolCall.id,
               name: toolCall.function.name,
               input: inputResult.success && inputResult.data ? inputResult.data : {},
-              caller: {
-                type: 'internal' as const,
-                tool_id: toolCall.id,
-              } as { type: 'internal'; tool_id: string },
             } as Anthropic.ToolUseBlock);
           }
         }
 
         anthropicMessages.push({ role: 'assistant', content });
       } else if (msg.role === 'tool') {
-        // Anthropic expects tool results as user messages
-        anthropicMessages.push({
-          role: 'user',
-          content: [
-            {
-              type: 'tool_result',
-              tool_use_id: msg.tool_call_id,
-              content: msg.content ?? '',
-            },
-          ],
-        });
+        const toolResultBlock = {
+          type: 'tool_result' as const,
+          tool_use_id: msg.tool_call_id,
+          content: msg.content ?? '',
+        };
+
+        const lastMessage = anthropicMessages[anthropicMessages.length - 1];
+        if (
+          lastMessage &&
+          lastMessage.role === 'user' &&
+          Array.isArray(lastMessage.content) &&
+          lastMessage.content.length > 0 &&
+          (lastMessage.content[0] as any)?.type === 'tool_result'
+        ) {
+          (lastMessage.content as any[]).push(toolResultBlock);
+        } else {
+          anthropicMessages.push({
+            role: 'user',
+            content: [toolResultBlock],
+          });
+        }
       }
     }
 

@@ -27,9 +27,9 @@ router.get('/health', healthAuthMiddleware, (req, res) => {
 
     let factCount = 0;
     try {
-      const result = db
-        .prepare("SELECT COUNT(*) as count FROM memory WHERE type = 'fact'")
-        .get() as { count: number };
+      const result = db.prepare('SELECT COUNT(*) as count FROM fact_stats').get() as {
+        count: number;
+      };
       factCount = result?.count || 0;
     } catch (err) {
       log.warn('Failed to fetch fact count in health check', { error: err });

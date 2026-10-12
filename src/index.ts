@@ -34,7 +34,7 @@ import { initializePlugins, pluginRegistry } from './plugins/registry.ts';
 import { mcpClient } from './mcp/index.ts';
 import { destroyAllPools } from './mcp/pool.ts';
 import { skillsManager } from './skills/index.ts';
-import { registerTaskExecutionHandler } from './scheduler/index.ts';
+import { initScheduler, stopScheduler, registerTaskExecutionHandler } from './scheduler/index.ts';
 import {
   isHeartbeatTask,
   isHeartbeatEnabledForSession,
@@ -46,7 +46,6 @@ import { getTaskQueue } from './queue/index.ts';
 import { startBackgroundWorker } from './queue/worker.ts';
 import { drainBackgroundTasks, getBackgroundTaskCount } from './lib/background.ts';
 import { config } from './config.ts';
-import { closePgPool } from './db-pg.ts';
 import { runWithConcurrencyLimit } from './concurrency.ts';
 
 // Initialize OpenTelemetry early (before any other imports that might be instrumented)
@@ -282,6 +281,8 @@ async function main() {
     }
   });
 
+  initScheduler();
+
   // Start channels with graceful degradation - don't exit on failure
   try {
     log.info('🚀 Starting all channels...');
@@ -316,6 +317,7 @@ async function main() {
     recommendationsRuntime.stop();
     autoDreamRuntime.stop();
     stopBackupScheduler();
+    stopScheduler();
 
     const pendingBackgroundTasks = getBackgroundTaskCount();
     await drainBackgroundTasks(30_000);
@@ -349,12 +351,6 @@ async function main() {
     await mcpClient.shutdown();
     await destroyAllPools();
     await skillsManager.shutdown();
-
-    try {
-      await closePgPool();
-    } catch (err) {
-      log.error('Error closing PostgreSQL pool', err);
-    }
 
     try {
       db.close?.();

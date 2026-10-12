@@ -199,9 +199,9 @@ export class GoogleProvider implements LLMProvider {
 
         contents.push({ role: 'model', parts });
       } else if (msg.role === 'tool') {
-        // Google expects function responses as function response parts
+        // Google Generative AI expects function responses in user turn
         contents.push({
-          role: 'function',
+          role: 'user',
           parts: [
             {
               functionResponse: {

@@ -191,6 +191,8 @@ domain_mapping.json
 # ============================================================================
 dist-ssr/
 .npm-cache/
+pawwork*
+pawwork/
 
 # Keep these
 !.env.example

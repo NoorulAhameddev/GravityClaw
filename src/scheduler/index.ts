@@ -42,8 +42,18 @@ const activeCronJobs = new Map<number, cron.ScheduledTask>();
 type TaskExecutionHandler = (taskId: number, sessionId: string, prompt: string) => Promise<void>;
 let taskExecutionHandler: TaskExecutionHandler | null = null;
 
-// Initialize on module load (after runtime registries are ready)
-initScheduler();
+// Explicitly initialized by server startup via initScheduler()
+export function stopScheduler(): void {
+  for (const [id, job] of activeCronJobs.entries()) {
+    try {
+      job.stop();
+    } catch (err) {
+      log.warn(`Failed to stop cron job ${id}`, { error: String(err) });
+    }
+  }
+  activeCronJobs.clear();
+  log.info('Scheduler stopped');
+}
 
 /**
  * Register a handler for task execution

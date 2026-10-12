@@ -28,10 +28,9 @@ describe('FINDING-001: TenantAwareDb SQL injection prevention', () => {
 
   it('TC-002: uses AND (not a second WHERE) when WHERE clause already present', () => {
     const db = new TenantAwareDb('my-tenant');
-    const result = (db as any).injectTenantFilter(
-      'SELECT * FROM memory WHERE session_id = ?',
-      ['sess-1'],
-    );
+    const result = (db as any).injectTenantFilter('SELECT * FROM memory WHERE session_id = ?', [
+      'sess-1',
+    ]);
 
     expect(result.sql).toMatch(/AND tenant_id = \?/i);
     const whereCount = (result.sql.toUpperCase().match(/\bWHERE\b/g) || []).length;
@@ -51,10 +50,9 @@ describe('FINDING-001: TenantAwareDb SQL injection prevention', () => {
 
   it('TC-002c: does not re-inject when tenant_id already in query', () => {
     const db = new TenantAwareDb('my-tenant');
-    const result = (db as any).injectTenantFilter(
-      'SELECT * FROM memory WHERE tenant_id = ?',
-      ['my-tenant'],
-    );
+    const result = (db as any).injectTenantFilter('SELECT * FROM memory WHERE tenant_id = ?', [
+      'my-tenant',
+    ]);
     expect((result.sql.match(/tenant_id/gi) || []).length).toBe(1);
   });
 });
@@ -97,7 +95,11 @@ describe('FINDING-006: decryptAllSecrets soft-delete filter', () => {
   const masterKey = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
   beforeEach(async () => {
-    try { await unlink(testFile); } catch { /* ignore */ }
+    try {
+      await unlink(testFile);
+    } catch {
+      /* ignore */
+    }
   });
 
   it('TC-004: does not return secrets with status=deleted', async () => {
@@ -168,10 +170,7 @@ describe('FINDING-004: WebSocket auth explicit rejection paths', () => {
   });
 
   it('TC-006b: rejects when only invalid API key provided', () => {
-    const result = validateWebSocketAuth(
-      makeWsRequest({ apiKey: 'totally-wrong' }),
-      '/ws',
-    );
+    const result = validateWebSocketAuth(makeWsRequest({ apiKey: 'totally-wrong' }), '/ws');
     expect(result.isAuthenticated).toBe(false);
   });
 });
@@ -193,7 +192,11 @@ describe('Coverage gap: RBAC unknown role fallback', () => {
 // -------------------------------------------------------------------
 // TC-010 / TC-011 — Path validator edge cases
 // -------------------------------------------------------------------
-import { isPathSafe, validatePathAccess, clearValidationCache } from '../../security/path-validator.ts';
+import {
+  isPathSafe,
+  validatePathAccess,
+  clearValidationCache,
+} from '../../security/path-validator.ts';
 
 describe('FINDING-009: isPathSafe return semantics', () => {
   // Use a real absolute path — Unix-style literals resolve differently on Windows
@@ -299,7 +302,7 @@ describe('DEF-004: Command validator quoted character handling', () => {
 // -------------------------------------------------------------------
 // DEF-002 — Auth middleware sets admin role and user context
 // -------------------------------------------------------------------
-import { authMiddleware, AuthenticatedRequest } from '../../middleware/auth.ts';
+import { authMiddleware, type AuthenticatedRequest } from '../../middleware/auth.ts';
 import { requirePermission } from '../../auth/rbac.ts';
 import { config } from '../../config.ts';
 
@@ -313,7 +316,9 @@ describe('DEF-002: Auth middleware RBAC context propagation', () => {
     } as unknown as AuthenticatedRequest;
     const res = { status: () => res, json: () => res } as any;
     let nextCalled = false;
-    const next = () => { nextCalled = true; };
+    const next = () => {
+      nextCalled = true;
+    };
 
     authMiddleware(req, res, next);
     expect(nextCalled).toBe(true);
@@ -323,8 +328,9 @@ describe('DEF-002: Auth middleware RBAC context propagation', () => {
     // Verify requirePermission('users:manage') succeeds with this request
     let permNextCalled = false;
     const permMiddleware = requirePermission('users:manage');
-    permMiddleware(req, res, () => { permNextCalled = true; });
+    permMiddleware(req, res, () => {
+      permNextCalled = true;
+    });
     expect(permNextCalled).toBe(true);
   });
 });
-

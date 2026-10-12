@@ -43,6 +43,31 @@ class BrowserSessionManager {
         userAgent:
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       });
+
+      if (typeof this.context.route === 'function') {
+        await this.context.route('**', (route) => {
+          try {
+            const requestUrl = new URL(route.request().url());
+            const host = requestUrl.hostname.toLowerCase();
+            if (
+              host === '169.254.169.254' ||
+              host === 'metadata.google.internal' ||
+              host === 'localhost' ||
+              host === '127.0.0.1' ||
+              host === '::1' ||
+              host.startsWith('10.') ||
+              host.startsWith('192.168.') ||
+              (host.startsWith('172.') && /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host))
+            ) {
+              logger.warn(`Blocked SSRF attempt to restricted host: ${host}`);
+              return route.abort();
+            }
+            return route.continue();
+          } catch {
+            return route.continue();
+          }
+        });
+      }
     }
     this.lastActivityTime = Date.now();
     return this.context;

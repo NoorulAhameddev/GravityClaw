@@ -1,11 +1,18 @@
 import { db } from '../db.ts';
 import { createLogger } from '../logger.ts';
-import { getProvider } from '../llm/index.ts';
-import { addUserMessage, addAssistantMessage } from '../llm/index.ts';
+import {
+  getProvider,
+  addUserMessage,
+  addAssistantMessage,
+  addToolResult,
+  getHistory,
+} from '../llm/index.ts';
+import { registry, toolExecutor } from '../tools/index.ts';
 import { config } from '../config.ts';
 import type { OrchestratorDependencies } from '../llm/orchestrator.ts';
 import crypto from 'crypto';
 import { createSessionDB } from '../db/session-isolation.ts';
+import { filterToolsForAgentRole } from '../auth/rbac.ts';
 
 const log = createLogger('swarm');
 
@@ -198,14 +205,66 @@ export class AgentSwarm {
         (ROLE_PROMPTS[role] || ROLE_PROMPTS.researcher) ?? 'You are a helpful assistant.';
       log.debug(`[${role}] Calling LLM with task: ${taskStr.substring(0, 50)}...`);
 
+      const relevantTools = registry.getRelevantTools(truncatedTask);
+      const safeSubagentTools = filterToolsForAgentRole(role, relevantTools);
+      const toolDefs = registry.getOpenAIDefinitionsForTools(safeSubagentTools);
+
       const response = await provider.chat(
         [
           { role: 'system' as const, content: systemPromptContent },
           { role: 'user' as const, content: truncatedTask },
         ],
-        [],
-        { maxTokens: 500 }, // Output limit
+        toolDefs,
+        { maxTokens: 1000 },
       );
+
+      // Execute tool calls if returned by LLM
+      if (response.toolCalls && response.toolCalls.length > 0) {
+        log.info(`[${role}] Executing ${response.toolCalls.length} tool call(s) for task`);
+        for (const tc of response.toolCalls) {
+          try {
+            const toolName = tc.function.name;
+            let inputArgs: Record<string, unknown> = {};
+            try {
+              inputArgs = JSON.parse(tc.function.arguments || '{}');
+            } catch {
+              inputArgs = {};
+            }
+            const execRes = await toolExecutor.execute({
+              toolName,
+              input: inputArgs,
+              context: {
+                sessionId: childSessionId,
+                userId: 'swarm-agent',
+                platform: 'internal',
+                source: 'agent',
+              },
+            });
+            addToolResult(
+              childSessionId,
+              tc.id,
+              execRes.result || '',
+              childOrchestratorDeps,
+              toolName,
+            );
+          } catch (toolErr) {
+            log.warn(`Tool execution failed in swarm agent [${role}]: ${String(toolErr)}`);
+          }
+        }
+
+        try {
+          const followUp = await provider.chat(
+            getHistory(childSessionId, childOrchestratorDeps) as any,
+            [],
+            { maxTokens: 1000 },
+          );
+          if (followUp.text) {
+            response.text = followUp.text;
+          }
+        } catch (followErr) {
+          log.warn(`Follow-up chat failed in swarm agent [${role}]: ${String(followErr)}`);
+        }
+      }
 
       log.debug(
         `[${role}] LLM response: ${response.text?.substring(0, 100) ?? 'empty'} | stopReason: ${response.stopReason}`,

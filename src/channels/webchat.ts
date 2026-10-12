@@ -1,4 +1,5 @@
 import { WebSocket } from 'ws';
+import crypto from 'node:crypto';
 import { createLogger } from '../logger.ts';
 import type { Channel, UnifiedMessage } from '../types/channels.js';
 import { wss, startServer } from '../server.ts';
@@ -7,143 +8,191 @@ import '../types/websocket.js';
 
 const log = createLogger('webchat');
 
-const WEBCHAT_SESSION_ID = 'webchat:webchat-session';
-
 interface WebChatMessage {
-  type: 'message' | 'typing';
+  type: 'message' | 'typing' | 'session_init';
   text?: string;
+  sessionId?: string;
+  chatId?: string;
+  userId?: string;
 }
 
 export class WebChatChannel implements Channel {
   public id = 'webchat';
   public preferredFormat: 'markdown' = 'markdown';
   private clients: Set<WebSocket> = new Set();
+  private clientsByChatId: Map<string, Set<WebSocket>> = new Map();
+  private chatIdByClient: Map<WebSocket, string> = new Map();
   private onMessageCb?: (msg: UnifiedMessage) => Promise<void>;
-
   private isStarted = false;
+  private connectionListener?: ((ws: WebSocket, req?: any) => void) | undefined;
 
   static create(): WebChatChannel | null {
-    // WebChat is usually always enabled if not explicitly disabled
     return new WebChatChannel();
+  }
+
+  private registerClient(ws: WebSocket, chatId: string): void {
+    const oldChatId = this.chatIdByClient.get(ws);
+    if (oldChatId && oldChatId !== chatId) {
+      const oldSet = this.clientsByChatId.get(oldChatId);
+      if (oldSet) {
+        oldSet.delete(ws);
+        if (oldSet.size === 0) {
+          this.clientsByChatId.delete(oldChatId);
+        }
+      }
+    }
+    this.chatIdByClient.set(ws, chatId);
+    let set = this.clientsByChatId.get(chatId);
+    if (!set) {
+      set = new Set();
+      this.clientsByChatId.set(chatId, set);
+    }
+    set.add(ws);
+  }
+
+  private unregisterClient(ws: WebSocket): void {
+    this.clients.delete(ws);
+    const chatId = this.chatIdByClient.get(ws);
+    if (chatId) {
+      const set = this.clientsByChatId.get(chatId);
+      if (set) {
+        set.delete(ws);
+        if (set.size === 0) {
+          this.clientsByChatId.delete(chatId);
+        }
+      }
+      this.chatIdByClient.delete(ws);
+    }
   }
 
   async start(onMessage: (msg: UnifiedMessage) => Promise<void>): Promise<void> {
     this.onMessageCb = onMessage;
 
-    // Ensure the HTTP/WS server is started
     await startServer();
 
     if (this.isStarted) return;
     this.isStarted = true;
 
-    wss.on('connection', (ws) => {
-      log.info(`📡 [WebChat] New WebSocket client connected (total: ${this.clients.size + 1})`);
-      this.clients.add(ws);
+    this.connectionListener = (ws: WebSocket & { auth?: any }, req?: any) => {
+      this.handleConnection(ws, req);
+    };
 
-      // Initialize keep-alive tracking for pong handler
+    wss.on('connection', this.connectionListener);
+  }
+
+  public handleConnection(ws: WebSocket & { auth?: any }, req?: any): void {
+    this.clients.add(ws);
+
+    let initialChatId = '';
+    if (req?.url) {
+      try {
+        const parsedUrl = new URL(req.url, 'http://localhost');
+        initialChatId =
+          parsedUrl.searchParams.get('sessionId') || parsedUrl.searchParams.get('session') || '';
+      } catch {
+        // ignore url parse error
+      }
+    }
+    if (
+      !initialChatId &&
+      ws.auth?.sessionId &&
+      ws.auth.sessionId !== 'local' &&
+      ws.auth.sessionId !== 'api-key-session'
+    ) {
+      initialChatId = ws.auth.sessionId;
+    }
+    if (!initialChatId) {
+      initialChatId = `web-${crypto.randomUUID()}`;
+    }
+
+    this.registerClient(ws, initialChatId);
+    log.info(
+      `📡 [WebChat] Client connected: session=${initialChatId} (total: ${this.clients.size})`,
+    );
+
+    ws.isAlive = true;
+    ws.on('pong', () => {
       ws.isAlive = true;
-      ws.on('pong', () => {
-        ws.isAlive = true;
-      });
+    });
 
-      ws.on('message', async (data) => {
-        try {
-          const parsed: WebChatMessage = JSON.parse(data.toString());
-          log.debug(`📥 [WebChat] Message received - type: ${parsed.type}`);
+    ws.on('message', async (data) => {
+      try {
+        const parsed: WebChatMessage = JSON.parse(data.toString());
+        log.debug(`📥 [WebChat] Message received - type: ${parsed.type}`);
 
-          if (parsed.type === 'message' && parsed.text && this.onMessageCb) {
-            log.debug(`📨 [WebChat] Chat message: ${parsed.text.substring(0, 50)}...`);
-            const unifiedMsg: UnifiedMessage = {
-              channelId: this.id,
-              chatId: 'webchat-session', // Single global session for now
-              userId: 'web-user',
-              text: parsed.text,
-            };
-
-            await this.onMessageCb(unifiedMsg);
-          } else if ((parsed as any).type === 'tool_call') {
-            const { id, tool: toolName, args, sessionId, approvalRequestId } = parsed as any;
-
-            if (sessionId && sessionId !== WEBCHAT_SESSION_ID) {
-              log.warn(`Cross-session tool_call denied: ${toolName} (requested: ${sessionId})`);
-              ws.send(
-                JSON.stringify({
-                  type: 'tool_response',
-                  id,
-                  error: 'cross-session execution denied',
-                }),
-              );
-              return;
-            }
-
-            log.info(`🔧 [WebChat] Tool call: ${toolName} (id: ${id})`);
-
-            try {
-              const execution = await toolExecutor.execute({
-                toolName,
-                input: args || {},
-                approvalRequestId,
-                context: {
-                  sessionId: WEBCHAT_SESSION_ID,
-                  userId: 'web-user',
-                  platform: 'webchat',
-                  source: 'websocket',
-                },
-              });
-              if (!execution.success) {
-                ws.send(
-                  JSON.stringify({
-                    type: 'tool_response',
-                    id,
-                    error: execution.error?.message || 'Execution failed',
-                    details: execution.error?.details,
-                  }),
-                );
-                return;
-              }
-              const result = JSON.parse(execution.result ?? 'null');
-              log.debug(`✅ [WebChat] Tool executed: ${toolName}`);
-
-              ws.send(
-                JSON.stringify({
-                  type: 'tool_response',
-                  id,
-                  result,
-                }),
-              );
-            } catch (err: any) {
-              log.error(`❌ [WebChat] Tool execution failed: ${toolName}`, err);
-              ws.send(
-                JSON.stringify({
-                  type: 'tool_response',
-                  id,
-                  error: err.message || 'Execution failed',
-                }),
-              );
-            }
+        if (parsed.type === 'message' && parsed.text && this.onMessageCb) {
+          const requestedChatId = parsed.chatId || parsed.sessionId;
+          const currentChatId = this.chatIdByClient.get(ws) || initialChatId;
+          if (requestedChatId && requestedChatId !== currentChatId) {
+            log.warn(
+              `⚠️ [WebChat] Blocked unauthorized session rebinding attempt from ${currentChatId} to ${requestedChatId}`,
+            );
+            ws.send(
+              JSON.stringify({
+                type: 'error',
+                error:
+                  'Cannot switch session on an existing connection. Please establish a new connection for a different session.',
+              }),
+            );
+            return;
           }
-        } catch (err) {
-          log.error(`❌ [WebChat] Failed to parse message`, err);
+
+          const effectiveChatId = currentChatId;
+          const effectiveUserId =
+            parsed.userId || ws.auth?.userId || `user-${effectiveChatId.slice(0, 8)}`;
+
+          log.debug(
+            `📨 [WebChat] Chat message for [${effectiveChatId}]: ${parsed.text.substring(0, 50)}...`,
+          );
+          const unifiedMsg: UnifiedMessage = {
+            channelId: this.id,
+            chatId: effectiveChatId,
+            userId: effectiveUserId,
+            text: parsed.text,
+          };
+
+          await this.onMessageCb(unifiedMsg);
+        } else if ((parsed as any).type === 'tool_call') {
+          const { id, tool: toolName } = parsed as any;
+          log.warn(
+            `⚠️ [WebChat] Blocked unauthorized client tool_call attempt: ${toolName} (id: ${id})`,
+          );
+          ws.send(
+            JSON.stringify({
+              type: 'tool_response',
+              id,
+              error:
+                'Direct tool calls via WebSocket are not permitted. Tool calls must originate from agent orchestration.',
+            }),
+          );
         }
-      });
+      } catch (err) {
+        log.error(`❌ [WebChat] Failed to parse message`, err);
+      }
+    });
 
-      ws.on('close', () => {
-        log.info(`🔌 [WebChat] Client disconnected (remaining: ${this.clients.size - 1})`);
-        this.clients.delete(ws);
-      });
-
-      ws.on('error', (err) => {
-        log.error(`⚠️ [WebChat] WebSocket error`, err);
-      });
+    ws.on('close', () => {
+      const session = this.chatIdByClient.get(ws);
+      this.unregisterClient(ws);
+      log.info(
+        `🔌 [WebChat] Client disconnected: session=${session} (remaining: ${this.clients.size})`,
+      );
     });
   }
 
   async stop(): Promise<void> {
     log.info('Stopping WebChat channel…');
+    if (this.connectionListener) {
+      wss.off('connection', this.connectionListener);
+      this.connectionListener = undefined;
+    }
+    this.isStarted = false;
     for (const client of this.clients) {
       client.close();
     }
     this.clients.clear();
+    this.clientsByChatId.clear();
+    this.chatIdByClient.clear();
   }
 
   async sendMessage(chatId: string, text: string): Promise<void> {
@@ -154,20 +203,46 @@ export class WebChatChannel implements Channel {
       type: 'message',
       text: formattedText,
       isBot: true,
+      chatId,
     });
 
-    for (const client of this.clients) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(payload);
+    const targetClients = this.clientsByChatId.get(chatId);
+    if (targetClients && targetClients.size > 0) {
+      for (const client of targetClients) {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(payload);
+        }
+      }
+      return;
+    }
+
+    if (this.clients.size === 1) {
+      const singleClient = this.clients.values().next().value;
+      if (singleClient && singleClient.readyState === WebSocket.OPEN) {
+        singleClient.send(payload);
+        return;
       }
     }
+
+    log.warn(`[WebChat] Dropped outbound message: no active client for session "${chatId}"`);
   }
 
   async sendTyping(chatId: string): Promise<void> {
-    const payload = JSON.stringify({ type: 'typing' });
-    for (const client of this.clients) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(payload);
+    const payload = JSON.stringify({ type: 'typing', chatId });
+    const targetClients = this.clientsByChatId.get(chatId);
+    if (targetClients && targetClients.size > 0) {
+      for (const client of targetClients) {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(payload);
+        }
+      }
+      return;
+    }
+
+    if (this.clients.size === 1) {
+      const singleClient = this.clients.values().next().value;
+      if (singleClient && singleClient.readyState === WebSocket.OPEN) {
+        singleClient.send(payload);
       }
     }
   }

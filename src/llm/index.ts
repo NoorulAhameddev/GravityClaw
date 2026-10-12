@@ -6,6 +6,7 @@ import { GoogleProvider } from './google.ts';
 import { GroqProvider } from './groq.ts';
 import { DeepSeekProvider } from './deepseek.ts';
 import { OpenCodeZenProvider } from './opencodezen.ts';
+import { OpenCodeProvider } from './opencode.ts';
 import { CohereProvider } from './cohere.ts';
 import { MistralProvider } from './mistral.ts';
 import { OllamaProvider } from './ollama.ts';
@@ -24,6 +25,7 @@ export type { LLMProvider, LLMResponse, LLMChatOptions } from '../types/llm.js';
 export { FailoverProvider } from './failover.ts';
 export { OpenRouterProvider } from './openrouter.ts';
 export { OpenCodeZenProvider } from './opencodezen.ts';
+export { OpenCodeProvider } from './opencode.ts';
 export { CohereProvider } from './cohere.ts';
 export { MistralProvider } from './mistral.ts';
 export { NvidiaProvider } from './nvidia.ts';
@@ -109,9 +111,16 @@ function createSingleProvider(providerName: string, model?: string): LLMProvider
     case 'mock':
       return new MockProvider();
 
+    case 'opencode':
+      return new OpenCodeProvider(
+        providerModel || 'nemotron-3.5-lightning-free',
+        config.OPENCODE_BASE_URL,
+        config.OPENCODE_AUTO_START,
+      );
+
     default:
       throw new Error(
-        `Unknown LLM provider: ${providerName}. Available: openrouter, openai, anthropic, google, groq, deepseek, ollama, cohere, mistral, nvidia, mock, opencodezen`,
+        `Unknown LLM provider: ${providerName}. Available: openrouter, openai, anthropic, google, groq, deepseek, ollama, cohere, mistral, nvidia, mock, opencodezen, opencode`,
       );
   }
 }

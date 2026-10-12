@@ -78,3 +78,58 @@ export function requireRole(...roles: Role[]) {
     next();
   };
 }
+
+export type AgentRole = 'primary' | 'researcher' | 'coder' | 'reviewer' | 'summarizer';
+
+export interface AgentCapabilityProfile {
+  role: string;
+  description: string;
+  deniedTools: string[];
+  canExecuteShell: boolean;
+  canMutateFileSystem: boolean;
+}
+
+const DEFAULT_RESEARCHER_PROFILE: AgentCapabilityProfile = {
+  role: 'researcher',
+  description: 'Web research and information retrieval agent',
+  deniedTools: ['delete_file', 'file_delete', 'run_shell', 'write_file', 'plugin_install'],
+  canExecuteShell: false,
+  canMutateFileSystem: false,
+};
+
+export const AGENT_CAPABILITY_PROFILES: Record<string, AgentCapabilityProfile> = {
+  primary: {
+    role: 'primary',
+    description: 'Primary agent loop under owner oversight',
+    deniedTools: [],
+    canExecuteShell: true,
+    canMutateFileSystem: true,
+  },
+  researcher: DEFAULT_RESEARCHER_PROFILE,
+  coder: {
+    role: 'coder',
+    description: 'Code development and testing agent in workspace sandbox',
+    deniedTools: ['delete_file', 'file_delete'],
+    canExecuteShell: false,
+    canMutateFileSystem: true,
+  },
+  reviewer: {
+    role: 'reviewer',
+    description: 'Code and artifact review agent (read-only)',
+    deniedTools: ['delete_file', 'file_delete', 'run_shell', 'write_file'],
+    canExecuteShell: false,
+    canMutateFileSystem: false,
+  },
+  summarizer: {
+    role: 'summarizer',
+    description: 'Context distillation and summarization agent',
+    deniedTools: ['delete_file', 'file_delete', 'run_shell', 'write_file', 'browser_navigate'],
+    canExecuteShell: false,
+    canMutateFileSystem: false,
+  },
+};
+
+export function filterToolsForAgentRole<T extends { name: string }>(role: string, tools: T[]): T[] {
+  const profile = AGENT_CAPABILITY_PROFILES[role] ?? DEFAULT_RESEARCHER_PROFILE;
+  return tools.filter((tool) => !profile.deniedTools.includes(tool.name));
+}

@@ -39,7 +39,7 @@ npm run secret:add           # Add a secret
 
 ## Architecture Overview
 
-**Request flow:** Channel (Telegram/WhatsApp/WebChat) → `ChannelRouter` → `runAgent()` → `callClaude()` (LLM orchestrator) → Tool execution → repeat until no tool calls.
+**Request flow:** Channel (Telegram/WebChat/CLI) → `ChannelRouter` → `runAgent()` → `callClaude()` (LLM orchestrator) → Tool execution → repeat until no tool calls.
 
 **Key files:**
 

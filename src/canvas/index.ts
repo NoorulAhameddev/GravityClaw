@@ -68,9 +68,26 @@ function handleCanvasMessage(sessionId: string, message: any): void {
   // Handle different message types
   switch (message.type) {
     case 'interaction':
-      // User interacted with a widget (button click, form submit, etc.)
-      // Store this for the agent to process
-      log.info(`Widget interaction: ${JSON.stringify(message.data)}`);
+      log.info(`Widget interaction in session [${sessionId}]: ${JSON.stringify(message.data)}`);
+      try {
+        import('../llm/index.ts')
+          .then(({ addUserMessage }) => {
+            import('../config.ts').then(({ config }) => {
+              import('../db.ts').then(({ db }) => {
+                const payload =
+                  typeof message.data === 'string' ? message.data : JSON.stringify(message.data);
+                addUserMessage(sessionId, `[Canvas Interaction]: ${payload}`, { db, config });
+              });
+            });
+          })
+          .catch((err) => {
+            log.warn(
+              `Failed to record canvas interaction in session [${sessionId}]: ${String(err)}`,
+            );
+          });
+      } catch (err) {
+        log.warn(`Error handling canvas interaction: ${String(err)}`);
+      }
       break;
 
     case 'error':

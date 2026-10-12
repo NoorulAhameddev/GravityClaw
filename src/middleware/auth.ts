@@ -124,8 +124,12 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
   }
 
   req.apiKey = apiKey;
-  req.role = 'admin';
-  req.user = { id: 'api-key-holder', role: 'admin' };
+  const configuredRole = (req.headers['x-user-role'] as string) || 'admin';
+  req.role = configuredRole;
+  req.user = {
+    id: (req.headers['x-user-id'] as string) || 'api-key-holder',
+    role: configuredRole,
+  };
   log.debug(`Authenticated request: ${method} ${path}`);
   next();
 }

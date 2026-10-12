@@ -52,13 +52,15 @@ describe('Concurrency layer', () => {
 
   afterEach(async () => {
     for (const release of gateReleases.splice(0)) release();
-    await vi.waitFor(
-      () => {
-        expect(getActiveAgentCount()).toBe(0);
-        expect(getQueuedAgentCount()).toBe(0);
-      },
-      { timeout: 5000, interval: 5 },
-    ).catch(() => {});
+    await vi
+      .waitFor(
+        () => {
+          expect(getActiveAgentCount()).toBe(0);
+          expect(getQueuedAgentCount()).toBe(0);
+        },
+        { timeout: 5000, interval: 5 },
+      )
+      .catch(() => {});
     clearSessions();
   });
 
@@ -247,13 +249,10 @@ describe('Concurrency layer', () => {
       expect(results).toHaveLength(1000);
       expect(results.every((r) => r.startsWith('ok-'))).toBe(true);
 
-      await vi.waitFor(
-        () => {
-          expect(getActiveAgentCount()).toBe(0);
-          expect(getQueuedAgentCount()).toBe(0);
-        },
-        WAIT_OPTS,
-      );
+      await vi.waitFor(() => {
+        expect(getActiveAgentCount()).toBe(0);
+        expect(getQueuedAgentCount()).toBe(0);
+      }, WAIT_OPTS);
     }, 15000);
   });
 

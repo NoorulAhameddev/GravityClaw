@@ -22,7 +22,9 @@ router.post('/', authMiddleware, validateBody(approvalCreateSchema), async (req,
     const sessionId = authUser?.id ? String(authUser.id) : bodySessionId;
     if (authUser?.id && bodySessionId && String(bodySessionId) !== String(authUser.id)) {
       log.warn(`Approval session mismatch: body ${bodySessionId} vs auth ${authUser.id}`);
-      return res.status(403).json({ success: false, error: 'SessionId does not match authenticated principal' });
+      return res
+        .status(403)
+        .json({ success: false, error: 'SessionId does not match authenticated principal' });
     }
     const request = await approvalGate.createApprovalRequest(toolName, parameters || {}, {
       userId: authUser?.id ? String(authUser.id) : userId,
@@ -41,7 +43,9 @@ router.get('/', authMiddleware, validateQuery(approvalsListQuerySchema), async (
     const authUser = (req as any).user;
     const querySessionId = req.query.sessionId as string | undefined;
     if (authUser?.id && querySessionId && querySessionId !== String(authUser.id)) {
-      return res.status(403).json({ success: false, error: 'SessionId does not match authenticated principal' });
+      return res
+        .status(403)
+        .json({ success: false, error: 'SessionId does not match authenticated principal' });
     }
     const sessionId = authUser?.id ? String(authUser.id) : querySessionId;
     let approvals;

@@ -246,17 +246,6 @@ app.get('/api/ws-info', authMiddleware, (req, res) => {
  * Usage API - aggregate token usage statistics
  */
 app.get('/api/usage', authMiddleware, async (req, res) => {
-  const clientIp = req.ip || '';
-  const isLocalhost =
-    clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === '::ffff:127.0.0.1';
-
-  if (!isLocalhost && config.API_KEY) {
-    const apiKey = req.headers['x-api-key'];
-    if (!apiKey || apiKey !== config.API_KEY) {
-      res.status(401).json({ success: false, error: 'Unauthorized' });
-      return;
-    }
-  }
   try {
     const { getUsageStats } = await import('./usage.ts');
     const allTime = getUsageStats();
@@ -294,21 +283,9 @@ app.get('/api/usage', authMiddleware, async (req, res) => {
 });
 
 /**
- * Dashboard stats - unauthenticated local-only endpoint
+ * Dashboard stats - authenticated endpoint
  */
 app.get('/api/stats', authMiddleware, (req, res) => {
-  const clientIp = req.ip || '';
-  const isLocalhost =
-    clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === '::ffff:127.0.0.1';
-
-  if (!isLocalhost && config.API_KEY) {
-    const apiKey = req.headers['x-api-key'];
-    if (!apiKey || apiKey !== config.API_KEY) {
-      res.status(401).json({ success: false, error: 'Unauthorized' });
-      return;
-    }
-  }
-
   try {
     const getCount = (sql: string) => (db.prepare(sql).get() as { count: number }).count;
     res.json({
@@ -419,6 +396,10 @@ export function stopServer(): Promise<void> {
 }
 
 export function startServer(): Promise<void> {
+  if (server.listening) {
+    return Promise.resolve();
+  }
+
   return new Promise((resolve, reject) => {
     const basePort = config.PORT || 3000;
     let currentPort = basePort;

@@ -5,6 +5,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import yaml from 'yaml';
@@ -83,11 +84,16 @@ export class SkillsManager {
    */
   private async loadAllSkills(): Promise<void> {
     const files = fs.readdirSync(this.skillsDir);
-    const skillFiles = files.filter((f) => f.endsWith('.md'));
+    const skillFiles = files.filter((f) => f.endsWith('.md') && f.toLowerCase() !== 'readme.md');
 
     for (const file of skillFiles) {
       try {
         const filePath = path.join(this.skillsDir, file);
+        const content = fs.readFileSync(filePath, 'utf-8');
+        if (!content.match(/^---\r?\n([\s\S]*?)\r?\n---/)) {
+          log.debug(`[skills] Skipping markdown file without frontmatter: ${file}`);
+          continue;
+        }
         const skill = await this.parseSkillFile(filePath);
 
         // Only load if enabled
@@ -232,6 +238,7 @@ export class SkillsManager {
 
     const startTime = Date.now();
 
+    let tempDir = '';
     try {
       let result;
 
@@ -241,16 +248,19 @@ export class SkillsManager {
           timeout: 30000,
         });
       } else if (codeBlock.language === 'python') {
-        // Execute Python code
-        const pythonCode = code.replace(/`/g, '\\`');
-        result = await execAsync(`python -c "${pythonCode}"`, {
+        tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-'));
+        const scriptFile = path.join(tempDir, 'script.py');
+        fs.writeFileSync(scriptFile, code, 'utf-8');
+        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+        result = await execAsync(`"${pythonCmd}" "${scriptFile}"`, {
           env: buildChildEnv(skill.frontmatter.env),
           timeout: 30000,
         });
       } else if (codeBlock.language === 'javascript' || codeBlock.language === 'typescript') {
-        // Execute Node.js code
-        const nodeCode = code.replace(/`/g, '\\`');
-        result = await execAsync(`node -e "${nodeCode}"`, {
+        tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-'));
+        const scriptFile = path.join(tempDir, 'script.js');
+        fs.writeFileSync(scriptFile, code, 'utf-8');
+        result = await execAsync(`"${process.execPath}" "${scriptFile}"`, {
           env: buildChildEnv(skill.frontmatter.env),
           timeout: 30000,
         });
@@ -292,6 +302,12 @@ export class SkillsManager {
       return {
         ...failureResult,
       };
+    } finally {
+      if (tempDir && fs.existsSync(tempDir)) {
+        try {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+        } catch {}
+      }
     }
   }
 

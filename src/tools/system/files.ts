@@ -734,6 +734,14 @@ Example: search_files({ directory: "src", pattern: "*.ts" })`,
           } else if (entry.isFile()) {
             // Check if name matches pattern
             if (regex.test(entry.name)) {
+              const fileValidation = validatePathAccess(fullPath, {
+                allowedPaths: getSafeDirectories(),
+                action: 'read',
+                checkSymlinks: true,
+                checkTraversal: true,
+              });
+              if (!fileValidation.allowed) continue;
+
               const fileStats = await stat(fullPath);
               const relativePath = path.relative(absoluteDir, fullPath);
 

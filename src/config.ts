@@ -40,6 +40,7 @@ const envSchema = z.object({
       'failover',
       'mock',
       'opencodezen',
+      'opencode',
     ])
     .default('openrouter'),
   LLM_MODEL: z.string().default('openrouter/free'),
@@ -54,6 +55,12 @@ const envSchema = z.object({
   // API Keys for different providers (at least one required based on LLM_PROVIDER)
   OPENCODEZEN_API_KEY: z.string().optional(),
   OPENCODEZEN_BASE_URL: z.string().optional().default('https://opencode.ai/zen/v1'),
+  OPENCODE_BASE_URL: z.string().optional().default('http://127.0.0.1:4096'),
+  OPENCODE_AUTO_START: z
+    .string()
+    .optional()
+    .default('true')
+    .transform((val) => val === 'true' || val === '1'),
   OPENROUTER_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
@@ -176,6 +183,10 @@ const envSchema = z.object({
         message: 'API_KEY must be at least 32 characters in production',
       },
     ),
+  JWT_SECRET: z
+    .string()
+    .optional()
+    .describe('Separate secret key for signing and verifying JWT session tokens'),
 
   // Health Check Authentication
   HEALTH_API_KEY: z

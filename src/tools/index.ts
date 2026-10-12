@@ -95,10 +95,13 @@ class ToolRegistry implements ToolRegistryType {
    * Separate action (verbs) from objects (nouns) for better relevance.
    * Returns up to `limit` tools sorted by relevance.
    */
-  getRelevantTools(query: string, limit = 8): Tool[] {
+  getRelevantTools(query: string, limit = 25): Tool[] {
     const tools = Array.from(this.tools.values());
 
-    // Separate query into action words (verbs) and object words (nouns)
+    if (!query || query.trim().length === 0 || tools.length <= 15) {
+      return tools.slice(0, limit);
+    }
+
     const actionWords = [
       'list',
       'read',
@@ -116,6 +119,15 @@ class ToolRegistry implements ToolRegistryType {
       'stop',
       'send',
       'call',
+      'check',
+      'show',
+      'open',
+      'view',
+      'fetch',
+      'schedule',
+      'diff',
+      'clear',
+      'export',
     ];
     const objectWords = [
       'file',
@@ -129,18 +141,41 @@ class ToolRegistry implements ToolRegistryType {
       'graph',
       'entity',
       'fact',
+      'facts',
       'schedule',
       'task',
+      'tasks',
       'calendar',
       'notion',
       'browser',
+      'web',
+      'page',
+      'url',
+      'site',
       'shell',
       'command',
+      'terminal',
+      'script',
+      'code',
       'plugin',
       'session',
       'user',
       'group',
       'permission',
+      'time',
+      'date',
+      'datetime',
+      'now',
+      'today',
+      'clock',
+      'weather',
+      'backup',
+      'stats',
+      'usage',
+      'token',
+      'model',
+      'swarm',
+      'agent',
     ];
 
     const words = query
@@ -151,8 +186,18 @@ class ToolRegistry implements ToolRegistryType {
     const objects = words.filter((w) => objectWords.includes(w));
     const q = query.toLowerCase();
 
-    // Default fallback tools
-    const defaultTools = ['list_files', 'read_file', 'search_files'];
+    // Comprehensive default baseline tools
+    const defaultTools = [
+      'get_datetime',
+      'run_shell',
+      'read_file',
+      'write_file',
+      'list_files',
+      'search_files',
+      'save_fact',
+      'recall_facts',
+      'web_search',
+    ];
 
     const scored = tools.map((tool) => {
       const name = tool.name.toLowerCase();
@@ -191,41 +236,46 @@ class ToolRegistry implements ToolRegistryType {
 
       // (E) Penalize generic "list" without object
       if (name.includes('list') && !hasObjectMatch) {
-        score -= 4;
+        score -= 2;
       }
 
-      // (F) Boost core work tools (+5)
-      const coreWorkTools = ['run_shell', 'spawn_agent', 'read_file', 'write_file', 'search_files'];
+      // (F) Boost core work tools (+4)
+      const coreWorkTools = [
+        'run_shell',
+        'spawn_agent',
+        'read_file',
+        'write_file',
+        'search_files',
+        'get_datetime',
+      ];
       if (coreWorkTools.includes(name)) {
-        score += 5;
+        score += 4;
       }
 
-      // (G) Boost domain-specific tools (+3)
-      const domainKeywords = ['file', 'search', 'read', 'write'];
-      const queryHasDomainWord = words.some((w) => domainKeywords.some((kw) => w.includes(kw)));
-      const toolHasDomainKeyword = domainKeywords.some((kw) => name.includes(kw));
-      if (queryHasDomainWord && toolHasDomainKeyword) {
-        score += 3;
+      // (G) Boost time/date queries
+      if (words.some((w) => ['time', 'date', 'now', 'today', 'clock', 'hour'].includes(w))) {
+        if (name.includes('datetime') || name.includes('time') || desc.includes('current time')) {
+          score += 10;
+        }
       }
 
-      // (H) Keep previous penalties for unrelated categories
-      const unrelatedCategories = ['wake', 'voice', 'talk', 'audio', 'tts', 'stt', 'elevenlabs'];
-      const hasUnrelatedCategory = unrelatedCategories.some((cat) => name.includes(cat));
-      const queryHasCategoryWord = words.some((w) => unrelatedCategories.includes(w));
+      // (H) Keep previous penalties for voice categories unless asked
+      const voiceCategories = ['wake', 'elevenlabs'];
+      const hasVoiceCategory = voiceCategories.some((cat) => name.includes(cat));
+      const queryHasVoiceWord = words.some((w) => voiceCategories.includes(w));
 
-      if (hasUnrelatedCategory && !queryHasCategoryWord) {
+      if (hasVoiceCategory && !queryHasVoiceWord) {
         score -= 3;
       }
 
       return { tool, score };
     });
 
-    // Filter out low-score tools (minimum relevance threshold)
     const filtered = scored.filter((s) => s.score >= 2);
 
-    // Fallback: if no tools found, return defaults
     if (filtered.length === 0) {
-      return tools.filter((t) => defaultTools.includes(t.name)).slice(0, limit);
+      const baseline = tools.filter((t) => defaultTools.includes(t.name));
+      return baseline.length > 0 ? baseline.slice(0, limit) : tools.slice(0, limit);
     }
 
     return filtered

@@ -41,7 +41,7 @@ NODE_ENV=test
 
 Gravity Claw is a personal AI agent with a tool-use loop spanning multiple communication channels.
 
-**Request flow:** Channel (Telegram/WhatsApp/WebChat) → `ChannelRouter` → `runAgent()` → `callClaude()` (LLM orchestrator) → Tool execution → repeat until no tool calls.
+**Request flow:** Channel (Telegram/WebChat/CLI) → `ChannelRouter` → `runAgent()` → `callClaude()` (LLM orchestrator) → Tool execution → repeat until no tool calls.
 
 **Core files:**
 

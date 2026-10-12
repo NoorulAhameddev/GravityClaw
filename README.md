@@ -11,7 +11,7 @@
 
 ## Overview
 
-Gravity Claw routes messages from any channel (Telegram, Discord, Slack, WhatsApp, Signal, Email, Web) through an intelligent agent loop that calls LLMs, executes tools, and persists context in a hybrid memory system. It supports 10+ LLM providers, 85+ built-in tools, and can run fully air-gapped.
+Gravity Claw routes messages from channels (Telegram, WebChat, CLI) through an intelligent agent loop that calls LLMs, executes tools, and persists context in a hybrid SQLite-based memory system. It supports 10+ LLM providers, 50+ built-in tools, and can run fully air-gapped.
 
 ---
 
@@ -20,15 +20,15 @@ Gravity Claw routes messages from any channel (Telegram, Discord, Slack, WhatsAp
 | Category                      | Capabilities                                                                                                        |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | **Intelligent Agent Loop**    | Iterative tool execution with configurable limits, approval gates, and safety bounds                                |
-| **Multi-Channel**             | Telegram, Discord, Slack, WhatsApp, Signal, Email, WebChat — unified agent backend                                  |
-| **Hybrid Memory**             | SQLite + Vector embeddings (ChromaDB) + Knowledge Graph + Markdown facts + Supabase sync                            |
+| **Multi-Channel**             | Telegram, WebChat (WebSocket/REST), CLI — unified agent backend                                                     |
+| **Hybrid Memory**             | SQLite (WAL mode) + Vector embeddings (ChromaDB) + Knowledge Graph + Markdown facts + Supabase sync                 |
 | **Multi-Agent Orchestration** | Role-based Swarms and DAG-based Mesh workflows                                                                      |
 | **Proactive Engine**          | Heartbeat check-ins, daily recaps, recommendations, automated memory consolidation                                  |
 | **Live Canvas (A2UI)**        | Push rich HTML/JS widgets to users via WebSockets                                                                   |
 | **Plugin System**             | Runtime extensibility without restarts (providers, channels, tools, memory)                                         |
-| **Enterprise Security**       | Air-gap mode, AES-256-GCM encryption, user/path allowlisting, audit logging                                         |
+| **Host & Agent Security**     | Air-gap mode, Human-in-the-Loop approvals, AES-256-GCM encryption, path allowlisting, audit logging                 |
 | **LLM Flexibility**           | OpenAI, Anthropic (Claude), Google AI, Groq, DeepSeek, Cohere, Mistral, NVIDIA, Ollama, OpenRouter, failover chains |
-| **85+ Built-in Tools**        | Browser automation, sandboxed code execution, file operations, calendar, Notion, search, web scraping               |
+| **50+ Built-in Tools**        | Browser automation, sandboxed code execution, file operations, calendar, Notion, search, web scraping               |
 
 ---
 
@@ -70,22 +70,22 @@ Full CLI reference: [docs/guides/CLI.md](docs/guides/CLI.md)
 ## Architecture
 
 ```
-Channel Layer (Telegram, Discord, Slack, WhatsApp, Signal, Email, Web)
+Channel Layer (Telegram, WebChat, CLI)
     ↓
 Channel Router (multiplex, auth, rate-limit)
     ↓
 Agent Loop (runAgent → callClaude → Tool execution → repeat)
     ↓
-Tool Registry (85+ tools across 15+ categories)
+Tool Registry (50+ tools across 15+ categories)
     ↓
-Memory System (SQLite + Vector + Knowledge Graph + Markdown)
+Memory System (SQLite WAL + Vector + Knowledge Graph + Markdown)
 ```
 
 | Component                     | Location                  |
 | ----------------------------- | ------------------------- |
 | Agent Loop                    | `src/agent.ts`            |
 | LLM Orchestrator              | `src/llm/orchestrator.ts` |
-| Tool Registry (85+ tools)     | `src/tools/`              |
+| Tool Registry (50+ tools)     | `src/tools/`              |
 | Memory Engine                 | `src/memory/`             |
 | Multi-Agent (Swarms & Mesh)   | `src/agents/`             |
 | Plugin System                 | `src/plugins/`            |

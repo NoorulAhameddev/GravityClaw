@@ -124,15 +124,18 @@ export class ChannelRouter {
         resolve,
         timer: setTimeout(() => {}, 0),
       };
-      entry.timer = setTimeout(() => {
-        const removed = this.takeConfirmation(key, entry.id);
-        if (!removed) return;
-        resolve(false);
-        onExpired();
-        log.warn(
-          `Confirmation ${entry.id} for ${key} timed out after ${timeoutMinutes}m — denied: ${command}`,
-        );
-      }, Math.max(1, timeoutMinutes) * 60 * 1000);
+      entry.timer = setTimeout(
+        () => {
+          const removed = this.takeConfirmation(key, entry.id);
+          if (!removed) return;
+          resolve(false);
+          onExpired();
+          log.warn(
+            `Confirmation ${entry.id} for ${key} timed out after ${timeoutMinutes}m — denied: ${command}`,
+          );
+        },
+        Math.max(1, timeoutMinutes) * 60 * 1000,
+      );
 
       const queue = this.pendingConfirmations.get(key);
       if (queue) {
@@ -408,10 +411,7 @@ export class ChannelRouter {
     // Handle y/n replies for confirmations — only explicit tokens resolve;
     // anything else flows through as normal chat
     const normalized = text.toLowerCase();
-    if (
-      ChannelRouter.CONFIRM_YES.has(normalized) ||
-      ChannelRouter.CONFIRM_NO.has(normalized)
-    ) {
+    if (ChannelRouter.CONFIRM_YES.has(normalized) || ChannelRouter.CONFIRM_NO.has(normalized)) {
       const confirmed = ChannelRouter.CONFIRM_YES.has(normalized);
       if (this.resolveOldestConfirmation(key, confirmed)) {
         await channel.sendMessage(

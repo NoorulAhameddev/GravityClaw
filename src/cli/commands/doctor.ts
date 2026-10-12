@@ -7,6 +7,7 @@ import { resolve } from 'path';
 import { config } from '../../config.ts';
 import { db } from '../../db.ts';
 import { registry, registerBuiltInTools, toolExecutor } from '../../tools/index.ts';
+import { clearHistory } from '../../llm/orchestrator.ts';
 import { colors, success, error, warn, info, title, section, dim } from '../utils.ts';
 
 export async function doctorCommand(): Promise<void> {
@@ -47,7 +48,9 @@ export async function doctorCommand(): Promise<void> {
   section('Database');
 
   try {
-    const dbPath = resolve('gravity.db');
+    const dbPath = existsSync(resolve('data/gravity.db'))
+      ? resolve('data/gravity.db')
+      : resolve('gravity.db');
     if (existsSync(dbPath)) {
       success(`Database exists at ${dbPath}`);
 
@@ -119,8 +122,10 @@ export async function doctorCommand(): Promise<void> {
           hasErrors = true;
         }
       }
-    } else if (provider === 'ollama') {
-      info('Ollama (local) - no API key required');
+    } else if (provider === 'ollama' || provider === 'opencode') {
+      info(
+        `${provider === 'opencode' ? 'OpenCode (free cloud tier)' : 'Ollama (local)'} - no API key required`,
+      );
     }
   } catch (err) {
     error(`LLM provider check failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -158,6 +163,7 @@ export async function doctorCommand(): Promise<void> {
     const { runAgent } = await import('../../agent.ts');
     const testPrompt = "echo 'WIRING_TEST_SUCCESS'";
 
+    clearHistory('doctor-test-session', { db, config });
     info(`Simulating task: "${testPrompt}"...`);
 
     const result = await runAgent({

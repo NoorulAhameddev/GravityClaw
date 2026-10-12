@@ -4,7 +4,13 @@ import { InputValidatorStage } from './inputValidator.ts';
 import { ContextBuilderStage } from './contextBuilder.ts';
 import { ToolPickerStage } from './toolPicker.ts';
 import { MemoryWriterStage } from './memoryWriter.ts';
-import { addUserMessage, callClaude, addAssistantMessage, addToolResult, extractThinking } from '../llm/index.ts';
+import {
+  addUserMessage,
+  callClaude,
+  addAssistantMessage,
+  addToolResult,
+  extractThinking,
+} from '../llm/index.ts';
 import {
   maybeCreateExecutionPlan,
   formatPlanForPrompt,
@@ -26,10 +32,7 @@ import { DEFAULT_MAX_RESULT_SIZE_CHARS } from '../constants/toolLimits.ts';
 
 const log = createLogger('pipeline-orchestrator');
 
-function formatToolForApproval(
-  toolName: string,
-  input: Record<string, unknown>,
-): string {
+function formatToolForApproval(toolName: string, input: Record<string, unknown>): string {
   const sanitized = sanitizeParameters(input);
   if (toolName === 'run_shell') {
     const { command, ...rest } = sanitized;
@@ -95,6 +98,7 @@ export class Orchestrator {
     let pausedNotice: string | undefined;
     const maxToolsPerIteration = context.config.AGENT_MAX_TOOLS_PER_ITERATION;
     const collectedText: string[] = [];
+    let finalResponseText: string | undefined;
     const toolExecutionHistory: Array<{
       name: string;
       input: Record<string, unknown>;
@@ -134,7 +138,10 @@ export class Orchestrator {
         response.thoughtSignature,
       );
 
-      if (response.toolCalls.length === 0) break;
+      if (response.toolCalls.length === 0) {
+        finalResponseText = response.text;
+        break;
+      }
 
       let iterationProgressMade = false;
       const remainingTotal = context.maxTotalToolCalls - totalToolCalls;
@@ -308,9 +315,9 @@ export class Orchestrator {
     }
 
     await new MemoryWriterStage().execute(context, { message: '' });
-    if (pausedNotice) collectedText.push(pausedNotice);
-    const rawJoined = collectedText.join('\n');
-    const { text: cleanText } = extractThinking(rawJoined);
+    let rawTarget = (finalResponseText || collectedText.join('\n')).trim();
+    if (pausedNotice) rawTarget = rawTarget ? `${rawTarget}\n${pausedNotice}` : pausedNotice;
+    const { text: cleanText } = extractThinking(rawTarget);
     return {
       text: cleanText || '(no response)',
       toolCallCount: totalToolCalls,

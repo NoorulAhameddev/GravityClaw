@@ -124,7 +124,9 @@ export class OllamaProvider implements LLMProvider {
       });
     }
 
-    log.debug(`Ollama sanitized messages: ${sanitizedMessages.length}, tools: ${toolDefinitions.length}`);
+    log.debug(
+      `Ollama sanitized messages: ${sanitizedMessages.length}, tools: ${toolDefinitions.length}`,
+    );
 
     const requestBody: Record<string, unknown> = {
       model,
@@ -169,9 +171,7 @@ export class OllamaProvider implements LLMProvider {
     const text = data.message.content ?? '';
     const rawToolCalls = data.message.tool_calls || [];
 
-    log.debug(
-      `Ollama response — text: ${text.length} chars, tool_calls: ${rawToolCalls.length}`,
-    );
+    log.debug(`Ollama response — text: ${text.length} chars, tool_calls: ${rawToolCalls.length}`);
 
     const toolCalls = rawToolCalls.map((tc, idx) => {
       let argsStr: string;
