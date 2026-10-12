@@ -1,141 +1,52 @@
 # Gravity Claw Documentation
 
-Welcome to the Gravity Claw documentation. This directory is organized by topic for easy navigation.
+Welcome to the Gravity Claw documentation. This directory provides practical, clear technical documentation for operating and developing Gravity Claw.
 
 ## 📁 Directory Structure
 
-### `/architecture` - System Architecture
+### Core References (`docs/`)
 
-Core architectural documentation for understanding the overall system design:
+- [INDEX.md](INDEX.md) — Master documentation index and sitemap
+- [environment.md](environment.md) — Comprehensive reference of all supported environment variables
+- [AIRGAP.md](AIRGAP.md) — Air-gapped offline operation with local LLMs (Ollama)
+- [ENCRYPTED_SECRETS.md](ENCRYPTED_SECRETS.md) — AES-256-GCM encrypted secrets vault
+- [MULTI_AGENT_SYSTEMS.md](MULTI_AGENT_SYSTEMS.md) — Swarms and DAG-based Mesh workflows
+- [SKILLS_GUIDE.md](SKILLS_GUIDE.md) — Guide for defining prompt-based agent skills
+- [TOOLS_REFERENCE.md](TOOLS_REFERENCE.md) — Complete catalog of all 80+ built-in tools
+- [PROACTIVE_FEATURES.md](PROACTIVE_FEATURES.md) — Heartbeat check-ins and cron tasks
 
-- **ARCHITECTURE_OVERVIEW.md** - Complete overview of the Gravity Claw architecture
-- **ARCHITECTURE.md** - Detailed architecture documentation with diagrams
+### `/architecture` — System Architecture
 
-### `/guides` - User Guides
+- [ARCHITECTURE.md](architecture/ARCHITECTURE.md) — Request flow, agent loop sequence diagrams, and subsystem design
+- [PIPELINE.md](architecture/PIPELINE.md) — Agent execution pipeline
 
-Step-by-step guides for using and deploying Gravity Claw:
+### `/guides` — User & Operational Guides
 
-- **API.md** - API reference documentation
-- **CLI.md** - Command-line interface guide
-- **DEPLOYMENT.md** - Deployment instructions and best practices
-- **MODEL_SWITCHING.md** - Guide to switching between different LLM models
+- [CLI.md](guides/CLI.md) — Command-line interface reference and interactive commands
+- [API.md](guides/API.md) — REST endpoints and WebSocket protocol
+- [DEPLOYMENT.md](guides/DEPLOYMENT.md) — Local development and VPS deployment
+- [MODEL_SWITCHING.md](guides/MODEL_SWITCHING.md) — Dynamic model selection and failover chains
 
-### `/features` - Feature Documentation
+### `/features` — Feature Documentation
 
-In-depth documentation for specific features, organized by feature:
+- [BACKUP_RESTORE_SYSTEM.md](features/backup/BACKUP_RESTORE_SYSTEM.md) — Automated database backup and restore system
+- [CANVAS.md](features/canvas/CANVAS.md) — Live Canvas (A2UI) widgets
+- [EXPORT_FUNCTIONALITY.md](features/export/EXPORT_FUNCTIONALITY.md) — Chat history and memory export
+- [OBSERVABILITY.md](features/observability/OBSERVABILITY.md) — Structured logging, Prometheus metrics, and tracing
+- [PERFORMANCE.md](features/performance/PERFORMANCE.md) — Caching strategies and performance tuning
+- [RATE_LIMITING.md](features/rate-limiting/RATE_LIMITING.md) — Token-bucket rate limiting system
+- [AUTH_AND_AUDIT.md](features/security/AUTH_AND_AUDIT.md) — Personal Agent Security Model and local audit log
+- [TOUCH_GESTURES.md](features/touch-gestures/TOUCH_GESTURES.md) — Mobile gesture interactions
+- [MCP_BRIDGE.md](features/MCP_BRIDGE.md) — Model Context Protocol integration
 
-#### `/features/airgap`
-
-Air-gapped mode documentation for secure, offline operation.
-
-#### `/features/backup`
-
-Complete backup and restore system documentation:
-
-- System architecture and implementation
-- Quick start guides
-- Usage examples and shell scripts
-
-#### `/features/canvas`
-
-Live Canvas (A2UI) feature documentation.
-
-#### `/features/dashboard`
-
-Web dashboard documentation including:
-
-- Integration guides
-- Analytics and admin features
-
-#### `/features/export`
-
-Data export functionality documentation.
-
-#### `/features/observability`
-
-Comprehensive observability system documentation (9 docs):
-
-- Core observability concepts
-- Implementation guides
-- Quick references
-- Integration examples
-- Metrics, logging, and tracing
-
-#### `/features/performance`
-
-Performance optimization documentation:
-
-- Implementation details
-- Setup guides
-- Performance tuning
-
-#### `/features/rate-limiting`
-
-Rate limiting system documentation (4+ docs):
-
-- Architecture and concepts
-- Configuration guides
-- Implementation summaries
-- Quick references
-
-#### `/features/security`
-
-Security implementation documentation:
-
-- Security setup
-- Implementation details
-- Quick reference guides
-
-#### `/features/touch-gestures`
-
-Mobile touch gesture system documentation for PWA.
-
-### `/archive` - Historical Documentation
-
-Completed delivery reports, progress tracking, and deprecated documentation:
-
-- Integration test deliveries
-- Feature completion reports
-- Progress tracking documents
-- Temporary status files
+---
 
 ## 🔍 Quick Navigation
 
 **Getting Started:**
+1. Start with [CLI.md](guides/CLI.md) or [environment.md](environment.md)
+2. Explore available capabilities in [TOOLS_REFERENCE.md](TOOLS_REFERENCE.md)
+3. Learn the system architecture in [ARCHITECTURE.md](architecture/ARCHITECTURE.md)
 
-1. Read [ARCHITECTURE_OVERVIEW.md](architecture/ARCHITECTURE_OVERVIEW.md) to understand the system
-2. Follow [DEPLOYMENT.md](guides/DEPLOYMENT.md) to deploy
-3. Check [API.md](guides/API.md) for API reference
-
-**Feature-Specific:**
-
-- For observability: Start with [features/observability/OBSERVABILITY_START_HERE.md](features/observability/OBSERVABILITY_START_HERE.md)
-- For rate limiting: See [features/rate-limiting/RATE_LIMITING.md](features/rate-limiting/RATE_LIMITING.md)
-- For backups: Read [features/backup/BACKUP_QUICKSTART.md](features/backup/BACKUP_QUICKSTART.md)
-
-**Development:**
-
-- See [../examples/](../examples/) directory for code examples
-- Check [../src/**tests**/README.md](../src/__tests__/README.md) for testing guide
-
-## 📝 Documentation Standards
-
-All documentation follows these guidelines:
-
-- Markdown format with clear headings
-- Code examples with syntax highlighting
-- Table of contents for long documents
-- Cross-references using relative links
-- Last updated dates where applicable
-
-## 🤝 Contributing
-
-When adding new documentation:
-
-1. Place feature docs in `/features/<feature-name>/`
-2. Place guides in `/guides/`
-3. Update this README with links
-4. Follow existing naming conventions
-5. Add a table of contents for docs > 200 lines
-
-For more details, see [../CONTRIBUTING.md](../CONTRIBUTING.md).
+**Master Index:**
+See [INDEX.md](INDEX.md) for the complete documentation index.

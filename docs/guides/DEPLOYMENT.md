@@ -286,7 +286,7 @@ docker-compose --version
 
 ### Using the Provided Dockerfile
 
-The [Dockerfile](../Dockerfile) is pre-configured for production use:
+The [Dockerfile](../../Dockerfile) is pre-configured for production use:
 
 ```dockerfile
 FROM node:20-slim
@@ -336,7 +336,7 @@ docker rm gravyclaw
 
 ### Production Setup with Docker Compose
 
-Use the provided [docker-compose.yml](../docker-compose.yml):
+Use the provided [docker-compose.yml](../../docker-compose.yml):
 
 ```yaml
 version: '3.8'
@@ -1418,7 +1418,7 @@ systemctl start gravyclaw
 
 ### Logging Configuration
 
-Gravity Claw uses structured logging via [logger.ts](../src/logger.ts):
+Gravity Claw uses structured logging via [logger.ts](../../src/logger.ts):
 
 ```bash
 # In .env
@@ -2043,7 +2043,7 @@ app.use((req, res, next) => {
 
 ### Getting Help
 
-1. **Check documentation:** [docs/](../docs/)
+1. **Check documentation:** [docs/](../INDEX.md)
 2. **Review logs:** `journalctl -u gravyclaw -f`
 3. **Run diagnostics:** `npm run cli -- doctor`
 4. **GitHub Issues:** [Create an issue](https://github.com/noorulahamed/gravityclaw/issues)
@@ -2055,8 +2055,8 @@ app.use((req, res, next) => {
 
 - **Repository:** [github.com/noorulahamed/gravityclaw](https://github.com/noorulahamed/gravityclaw)
 - **CLI Guide:** [docs/CLI.md](CLI.md)
-- **Configuration:** [docs/ENCRYPTED_SECRETS.md](ENCRYPTED_SECRETS.md)
-- **Architecture:** [docs/](../docs/)
+- **Configuration:** [docs/ENCRYPTED_SECRETS.md](../ENCRYPTED_SECRETS.md)
+- **Architecture:** [docs/](../INDEX.md)
 
 ---
 

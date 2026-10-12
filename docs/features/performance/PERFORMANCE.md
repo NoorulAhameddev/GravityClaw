@@ -523,7 +523,6 @@ curl http://localhost:3000/api/metrics/memory
 
 ## For More Information
 
-- [Running Tests](../README.md#testing)
-- [Architecture Overview](../docs/CANVAS.md)
-- [Database Schema](../src/db.ts)
-- [Configuration Reference](../src/config.ts)
+- [Running Tests](../../../README.md#cli-commands)
+- [Architecture Details](../../architecture/ARCHITECTURE.md)
+- [Configuration Reference](../../environment.md)

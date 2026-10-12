@@ -399,6 +399,7 @@ The CLI respects these environment variables:
 
 ## See Also
 
-- [Main README](../README.md) - Project overview
-- [Configuration Guide](ENCRYPTED_SECRETS.md) - Environment setup
-- [Contributing Guide](../CONTRIBUTING.md) - Development guidelines
+- [Main README](../../README.md) - Project overview
+- [Configuration Reference](../environment.md) - Environment setup
+- [Encrypted Secrets](../ENCRYPTED_SECRETS.md) - Credential management
+- [Contributing Guide](../../CONTRIBUTING.md) - Development guidelines

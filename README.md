@@ -92,7 +92,7 @@ Memory System (SQLite WAL + Vector + Knowledge Graph + Markdown)
 | Channel Adapters              | `src/channels/`           |
 | Configuration (Zod-validated) | `src/config.ts`           |
 
-See [docs/architecture/ARCHITECTURE_OVERVIEW.md](docs/architecture/ARCHITECTURE_OVERVIEW.md) for detailed design.
+See [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) for detailed design.
 
 ---
 
@@ -134,7 +134,7 @@ pm2 save
 LLM_PROVIDER=ollama OLLAMA_BASE_URL=http://localhost:11434 npm start
 ```
 
-See [docs/guides/DEPLOYMENT.md](docs/guides/DEPLOYMENT.md) and [docs/infrastructure.md](docs/infrastructure.md) for production setup, including Terraform (AWS ECS Fargate + Redis + ALB).
+See [docs/guides/DEPLOYMENT.md](docs/guides/DEPLOYMENT.md) for deployment options.
 
 ---
 
@@ -143,11 +143,11 @@ See [docs/guides/DEPLOYMENT.md](docs/guides/DEPLOYMENT.md) and [docs/infrastruct
 | Category            | Documents                                                                                                                                                                                                                                                                          |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Getting Started** | [Environment Reference](docs/environment.md) &bull; [Quick Start](docs/guides/CLI.md) &bull; [API Reference](docs/guides/API.md)                                                                                                                                                   |
-| **Architecture**    | [Overview](docs/architecture/ARCHITECTURE_OVERVIEW.md) &bull; [Details](docs/architecture/ARCHITECTURE.md) &bull; [Pipeline](docs/architecture/PIPELINE.md)                                                                                                                        |
+| **Architecture**    | [Details](docs/architecture/ARCHITECTURE.md) &bull; [Pipeline](docs/architecture/PIPELINE.md)                                                                                                                                                                                     |
 | **Features**        | [Multi-Agent Systems](docs/MULTI_AGENT_SYSTEMS.md) &bull; [Skills](docs/SKILLS_GUIDE.md) &bull; [Proactive Features](docs/PROACTIVE_FEATURES.md) &bull; [Live Canvas](docs/features/canvas/CANVAS.md) &bull; [Model Switching](docs/guides/MODEL_SWITCHING.md)                     |
-| **Security**        | [Policy](SECURITY.md) &bull; [Air-Gap](docs/features/airgap/AIRGAP.md) &bull; [Encrypted Secrets](docs/ENCRYPTED_SECRETS.md) &bull; [Security Assessment](docs/security-assessment.md)                                                                                             |
-| **Operations**      | [Deployment](docs/guides/DEPLOYMENT.md) &bull; [Infrastructure](docs/infrastructure.md) &bull; [Backup & Restore](docs/features/backup/BACKUP_RESTORE_SYSTEM.md) &bull; [Observability](docs/features/observability/OBSERVABILITY.md) &bull; [Runbook](docs/operations/runbook.md) |
-| **Development**     | [Contributing](CONTRIBUTING.md) &bull; [Tools Reference](docs/TOOLS_REFERENCE.md) &bull; [Plugin System](src/plugins/README.md) &bull; [Architecture Decisions](adr/)                                                                                                              |
+| **Security**        | [Policy](SECURITY.md) &bull; [Air-Gap](docs/AIRGAP.md) &bull; [Encrypted Secrets](docs/ENCRYPTED_SECRETS.md) &bull; [Security Model](docs/features/security/AUTH_AND_AUDIT.md)                                                                                                   |
+| **Operations**      | [Deployment](docs/guides/DEPLOYMENT.md) &bull; [Backup & Restore](docs/features/backup/BACKUP_RESTORE_SYSTEM.md) &bull; [Observability](docs/features/observability/OBSERVABILITY.md)                                                                                               |
+| **Development**     | [Contributing](CONTRIBUTING.md) &bull; [Tools Reference](docs/TOOLS_REFERENCE.md) &bull; [Plugin System](src/plugins/README.md)                                                                                                                                                   |
 
 Complete index: [docs/INDEX.md](docs/INDEX.md)
 

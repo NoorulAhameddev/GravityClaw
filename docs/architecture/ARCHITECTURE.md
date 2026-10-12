@@ -1344,6 +1344,6 @@ Gravity Claw's architecture is designed for:
 For more details on specific subsystems, see:
 
 - [CLI Documentation](../guides/CLI.md)
-- [Dashboard Integration](../features/dashboard/DASHBOARD_INTEGRATION_COMPLETE.md)
-- [Air-Gap Mode](../features/airgap/AIRGAP.md)
+- [Live Canvas](../features/canvas/CANVAS.md)
+- [Air-Gap Mode](../AIRGAP.md)
 - [Model Switching](../guides/MODEL_SWITCHING.md)

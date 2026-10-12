@@ -629,7 +629,7 @@ Push live HTML/JS widget to Canvas interface.
 
 **Returns:** Push status
 
-**See**: [docs/CANVAS.md](CANVAS.md) for Canvas system details
+**See**: [features/canvas/CANVAS.md](features/canvas/CANVAS.md) for Canvas system details
 
 ### `ui_admin_create_user`
 
@@ -1348,8 +1348,8 @@ npm run test
 
 ## See Also
 
-- [API Reference](API.md) - REST and WebSocket API documentation
-- [Architecture](ARCHITECTURE.md) - System design and data flow
+- [API Reference](guides/API.md) - REST and WebSocket API documentation
+- [Architecture](architecture/ARCHITECTURE.md) - System design and data flow
 - [Plugin Development](../src/plugins/README.md) - Creating tool plugins
 - [Skills Guide](SKILLS_GUIDE.md) - Creating skill definitions
 - [Multi-Agent Systems](MULTI_AGENT_SYSTEMS.md) - Agent coordination

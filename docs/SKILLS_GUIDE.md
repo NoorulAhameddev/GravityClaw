@@ -633,5 +633,5 @@ Planned features:
 
 - [Plugins README](../src/plugins/README.md) - For runtime extensions
 - [Tools Reference](TOOLS_REFERENCE.md) - Built-in tool catalog
-- [Architecture](ARCHITECTURE.md) - System design
-- [API Reference](API.md) - Skill management APIs
+- [Architecture](architecture/ARCHITECTURE.md) - System design
+- [API Reference](guides/API.md) - Skill management APIs

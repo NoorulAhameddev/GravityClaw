@@ -20,12 +20,10 @@ New to GravityClaw? Start here:
 
 Understand the architecture and design:
 
-| Document                                                       | Description                          |
-| -------------------------------------------------------------- | ------------------------------------ |
-| [Architecture Overview](architecture/ARCHITECTURE_OVERVIEW.md) | Complete system architecture         |
-| [Architecture Details](architecture/ARCHITECTURE.md)           | Detailed technical design, data flow |
-| [Request Flow](#)                                              | How messages flow through the system |
-| [Database Schema](#)                                           | SQLite schema and table structure    |
+| Document                                             | Description                          |
+| ---------------------------------------------------- | ------------------------------------ |
+| [Architecture Details](architecture/ARCHITECTURE.md) | Detailed technical design, data flow |
+| [Pipeline Overview](architecture/PIPELINE.md)        | Pipeline execution architecture      |
 
 ---
 
@@ -47,12 +45,12 @@ Understand the architecture and design:
 
 ### Advanced Features
 
-| Document                                        | Description                        | Topics Covered                                            |
-| ----------------------------------------------- | ---------------------------------- | --------------------------------------------------------- |
-| [**Proactive Features**](PROACTIVE_FEATURES.md) | Heartbeat, recommendations, recaps | Scheduled check-ins, daily suggestions, evening summaries |
-| [Live Canvas (A2UI)](features/canvas/CANVAS.md) | Push rich HTML/JS widgets to users | Canvas protocol, examples, WebSocket integration          |
-| [Model Switching](guides/MODEL_SWITCHING.md)    | Dynamic provider/model selection   | Per-session overrides, failover, cost optimization        |
-| [Export Functionality](EXPORT_FUNCTIONALITY.md) | Data export tools                  | Chat history, memory, usage stats, knowledge graph        |
+| Document                                                       | Description                        | Topics Covered                                            |
+| -------------------------------------------------------------- | ---------------------------------- | --------------------------------------------------------- |
+| [**Proactive Features**](PROACTIVE_FEATURES.md)                | Heartbeat, recommendations, recaps | Scheduled check-ins, daily suggestions, evening summaries |
+| [Live Canvas (A2UI)](features/canvas/CANVAS.md)                | Push rich HTML/JS widgets to users | Canvas protocol, examples, WebSocket integration          |
+| [Model Switching](guides/MODEL_SWITCHING.md)                   | Dynamic provider/model selection   | Per-session overrides, failover, cost optimization        |
+| [Export Functionality](features/export/EXPORT_FUNCTIONALITY.md)| Data export tools                  | Chat history, memory, usage stats, knowledge graph        |
 
 ### Development & Automation
 
@@ -68,13 +66,12 @@ Understand the architecture and design:
 
 ### Security
 
-| Document                                                                | Description                         | Topics Covered                                  |
-| ----------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------- |
-| [**Security Policy**](../SECURITY.md)                                   | Vulnerability reporting, features   | Security features, best practices, contact info |
-| [Air-Gapped Mode](features/airgap/AIRGAP.md)                            | Complete offline operation          | Setup, enforcement, local models                |
-| [Encrypted Secrets](ENCRYPTED_SECRETS.md)                               | AES-256-GCM secret management       | Encryption, rotation, audit logging             |
-| [Security Implementation](features/security/SECURITY_IMPLEMENTATION.md) | Security features in depth          | Allowlisting, validation, audit trails          |
-| [Security Setup Guide](features/security/SECURITY_SETUP.md)             | Step-by-step security configuration | Initial setup, hardening, production checklist  |
+| Document                                                      | Description                         | Topics Covered                                  |
+| ------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------- |
+| [**Security Policy**](../SECURITY.md)                         | Vulnerability reporting, features   | Security features, best practices, contact info |
+| [Air-Gapped Mode](AIRGAP.md)                                  | Complete offline operation          | Setup, enforcement, local models                |
+| [Encrypted Secrets](ENCRYPTED_SECRETS.md)                     | AES-256-GCM secret management       | Encryption, rotation, audit logging             |
+| [Security Model & Audit](features/security/AUTH_AND_AUDIT.md) | Personal Agent Security & Audit log | Local security model, audit trails, allowances  |
 
 ### Backup & Data Management
 
@@ -117,7 +114,7 @@ Understand the architecture and design:
 
 | Location                                   | Contents                                  |
 | ------------------------------------------ | ----------------------------------------- |
-| [docs/examples/](examples/)                | Code examples and snippets                |
+| [examples/](../examples/)                  | Code examples and snippets                |
 | [Skills Examples](../skills/)              | Example skill files (calculator, weather) |
 | [Plugin Examples](../src/plugins/builtin/) | Built-in plugin implementations           |
 
@@ -127,7 +124,7 @@ Understand the architecture and design:
 | -------------------------------------------------------------------------------------------------- | ----------------------------------------- |
 | [Observability Quick Reference](features/observability/OBSERVABILITY.md#quick-start)               | Fast lookup for logging, metrics, tracing |
 | [Rate Limiting At-a-Glance](features/rate-limiting/RATE_LIMITING.md#configuration-quick-reference) | Fast lookup for rate limit configuration  |
-| [Security Quick Reference](features/security/SECURITY_QUICK_REFERENCE.md)                          | Security features and commands            |
+| [Security Model](features/security/AUTH_AND_AUDIT.md)                                              | Personal agent security architecture      |
 
 ---
 
@@ -139,8 +136,8 @@ Understand the architecture and design:
 
 1. [README Quick Start](../README.md#quick-start) - 5-minute setup
 2. [Deployment Guide](guides/DEPLOYMENT.md) - Production deployment
-3. [Security Setup](features/security/SECURITY_SETUP.md) - Secure your installation
-4. [Air-Gapped Mode](features/airgap/AIRGAP.md) - Offline operation
+3. [Security Model](features/security/AUTH_AND_AUDIT.md) - Secure your installation
+4. [Air-Gapped Mode](AIRGAP.md) - Offline operation
 
 #### Extend Functionality
 
@@ -153,7 +150,7 @@ Understand the architecture and design:
 
 1. [API Reference](guides/API.md) - REST and WebSocket APIs
 2. [Webhooks](guides/API.md#webhooks) - Incoming webhook integration
-3. [MCP Bridge](TOOLS_REFERENCE.md#mcp-bridge-tools) - Model Context Protocol
+3. [MCP Bridge](features/MCP_BRIDGE.md) - Model Context Protocol
 4. [Canvas Integration](features/canvas/CANVAS.md) - Push rich UIs to users
 
 #### Monitor & Optimize
@@ -167,8 +164,8 @@ Understand the architecture and design:
 
 1. [Security Policy](../SECURITY.md) - Overview of security features
 2. [Encrypted Secrets](ENCRYPTED_SECRETS.md) - Credential management
-3. [Security Implementation](features/security/SECURITY_IMPLEMENTATION.md) - Feature details
-4. [Air-Gapped Mode](features/airgap/AIRGAP.md) - Network isolation
+3. [Security Model](features/security/AUTH_AND_AUDIT.md) - Feature details
+4. [Air-Gapped Mode](AIRGAP.md) - Network isolation
 
 ---
 
@@ -233,9 +230,8 @@ All GravityClaw documentation follows these standards:
 
 Found an error in the docs? Please:
 
-1. Check the [audit report](DOCUMENTATION_AUDIT_REPORT.md) for known issues
-2. Open an issue on GitHub with "docs:" prefix
-3. Even better: Submit a pull request with the fix!
+1. Open an issue on GitHub with "docs:" prefix
+2. Even better: Submit a pull request with the fix!
 
 ### Feature Documentation Missing
 
@@ -276,9 +272,8 @@ Missing docs for a feature? Check:
 ## 🗺️ Documentation Sitemap
 
 ```
-gravyclaw/
+gravityclaw/
 ├── README.md                                  # Project overview
-├── ARCHITECTURE_OVERVIEW.md                   # System architecture
 ├── CONTRIBUTING.md                            # Contribution guide
 ├── SECURITY.md                               # Security policy
 ├── CODE_OF_CONDUCT.md                        # Community guidelines
@@ -286,44 +281,35 @@ gravyclaw/
 │
 └── docs/
     ├── INDEX.md (this file)                  # Documentation hub
-    ├── DOCUMENTATION_AUDIT_REPORT.md         # Audit findings
+    ├── README.md                             # Docs entry point
+    ├── environment.md                        # Environment configuration
+    ├── AIRGAP.md                             # Air-gapped mode
+    ├── ENCRYPTED_SECRETS.md                  # Secret vault management
+    ├── MULTI_AGENT_SYSTEMS.md                # Swarms & Mesh
+    ├── SKILLS_GUIDE.md                       # Skills authoring guide
+    ├── TOOLS_REFERENCE.md                    # Complete 80+ tools catalog
+    ├── PROACTIVE_FEATURES.md                 # Heartbeat & recaps
     │
-    ├── Getting Started/
-    │   ├── CLI.md                           # CLI reference
-    │   └── DEPLOYMENT.md                    # Deployment guide
+    ├── architecture/
+    │   ├── ARCHITECTURE.md                   # System architecture & loop
+    │   └── PIPELINE.md                       # Pipeline design
     │
-    ├── Core Features/
-    │   ├── TOOLS_REFERENCE.md               # All tools catalog
-    │   ├── MULTI_AGENT_SYSTEMS.md           # Swarms & Mesh
-    │   ├── SKILLS_GUIDE.md                  # Skills system
-    │   ├── PROACTIVE_FEATURES.md            # Heartbeat, recommendations, recap
-    │   ├── CANVAS.md                        # Live Canvas (A2UI)
-    │   ├── MODEL_SWITCHING.md               # Dynamic model selection
-    │   └── EXPORT_FUNCTIONALITY.md          # Data export tools
+    ├── features/
+    │   ├── backup/BACKUP_RESTORE_SYSTEM.md   # Backup & restore
+    │   ├── canvas/CANVAS.md                  # Live Canvas (A2UI)
+    │   ├── export/EXPORT_FUNCTIONALITY.md    # Data export tools
+    │   ├── observability/OBSERVABILITY.md    # Metrics & logging
+    │   ├── performance/PERFORMANCE.md        # Optimization
+    │   ├── rate-limiting/RATE_LIMITING.md    # Rate limiting
+    │   ├── security/AUTH_AND_AUDIT.md        # Personal agent security model
+    │   ├── touch-gestures/TOUCH_GESTURES.md  # Touch gestures
+    │   └── MCP_BRIDGE.md                     # Model Context Protocol
     │
-    ├── Architecture/
-    │   └── ARCHITECTURE.md                  # Detailed architecture
-    │
-    ├── API & Integration/
-    │   └── API.md                          # Complete API docs
-    │
-    ├── Security/
-    │   ├── AIRGAP.md                       # Air-gapped mode
-    │   ├── ENCRYPTED_SECRETS.md            # Secret management
-    │   ├── SECURITY_IMPLEMENTATION.md      # Security features
-    │   ├── SECURITY_SETUP.md               # Setup guide
-    │   └── SECURITY_QUICK_REFERENCE.md     # Quick lookup
-    │
-    ├── Operations/
-    │   ├── BACKUP_RESTORE_SYSTEM.md        # Backup guide
-    │   ├── OBSERVABILITY.md                # Monitoring
-    │   ├── PERFORMANCE.md                  # Optimization
-    │   └── RATE_LIMITING.md                # Rate limits
-    │
-    ├── Development/
-    │   └── ../src/plugins/README.md        # Plugin system
-    │
-    └── examples/                           # Code examples
+    └── guides/
+        ├── API.md                            # Complete API docs
+        ├── CLI.md                            # CLI commands reference
+        ├── DEPLOYMENT.md                     # Deployment guide
+        └── MODEL_SWITCHING.md                # LLM switcher guide
 ```
 
 ---

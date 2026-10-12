@@ -461,17 +461,14 @@ curl http://localhost:3000/api/traces/corr-1234567890-abc123
 | `src/observability/tracing.ts`       | Distributed tracing             |
 | `src/observability/index.ts`         | Module exports                  |
 | `src/tools/observability/metrics.ts` | Metrics tool for agents         |
-| `docs/OBSERVABILITY_INTEGRATION.md`  | Integration guide with examples |
 | `src/server.ts`                      | Health & metrics endpoints      |
 | `src/config.ts`                      | Configuration schema            |
 
 ## Next Steps
 
-1. **Review** [OBSERVABILITY_INTEGRATION.md](./OBSERVABILITY_INTEGRATION.md) for detailed examples
-2. **Integrate** observability into key components (agent, channels, db)
-3. **Configure** environment variables in `.env`
-4. **Monitor** using `/api/health` and `/metrics` endpoints
-5. **Export** traces/metrics to APM system (optional)
+1. **Configure** environment variables in `.env` (see `docs/environment.md`)
+2. **Monitor** using `/api/live`, `/api/ready`, and `/api/metrics/prometheus` endpoints
+3. **Trace** requests using correlation IDs in logs
 
 ---
 

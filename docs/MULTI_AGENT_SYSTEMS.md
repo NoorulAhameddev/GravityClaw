@@ -615,6 +615,6 @@ const result = await swarm.orchestrate('Implement a feature with full review', [
 ## See Also
 
 - [Tools Reference](TOOLS_REFERENCE.md) - `spawn_agent` and `aggregate_results` tools
-- [Architecture](ARCHITECTURE.md) - System design and agent execution
-- [API Reference](API.md) - Multi-agent API endpoints
-- [Performance](PERFORMANCE.md) - Optimization for multi-agent execution
+- [Architecture](architecture/ARCHITECTURE.md) - System design and agent execution
+- [API Reference](guides/API.md) - Multi-agent API endpoints
+- [Performance](features/performance/PERFORMANCE.md) - Optimization for multi-agent execution

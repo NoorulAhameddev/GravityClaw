@@ -638,5 +638,5 @@ Planned features:
 
 - [Scheduler Documentation](TOOLS_REFERENCE.md#scheduler-tools) - Task scheduling system
 - [Tools Reference](TOOLS_REFERENCE.md) - Heartbeat and admin tools
-- [Session Management](API.md#session-management) - Session settings API
-- [Configuration](../README.md#configuration) - Environment variables
+- [Session Management](guides/API.md#session-management) - Session settings API
+- [Configuration](environment.md) - Environment variables
