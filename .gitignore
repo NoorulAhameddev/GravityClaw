@@ -193,6 +193,7 @@ dist-ssr/
 .npm-cache/
 pawwork*
 pawwork/
+reference/
 
 # Keep these
 !.env.example

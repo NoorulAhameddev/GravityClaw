@@ -244,6 +244,11 @@ async function run(): Promise<void> {
         printHelp();
         process.exitCode = 1;
     }
+
+    const isInteractive = command === 'chat' || command === 'start';
+    if (!isInteractive) {
+      process.exit(process.exitCode ?? 0);
+    }
   } catch (err) {
     error(`Command failed: ${err instanceof Error ? err.message : String(err)}`);
 

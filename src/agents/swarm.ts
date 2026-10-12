@@ -7,7 +7,6 @@ import {
   addToolResult,
   getHistory,
 } from '../llm/index.ts';
-import { registry, toolExecutor } from '../tools/index.ts';
 import { config } from '../config.ts';
 import type { OrchestratorDependencies } from '../llm/orchestrator.ts';
 import crypto from 'crypto';
@@ -205,6 +204,7 @@ export class AgentSwarm {
         (ROLE_PROMPTS[role] || ROLE_PROMPTS.researcher) ?? 'You are a helpful assistant.';
       log.debug(`[${role}] Calling LLM with task: ${taskStr.substring(0, 50)}...`);
 
+      const { registry, toolExecutor } = await import('../tools/index.ts');
       const relevantTools = registry.getRelevantTools(truncatedTask);
       const safeSubagentTools = filterToolsForAgentRole(role, relevantTools);
       const toolDefs = registry.getOpenAIDefinitionsForTools(safeSubagentTools);

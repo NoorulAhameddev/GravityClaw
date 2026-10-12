@@ -17,6 +17,8 @@ export default [
       'memory-files/**',
       'public/**',
       'scripts/**',
+      'reference/**',
+      'pawwork/**',
     ],
   },
   {
