@@ -35,17 +35,12 @@ export interface BackupInfo {
 
 export class BackupManager {
   private backupDir: string;
-  private masterKey: string;
+  private masterKey: string | null;
   private encryptionAlgorithm = 'aes-256-gcm';
 
   constructor(backupDir: string, masterKey?: string) {
     this.backupDir = backupDir;
-    if (!masterKey?.trim()) {
-      throw new Error(
-        'MASTER_KEY or BACKUP_MASTER_KEY must be configured; refusing to use an ephemeral backup-encryption key.',
-      );
-    }
-    this.masterKey = masterKey;
+    this.masterKey = masterKey?.trim() ? masterKey : null;
 
     // Ensure backup directory exists
     if (!fs.existsSync(this.backupDir)) {
@@ -78,6 +73,11 @@ export class BackupManager {
   ): Promise<string> {
     const encrypt = options?.encrypt !== false;
     const compress = options?.compress !== false;
+    if (encrypt && !this.masterKey) {
+      throw new Error(
+        'MASTER_KEY or BACKUP_MASTER_KEY must be configured for encrypted backups; refusing to use an ephemeral key.',
+      );
+    }
     const resolvedDbPath = this.resolveLiveDbPath(dbPath);
 
     const timestamp = new Date()
