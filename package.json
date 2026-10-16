@@ -154,7 +154,7 @@
     "@types/node": "^22.13.5",
     "@types/node-cron": "^3.0.11",
     "@types/ws": "^8.18.2",
-    "@typescript-eslint/eslint-plugin": "^8.24.0",
+    "@typescript-eslint/eslint-plugin": "^8.71.2",
     "@typescript-eslint/parser": "^8.24.0",
     "@vitest/coverage-v8": "^4.0.18",
     "@vitest/ui": "^4.0.18",
