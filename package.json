@@ -117,6 +117,7 @@
     "chalk": "^5.6.2",
     "chromadb": "^3.3.1",
     "cohere-ai": "^7.20.0",
+    "commander": "^15.0.0",
     "cors": "^2.8.6",
     "dotenv": "^16.4.7",
     "enquirer": "^2.4.1",
