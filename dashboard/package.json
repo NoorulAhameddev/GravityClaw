@@ -13,7 +13,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4",
+    "react-dom": "^19.3.0",
     "react-router-dom": "^7.18.1",
     "tailwind-merge": "^3.5.0"
   },
@@ -22,7 +22,7 @@
     "@tailwindcss/postcss": "^4.2.1",
     "@types/node": "^24.12.0",
     "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
+    "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.0.0",
     "autoprefixer": "^10.4.27",
     "eslint": "^9.39.4",
