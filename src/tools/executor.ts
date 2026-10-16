@@ -294,15 +294,14 @@ export class ToolExecutor {
     // an approval record maintained by ApprovalGate can authorize execution.
     const requestId = request.approvalRequestId;
     if (requestId) {
-      const approval = approvalGate.getById(requestId);
-      if (
-        approval &&
-        approval.status === 'approved' &&
-        approval.toolName === tool.name &&
-        approval.sessionId === request.context.sessionId &&
-        approvalGate.matchesParameters(requestId, request.input)
-      ) {
-        return { allowed: true, approvedBy: approval.approver ?? 'approval-gate' };
+      const approval = approvalGate.consumeApproved(
+        requestId,
+        tool.name,
+        request.context.sessionId,
+        request.input,
+      );
+      if (approval.allowed) {
+        return { allowed: true, approvedBy: approval.approvedBy };
       }
     }
 
