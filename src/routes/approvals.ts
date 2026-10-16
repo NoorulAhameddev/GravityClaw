@@ -19,16 +19,22 @@ router.post('/', authMiddleware, validateBody(approvalCreateSchema), async (req,
   try {
     const { toolName, parameters, userId, sessionId: bodySessionId, channel } = req.body;
     const authUser = (req as any).user;
-    const sessionId = authUser?.id ? String(authUser.id) : bodySessionId;
-    if (authUser?.id && bodySessionId && String(bodySessionId) !== String(authUser.id)) {
-      log.warn(`Approval session mismatch: body ${bodySessionId} vs auth ${authUser.id}`);
-      return res
-        .status(403)
-        .json({ success: false, error: 'SessionId does not match authenticated principal' });
+    const principalId = String(authUser?.id || userId || 'api-key-holder');
+    const toolSessionId = `api:${toolName}`;
+    if (
+      bodySessionId &&
+      bodySessionId !== principalId &&
+      bodySessionId !== toolSessionId
+    ) {
+      log.warn(`Approval session mismatch: body ${bodySessionId} for tool ${toolName}`);
+      return res.status(403).json({
+        success: false,
+        error: 'SessionId does not match authenticated principal or tool session',
+      });
     }
     const request = await approvalGate.createApprovalRequest(toolName, parameters || {}, {
-      userId: authUser?.id ? String(authUser.id) : userId,
-      sessionId,
+      userId: principalId,
+      sessionId: toolSessionId,
       channel: channel || 'api',
     });
     res.json({ success: true, request });
@@ -41,19 +47,21 @@ router.post('/', authMiddleware, validateBody(approvalCreateSchema), async (req,
 router.get('/', authMiddleware, validateQuery(approvalsListQuerySchema), async (req, res) => {
   try {
     const authUser = (req as any).user;
+    const principalId = String(authUser?.id || 'api-key-holder');
     const querySessionId = req.query.sessionId as string | undefined;
-    if (authUser?.id && querySessionId && querySessionId !== String(authUser.id)) {
-      return res
-        .status(403)
-        .json({ success: false, error: 'SessionId does not match authenticated principal' });
+    if (
+      querySessionId &&
+      querySessionId !== principalId &&
+      !querySessionId.startsWith('api:')
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: 'SessionId does not match authenticated principal or tool session',
+      });
     }
-    const sessionId = authUser?.id ? String(authUser.id) : querySessionId;
-    let approvals;
-    if (sessionId && typeof sessionId === 'string') {
-      approvals = approvalGate.getBySession(sessionId);
-    } else {
-      approvals = approvalGate.getPending();
-    }
+    const approvals = querySessionId
+      ? approvalGate.getBySession(querySessionId).filter((item) => item.userId === principalId)
+      : approvalGate.getPending().filter((item) => item.userId === principalId);
     res.json({ success: true, approvals });
   } catch (error: any) {
     log.error('List approvals error', error);
@@ -69,8 +77,13 @@ router.post(
   async (req, res) => {
     try {
       const id = req.params.id as string;
-      const approver = req.body.approver as string;
-      const result = await approvalGate.approve(id, approver);
+      const principalId = String((req as any).user?.id || 'api-key-holder');
+      const existing = approvalGate.getById(id);
+      if (!existing) return res.status(404).json({ success: false, error: 'Approval request not found' });
+      if (existing.userId !== principalId) {
+        return res.status(403).json({ success: false, error: 'Approval belongs to a different principal' });
+      }
+      const result = await approvalGate.approve(id, principalId);
       if (!result.success) return res.status(400).json(result);
       res.json({ success: true, request: result.request });
     } catch (error: any) {
@@ -88,8 +101,13 @@ router.post(
   async (req, res) => {
     try {
       const id = req.params.id as string;
-      const approver = req.body.approver as string;
-      const result = await approvalGate.deny(id, approver);
+      const principalId = String((req as any).user?.id || 'api-key-holder');
+      const existing = approvalGate.getById(id);
+      if (!existing) return res.status(404).json({ success: false, error: 'Approval request not found' });
+      if (existing.userId !== principalId) {
+        return res.status(403).json({ success: false, error: 'Approval belongs to a different principal' });
+      }
+      const result = await approvalGate.deny(id, principalId);
       if (!result.success) return res.status(400).json(result);
       res.json({ success: true, request: result.request });
     } catch (error: any) {
@@ -105,6 +123,10 @@ router.get('/:id', authMiddleware, validateParams(approvalIdParamSchema), async 
     const request = approvalGate.getById(id);
     if (!request)
       return res.status(404).json({ success: false, error: 'Approval request not found' });
+    const principalId = String((req as any).user?.id || 'api-key-holder');
+    if (request.userId !== principalId) {
+      return res.status(403).json({ success: false, error: 'Approval belongs to a different principal' });
+    }
     res.json({ success: true, request });
   } catch (error: any) {
     log.error('Get approval error', error);
