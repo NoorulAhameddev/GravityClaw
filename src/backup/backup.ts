@@ -40,7 +40,12 @@ export class BackupManager {
 
   constructor(backupDir: string, masterKey?: string) {
     this.backupDir = backupDir;
-    this.masterKey = masterKey || randomBytes(32).toString('hex');
+    if (!masterKey?.trim()) {
+      throw new Error(
+        'MASTER_KEY or BACKUP_MASTER_KEY must be configured; refusing to use an ephemeral backup-encryption key.',
+      );
+    }
+    this.masterKey = masterKey;
 
     // Ensure backup directory exists
     if (!fs.existsSync(this.backupDir)) {
@@ -84,20 +89,13 @@ export class BackupManager {
     const baseName = `backup-${timestamp}-${Date.now()}`;
     let filename = baseName;
     let backupPath = path.join(this.backupDir, filename);
+    const tempBackupPath = path.join(this.backupDir, `${baseName}.tmp`);
 
     try {
-      // Step 1: Create unencrypted temporary backup using SQLite's backup API
-      const tempBackupPath = path.join(this.backupDir, `${baseName}.tmp`);
+      // Await SQLite's online backup API. A raw file-copy fallback is unsafe
+      // while WAL mode is active and can produce an inconsistent database snapshot.
       log.info(`Creating database backup: ${tempBackupPath}`);
-
-      try {
-        // Use better-sqlite3's backup method
-        db.backup(tempBackupPath);
-      } catch (err) {
-        log.error('SQLite backup failed, attempting file copy fallback', err, undefined);
-        // Fallback: copy the database file
-        fs.copyFileSync(resolvedDbPath, tempBackupPath);
-      }
+      await db.backup(tempBackupPath);
 
       // Step 2: Read the backup file
       let backupData: Buffer = fs.readFileSync(tempBackupPath);
@@ -149,6 +147,9 @@ export class BackupManager {
       // Clean up partial backup
       if (fs.existsSync(backupPath)) {
         fs.unlinkSync(backupPath);
+      }
+      if (fs.existsSync(tempBackupPath)) {
+        fs.unlinkSync(tempBackupPath);
       }
       throw err;
     }
