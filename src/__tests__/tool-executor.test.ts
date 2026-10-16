@@ -85,14 +85,14 @@ describe('ToolExecutor', () => {
     const request = await approvalGate.createApprovalRequest(
       'run_shell',
       { command: 'rm -rf /' },
-      { userId: 'test', sessionId: 'test:executor', channel: 'test' },
+      { userId: 'test', sessionId: 'test:executor:unsafe-approval', channel: 'test' },
     );
     await approvalGate.approve(request.id, 'test');
 
     const result = await createExecutor(tool).execute({
       toolName: 'run_shell',
       input: { command: 'rm -rf /' },
-      context: { sessionId: 'test:executor' },
+      context: { sessionId: 'test:executor:unsafe-approval' },
       approvalRequestId: request.id,
     });
 
@@ -148,7 +148,7 @@ describe('ToolExecutor', () => {
     const result = await createExecutor(tool).execute({
       toolName: 'forged_approval_tool',
       input: {},
-      context: { sessionId: 'test:executor' },
+      context: { sessionId: 'test:executor:forged-approval' },
       approval: { approvedBy: 'forged-admin' },
     });
 
@@ -177,14 +177,14 @@ describe('ToolExecutor', () => {
     const request = await approvalGate.createApprovalRequest(
       'parameter_bound_tool',
       { value: 'approved-value' },
-      { userId: 'test', sessionId: 'test:executor', channel: 'test' },
+      { userId: 'test', sessionId: 'test:executor:parameter-mismatch', channel: 'test' },
     );
     await approvalGate.approve(request.id, 'test');
 
     const result = await createExecutor(tool).execute({
       toolName: 'parameter_bound_tool',
       input: { value: 'different-value' },
-      context: { sessionId: 'test:executor' },
+      context: { sessionId: 'test:executor:parameter-mismatch' },
       approvalRequestId: request.id,
     });
 
@@ -217,7 +217,7 @@ describe('ToolExecutor', () => {
     const request = await approvalGate.createApprovalRequest(
       'approved_test_tool',
       { value: 'ok' },
-      { userId: 'user-1', sessionId: 'test:executor', channel: 'test' },
+      { userId: 'user-1', sessionId: 'test:executor:approved-valid', channel: 'test' },
     );
     await approvalGate.approve(request.id, 'test');
 
@@ -225,7 +225,7 @@ describe('ToolExecutor', () => {
       toolName: 'approved_test_tool',
       input: { value: 'ok' },
       context: {
-        sessionId: 'test:executor',
+        sessionId: 'test:executor:approved-valid',
         userId: 'user-1',
       },
       approvalRequestId: request.id,
