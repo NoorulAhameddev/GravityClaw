@@ -210,6 +210,10 @@ describe('FINDING-009: isPathSafe return semantics', () => {
     // Enough .. to escape any real working directory depth
     expect(isPathSafe(base, '../../../../../../../../../etc/passwd')).toBe(false);
   });
+
+  it('TC-010c: rejects sibling paths that merely share the base path prefix', () => {
+    expect(isPathSafe(base, `${base}-evil/secret.txt`)).toBe(false);
+  });
 });
 
 describe('Coverage gap: validatePathAccess empty allowedPaths', () => {

@@ -39,8 +39,13 @@ export async function initializeBackupSystem(
   try {
     log.info('Initializing backup system...');
 
-    // Create backup manager
+    // Encrypted backups must use a stable key so they remain decryptable after restart.
     const masterKey = config.MASTER_KEY || config.BACKUP_MASTER_KEY;
+    if (finalConfig.encryptBackups && !masterKey?.trim()) {
+      throw new Error(
+        'Encrypted backups require MASTER_KEY or BACKUP_MASTER_KEY; backup scheduling was not started.',
+      );
+    }
     backupManager = new BackupManager(finalConfig.backupDir, masterKey);
 
     // Create scheduler

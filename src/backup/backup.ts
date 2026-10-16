@@ -35,12 +35,12 @@ export interface BackupInfo {
 
 export class BackupManager {
   private backupDir: string;
-  private masterKey: string;
+  private masterKey: string | null;
   private encryptionAlgorithm = 'aes-256-gcm';
 
   constructor(backupDir: string, masterKey?: string) {
     this.backupDir = backupDir;
-    this.masterKey = masterKey || randomBytes(32).toString('hex');
+    this.masterKey = masterKey?.trim() ? masterKey : null;
 
     // Ensure backup directory exists
     if (!fs.existsSync(this.backupDir)) {
@@ -73,6 +73,11 @@ export class BackupManager {
   ): Promise<string> {
     const encrypt = options?.encrypt !== false;
     const compress = options?.compress !== false;
+    if (encrypt && !this.masterKey) {
+      throw new Error(
+        'MASTER_KEY or BACKUP_MASTER_KEY must be configured for encrypted backups; refusing to use an ephemeral key.',
+      );
+    }
     const resolvedDbPath = this.resolveLiveDbPath(dbPath);
 
     const timestamp = new Date()
@@ -84,20 +89,13 @@ export class BackupManager {
     const baseName = `backup-${timestamp}-${Date.now()}`;
     let filename = baseName;
     let backupPath = path.join(this.backupDir, filename);
+    const tempBackupPath = path.join(this.backupDir, `${baseName}.tmp`);
 
     try {
-      // Step 1: Create unencrypted temporary backup using SQLite's backup API
-      const tempBackupPath = path.join(this.backupDir, `${baseName}.tmp`);
+      // Await SQLite's online backup API. A raw file-copy fallback is unsafe
+      // while WAL mode is active and can produce an inconsistent database snapshot.
       log.info(`Creating database backup: ${tempBackupPath}`);
-
-      try {
-        // Use better-sqlite3's backup method
-        db.backup(tempBackupPath);
-      } catch (err) {
-        log.error('SQLite backup failed, attempting file copy fallback', err, undefined);
-        // Fallback: copy the database file
-        fs.copyFileSync(resolvedDbPath, tempBackupPath);
-      }
+      await db.backup(tempBackupPath);
 
       // Step 2: Read the backup file
       let backupData: Buffer = fs.readFileSync(tempBackupPath);
@@ -149,6 +147,9 @@ export class BackupManager {
       // Clean up partial backup
       if (fs.existsSync(backupPath)) {
         fs.unlinkSync(backupPath);
+      }
+      if (fs.existsSync(tempBackupPath)) {
+        fs.unlinkSync(tempBackupPath);
       }
       throw err;
     }
@@ -419,6 +420,11 @@ export class BackupManager {
 
   /** Derive a 32-byte key from master key */
   private deriveKey(): Buffer {
+    if (!this.masterKey) {
+      throw new Error(
+        'A persistent MASTER_KEY or BACKUP_MASTER_KEY is required for encrypted backups.',
+      );
+    }
     const hash = createHash('sha256');
     hash.update(this.masterKey);
     return hash.digest();

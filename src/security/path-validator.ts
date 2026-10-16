@@ -18,6 +18,17 @@ const UNRESTRICTED_ACCESS = config.UNRESTRICTED_ACCESS;
 
 const logger = createLogger('path-validator');
 
+/** True only when targetPath is the base path or a descendant of it. */
+function isPathWithin(basePath: string, targetPath: string): boolean {
+  const relativePath = path.relative(path.resolve(basePath), path.resolve(targetPath));
+  return (
+    relativePath === '' ||
+    (relativePath !== '..' &&
+      !relativePath.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relativePath))
+  );
+}
+
 let unrestrictedAccessCounter = 0;
 
 /**
@@ -201,7 +212,7 @@ function isSymlinkAllowed(filePath: string, allowedPaths: string[]): boolean {
     // Check if resolved path is within allowlist
     for (const allowedPath of allowedPaths) {
       const normalizedAllowed = path.resolve(allowedPath);
-      if (realPath.startsWith(normalizedAllowed)) {
+      if (isPathWithin(normalizedAllowed, realPath)) {
         return true;
       }
     }
@@ -340,7 +351,7 @@ export function validatePathAccess(
         const realPath = fs.realpathSync(filePath);
         const inAllowlist = config.allowedPaths.some((allowed) => {
           const normalizedAllowed = path.resolve(allowed);
-          return realPath.startsWith(normalizedAllowed);
+          return isPathWithin(normalizedAllowed, realPath);
         });
         if (!inAllowlist) {
           const result: PathValidationResult = {
@@ -410,9 +421,9 @@ export function getNormalizedPaths(paths: string[]): string[] {
  * @deprecated Use validatePathAccess for full validation including allowlists.
  */
 export function isPathSafe(basePath: string, targetPath: string): boolean {
-  const resolved = path.resolve(basePath, targetPath);
-  const normalized = path.normalize(resolved);
-  return normalized.startsWith(basePath);
+  const resolvedBase = path.resolve(basePath);
+  const resolvedTarget = path.resolve(resolvedBase, targetPath);
+  return isPathWithin(resolvedBase, resolvedTarget);
 }
 
 /**

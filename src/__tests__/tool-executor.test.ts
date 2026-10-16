@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Tool } from '../types/tools.js';
 import { ToolExecutor } from '../tools/executor.ts';
+import { approvalGate } from '../middleware/approval.ts';
 
 function createExecutor(tool: Tool) {
   return new ToolExecutor({
@@ -81,11 +82,18 @@ describe('ToolExecutor', () => {
       },
     };
 
+    const request = await approvalGate.createApprovalRequest(
+      'run_shell',
+      { command: 'rm -rf /' },
+      { userId: 'test', sessionId: 'test:executor:unsafe-approval', channel: 'test' },
+    );
+    await approvalGate.approve(request.id, 'test');
+
     const result = await createExecutor(tool).execute({
       toolName: 'run_shell',
       input: { command: 'rm -rf /' },
-      context: { sessionId: 'test:executor' },
-      approval: { approvedBy: 'test', reason: 'regression' },
+      context: { sessionId: 'test:executor:unsafe-approval' },
+      approvalRequestId: request.id,
     });
 
     expect(result.success).toBe(false);
@@ -93,7 +101,7 @@ describe('ToolExecutor', () => {
     expect(executed).toBe(false);
   });
 
-  it('requires approval for dangerous shell commands even when tool requiresApproval is false', async () => {
+  it('requires approval for commands matching danger patterns even when tool requiresApproval is false', async () => {
     let executed = false;
     const tool: Tool = {
       name: 'run_shell',
@@ -114,13 +122,74 @@ describe('ToolExecutor', () => {
 
     const result = await createExecutor(tool).execute({
       toolName: 'run_shell',
-      input: { command: 'Remove-Item -Recurse C:\\temp' },
+      input: { command: 'echo format' },
       context: { sessionId: 'test:executor' },
     });
 
     expect(result.success).toBe(false);
     expect(result.error?.type).toBe('approval_required');
     expect(result.error?.message).toContain('Dangerous command requires explicit confirmation');
+    expect(executed).toBe(false);
+  });
+
+  it('does not trust caller-supplied approval metadata', async () => {
+    let executed = false;
+    const tool: Tool = {
+      name: 'forged_approval_tool',
+      description: 'test tool',
+      inputSchema: { type: 'object', properties: {}, required: [] },
+      requiresApproval: true,
+      async execute() {
+        executed = true;
+        return 'executed';
+      },
+    };
+
+    const result = await createExecutor(tool).execute({
+      toolName: 'forged_approval_tool',
+      input: {},
+      context: { sessionId: 'test:executor:forged-approval' },
+      approval: { approvedBy: 'forged-admin' },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.type).toBe('approval_required');
+    expect(executed).toBe(false);
+  });
+
+  it('rejects an approval when execution parameters have changed', async () => {
+    let executed = false;
+    const tool: Tool = {
+      name: 'parameter_bound_tool',
+      description: 'test tool',
+      inputSchema: {
+        type: 'object',
+        properties: { value: { type: 'string' } },
+        required: ['value'],
+      },
+      requiresApproval: true,
+      async execute() {
+        executed = true;
+        return 'executed';
+      },
+    };
+
+    const request = await approvalGate.createApprovalRequest(
+      'parameter_bound_tool',
+      { value: 'approved-value' },
+      { userId: 'test', sessionId: 'test:executor:parameter-mismatch', channel: 'test' },
+    );
+    await approvalGate.approve(request.id, 'test');
+
+    const result = await createExecutor(tool).execute({
+      toolName: 'parameter_bound_tool',
+      input: { value: 'different-value' },
+      context: { sessionId: 'test:executor:parameter-mismatch' },
+      approvalRequestId: request.id,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.type).toBe('approval_required');
     expect(executed).toBe(false);
   });
 
@@ -145,23 +214,43 @@ describe('ToolExecutor', () => {
       },
     };
 
+    const request = await approvalGate.createApprovalRequest(
+      'approved_test_tool',
+      { value: 'ok' },
+      { userId: 'user-1', sessionId: 'test:executor:approved-valid', channel: 'test' },
+    );
+    await approvalGate.approve(request.id, 'test');
+
     const result = await createExecutor(tool).execute({
       toolName: 'approved_test_tool',
       input: { value: 'ok' },
       context: {
-        sessionId: 'test:executor',
+        sessionId: 'test:executor:approved-valid',
         userId: 'user-1',
       },
-      approval: { approvedBy: 'test', reason: 'regression' },
+      approvalRequestId: request.id,
     });
 
     expect(result.success).toBe(true);
     expect(result.result).toBe(
       JSON.stringify({
         value: 'ok',
-        sessionId: 'test:executor',
+        sessionId: 'test:executor:approved-valid',
         userId: 'user-1',
       }),
     );
+
+    const replayResult = await createExecutor(tool).execute({
+      toolName: 'approved_test_tool',
+      input: { value: 'ok' },
+      context: {
+        sessionId: 'test:executor:approved-valid',
+        userId: 'user-1',
+      },
+      approvalRequestId: request.id,
+    });
+
+    expect(replayResult.success).toBe(false);
+    expect(replayResult.error?.type).toBe('approval_required');
   });
 });

@@ -18,11 +18,16 @@ vi.mock('path', () => ({
   resolve: (...args: string[]) => args.filter((arg) => arg).join('/'),
   normalize: (p: string) => p,
   relative: (from: string, to: string) => {
-    if (to.startsWith(from)) {
-      return to.substring(from.length + (from.endsWith('/') ? 0 : 1));
+    const normalizedFrom = from.replaceAll(String.fromCharCode(92), '/');
+    const normalizedTo = to.replaceAll(String.fromCharCode(92), '/');
+    if (normalizedTo === normalizedFrom) return '';
+    if (normalizedTo.startsWith(`${normalizedFrom}/`)) {
+      return normalizedTo.substring(normalizedFrom.length + 1);
     }
-    return '../' + to;
+    return '../' + normalizedTo.split('/').filter(Boolean).pop();
   },
+  isAbsolute: (p: string) => p.startsWith('/') || /^[A-Za-z]:/.test(p),
+  sep: '/',
   basename: (p: string) => {
     const parts = p.split(/[/\\]/);
     return parts[parts.length - 1] ?? '';
@@ -50,6 +55,18 @@ describe('Path Validation Security', () => {
 
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain('Symlink');
+    });
+
+    it('should reject symlinks whose target only shares an allowed-path prefix', () => {
+      vi.mocked(fs.lstatSync).mockReturnValue({ isSymbolicLink: () => true } as any);
+      vi.mocked(fs.realpathSync).mockReturnValue('/workspace-evil/secret.txt' as any);
+
+      const result = validatePathAccess('/workspace/test_symlink', {
+        allowedPaths: ['/workspace'],
+        action: 'read',
+      });
+
+      expect(result.allowed).toBe(false);
     });
 
     it('should accept symlinks pointing inside allowed directories', () => {

@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { createLogger } from '../logger.ts';
 import { config as appConfig } from '../config.ts';
 
@@ -38,6 +38,24 @@ function parseApprovalTools(): Set<string> {
   return set;
 }
 
+function canonicalizeForHash(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalizeForHash);
+  if (value !== null && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.keys(record)
+        .sort()
+        .map((key) => [key, canonicalizeForHash(record[key])]),
+    );
+  }
+  return value;
+}
+
+function hashParameters(parameters: Record<string, unknown>): string {
+  const canonical = JSON.stringify(canonicalizeForHash(parameters)) ?? 'undefined';
+  return createHash('sha256').update(canonical).digest('hex');
+}
+
 export function sanitizeParameters(parameters: Record<string, unknown>): Record<string, unknown> {
   const sanitized: Record<string, unknown> = {};
   const sensitiveKeys = ['password', 'token', 'apiKey', 'secret', 'key'];
@@ -57,6 +75,7 @@ export function sanitizeParameters(parameters: Record<string, unknown>): Record<
 
 export class ApprovalGate {
   private pendingApprovals = new Map<string, ApprovalRequest>();
+  private readonly parameterHashes = new WeakMap<ApprovalRequest, string>();
   private config: ApprovalConfig;
   private approvalCallbacks: ((request: ApprovalRequest) => void)[] = [];
 
@@ -116,6 +135,7 @@ export class ApprovalGate {
       requestedBy: context.userId || context.sessionId || context.channel || 'unknown',
     };
 
+    this.parameterHashes.set(request, hashParameters(parameters));
     this.pendingApprovals.set(id, request);
     log.info(`Created approval request ${id} for tool ${toolName}`);
 
@@ -187,6 +207,40 @@ export class ApprovalGate {
 
   getById(id: string): ApprovalRequest | undefined {
     return this.pendingApprovals.get(id);
+  }
+
+  /**
+   * Atomically authorize one execution and consume its approval. Reusing an
+   * approved request is rejected, even when tool/session/parameters match.
+   */
+  consumeApproved(
+    id: string,
+    toolName: string,
+    sessionId: string,
+    parameters: Record<string, unknown>,
+  ): { allowed: true; approvedBy: string } | { allowed: false } {
+    const request = this.pendingApprovals.get(id);
+    if (
+      !request ||
+      request.status !== 'approved' ||
+      request.toolName !== toolName ||
+      request.sessionId !== sessionId ||
+      this.parameterHashes.get(request) !== hashParameters(parameters)
+    ) {
+      return { allowed: false };
+    }
+
+    // Delete synchronously so concurrent calls cannot reuse this approval.
+    this.pendingApprovals.delete(id);
+    return { allowed: true, approvedBy: request.approver ?? 'approval-gate' };
+  }
+
+  /** Verify that an approval covers the exact parameters (for diagnostics/tests). */
+  matchesParameters(id: string, parameters: Record<string, unknown>): boolean {
+    const request = this.pendingApprovals.get(id);
+    return Boolean(
+      request && this.parameterHashes.get(request) === hashParameters(parameters),
+    );
   }
 
   getBySession(sessionId: string): ApprovalRequest[] {

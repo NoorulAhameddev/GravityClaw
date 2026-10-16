@@ -67,10 +67,9 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
   const method = req.method;
   const clientIp = req.ip || 'unknown';
 
-  // Security: Require API key in production unless explicitly configured to allow localhost
-  // In development (NODE_ENV !== production), allow localhost for easier testing
-  const isDevMode = process.env.NODE_ENV !== 'production';
-  const allowLocalhostBypass = isDevMode || config.AUTH_ALLOW_LOCALHOST === true;
+  // Never infer authentication bypass from NODE_ENV. Localhost bypass must be
+  // explicitly enabled, because browsers can initiate requests to loopback services.
+  const allowLocalhostBypass = config.AUTH_ALLOW_LOCALHOST === true;
 
   if (!config.API_KEY) {
     log.warn(`SECURITY: No API_KEY configured - rejecting request: ${method} ${path}`);
@@ -124,11 +123,12 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
   }
 
   req.apiKey = apiKey;
-  const configuredRole = (req.headers['x-user-role'] as string) || 'admin';
-  req.role = configuredRole;
+  // A shared API key represents one principal. Do not trust caller-controlled
+  // identity or role headers for authorization or audit attribution.
+  req.role = 'admin';
   req.user = {
-    id: (req.headers['x-user-id'] as string) || 'api-key-holder',
-    role: configuredRole,
+    id: 'api-key-holder',
+    role: 'admin',
   };
   log.debug(`Authenticated request: ${method} ${path}`);
   next();
