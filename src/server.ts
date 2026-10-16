@@ -2,6 +2,7 @@ import express from 'express';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config } from './config.ts';
 import { createLogger } from './logger.ts';
@@ -156,11 +157,6 @@ const distPath = path.join(process.cwd(), 'dashboard', 'dist');
 app.use(express.static(distPath));
 // Fallback to legacy 'public' directory for other assets
 app.use(express.static(path.join(process.cwd(), 'public')));
-
-// SPA fallback for the modern dashboard
-app.get(/^(?!\/(api|webhook|metrics)).*$/, (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
-});
 
 // Initialize audit table
 ensureAuditTable();
@@ -362,7 +358,15 @@ app.get('/api/heartbeats', authMiddleware, (req, res) => {
   }
 });
 
-// WhatsApp endpoints removed — channel implementation not available
+// SPA fallback for the modern dashboard or legacy public UI
+app.get(/^(?!\/(api|webhook|metrics|auth)).*$/, (_req, res) => {
+  const dashboardIndex = path.join(distPath, 'index.html');
+  if (fs.existsSync(dashboardIndex)) {
+    res.sendFile(dashboardIndex);
+  } else {
+    res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
+  }
+});
 
 app.use(errorHandler);
 

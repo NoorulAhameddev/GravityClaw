@@ -289,6 +289,12 @@ export class Orchestrator {
         } else {
           const reason =
             result.reason instanceof Error ? result.reason.message : String(result.reason);
+          context.onToolEnd?.(toolCall.function.name, false, reason);
+          if (context.onProgress) {
+            await context.onProgress(
+              `Tool ${toolCall.function.name} failed (${reason})`,
+            ).catch(() => {});
+          }
           addToolResult(
             context.sessionId,
             toolCall.id,
