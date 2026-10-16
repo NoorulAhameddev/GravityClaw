@@ -103,7 +103,7 @@
     "@opentelemetry/auto-instrumentations-node": "^0.55.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.57.0",
     "@opentelemetry/resources": "^1.27.0",
-    "@opentelemetry/sdk-node": "^0.57.0",
+    "@opentelemetry/sdk-node": "^0.223.0",
     "@opentelemetry/sdk-trace-node": "^1.27.0",
     "@opentelemetry/semantic-conventions": "^1.27.0",
     "@sentry/node": "^10.66.0",
