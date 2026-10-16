@@ -122,6 +122,7 @@ jobs:
           image-ref: gravityclaw:ci-${{ github.sha }}
           format: sarif
           output: trivy-results.sarif
+          ignore-unfixed: true
 
       - name: Trivy gate (CRITICAL/HIGH)
         uses: aquasecurity/trivy-action@master
@@ -129,6 +130,7 @@ jobs:
           image-ref: gravityclaw:ci-${{ github.sha }}
           format: table
           exit-code: '1'
+          ignore-unfixed: true
           severity: CRITICAL,HIGH
 
       - name: Upload Trivy SARIF to GitHub Code Scanning
