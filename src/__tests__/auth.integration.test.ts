@@ -105,6 +105,25 @@ describe('Auth Middleware', () => {
       expect(res.status).not.toHaveBeenCalled();
     });
 
+    it('should ignore caller-controlled identity and role headers', async () => {
+      const { authMiddleware } = await import('../middleware/auth.ts');
+      const req = createReq({
+        headers: {
+          'x-api-key': 'test-api-key-123',
+          'x-user-role': 'superadmin',
+          'x-user-id': 'victim-user',
+        },
+      });
+      const res = createRes();
+      const next = vi.fn();
+
+      authMiddleware(req, res, next);
+
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(req.role).toBe('admin');
+      expect(req.user).toEqual({ id: 'api-key-holder', role: 'admin' });
+    });
+
     it('should set req.apiKey when valid key is provided', async () => {
       const { authMiddleware } = await import('../middleware/auth.ts');
       const req = createReq({ headers: { 'x-api-key': 'test-api-key-123' } });
@@ -157,7 +176,7 @@ describe('Auth Middleware', () => {
       }));
     });
 
-    it('should allow localhost requests without API key in dev mode', async () => {
+    it('should reject localhost requests without API key unless explicitly enabled', async () => {
       const { authMiddleware } = await import('../middleware/auth.ts');
       const req = createReq({ headers: {}, ip: '127.0.0.1' });
       const res = createRes();
@@ -165,10 +184,11 @@ describe('Auth Middleware', () => {
 
       authMiddleware(req, res, next);
 
-      expect(next).toHaveBeenCalledTimes(1);
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(next).not.toHaveBeenCalled();
     });
 
-    it('should allow ::1 localhost bypass in dev mode', async () => {
+    it('should reject ::1 localhost without API key by default', async () => {
       const { authMiddleware } = await import('../middleware/auth.ts');
       const req = createReq({ headers: {}, ip: '::1' });
       const res = createRes();
@@ -176,10 +196,11 @@ describe('Auth Middleware', () => {
 
       authMiddleware(req, res, next);
 
-      expect(next).toHaveBeenCalledTimes(1);
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(next).not.toHaveBeenCalled();
     });
 
-    it('should allow IPv6 localhost mapped IPv4 bypass in dev mode', async () => {
+    it('should reject IPv4-mapped localhost without API key by default', async () => {
       const { authMiddleware } = await import('../middleware/auth.ts');
       const req = createReq({ headers: {}, ip: '::ffff:127.0.0.1' });
       const res = createRes();
@@ -187,7 +208,8 @@ describe('Auth Middleware', () => {
 
       authMiddleware(req, res, next);
 
-      expect(next).toHaveBeenCalledTimes(1);
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('should require API key from non-localhost even in dev mode', async () => {
