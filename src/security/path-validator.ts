@@ -19,14 +19,67 @@ const UNRESTRICTED_ACCESS = config.UNRESTRICTED_ACCESS;
 const logger = createLogger('path-validator');
 
 /** True only when targetPath is the base path or a descendant of it. */
+function samePath(left: string, right: string): boolean {
+  return process.platform === 'win32'
+    ? left.toLowerCase() === right.toLowerCase()
+    : left === right;
+}
+
+/** True only when targetPath is the base path or a descendant of it. */
 function isPathWithin(basePath: string, targetPath: string): boolean {
-  const relativePath = path.relative(path.resolve(basePath), path.resolve(targetPath));
+  let base = path.resolve(basePath);
+  let target = path.resolve(targetPath);
+  if (process.platform === 'win32') {
+    base = base.toLowerCase();
+    target = target.toLowerCase();
+  }
+  const relativePath = path.relative(base, target);
   return (
     relativePath === '' ||
     (relativePath !== '..' &&
-      !relativePath.startsWith(`..${path.sep}`) &&
+      !relativePath.startsWith('..' + path.sep) &&
       !path.isAbsolute(relativePath))
   );
+}
+
+function isMissingPathError(error: unknown): boolean {
+  const value = error as NodeJS.ErrnoException;
+  return value?.code === 'ENOENT' || value?.code === 'ENOTDIR';
+}
+
+/**
+ * Resolve a path through every existing filesystem component. If the final
+ * target does not exist, resolve its nearest existing ancestor and append the
+ * remaining components. Broken symlinks and other resolution errors fail closed.
+ */
+function resolveCanonicalPath(filePath: string): { resolvedPath: string; isSymlink: boolean } {
+  const absolutePath = path.resolve(filePath);
+  let cursor = absolutePath;
+  const missingComponents: string[] = [];
+
+  while (true) {
+    let stats: fs.Stats;
+    try {
+      stats = fs.lstatSync(cursor);
+    } catch (error) {
+      if (!isMissingPathError(error)) throw error;
+      const parent = path.dirname(cursor);
+      if (parent === cursor) throw error;
+      missingComponents.push(path.basename(cursor));
+      cursor = parent;
+      continue;
+    }
+
+    // Existing but broken/cyclic symlinks must fail closed. Do not catch this
+    // realpath error and treat the symlink as a not-yet-created target.
+    const realCursor = path.resolve(fs.realpathSync(cursor));
+    const suffix = missingComponents.slice().reverse();
+    const resolvedPath = path.resolve(realCursor, ...suffix);
+    return {
+      resolvedPath,
+      isSymlink: stats.isSymbolicLink() || !samePath(resolvedPath, absolutePath),
+    };
+  }
 }
 
 let unrestrictedAccessCounter = 0;
@@ -106,69 +159,17 @@ const BLOCKED_FILE_PATTERNS = [
   /sudoers/i,
 ];
 
-// Validation cache (results cached for 5 minutes)
+// Kept for API compatibility. Successful filesystem decisions are not cached
+// because symlinks can be replaced between calls.
 const validationCache = new Map<string, { result: PathValidationResult; timestamp: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const MAX_CACHE_SIZE = 500;
 
 /**
- * Clear old cache entries
- */
-function removeOldCacheEntries(): void {
-  const now = Date.now();
-  const keysToDelete: string[] = [];
-
-  for (const [key, entry] of validationCache.entries()) {
-    if (now - entry.timestamp > CACHE_TTL_MS) {
-      keysToDelete.push(key);
-    }
-  }
-
-  keysToDelete.forEach((key) => validationCache.delete(key));
-}
-
-/**
- * Enforce cache size limit with LRU-style eviction
- */
-function enforceCacheLimit(): void {
-  while (validationCache.size > MAX_CACHE_SIZE) {
-    let oldestKey: string | null = null;
-    let oldestTime = Date.now();
-
-    for (const [key, entry] of validationCache.entries()) {
-      if (entry.timestamp < oldestTime) {
-        oldestTime = entry.timestamp;
-        oldestKey = key;
-      }
-    }
-
-    if (oldestKey) {
-      validationCache.delete(oldestKey);
-    } else {
-      break;
-    }
-  }
-}
-
-/**
- * Check if path contains traversal components (e.g., ..)
+ * Reject traversal components and NUL bytes before canonical filesystem checks.
  */
 function hasPathTraversal(filePath: string): boolean {
-  // Check for .. components
-  if (filePath.includes('..')) {
-    return true;
-  }
-
-  // Normalize and check if still valid
-  const normalized = path.normalize(filePath);
-  const resolved = path.resolve(filePath);
-
-  // Check for null bytes (another traversal technique)
-  if (filePath.includes('\0')) {
-    return true;
-  }
-
-  return false;
+  if (filePath.includes('\0')) return true;
+  return filePath.split(/[\\/]/).some((segment) => segment === '..');
 }
 
 /**
@@ -196,204 +197,102 @@ function matchesBlockedPatterns(filePath: string): boolean {
 }
 
 /**
- * Resolve symlinks and verify the real path is allowed
- */
-function isSymlinkAllowed(filePath: string, allowedPaths: string[]): boolean {
-  try {
-    // Check if file exists and is a symlink
-    const stats = fs.lstatSync(filePath);
-    if (!stats.isSymbolicLink()) {
-      return true; // Not a symlink, allowed to proceed
-    }
-
-    // Resolve the actual path (follow symlinks)
-    const realPath = fs.realpathSync(filePath);
-
-    // Check if resolved path is within allowlist
-    for (const allowedPath of allowedPaths) {
-      const normalizedAllowed = path.resolve(allowedPath);
-      if (isPathWithin(normalizedAllowed, realPath)) {
-        return true;
-      }
-    }
-
-    // Symlink resolves outside allowlist
-    logger.warn(`Symlink escapes allowlist: ${filePath} -> ${realPath}`);
-    return false;
-  } catch (err) {
-    // CRITICAL: Fail closed - reject on any error to prevent symlink attacks
-    logger.warn(
-      `Symlink validation failed (rejecting): ${filePath}. Error: ${err instanceof Error ? err.message : String(err)}`,
-    );
-    return false;
-  }
-}
-
-/**
- * Check if path is within any allowed directory
- */
-function isPathInAllowlist(filePath: string, allowedPaths: string[]): boolean {
-  let absolutePath = path.resolve(filePath);
-
-  // On Windows, NTFS is case-insensitive — normalize to lowercase to prevent
-  // bypass via mixed-case paths (e.g. C:\WORKSPACE vs C:\workspace)
-  if (process.platform === 'win32') {
-    absolutePath = absolutePath.toLowerCase();
-  }
-
-  for (const allowedPath of allowedPaths) {
-    let normalizedAllowed = path.resolve(allowedPath);
-    if (process.platform === 'win32') {
-      normalizedAllowed = normalizedAllowed.toLowerCase();
-    }
-
-    const relative = path.relative(normalizedAllowed, absolutePath);
-
-    if (!relative.startsWith('..') && relative !== '..') {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
  * Main path validation function
  */
 export function validatePathAccess(
   filePath: string,
-  config: PathValidationConfig,
+  options: PathValidationConfig,
 ): PathValidationResult {
-  // Check cache first (only for non-symlink paths)
-  const cacheKey = `${filePath}:${config.allowedPaths.join(',')}:${config.action}`;
-  const cached = validationCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS && !cached.result.isSymlink) {
-    return cached.result;
+  const { checkTraversal = true, logFailures = true } = options;
+
+  if (typeof filePath !== 'string' || filePath.trim().length === 0) {
+    return { allowed: false, reason: 'Path is empty' };
   }
 
-  // Clean old cache entries periodically
-  if (validationCache.size > MAX_CACHE_SIZE) {
-    removeOldCacheEntries();
-    enforceCacheLimit();
-  }
-
-  // Default config values
-  const { checkSymlinks = true, checkTraversal = true, logFailures = true } = config;
-
-  // GLOBAL BYPASS: If unrestricted access is enabled, allow ALL paths immediately
-  if (UNRESTRICTED_ACCESS) {
-    const resolvedPath = path.resolve(filePath);
-    logger.warn(`UNRESTRICTED_ACCESS enabled - allowing path: ${filePath}`);
-    unrestrictedAccessCounter++;
-    if (unrestrictedAccessCounter === 1 || unrestrictedAccessCounter % 100 === 0) {
-      logger.error(
-        `[SECURITY_TELEMETRY] UNRESTRICTED_ACCESS bypass has been used ${unrestrictedAccessCounter} time(s). ` +
-          `This flag disables ALL path validation. Ensure it is OFF in production and staging.`,
-      );
-    }
-    return {
-      allowed: true,
-      resolvedPath,
-      isSymlink: false,
-    };
-  }
-
-  // Validate empty path
-  if (!filePath || filePath.trim().length === 0) {
-    const result: PathValidationResult = {
-      allowed: false,
-      reason: 'Path is empty',
-    };
-    if (logFailures) logger.warn(`Path validation failed: ${result.reason}`);
-    return result;
-  }
-
-  // Check for path traversal
   if (checkTraversal && hasPathTraversal(filePath)) {
     const result: PathValidationResult = {
       allowed: false,
       reason: 'Path contains traversal components (..)',
     };
-    if (logFailures) logger.warn(`Path traversal detected: ${filePath}`);
+    if (logFailures) logger.warn('Path traversal detected: ' + filePath);
     return result;
   }
 
-  // Check blocked patterns
   if (matchesBlockedPatterns(filePath)) {
     const result: PathValidationResult = {
       allowed: false,
       reason: 'Path matches blocked pattern (system dir or sensitive file)',
     };
-    if (logFailures) logger.warn(`Path matches blocked pattern: ${filePath}`);
+    if (logFailures) logger.warn('Path matches blocked pattern: ' + filePath);
     return result;
   }
 
-  // Check if in allowlist
-  if (!isPathInAllowlist(filePath, config.allowedPaths)) {
+  // Only an explicit operator setting may bypass filesystem validation.
+  if (UNRESTRICTED_ACCESS) {
+    const resolvedPath = path.resolve(filePath);
+    logger.warn('UNRESTRICTED_ACCESS enabled - allowing path: ' + filePath);
+    unrestrictedAccessCounter++;
+    if (unrestrictedAccessCounter === 1 || unrestrictedAccessCounter % 100 === 0) {
+      logger.error(
+        '[SECURITY_TELEMETRY] UNRESTRICTED_ACCESS bypass has been used ' +
+          unrestrictedAccessCounter +
+          ' time(s). This flag disables all path validation. Ensure it is OFF in production and staging.',
+      );
+    }
+    return { allowed: true, resolvedPath, isSymlink: false };
+  }
+
+  let canonicalTarget: { resolvedPath: string; isSymlink: boolean };
+  let canonicalAllowedPaths: string[];
+  try {
+    canonicalTarget = resolveCanonicalPath(filePath);
+    canonicalAllowedPaths = options.allowedPaths.map(
+      (allowed) => resolveCanonicalPath(allowed).resolvedPath,
+    );
+  } catch (error) {
     const result: PathValidationResult = {
       allowed: false,
-      reason: `Path not in allowlist: ${config.allowedPaths.join(', ')}`,
+      reason: 'Path could not be resolved safely',
     };
     if (logFailures) {
-      logger.warn(`Path not in allowlist: ${filePath}`);
-      logger.debug(`Allowed paths: ${config.allowedPaths.join(', ')}`);
+      logger.warn(
+        'Path resolution failed (rejecting): ' +
+          filePath +
+          ': ' +
+          (error instanceof Error ? error.message : String(error)),
+      );
     }
     return result;
   }
 
-  // Check symlinks — capture result to avoid a second lstatSync call
-  let isSymlink = false;
-  if (checkSymlinks) {
-    try {
-      const stats = fs.lstatSync(filePath);
-      isSymlink = stats.isSymbolicLink();
-      if (isSymlink) {
-        const realPath = fs.realpathSync(filePath);
-        const inAllowlist = config.allowedPaths.some((allowed) => {
-          const normalizedAllowed = path.resolve(allowed);
-          return isPathWithin(normalizedAllowed, realPath);
-        });
-        if (!inAllowlist) {
-          const result: PathValidationResult = {
-            allowed: false,
-            reason: 'Symlink resolves outside of allowlist',
-          };
-          if (logFailures) logger.warn(`Symlink escapes allowlist: ${filePath}`);
-          return result;
-        }
-      }
-    } catch (err: any) {
-      // If file doesn't exist, it's not a symlink (yet)
-      if (err.code === 'ENOENT') {
-        isSymlink = false;
-      } else {
-        logger.warn(
-          `Symlink validation failed (rejecting): ${filePath}. Error: ${err instanceof Error ? err.message : String(err)}`,
-        );
-        const result: PathValidationResult = {
-          allowed: false,
-          reason: 'Symlink validation failed',
-        };
-        return result;
-      }
-    }
+  if (matchesBlockedPatterns(canonicalTarget.resolvedPath)) {
+    const result: PathValidationResult = {
+      allowed: false,
+      reason: 'Canonical path matches blocked pattern (system dir or sensitive file)',
+    };
+    if (logFailures) logger.warn('Canonical path matches blocked pattern: ' + canonicalTarget.resolvedPath);
+    return result;
   }
 
-  // All checks passed
-  const resolvedPath = path.resolve(filePath);
-  const result: PathValidationResult = {
+  const inAllowlist = canonicalAllowedPaths.some((allowed) =>
+    isPathWithin(allowed, canonicalTarget.resolvedPath),
+  );
+  if (!inAllowlist) {
+    const result: PathValidationResult = {
+      allowed: false,
+      reason: 'Path not in canonical allowlist: ' + options.allowedPaths.join(', '),
+    };
+    if (logFailures) {
+      logger.warn('Canonical path not in allowlist: ' + filePath + ' -> ' + canonicalTarget.resolvedPath);
+    }
+    return result;
+  }
+
+  return {
     allowed: true,
-    resolvedPath,
-    isSymlink,
+    resolvedPath: canonicalTarget.resolvedPath,
+    isSymlink: canonicalTarget.isSymlink,
   };
-
-  // Cache successful result
-  validationCache.set(cacheKey, {
-    result,
-    timestamp: Date.now(),
-  });
-
-  return result;
 }
 
 /**
@@ -421,9 +320,14 @@ export function getNormalizedPaths(paths: string[]): string[] {
  * @deprecated Use validatePathAccess for full validation including allowlists.
  */
 export function isPathSafe(basePath: string, targetPath: string): boolean {
-  const resolvedBase = path.resolve(basePath);
-  const resolvedTarget = path.resolve(resolvedBase, targetPath);
-  return isPathWithin(resolvedBase, resolvedTarget);
+  try {
+    const resolvedBase = resolveCanonicalPath(path.resolve(basePath)).resolvedPath;
+    const lexicalTarget = path.resolve(resolvedBase, targetPath);
+    const resolvedTarget = resolveCanonicalPath(lexicalTarget).resolvedPath;
+    return isPathWithin(resolvedBase, resolvedTarget);
+  } catch {
+    return false;
+  }
 }
 
 /**
