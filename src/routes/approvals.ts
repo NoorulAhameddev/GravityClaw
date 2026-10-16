@@ -17,9 +17,9 @@ export const router = Router();
 
 router.post('/', authMiddleware, validateBody(approvalCreateSchema), async (req, res) => {
   try {
-    const { toolName, parameters, userId, sessionId: bodySessionId, channel } = req.body;
+    const { toolName, parameters, sessionId: bodySessionId, channel } = req.body;
     const authUser = (req as any).user;
-    const principalId = String(authUser?.id || userId || 'api-key-holder');
+    const principalId = String(authUser?.id || 'api-key-holder');
     const toolSessionId = `api:${toolName}`;
     if (
       bodySessionId &&
@@ -79,7 +79,9 @@ router.post(
       const id = req.params.id as string;
       const principalId = String((req as any).user?.id || 'api-key-holder');
       const existing = approvalGate.getById(id);
-      if (!existing) return res.status(404).json({ success: false, error: 'Approval request not found' });
+      if (!existing) {
+        return res.status(404).json({ success: false, error: 'Approval request not found' });
+      }
       if (existing.userId !== principalId) {
         return res.status(403).json({ success: false, error: 'Approval belongs to a different principal' });
       }
@@ -103,7 +105,9 @@ router.post(
       const id = req.params.id as string;
       const principalId = String((req as any).user?.id || 'api-key-holder');
       const existing = approvalGate.getById(id);
-      if (!existing) return res.status(404).json({ success: false, error: 'Approval request not found' });
+      if (!existing) {
+        return res.status(404).json({ success: false, error: 'Approval request not found' });
+      }
       if (existing.userId !== principalId) {
         return res.status(403).json({ success: false, error: 'Approval belongs to a different principal' });
       }
@@ -125,7 +129,9 @@ router.get('/:id', authMiddleware, validateParams(approvalIdParamSchema), async 
       return res.status(404).json({ success: false, error: 'Approval request not found' });
     const principalId = String((req as any).user?.id || 'api-key-holder');
     if (request.userId !== principalId) {
-      return res.status(403).json({ success: false, error: 'Approval belongs to a different principal' });
+      return res
+        .status(403)
+        .json({ success: false, error: 'Approval belongs to a different principal' });
     }
     res.json({ success: true, request });
   } catch (error: any) {
