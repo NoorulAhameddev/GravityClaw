@@ -1,7 +1,4 @@
 import type { Request, Response, NextFunction } from 'express';
-import { createLogger } from '../logger.ts';
-
-const log = createLogger('tenant');
 
 export interface TenantContext {
   id: string;
@@ -17,18 +14,16 @@ declare global {
 }
 
 export function tenantMiddleware(req: Request, _res: Response, next: NextFunction) {
-  const tenantId = req.headers['x-tenant-id'] as string | undefined;
+  // Raw x-tenant-id is attacker-controlled. An authentication adapter may set
+  // authenticatedTenantId only after validating a tenant-bound credential.
+  const tenantId = (req as Request & { authenticatedTenantId?: string }).authenticatedTenantId;
 
-  if (!tenantId) {
+  if (typeof tenantId !== 'string' || tenantId.trim().length === 0) {
     next();
     return;
   }
 
-  req.tenant = {
-    id: tenantId,
-    isolation: 'row',
-  };
-
+  req.tenant = { id: tenantId, isolation: 'row' };
   next();
 }
 
@@ -43,48 +38,42 @@ export class TenantAwareDb {
   async all(sql: string, params: any[] = []): Promise<any[]> {
     const dbModule = await import('../db.ts');
     const db = dbModule.db;
-    const { sql: filteredSql, params: filteredParams } = this.injectTenantFilter(sql, params);
-    return db.prepare(filteredSql).all(...filteredParams) as any[];
+    const scoped = this.injectTenantFilter(sql, params);
+    return db.prepare(scoped.sql).all(...scoped.params) as any[];
   }
 
   async get(sql: string, params: any[] = []): Promise<any> {
     const dbModule = await import('../db.ts');
     const db = dbModule.db;
-    const { sql: filteredSql, params: filteredParams } = this.injectTenantFilter(sql, params);
-    return db.prepare(filteredSql).get(...filteredParams);
+    const scoped = this.injectTenantFilter(sql, params);
+    return db.prepare(scoped.sql).get(...scoped.params);
   }
 
   async run(
-    sql: string,
-    params: any[] = [],
+    _sql: string,
+    _params: any[] = [],
   ): Promise<{ changes: number; lastInsertRowid: number }> {
-    const dbModule = await import('../db.ts');
-    const db = dbModule.db;
-    return db.prepare(sql).run(...params) as any;
+    throw new Error(
+      'TenantAwareDb does not support writes until tenant-scoped write enforcement is implemented.',
+    );
   }
 
   /**
-   * Inject a parameterized tenant_id filter into SELECT queries.
-   * Uses ? placeholder — never string interpolation — to prevent SQL injection.
+   * Wrap the caller query and filter its output outside all caller predicates.
+   * Reject unsupported SQL rather than accidentally passing it through unscoped.
    */
   private injectTenantFilter(sql: string, params: any[]): TenantFilterResult {
-    const upper = sql.toUpperCase().trim();
+    const trimmed = sql.trim();
+    const statement = trimmed.replace(/;\s*$/, '');
 
-    if (!upper.startsWith('SELECT') || upper.includes('TENANT_ID')) {
-      return { sql, params };
-    }
-
-    const hasWhere = upper.includes('WHERE');
-
-    if (hasWhere) {
-      return {
-        sql: `${sql} AND tenant_id = ?`,
-        params: [...params, this.tenantId],
-      };
+    if (!/^SELECT\b/i.test(statement) || statement.includes(';')) {
+      throw new Error(
+        'TenantAwareDb only supports single SELECT statements with a projected tenant_id column.',
+      );
     }
 
     return {
-      sql: `${sql} WHERE tenant_id = ?`,
+      sql: 'SELECT * FROM (' + statement + ') AS tenant_scoped WHERE tenant_id = ?',
       params: [...params, this.tenantId],
     };
   }
