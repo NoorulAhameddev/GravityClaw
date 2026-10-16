@@ -195,6 +195,28 @@ export class WebChatChannel implements Channel {
     this.chatIdByClient.clear();
   }
 
+  private broadcastToChat(chatId: string, payload: string): boolean {
+    const targetClients = this.clientsByChatId.get(chatId);
+    if (targetClients && targetClients.size > 0) {
+      for (const client of targetClients) {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(payload);
+        }
+      }
+      return true;
+    }
+
+    if (this.clients.size === 1) {
+      const singleClient = this.clients.values().next().value;
+      if (singleClient && singleClient.readyState === WebSocket.OPEN) {
+        singleClient.send(payload);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   async sendMessage(chatId: string, text: string): Promise<void> {
     const { OutputFormatter } = await import('./formatter.ts');
     const formattedText = OutputFormatter.format(text, this.preferredFormat);
@@ -206,44 +228,51 @@ export class WebChatChannel implements Channel {
       chatId,
     });
 
-    const targetClients = this.clientsByChatId.get(chatId);
-    if (targetClients && targetClients.size > 0) {
-      for (const client of targetClients) {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(payload);
-        }
-      }
-      return;
+    const sent = this.broadcastToChat(chatId, payload);
+    if (!sent) {
+      log.warn(`[WebChat] Dropped outbound message: no active client for session "${chatId}"`);
     }
-
-    if (this.clients.size === 1) {
-      const singleClient = this.clients.values().next().value;
-      if (singleClient && singleClient.readyState === WebSocket.OPEN) {
-        singleClient.send(payload);
-        return;
-      }
-    }
-
-    log.warn(`[WebChat] Dropped outbound message: no active client for session "${chatId}"`);
   }
 
   async sendTyping(chatId: string): Promise<void> {
     const payload = JSON.stringify({ type: 'typing', chatId });
-    const targetClients = this.clientsByChatId.get(chatId);
-    if (targetClients && targetClients.size > 0) {
-      for (const client of targetClients) {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(payload);
-        }
-      }
-      return;
-    }
+    this.broadcastToChat(chatId, payload);
+  }
 
-    if (this.clients.size === 1) {
-      const singleClient = this.clients.values().next().value;
-      if (singleClient && singleClient.readyState === WebSocket.OPEN) {
-        singleClient.send(payload);
-      }
-    }
+  sendToken(chatId: string, token: string): void {
+    const payload = JSON.stringify({
+      type: 'token',
+      token,
+      chatId,
+    });
+    this.broadcastToChat(chatId, payload);
+  }
+
+  sendToolStart(chatId: string, toolName: string, input: Record<string, unknown>): void {
+    const payload = JSON.stringify({
+      type: 'tool_start',
+      toolName,
+      input,
+      chatId,
+    });
+    this.broadcastToChat(chatId, payload);
+  }
+
+  sendToolEnd(
+    chatId: string,
+    toolName: string,
+    success: boolean,
+    result?: string,
+    durationMs?: number,
+  ): void {
+    const payload = JSON.stringify({
+      type: 'tool_end',
+      toolName,
+      success,
+      result,
+      durationMs,
+      chatId,
+    });
+    this.broadcastToChat(chatId, payload);
   }
 }

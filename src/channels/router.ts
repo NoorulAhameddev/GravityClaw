@@ -444,6 +444,14 @@ export class ChannelRouter {
           platform: msg.platform,
           groupId: msg.groupId,
           isGroup: msg.isGroup,
+          onToken: channel.sendToken ? (token) => channel.sendToken!(msg.chatId, token) : undefined,
+          onToolStart: channel.sendToolStart
+            ? (toolName, input) => channel.sendToolStart!(msg.chatId, toolName, input)
+            : undefined,
+          onToolEnd: channel.sendToolEnd
+            ? (toolName, success, result, durationMs) =>
+                channel.sendToolEnd!(msg.chatId, toolName, success, result, durationMs)
+            : undefined,
           requestConfirmation: async (command: string): Promise<boolean> => {
             const confirmationPromise = this.enqueueConfirmation(key, command, () => {
               channel

@@ -4,6 +4,7 @@ import { EventEmitter } from 'events';
 
 class MockWebSocket extends EventEmitter {
   isAlive = true;
+  readyState = 1;
   sentData: string[] = [];
   send(data: string) {
     this.sentData.push(data);
@@ -70,5 +71,41 @@ describe('WebChat Channel Session Isolation & Tool Blocking', () => {
     expect(reply.type).toBe('error');
     expect(reply.error).toContain('Cannot switch session on an existing connection');
     expect(onMessage).not.toHaveBeenCalled();
+  });
+
+  it('broadcasts real-time streaming tokens and tool events to the active session', () => {
+    const channel = new WebChatChannel();
+    const mockWs = new MockWebSocket() as any;
+    channel.handleConnection(mockWs, { url: '/chat?sessionId=stream-session' });
+
+    channel.sendToken('stream-session', 'Hello');
+    channel.sendToken('stream-session', ' world');
+    channel.sendToolStart('stream-session', 'run_shell', { command: 'node -v' });
+    channel.sendToolEnd('stream-session', 'run_shell', true, 'v22.0.0', 42);
+
+    expect(mockWs.sentData.length).toBe(4);
+    const token1 = JSON.parse(mockWs.sentData[0]);
+    expect(token1).toEqual({ type: 'token', token: 'Hello', chatId: 'stream-session' });
+
+    const token2 = JSON.parse(mockWs.sentData[1]);
+    expect(token2).toEqual({ type: 'token', token: ' world', chatId: 'stream-session' });
+
+    const toolStart = JSON.parse(mockWs.sentData[2]);
+    expect(toolStart).toEqual({
+      type: 'tool_start',
+      toolName: 'run_shell',
+      input: { command: 'node -v' },
+      chatId: 'stream-session',
+    });
+
+    const toolEnd = JSON.parse(mockWs.sentData[3]);
+    expect(toolEnd).toEqual({
+      type: 'tool_end',
+      toolName: 'run_shell',
+      success: true,
+      result: 'v22.0.0',
+      durationMs: 42,
+      chatId: 'stream-session',
+    });
   });
 });

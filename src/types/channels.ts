@@ -15,5 +15,18 @@ export interface Channel {
   stop(): Promise<void>;
   sendMessage(chatId: string, text: string): Promise<void>;
   sendTyping?(chatId: string): Promise<void>;
+  sendToken?(chatId: string, token: string): Promise<void> | void;
+  sendToolStart?(
+    chatId: string,
+    toolName: string,
+    input: Record<string, unknown>,
+  ): Promise<void> | void;
+  sendToolEnd?(
+    chatId: string,
+    toolName: string,
+    success: boolean,
+    result?: string,
+    durationMs?: number,
+  ): Promise<void> | void;
   preferredFormat?: 'markdown' | 'html' | 'plaintext' | 'whatsapp';
 }
