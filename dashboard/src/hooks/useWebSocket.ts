@@ -79,6 +79,7 @@ export function useWebSocket(url: string) {
   }, [connect]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     connect();
     return () => {
       if (ws.current) ws.current.close();

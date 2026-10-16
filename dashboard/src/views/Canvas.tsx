@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
-import { Box, AlertCircle, Play, Trash2, Code2, MonitorPlay } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { Box, AlertCircle, Play, Trash2, Code2, MonitorPlay, Wifi, WifiOff } from 'lucide-react';
+import { cn, getWsUrl } from '../lib/utils';
 
 interface CanvasWidget {
   id: string;
@@ -14,27 +14,12 @@ export default function Canvas() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedWidget, setSelectedWidget] = useState<CanvasWidget | null>(null);
+  const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    const fetchWidgets = async () => {
-      try {
-        setLoading(true);
-        const stored = localStorage.getItem('canvas_widgets');
-        if (stored) {
-          setWidgets(JSON.parse(stored));
-        }
-        setError(null);
-      } catch {
-        setError('Failed to load canvas widgets from storage');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchWidgets();
-  }, []);
-
-  const renderWidget = (widget: CanvasWidget) => {
+  const renderWidget = useCallback((widget: CanvasWidget) => {
     setSelectedWidget(widget);
     if (iframeRef.current && widget.html) {
       const doc = iframeRef.current.contentDocument;
@@ -68,7 +53,94 @@ export default function Canvas() {
         }
       }
     }
-  };
+  }, []);
+
+  // Connect to live Canvas WebSocket (/canvas)
+  useEffect(() => {
+    let unmounted = false;
+
+    const connectCanvasWs = () => {
+      const baseWs = getWsUrl();
+      if (!baseWs || baseWs === 'ws://' || baseWs === 'wss://') {
+        setWsStatus('disconnected');
+        return;
+      }
+
+      setWsStatus('connecting');
+      const wsUrl = `${baseWs}/canvas?session=default`;
+      const socket = new WebSocket(wsUrl);
+      wsRef.current = socket;
+
+      socket.onopen = () => {
+        if (!unmounted) setWsStatus('connected');
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'canvas_push') {
+            const newWidget: CanvasWidget = {
+              id: `widget-${Date.now().toString().slice(-4)}`,
+              html: data.html,
+              js: data.js,
+              timestamp: data.timestamp || new Date().toISOString(),
+            };
+
+            setWidgets((prev) => {
+              const updated = [newWidget, ...prev];
+              localStorage.setItem('canvas_widgets', JSON.stringify(updated));
+              return updated;
+            });
+            renderWidget(newWidget);
+          }
+        } catch (e) {
+          console.error('Failed to parse Canvas WS message:', e);
+        }
+      };
+
+      socket.onerror = () => {
+        if (!unmounted) setWsStatus('disconnected');
+      };
+
+      socket.onclose = () => {
+        if (!unmounted) {
+          setWsStatus('disconnected');
+          reconnectTimeoutRef.current = setTimeout(connectCanvasWs, 3000);
+        }
+      };
+    };
+
+    connectCanvasWs();
+
+    return () => {
+      unmounted = true;
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, [renderWidget]);
+
+  // Load cached widgets on mount
+  useEffect(() => {
+    try {
+      setLoading(true);
+      const stored = localStorage.getItem('canvas_widgets');
+      if (stored) {
+        const parsed = JSON.parse(stored) as CanvasWidget[];
+        setWidgets(parsed);
+        if (parsed.length > 0 && parsed[0]) {
+          renderWidget(parsed[0]);
+        }
+      }
+      setError(null);
+    } catch {
+      setError('Failed to load canvas widgets from storage');
+    } finally {
+      setLoading(false);
+    }
+  }, [renderWidget]);
 
   const addDemoWidget = () => {
     const demoWidget: CanvasWidget = {
@@ -82,7 +154,7 @@ export default function Canvas() {
       js: `document.getElementById('demo-btn').addEventListener('click', function() { this.textContent = '[PING_ACKNOWLEDGED]'; this.style.background = '#10b981'; });`,
       timestamp: new Date().toISOString(),
     };
-    const updated = [...widgets, demoWidget];
+    const updated = [demoWidget, ...widgets];
     setWidgets(updated);
     localStorage.setItem('canvas_widgets', JSON.stringify(updated));
     renderWidget(demoWidget);
@@ -117,13 +189,29 @@ export default function Canvas() {
           </div>
         </div>
 
-        <button
-          onClick={addDemoWidget}
-          className="px-3 py-1.5 bg-surface2 hover:bg-surface-hover border border-border text-text-bright hover:text-accent font-mono text-xs font-semibold flex items-center gap-2 transition-colors"
-        >
-          <Play size={12} className="text-accent" />
-          <span>INJECT SAMPLE ARTIFACT</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[10px] text-muted flex items-center gap-1.5">
+            {wsStatus === 'connected' ? (
+              <>
+                <Wifi size={12} className="text-success" />
+                <span className="text-success">[CANVAS_SOCKET: LIVE]</span>
+              </>
+            ) : (
+              <>
+                <WifiOff size={12} className="text-danger" />
+                <span className="text-danger">[CANVAS_SOCKET: DISCONNECTED]</span>
+              </>
+            )}
+          </span>
+
+          <button
+            onClick={addDemoWidget}
+            className="px-3 py-1.5 bg-surface2 hover:bg-surface-hover border border-border text-text-bright hover:text-accent font-mono text-xs font-semibold flex items-center gap-2 transition-colors"
+          >
+            <Play size={12} className="text-accent" />
+            <span>INJECT SAMPLE ARTIFACT</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -152,7 +240,7 @@ export default function Canvas() {
               <div className="p-6 text-center text-muted-dark space-y-2">
                 <Box size={24} className="mx-auto opacity-30" />
                 <div>NO ACTIVE ARTIFACTS</div>
-                <div className="text-[10px]">Click inject to load sample payload</div>
+                <div className="text-[10px]">Pushed agent widgets will stream here live</div>
               </div>
             ) : (
               widgets.map((w) => (
@@ -198,21 +286,13 @@ export default function Canvas() {
             <span className="hud-tag">ISOLATED IFRAME</span>
           </div>
 
-          <div className="flex-1 bg-bg relative">
-            {selectedWidget ? (
-              <iframe
-                ref={iframeRef}
-                className="w-full h-full border-0"
-                sandbox="allow-scripts"
-                title="Canvas Viewport"
-              />
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-muted font-mono text-xs gap-2">
-                <Box size={32} className="text-muted-dark" />
-                <div className="text-text-bright uppercase font-semibold">VIEWPORT IDLE</div>
-                <div className="text-muted-dark">Select or inject an artifact to inspect sandbox output</div>
-              </div>
-            )}
+          <div className="flex-1 bg-surface relative p-2">
+            <iframe
+              ref={iframeRef}
+              title="Canvas Sandbox"
+              sandbox="allow-scripts allow-forms"
+              className="w-full h-full border border-border/40 bg-zinc-950"
+            />
           </div>
         </div>
       </div>

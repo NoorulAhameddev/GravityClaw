@@ -44,8 +44,11 @@
   },
   "scripts": {
     "clean": "rimraf dist",
-    "build": "npx esbuild src/index.ts --bundle --platform=node --target=node22 --format=esm --outdir=dist --packages=external",
+    "build:backend": "npx esbuild src/index.ts --bundle --platform=node --target=node22 --format=esm --outdir=dist --packages=external",
+    "build:dashboard": "npm --prefix dashboard run build",
+    "build": "npm run build:backend && npm run build:dashboard",
     "dev": "npx tsx watch --exclude gravity.db* --exclude logs/**/* src/index.ts",
+    "dev:dashboard": "npm --prefix dashboard run dev",
     "start": "node --max-old-space-size=512 dist/index.js",
     "cli": "npx tsx src/cli.ts",
     "lint": "eslint .",
