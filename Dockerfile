@@ -1,16 +1,19 @@
 # Build stage
-FROM node:22-slim AS builder
+FROM node:22-trixie-slim AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+RUN npm ci --prefix dashboard
 RUN npm run build
-RUN npm ci --prefix dashboard && npm run build --prefix dashboard
+RUN npm prune --omit=dev
 
 # Runtime stage
-FROM node:22-slim AS runtime
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    tini \
+FROM node:22-trixie-slim AS runtime
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends tini \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
