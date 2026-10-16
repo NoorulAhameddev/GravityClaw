@@ -16,6 +16,10 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# npm and Corepack are build-time tools; the runtime only executes Node.js.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
+
 
 WORKDIR /app
 COPY --from=builder /app/dist ./dist
