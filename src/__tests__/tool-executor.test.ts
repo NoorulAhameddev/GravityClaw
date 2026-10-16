@@ -132,6 +132,67 @@ describe('ToolExecutor', () => {
     expect(executed).toBe(false);
   });
 
+  it('does not trust caller-supplied approval metadata', async () => {
+    let executed = false;
+    const tool: Tool = {
+      name: 'forged_approval_tool',
+      description: 'test tool',
+      inputSchema: { type: 'object', properties: {}, required: [] },
+      requiresApproval: true,
+      async execute() {
+        executed = true;
+        return 'executed';
+      },
+    };
+
+    const result = await createExecutor(tool).execute({
+      toolName: 'forged_approval_tool',
+      input: {},
+      context: { sessionId: 'test:executor' },
+      approval: { approvedBy: 'forged-admin' },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.type).toBe('approval_required');
+    expect(executed).toBe(false);
+  });
+
+  it('rejects an approval when execution parameters have changed', async () => {
+    let executed = false;
+    const tool: Tool = {
+      name: 'parameter_bound_tool',
+      description: 'test tool',
+      inputSchema: {
+        type: 'object',
+        properties: { value: { type: 'string' } },
+        required: ['value'],
+      },
+      requiresApproval: true,
+      async execute() {
+        executed = true;
+        return 'executed';
+      },
+    };
+
+    const request = await approvalGate.createApprovalRequest(
+      'parameter_bound_tool',
+      { value: 'approved-value' },
+      { userId: 'test', sessionId: 'test:executor', channel: 'test' },
+    );
+    await approvalGate.approve(request.id, 'test');
+
+    const result = await createExecutor(tool).execute({
+      toolName: 'parameter_bound_tool',
+      input: { value: 'different-value' },
+      context: { sessionId: 'test:executor' },
+      approvalRequestId: request.id,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.type).toBe('approval_required');
+    expect(executed).toBe(false);
+  });
+
   it('executes approved valid tools and injects execution context', async () => {
     const tool: Tool = {
       name: 'approved_test_tool',
