@@ -420,6 +420,11 @@ export class BackupManager {
 
   /** Derive a 32-byte key from master key */
   private deriveKey(): Buffer {
+    if (!this.masterKey) {
+      throw new Error(
+        'A persistent MASTER_KEY or BACKUP_MASTER_KEY is required for encrypted backups.',
+      );
+    }
     const hash = createHash('sha256');
     hash.update(this.masterKey);
     return hash.digest();
