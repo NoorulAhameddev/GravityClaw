@@ -63,7 +63,7 @@ export interface AuthenticatedRequest extends Request {
 
 export function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   const apiKey = req.headers[API_KEY_HEADER] as string | undefined;
-  const path = req.path;
+  const path = req.originalUrl || req.path;
   const method = req.method;
   const clientIp = req.ip || 'unknown';
 
