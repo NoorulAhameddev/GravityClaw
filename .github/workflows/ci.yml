@@ -123,6 +123,7 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           ignore-unfixed: true
+          trivyignores: .trivyignore
 
       - name: Trivy gate (CRITICAL/HIGH)
         uses: aquasecurity/trivy-action@master
@@ -132,6 +133,7 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
           severity: CRITICAL,HIGH
+          trivyignores: .trivyignore
 
       - name: Upload Trivy SARIF to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v4
