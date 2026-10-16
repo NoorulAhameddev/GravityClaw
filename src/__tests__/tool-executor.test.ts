@@ -239,5 +239,18 @@ describe('ToolExecutor', () => {
         userId: 'user-1',
       }),
     );
+
+    const replayResult = await createExecutor(tool).execute({
+      toolName: 'approved_test_tool',
+      input: { value: 'ok' },
+      context: {
+        sessionId: 'test:executor:approved-valid',
+        userId: 'user-1',
+      },
+      approvalRequestId: request.id,
+    });
+
+    expect(replayResult.success).toBe(false);
+    expect(replayResult.error?.type).toBe('approval_required');
   });
 });
