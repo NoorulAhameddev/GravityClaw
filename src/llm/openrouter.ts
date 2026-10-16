@@ -3,8 +3,9 @@ import type {
   ChatCompletionMessageParam,
   ChatCompletionTool,
 } from 'openai/resources/chat/completions.js';
-import type { LLMProvider, LLMResponse, LLMChatOptions } from '../types/llm.js';
+import type { LLMProvider, LLMResponse, LLMChatOptions, StreamCallback } from '../types/llm.js';
 import { createLogger } from '../logger.ts';
+import { extractThinking } from './base.ts';
 
 const log = createLogger('llm:openrouter');
 
@@ -369,6 +370,169 @@ export class OpenRouterProvider implements LLMProvider {
     }
 
     throw new Error('Failed to get response after model rotation');
+  }
+
+  async chatStream(
+    messages: ChatCompletionMessageParam[],
+    toolDefinitions: ChatCompletionTool[],
+    options?: LLMChatOptions & { onToken?: StreamCallback },
+  ): Promise<LLMResponse> {
+    const rawModel = options?.model ?? this.defaultModel;
+    const isFreeAlias = rawModel === 'openrouter/free' || rawModel.endsWith(':free');
+    const maxTokens = options?.maxTokens ?? 2000;
+    const hasTools = toolDefinitions.length > 0;
+    const onToken = options?.onToken;
+    const excludedModels: string[] = [];
+
+    for (let modelAttempt = 1; modelAttempt <= (isFreeAlias ? 15 : 1); modelAttempt++) {
+      const model = await this.resolveModelName(rawModel, excludedModels);
+      log.debug(
+        `Streaming OpenRouter — model: ${model} (attempt ${modelAttempt})${excludedModels.length > 0 ? `, skipped: ${excludedModels.join(', ')}` : ''}`,
+      );
+
+      const params = hasTools
+        ? {
+            model,
+            max_tokens: maxTokens,
+            tools: toolDefinitions,
+            tool_choice: 'auto' as const,
+            messages,
+            stream: true as const,
+          }
+        : { model, max_tokens: maxTokens, messages, stream: true as const };
+
+      let lastError: unknown;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const stream = await this.client.chat.completions.create(params, {
+            signal: AbortSignal.timeout(120000),
+          });
+
+          const textParts: string[] = [];
+          let stopReason = 'stop';
+          const accumulatedToolCalls: Map<
+            number,
+            { id: string; type: 'function'; function: { name: string; arguments: string } }
+          > = new Map();
+
+          for await (const chunk of stream) {
+            const delta = chunk.choices[0]?.delta;
+            if (!delta) continue;
+
+            if (delta.content) {
+              textParts.push(delta.content);
+              onToken?.(delta.content, false);
+            }
+
+            if (delta.tool_calls) {
+              for (const tc of delta.tool_calls) {
+                const index = tc.index;
+                if (!accumulatedToolCalls.has(index)) {
+                  accumulatedToolCalls.set(index, {
+                    id: tc.id ?? `stream-call-${index}`,
+                    type: 'function',
+                    function: { name: '', arguments: '' },
+                  });
+                }
+                const existing = accumulatedToolCalls.get(index)!;
+                if (tc.id) existing.id = tc.id;
+                if (tc.function?.name) existing.function.name += tc.function.name;
+                if (tc.function?.arguments) existing.function.arguments += tc.function.arguments;
+              }
+            }
+
+            if (chunk.choices[0]?.finish_reason) {
+              stopReason = chunk.choices[0].finish_reason;
+            }
+          }
+
+          onToken?.('', true);
+
+          const rawText = textParts.join('');
+          const { text, thought } = extractThinking(rawText);
+          const toolCalls = Array.from(accumulatedToolCalls.values());
+
+          log.debug(
+            `OpenRouter stream complete — stop: ${stopReason}, text: ${text.length} chars, tools: ${toolCalls.length}`,
+          );
+
+          return {
+            stopReason,
+            text,
+            toolCalls,
+            ...(thought ? { thought } : {}),
+          };
+        } catch (err: unknown) {
+          lastError = err;
+          const errRecord = err as Record<string, unknown>;
+          const errorObj = (errRecord?.error as Record<string, unknown>) || errRecord;
+          const status =
+            (errRecord?.status as number) ||
+            (errRecord?.code as number) ||
+            (errorObj?.code as number) ||
+            (errorObj?.status as number);
+          const message = (errorObj?.message as string) || (err as Error)?.message || String(err);
+
+          log.warn(
+            `OpenRouter API stream error — Model: ${model}, Status: ${status}, Message: ${message.substring(0, 100)}`,
+          );
+
+          const isPolicyError =
+            message.toLowerCase().includes('data policy') ||
+            message.toLowerCase().includes('privacy');
+          const isToolSupportError =
+            message.toLowerCase().includes('tool use') || message.toLowerCase().includes('tools');
+          const statusCode = Number(status);
+          const isFailoverStatus =
+            [429, 402, 404, 500, 502, 503, 504].includes(statusCode) ||
+            (typeof status === 'string' &&
+              (status === '429' || status === '402' || status === '404' || status === '503'));
+
+          const shouldBlacklist = isFailoverStatus || isPolicyError || isToolSupportError;
+
+          if (shouldBlacklist && isFreeAlias) {
+            log.warn(
+              `Model ${model} hit failover condition in stream (${status}/policy). Blacklisting for 15 mins and rotating.`,
+            );
+            this.blacklistedModels.set(model, Date.now() + 15 * 60 * 1000);
+            excludedModels.push(model);
+            if (isPolicyError) {
+              lastError = new Error(
+                `OpenRouter Data Policy Error: Please enable "Free model publication" in your OpenRouter Privacy Settings (https://openrouter.ai/settings/privacy) to use free models.`,
+              );
+            }
+            break;
+          }
+
+          if (isToolSupportError && isFreeAlias) {
+            excludedModels.push(model);
+            break;
+          }
+
+          if (status === 429 && attempt < 3) {
+            log.warn(`Rate limited (429) in stream — retrying in 5s (attempt ${attempt}/3)`);
+            await new Promise((r) => setTimeout(r, 5000));
+            continue;
+          }
+
+          if (status === 400 && isFreeAlias) {
+            excludedModels.push(model);
+            break;
+          }
+
+          throw err;
+        }
+      }
+
+      if (isFreeAlias && modelAttempt < 15) {
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+
+      if (!isFreeAlias) throw lastError;
+      if (modelAttempt >= 15) throw lastError;
+    }
+
+    throw new Error('Failed to get streaming response after model rotation');
   }
 
   async listModels(): Promise<string[]> {

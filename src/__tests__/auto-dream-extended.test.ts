@@ -8,6 +8,7 @@ import {
   tryAcquireConsolidationLock,
   releaseConsolidationLock,
   readLastConsolidatedAt,
+  getLockFilePath as getConsolidationLockPath,
 } from '../memory/consolidationLock.ts';
 import { executeAutoDream } from '../memory/autoDream.ts';
 import {
@@ -17,8 +18,6 @@ import {
   resetMemoryRoot,
 } from '../memory/markdown.ts';
 import * as agent from '../lib/forkedAgent.ts';
-
-const getConsolidationLockPath = () => path.resolve(process.cwd(), 'auto-dream.lock');
 
 describe('AutoDream Extended Production Verification', () => {
   let tempRoot = '';

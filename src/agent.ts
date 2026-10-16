@@ -17,6 +17,9 @@ export interface AgentRunOptions {
   requestId?: string | undefined;
   requestConfirmation?: ((command: string) => Promise<boolean>) | undefined;
   onProgress?: ((text: string) => Promise<void>) | undefined;
+  onToken?: ((token: string, done: boolean) => void) | undefined;
+  onToolStart?: ((toolName: string, input: Record<string, unknown>) => void) | undefined;
+  onToolEnd?: ((toolName: string, success: boolean, result: string, durationMs?: number) => void) | undefined;
   userId?: string | undefined;
   platform?: string | undefined;
   groupId?: string | undefined;
@@ -69,6 +72,9 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
         requestId: options.requestId,
         requestConfirmation: options.requestConfirmation,
         onProgress: options.onProgress,
+        onToken: options.onToken,
+        onToolStart: options.onToolStart,
+        onToolEnd: options.onToolEnd,
       },
       options.message,
     );

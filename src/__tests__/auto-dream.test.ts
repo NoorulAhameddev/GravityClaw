@@ -11,8 +11,7 @@ import {
   resetMemoryRoot,
 } from '../memory/markdown.ts';
 import { executeAutoDream, startAutoDreamScheduler } from '../memory/autoDream.ts';
-
-const getConsolidationLockPath = () => path.resolve(process.cwd(), 'auto-dream.lock');
+import { getLockFilePath as getConsolidationLockPath } from '../memory/consolidationLock.ts';
 
 vi.mock('../lib/forkedAgent.ts', () => {
   return {

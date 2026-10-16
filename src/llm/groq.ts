@@ -4,8 +4,9 @@ import type {
   ChatCompletionMessageParam,
   ChatCompletionTool,
 } from 'openai/resources/chat/completions.js';
-import type { LLMProvider, LLMResponse, LLMChatOptions } from '../types/llm.js';
+import type { LLMProvider, LLMResponse, LLMChatOptions, StreamCallback } from '../types/llm.js';
 import { createLogger } from '../logger.ts';
+import { extractThinking } from './base.ts';
 
 const log = createLogger('llm:groq');
 
@@ -83,6 +84,94 @@ export class GroqProvider implements LLMProvider {
     }
 
     return result;
+  }
+
+  async chatStream(
+    messages: ChatCompletionMessageParam[],
+    toolDefinitions: ChatCompletionTool[],
+    options?: LLMChatOptions & { onToken?: StreamCallback },
+  ): Promise<LLMResponse> {
+    const model = options?.model ?? this.defaultModel;
+    const maxTokens = options?.maxTokens ?? 2000;
+    const hasTools = toolDefinitions.length > 0;
+    const onToken = options?.onToken;
+
+    log.debug(
+      `Streaming Groq — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`,
+    );
+
+    const params: any = {
+      model,
+      messages: messages as any,
+      max_tokens: maxTokens,
+      stream: true,
+    };
+    if (options?.temperature !== undefined) params.temperature = options.temperature;
+    if (options?.topP !== undefined) params.top_p = options.topP;
+
+    if (hasTools) {
+      params.tools = toolDefinitions as any;
+      params.tool_choice = 'auto';
+    }
+
+    const stream = await this.client.chat.completions.create(params, {
+      signal: AbortSignal.timeout(120000),
+    });
+
+    const textParts: string[] = [];
+    let stopReason = 'stop';
+    const accumulatedToolCalls: Map<
+      number,
+      { id: string; type: 'function'; function: { name: string; arguments: string } }
+    > = new Map();
+
+    for await (const chunk of stream as any) {
+      const delta = chunk.choices[0]?.delta;
+      if (!delta) continue;
+
+      if (delta.content) {
+        textParts.push(delta.content);
+        onToken?.(delta.content, false);
+      }
+
+      if (delta.tool_calls) {
+        for (const tc of delta.tool_calls) {
+          const index = tc.index ?? 0;
+          if (!accumulatedToolCalls.has(index)) {
+            accumulatedToolCalls.set(index, {
+              id: tc.id ?? `stream-call-${index}`,
+              type: 'function',
+              function: { name: '', arguments: '' },
+            });
+          }
+          const existing = accumulatedToolCalls.get(index)!;
+          if (tc.id) existing.id = tc.id;
+          if (tc.function?.name) existing.function.name += tc.function.name;
+          if (tc.function?.arguments) existing.function.arguments += tc.function.arguments;
+        }
+      }
+
+      if (chunk.choices[0]?.finish_reason) {
+        stopReason = chunk.choices[0].finish_reason;
+      }
+    }
+
+    onToken?.('', true);
+
+    const rawText = textParts.join('');
+    const { text, thought } = extractThinking(rawText);
+    const toolCalls = Array.from(accumulatedToolCalls.values());
+
+    log.debug(
+      `Groq stream complete — stop: ${stopReason}, text: ${text.length} chars, tools: ${toolCalls.length}`,
+    );
+
+    return {
+      stopReason,
+      text,
+      toolCalls,
+      ...(thought ? { thought } : {}),
+    };
   }
 
   async listModels(): Promise<string[]> {

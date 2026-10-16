@@ -34,6 +34,9 @@ export interface PipelineContext {
   requestId?: string | undefined;
   requestConfirmation?: ((command: string) => Promise<boolean>) | undefined;
   onProgress?: ((text: string) => Promise<void>) | undefined;
+  onToken?: ((token: string, done: boolean) => void) | undefined;
+  onToolStart?: ((toolName: string, input: Record<string, unknown>) => void) | undefined;
+  onToolEnd?: ((toolName: string, success: boolean, result: string, durationMs?: number) => void) | undefined;
 }
 
 export class Pipeline {

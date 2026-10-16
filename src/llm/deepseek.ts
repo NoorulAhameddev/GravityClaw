@@ -3,8 +3,9 @@ import type {
   ChatCompletionMessageParam,
   ChatCompletionTool,
 } from 'openai/resources/chat/completions.js';
-import type { LLMProvider, LLMResponse, LLMChatOptions, Message } from '../types/llm.js';
+import type { LLMProvider, LLMResponse, LLMChatOptions, Message, StreamCallback } from '../types/llm.js';
 import { createLogger } from '../logger.ts';
+import { extractThinking } from './base.ts';
 
 const log = createLogger('llm:deepseek');
 
@@ -99,6 +100,117 @@ export class DeepSeekProvider implements LLMProvider {
     }
 
     return result;
+  }
+
+  async chatStream(
+    messages: ChatCompletionMessageParam[],
+    toolDefinitions: ChatCompletionTool[],
+    options?: LLMChatOptions & { onToken?: StreamCallback },
+  ): Promise<LLMResponse> {
+    const model = options?.model ?? this.defaultModel;
+    const maxTokens = options?.maxTokens ?? 2000;
+    const hasTools = toolDefinitions.length > 0;
+    const onToken = options?.onToken;
+
+    log.debug(
+      `Streaming DeepSeek — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`,
+    );
+
+    const mappedMessages = messages.map((msg) => {
+      if (msg.role === 'assistant') {
+        const assistantMsg = msg as Message & { reasoning_content?: string };
+        if (assistantMsg.thought && !assistantMsg.reasoning_content) {
+          const { thought, ...rest } = assistantMsg;
+          return {
+            ...rest,
+            reasoning_content: thought,
+          };
+        }
+      }
+      return msg;
+    });
+
+    const params = hasTools
+      ? {
+          model,
+          max_tokens: maxTokens,
+          tools: toolDefinitions,
+          tool_choice: 'auto' as const,
+          messages: mappedMessages as ChatCompletionMessageParam[],
+          stream: true as const,
+        }
+      : {
+          model,
+          max_tokens: maxTokens,
+          messages: mappedMessages as ChatCompletionMessageParam[],
+          stream: true as const,
+        };
+
+    const stream = await this.client.chat.completions.create(params, {
+      signal: AbortSignal.timeout(120000),
+    });
+
+    const textParts: string[] = [];
+    const thoughtParts: string[] = [];
+    let stopReason = 'stop';
+    const accumulatedToolCalls: Map<
+      number,
+      { id: string; type: 'function'; function: { name: string; arguments: string } }
+    > = new Map();
+
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta;
+      if (!delta) continue;
+
+      const deltaRecord = delta as unknown as { reasoning_content?: string };
+      if (deltaRecord.reasoning_content) {
+        thoughtParts.push(deltaRecord.reasoning_content);
+      }
+
+      if (delta.content) {
+        textParts.push(delta.content);
+        onToken?.(delta.content, false);
+      }
+
+      if (delta.tool_calls) {
+        for (const tc of delta.tool_calls) {
+          const index = tc.index;
+          if (!accumulatedToolCalls.has(index)) {
+            accumulatedToolCalls.set(index, {
+              id: tc.id ?? `stream-call-${index}`,
+              type: 'function',
+              function: { name: '', arguments: '' },
+            });
+          }
+          const existing = accumulatedToolCalls.get(index)!;
+          if (tc.id) existing.id = tc.id;
+          if (tc.function?.name) existing.function.name += tc.function.name;
+          if (tc.function?.arguments) existing.function.arguments += tc.function.arguments;
+        }
+      }
+
+      if (chunk.choices[0]?.finish_reason) {
+        stopReason = chunk.choices[0].finish_reason;
+      }
+    }
+
+    onToken?.('', true);
+
+    const rawText = textParts.join('');
+    const rawThought = thoughtParts.length > 0 ? thoughtParts.join('') : undefined;
+    const { text, thought } = extractThinking(rawText, rawThought);
+    const toolCalls = Array.from(accumulatedToolCalls.values());
+
+    log.debug(
+      `DeepSeek stream complete — stop: ${stopReason}, text: ${text.length} chars, tools: ${toolCalls.length}`,
+    );
+
+    return {
+      stopReason,
+      text,
+      toolCalls,
+      ...(thought ? { thought } : {}),
+    };
   }
 
   destroy(): void {

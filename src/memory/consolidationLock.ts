@@ -5,10 +5,10 @@ import { createLogger } from '../logger.ts';
 
 const log = createLogger('autoDream:lock');
 
-const LOCK_FILE = 'auto-dream.lock';
-
-function getLockFilePath(): string {
-  return path.resolve(process.cwd(), LOCK_FILE);
+export function getLockFilePath(): string {
+  const workerId = process.env.VITEST_WORKER_ID;
+  const lockFileName = workerId ? `auto-dream-test-${workerId}.lock` : 'auto-dream.lock';
+  return path.resolve(process.cwd(), lockFileName);
 }
 
 export function readLastConsolidatedAt(): number {
@@ -46,10 +46,11 @@ export async function tryAcquireConsolidationLock(): Promise<number | null> {
     // Use 'wx' flag for atomic creation. Fails if file already exists.
     const fd = fs.openSync(lockPath, 'wx');
     fs.writeSync(fd, JSON.stringify({ startedAt: Date.now() }));
+    const stats = fs.fstatSync(fd);
     fs.closeSync(fd);
-    return fs.statSync(lockPath).mtimeMs;
+    return stats.mtimeMs;
   } catch (e: any) {
-    if (e.code === 'EEXIST') {
+    if (e.code === 'EEXIST' || e.code === 'ENOENT') {
       log.debug('Lock file exists (or was just created), consolidation may already be running');
       return null;
     }

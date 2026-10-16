@@ -126,7 +126,7 @@ export class Orchestrator {
         input.toolDefs ?? [],
         promptContext,
         orchestratorDeps,
-        undefined,
+        context.onToken,
       );
       if (response.text) collectedText.push(response.text);
       addAssistantMessage(
@@ -182,6 +182,12 @@ export class Orchestrator {
             };
           }
 
+          const startMs = Date.now();
+          context.onToolStart?.(toolCall.function.name, parsedInput);
+          if (context.onProgress) {
+            await context.onProgress(`Tool ${toolCall.function.name} executing...`).catch(() => {});
+          }
+
           let execResult = await context.executor.execute({
             toolName: toolCall.function.name,
             input: parsedInput,
@@ -219,7 +225,8 @@ export class Orchestrator {
             }
           }
 
-          return { toolCall, execResult, parsedInput };
+          const durationMs = Date.now() - startMs;
+          return { toolCall, execResult, parsedInput, durationMs };
         }),
       );
 
@@ -227,7 +234,7 @@ export class Orchestrator {
         const toolCall = parallelBatch[index];
         if (!toolCall) continue;
         if (result.status === 'fulfilled') {
-          const { toolCall, execResult, parsedInput } = result.value;
+          const { toolCall, execResult, parsedInput, durationMs } = result.value;
           const rawResult = ((execResult as any).result ?? execResult.error?.message) as
             string | undefined;
           let fedBackContent: string = rawResult ?? '';
@@ -248,6 +255,12 @@ export class Orchestrator {
                 `Persisted large tool result for ${toolCall.function.name} (${persisted.originalSize} chars) to ${persisted.filepath}`,
               );
             }
+          }
+          context.onToolEnd?.(toolCall.function.name, execResult.success, fedBackContent, durationMs);
+          if (context.onProgress) {
+            await context.onProgress(
+              `Tool ${toolCall.function.name} ${execResult.success ? 'succeeded' : 'failed'} (${durationMs}ms)`,
+            ).catch(() => {});
           }
           addToolResult(
             context.sessionId,

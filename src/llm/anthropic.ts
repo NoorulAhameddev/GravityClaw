@@ -4,7 +4,7 @@ import type {
   ChatCompletionTool,
 } from 'openai/resources/chat/completions.js';
 import type OpenAI from 'openai';
-import type { LLMProvider, LLMResponse, LLMChatOptions } from '../types/llm.js';
+import type { LLMProvider, LLMResponse, LLMChatOptions, StreamCallback } from '../types/llm.js';
 import { createLogger } from '../logger.ts';
 import { safeJsonParse } from '../utils/json.ts';
 
@@ -78,6 +78,86 @@ export class AnthropicProvider implements LLMProvider {
 
     log.debug(
       `Anthropic response — stop: ${response.stop_reason}, text: ${text.length} chars, tools: ${toolCalls.length}`,
+    );
+
+    const result: LLMResponse = {
+      stopReason: response.stop_reason ?? 'end_turn',
+      text,
+      toolCalls,
+    };
+
+    if (response.usage) {
+      result.usage = {
+        promptTokens: response.usage.input_tokens,
+        completionTokens: response.usage.output_tokens,
+        totalTokens: response.usage.input_tokens + response.usage.output_tokens,
+      };
+    }
+
+    return result;
+  }
+
+  async chatStream(
+    messages: ChatCompletionMessageParam[],
+    toolDefinitions: ChatCompletionTool[],
+    options?: LLMChatOptions & { onToken?: StreamCallback },
+  ): Promise<LLMResponse> {
+    const model = options?.model ?? this.defaultModel;
+    const maxTokens = options?.maxTokens ?? 2000;
+    const onToken = options?.onToken;
+
+    log.debug(
+      `Streaming Anthropic — model: ${model}, messages: ${messages.length}, tools: ${toolDefinitions.length}`,
+    );
+
+    const { system, anthropicMessages } = this.convertMessages(messages);
+    const anthropicTools = this.convertTools(toolDefinitions);
+
+    const params: Anthropic.MessageCreateParams = {
+      model,
+      max_tokens: maxTokens,
+      messages: anthropicMessages,
+    };
+
+    if (system) {
+      params.system = system;
+    }
+
+    if (anthropicTools.length > 0) {
+      params.tools = anthropicTools;
+    }
+
+    const stream = this.client.messages.stream(params, {
+      signal: AbortSignal.timeout(120000),
+    });
+
+    if (onToken) {
+      stream.on('text', (textDelta) => {
+        onToken(textDelta, false);
+      });
+    }
+
+    const response = await stream.finalMessage();
+    onToken?.('', true);
+
+    const text = response.content
+      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+      .map((block) => block.text)
+      .join('\n');
+
+    const toolCalls = response.content
+      .filter((block): block is Anthropic.ToolUseBlock => block.type === 'tool_use')
+      .map((block) => ({
+        id: block.id,
+        type: 'function' as const,
+        function: {
+          name: block.name,
+          arguments: JSON.stringify(block.input),
+        },
+      }));
+
+    log.debug(
+      `Anthropic stream complete — stop: ${response.stop_reason}, text: ${text.length} chars, tools: ${toolCalls.length}`,
     );
 
     const result: LLMResponse = {

@@ -242,5 +242,37 @@ describe('Agent System', () => {
       expect(result).toBeDefined();
       expect(result.toolCalls.length).toBeLessThanOrEqual(5);
     });
+
+    it('should invoke onToolStart and onToolEnd callbacks when tools execute', async () => {
+      const { runAgent } = await import('../agent.ts');
+      const { registry } = await import('../tools/index.ts');
+
+      const toolStarts: Array<{ name: string; input: Record<string, unknown> }> = [];
+      const toolEnds: Array<{ name: string; success: boolean; durationMs?: number | undefined }> = [];
+
+      const result = await runAgent({
+        message: 'list files in current directory',
+        sessionId: testSessionId,
+        onToolStart: (name, input) => {
+          toolStarts.push({ name, input });
+        },
+        onToolEnd: (name, success, _res, durationMs) => {
+          toolEnds.push({ name, success, durationMs });
+        },
+        dependencies: {
+          config,
+          toolRegistry: registry,
+          db,
+        },
+      });
+
+      expect(result).toBeDefined();
+      if (result.toolCallCount > 0) {
+        expect(toolStarts.length).toBeGreaterThan(0);
+        expect(toolEnds.length).toBe(toolStarts.length);
+        expect(toolStarts[0]?.name).toBeDefined();
+        expect(typeof toolEnds[0]?.durationMs).toBe('number');
+      }
+    });
   });
 });

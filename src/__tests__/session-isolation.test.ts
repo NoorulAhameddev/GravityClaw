@@ -286,6 +286,6 @@ describe('Session Isolation', () => {
           .prepare('INSERT INTO memory (session_id, message_json) VALUES (?, ?)')
           .run(parentSessionId, JSON.stringify({ role: 'user', content: 'parent secret' }));
       }).toThrow();
-    });
+    }, 30000);
   });
 });

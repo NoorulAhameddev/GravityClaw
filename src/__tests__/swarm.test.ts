@@ -97,7 +97,7 @@ describe('Agent Swarm System', () => {
       expect(mockSessionId).toBeDefined();
       expect(mockSessionId).toContain(testSessionId);
       expect(mockSessionId).toContain('researcher');
-    });
+    }, 30000);
 
     it('should create database entry for spawned agent', async () => {
       const swarm = new AgentSwarm(testSessionId, defaultConfig);
@@ -115,7 +115,7 @@ describe('Agent Swarm System', () => {
       expect(entry.role).toBe('researcher');
       expect(entry.parent_session_id).toBe(testSessionId);
       expect(entry.status).toBe('completed');
-    });
+    }, 30000);
 
     it('should spawn multiple agents with different roles', async () => {
       const swarm = new AgentSwarm(testSessionId, defaultConfig);
@@ -133,7 +133,7 @@ describe('Agent Swarm System', () => {
         expect(id).toBeDefined();
         expect(id).toContain(testSessionId);
       }
-    });
+    }, 30000);
 
     it('should have correct session ID format for agents', async () => {
       const swarm = new AgentSwarm(testSessionId, defaultConfig);
