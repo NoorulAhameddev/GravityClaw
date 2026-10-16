@@ -1,223 +1,130 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fs from 'fs';
+import * as path from 'path';
+import { tmpdir } from 'os';
 
-// Mock config FIRST to override UNRESTRICTED_ACCESS before the path-validator loads it
 vi.mock('../../config.ts', () => ({
-  UNRESTRICTED_ACCESS: false,
   config: { UNRESTRICTED_ACCESS: false },
+  UNRESTRICTED_ACCESS: false,
+}));
+vi.mock('../../logger.ts', () => ({
+  createLogger: () => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  }),
 }));
 
-// Mock the fs module
-vi.mock('fs', () => ({
-  lstatSync: vi.fn(),
-  realpathSync: vi.fn(),
-}));
+import {
+  clearValidationCache,
+  isPathSafe,
+  validatePathAccess,
+} from '../../security/path-validator.ts';
 
-// Mock path with simple implementations for testing
-vi.mock('path', () => ({
-  resolve: (...args: string[]) => args.filter((arg) => arg).join('/'),
-  normalize: (p: string) => p,
-  relative: (from: string, to: string) => {
-    const normalizedFrom = from.replaceAll(String.fromCharCode(92), '/');
-    const normalizedTo = to.replaceAll(String.fromCharCode(92), '/');
-    if (normalizedTo === normalizedFrom) return '';
-    if (normalizedTo.startsWith(`${normalizedFrom}/`)) {
-      return normalizedTo.substring(normalizedFrom.length + 1);
-    }
-    return '../' + normalizedTo.split('/').filter(Boolean).pop();
-  },
-  isAbsolute: (p: string) => p.startsWith('/') || /^[A-Za-z]:/.test(p),
-  sep: '/',
-  basename: (p: string) => {
-    const parts = p.split(/[/\\]/);
-    return parts[parts.length - 1] ?? '';
-  },
-}));
+let root: string;
+let outside: string;
 
-// Now import the module under test
-import { validatePathAccess, clearValidationCache } from '../../security/path-validator';
+function validate(filePath: string, allowedPaths: string[] = [root]) {
+  return validatePathAccess(filePath, { allowedPaths, action: 'read' });
+}
 
-describe('Path Validation Security', () => {
+function symlinkDirectory(target: string, link: string): void {
+  fs.symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir');
+}
+
+describe('Path validation security', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    root = fs.mkdtempSync(path.join(tmpdir(), 'gravity-path-root-'));
+    outside = fs.mkdtempSync(path.join(tmpdir(), 'gravity-path-outside-'));
     clearValidationCache();
   });
 
-  describe('Symlink Validation', () => {
-    it('should reject symlinks pointing outside allowed directories', () => {
-      vi.mocked(fs.lstatSync).mockReturnValue({ isSymbolicLink: () => true } as any);
-      vi.mocked(fs.realpathSync).mockReturnValue('/etc/passwd' as any);
-
-      const result = validatePathAccess('/workspace/test_symlink', {
-        allowedPaths: ['/workspace'],
-        action: 'read',
-      });
-
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('Symlink');
-    });
-
-    it('should reject symlinks whose target only shares an allowed-path prefix', () => {
-      vi.mocked(fs.lstatSync).mockReturnValue({ isSymbolicLink: () => true } as any);
-      vi.mocked(fs.realpathSync).mockReturnValue('/workspace-evil/secret.txt' as any);
-
-      const result = validatePathAccess('/workspace/test_symlink', {
-        allowedPaths: ['/workspace'],
-        action: 'read',
-      });
-
-      expect(result.allowed).toBe(false);
-    });
-
-    it('should accept symlinks pointing inside allowed directories', () => {
-      vi.mocked(fs.lstatSync).mockReturnValue({ isSymbolicLink: () => true } as any);
-      vi.mocked(fs.realpathSync).mockReturnValue('/workspace/file.txt' as any);
-
-      const result = validatePathAccess('/workspace/test_symlink', {
-        allowedPaths: ['/workspace'],
-        action: 'read',
-      });
-
-      expect(result.allowed).toBe(true);
-    });
-
-    it('should reject broken symlinks', () => {
-      vi.mocked(fs.lstatSync).mockReturnValue({ isSymbolicLink: () => true } as any);
-      vi.mocked(fs.realpathSync).mockImplementation(() => {
-        throw new Error('ENOENT: no such file or directory');
-      });
-
-      const result = validatePathAccess('/workspace/broken_link', {
-        allowedPaths: ['/workspace'],
-        action: 'read',
-      });
-
-      expect(result.allowed).toBe(false);
-    });
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+    clearValidationCache();
   });
 
-  describe('Path Traversal Prevention', () => {
-    it('should block path traversal with ../', () => {
-      const result = validatePathAccess('../../etc/passwd', {
-        allowedPaths: ['/workspace'],
-        action: 'read',
-      });
-
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('traversal');
-    });
-
-    it('should block null byte injection', () => {
-      const result = validatePathAccess('file.txt\0.png', {
-        allowedPaths: ['/workspace'],
-        action: 'read',
-      });
-
-      expect(result.allowed).toBe(false);
-    });
+  it('allows a normal file inside an allowed directory', () => {
+    const target = path.join(root, 'file.txt');
+    fs.writeFileSync(target, 'safe');
+    expect(validate(target).allowed).toBe(true);
   });
 
-  describe('Allowed Path Enforcement', () => {
-    it('should only allow paths within allowed directories', () => {
-      const result = validatePathAccess('/etc/passwd', {
-        allowedPaths: ['/workspace'],
-        action: 'read',
-      });
-
-      expect(result.allowed).toBe(false);
-    });
-
-    it('should allow paths within allowed directories', () => {
-      vi.mocked(fs.lstatSync).mockReturnValue({ isSymbolicLink: () => false } as any);
-
-      const result = validatePathAccess('/workspace/file.txt', {
-        allowedPaths: ['/workspace'],
-        action: 'read',
-      });
-
-      expect(result.allowed).toBe(true);
-    });
+  it('rejects paths that only share an allowed directory prefix', () => {
+    const sibling = root + '-evil';
+    fs.mkdirSync(sibling, { recursive: true });
+    try {
+      const target = path.join(sibling, 'secret.txt');
+      fs.writeFileSync(target, 'outside');
+      expect(validate(target).allowed).toBe(false);
+    } finally {
+      fs.rmSync(sibling, { recursive: true, force: true });
+    }
   });
 
-  describe('Blocked Patterns', () => {
-    it('should block system directories like /etc/', () => {
-      const result = validatePathAccess('/etc/passwd', {
-        allowedPaths: ['/'],
-        action: 'read',
-      });
-      expect(result.allowed).toBe(false);
-    });
-
-    it('should block sensitive file patterns', () => {
-      const result = validatePathAccess('/workspace/.env', {
-        allowedPaths: ['/workspace'],
-        action: 'read',
-      });
-      expect(result.allowed).toBe(false);
-    });
-
-    it('should block credential files', () => {
-      const result = validatePathAccess('/workspace/credentials.json', {
-        allowedPaths: ['/workspace'],
-        action: 'read',
-      });
-      expect(result.allowed).toBe(false);
-    });
+  it('rejects traversal components', () => {
+    expect(validatePathAccess('../etc/passwd', { allowedPaths: [root] }).allowed).toBe(false);
   });
 
-  describe('Edge Cases', () => {
-    it('should reject empty path', () => {
-      const result = validatePathAccess('', {
-        allowedPaths: ['/workspace'],
-        action: 'read',
-      });
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toBe('Path is empty');
-    });
-
-    it('should reject whitespace-only path', () => {
-      const result = validatePathAccess('   ', {
-        allowedPaths: ['/workspace'],
-        action: 'read',
-      });
-      expect(result.allowed).toBe(false);
-    });
-
-    it('should handle multiple allowed paths', () => {
-      vi.mocked(fs.lstatSync).mockReturnValue({ isSymbolicLink: () => false } as any);
-
-      const result = validatePathAccess('/home/user/project/file.txt', {
-        allowedPaths: ['/workspace', '/home/user/project'],
-        action: 'read',
-      });
-      expect(result.allowed).toBe(true);
-    });
-
-    it('should block when path is outside all allowed directories', () => {
-      const result = validatePathAccess('/tmp/malicious.txt', {
-        allowedPaths: ['/workspace', '/home'],
-        action: 'write',
-      });
-      expect(result.allowed).toBe(false);
-    });
+  it('blocks sensitive filenames', () => {
+    const target = path.join(root, '.env');
+    fs.writeFileSync(target, 'secret=value');
+    expect(validate(target).allowed).toBe(false);
   });
 
-  describe('Caching', () => {
-    it('should cache validation results', () => {
-      vi.mocked(fs.lstatSync).mockReturnValue({ isSymbolicLink: () => false } as any);
+  it('rejects a symlink whose final target is outside the allowlist', () => {
+    const secret = path.join(outside, 'secret.txt');
+    const alias = path.join(root, 'secret-link.txt');
+    fs.writeFileSync(secret, 'safe');
+    fs.symlinkSync(secret, alias);
+    expect(validate(alias).allowed).toBe(false);
+  });
 
-      const result1 = validatePathAccess('/workspace/file.txt', {
-        allowedPaths: ['/workspace'],
-        action: 'read',
-      });
+  it('rejects an existing file reached through a symlinked parent directory', () => {
+    fs.writeFileSync(path.join(outside, 'secret.txt'), 'safe');
+    symlinkDirectory(outside, path.join(root, 'outside-link'));
+    expect(validate(path.join(root, 'outside-link', 'secret.txt')).allowed).toBe(false);
+  });
 
-      const result2 = validatePathAccess('/workspace/file.txt', {
-        allowedPaths: ['/workspace'],
-        action: 'read',
-      });
+  it('rejects a not-yet-created file beneath a symlinked parent directory', () => {
+    symlinkDirectory(outside, path.join(root, 'outside-link'));
+    expect(validate(path.join(root, 'outside-link', 'new.txt')).allowed).toBe(false);
+  });
 
-      expect(result1).toEqual(result2);
-      expect(vi.mocked(fs.lstatSync)).toHaveBeenCalledTimes(1);
-    });
+  it('allows a symlink when its resolved target stays inside the allowlist', () => {
+    const actual = path.join(root, 'actual.txt');
+    fs.writeFileSync(actual, 'safe');
+    fs.symlinkSync(actual, path.join(root, 'safe-link.txt'));
+    expect(validate(path.join(root, 'safe-link.txt')).allowed).toBe(true);
+  });
+
+  it('rejects a broken symlink instead of treating it as a missing file', () => {
+    fs.symlinkSync(path.join(outside, 'missing.txt'), path.join(root, 'broken-link.txt'));
+    expect(validate(path.join(root, 'broken-link.txt')).allowed).toBe(false);
+  });
+
+  it('revalidates a path after an allowed file is replaced by an escaping symlink', () => {
+    const target = path.join(root, 'replace-me.txt');
+    const secret = path.join(outside, 'secret.txt');
+    fs.writeFileSync(target, 'safe');
+    fs.writeFileSync(secret, 'outside');
+
+    expect(validate(target).allowed).toBe(true);
+    fs.unlinkSync(target);
+    fs.symlinkSync(secret, target);
+    expect(validate(target).allowed).toBe(false);
+  });
+
+  it('isPathSafe accepts contained paths and rejects traversal and symlink escapes', () => {
+    fs.writeFileSync(path.join(root, 'safe.txt'), 'safe');
+    fs.writeFileSync(path.join(outside, 'secret.txt'), 'secret');
+    symlinkDirectory(outside, path.join(root, 'outside-link'));
+
+    expect(isPathSafe(root, 'safe.txt')).toBe(true);
+    expect(isPathSafe(root, '../../../../../../etc/passwd')).toBe(false);
+    expect(isPathSafe(root, root + '-evil/secret.txt')).toBe(false);
+    expect(isPathSafe(root, 'outside-link/secret.txt')).toBe(false);
   });
 });

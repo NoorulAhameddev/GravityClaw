@@ -26,34 +26,44 @@ describe('FINDING-001: TenantAwareDb SQL injection prevention', () => {
     expect(result.params).toContain(maliciousTenantId);
   });
 
-  it('TC-002: uses AND (not a second WHERE) when WHERE clause already present', () => {
+  it('TC-002: applies tenant filtering outside caller-supplied predicates', () => {
     const db = new TenantAwareDb('my-tenant');
     const result = (db as any).injectTenantFilter('SELECT * FROM memory WHERE session_id = ?', [
       'sess-1',
     ]);
 
-    expect(result.sql).toMatch(/AND tenant_id = \?/i);
-    const whereCount = (result.sql.toUpperCase().match(/\bWHERE\b/g) || []).length;
-    expect(whereCount).toBe(1);
+    expect(result.sql).toBe(
+      'SELECT * FROM (SELECT * FROM memory WHERE session_id = ?) AS tenant_scoped WHERE tenant_id = ?',
+    );
     expect(result.params).toEqual(['sess-1', 'my-tenant']);
   });
 
-  it('TC-002b: does not modify non-SELECT statements', () => {
+  it('TC-002b: rejects non-SELECT statements instead of passing them through unscoped', () => {
     const db = new TenantAwareDb('my-tenant');
-    const result = (db as any).injectTenantFilter(
-      'UPDATE memory SET message_json = ? WHERE id = ?',
-      ['{}', 1],
-    );
-    expect(result.sql).toBe('UPDATE memory SET message_json = ? WHERE id = ?');
-    expect(result.params).toEqual(['{}', 1]);
+    expect(() =>
+      (db as any).injectTenantFilter(
+        'UPDATE memory SET message_json = ? WHERE id = ?',
+        ['{}', 1],
+      ),
+    ).toThrow(/single SELECT/i);
   });
 
-  it('TC-002c: does not re-inject when tenant_id already in query', () => {
+  it('TC-002c: always applies outer tenant scope even when the inner query mentions tenant_id', () => {
     const db = new TenantAwareDb('my-tenant');
-    const result = (db as any).injectTenantFilter('SELECT * FROM memory WHERE tenant_id = ?', [
-      'my-tenant',
-    ]);
-    expect((result.sql.match(/tenant_id/gi) || []).length).toBe(1);
+    const result = (db as any).injectTenantFilter(
+      'SELECT * FROM memory WHERE tenant_id = ?',
+      ['caller-controlled-tenant'],
+    );
+
+    expect(result.sql).toBe(
+      'SELECT * FROM (SELECT * FROM memory WHERE tenant_id = ?) AS tenant_scoped WHERE tenant_id = ?',
+    );
+    expect(result.params).toEqual(['caller-controlled-tenant', 'my-tenant']);
+  });
+
+  it('TC-002d: refuses writes without tenant-scoped write enforcement', async () => {
+    const db = new TenantAwareDb('my-tenant');
+    await expect(db.run('DELETE FROM memory WHERE id = ?', [1])).rejects.toThrow(/writes/i);
   });
 });
 

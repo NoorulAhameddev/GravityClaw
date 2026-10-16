@@ -42,9 +42,9 @@ export function validateWebSocketAuth(
     (wsProtocol ? wsProtocol.split(',')[0]?.trim() : undefined) ||
     url.searchParams.get('token');
 
-  // Localhost bypass is only allowed in non-production environments
-  const allowLocalhostBypass =
-    config.NODE_ENV !== 'production' || config.AUTH_ALLOW_LOCALHOST === true;
+  // Never infer an authentication bypass from NODE_ENV. Localhost access
+  // must be explicitly opted into in every environment.
+  const allowLocalhostBypass = config.AUTH_ALLOW_LOCALHOST === true;
   if (isLocalhost && allowLocalhostBypass) {
     logger.debug(`Allowing local WebSocket connection (dev mode)`);
     return { isAuthenticated: true, sessionId: 'local', authTimestamp: Date.now() };
