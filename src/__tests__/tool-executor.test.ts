@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Tool } from '../types/tools.js';
 import { ToolExecutor } from '../tools/executor.ts';
+import { approvalGate } from '../middleware/approval.ts';
 
 function createExecutor(tool: Tool) {
   return new ToolExecutor({
@@ -81,11 +82,18 @@ describe('ToolExecutor', () => {
       },
     };
 
+    const request = await approvalGate.createApprovalRequest(
+      'run_shell',
+      { command: 'rm -rf /' },
+      { userId: 'test', sessionId: 'test:executor', channel: 'test' },
+    );
+    await approvalGate.approve(request.id, 'test');
+
     const result = await createExecutor(tool).execute({
       toolName: 'run_shell',
       input: { command: 'rm -rf /' },
       context: { sessionId: 'test:executor' },
-      approval: { approvedBy: 'test', reason: 'regression' },
+      approvalRequestId: request.id,
     });
 
     expect(result.success).toBe(false);
@@ -145,6 +153,13 @@ describe('ToolExecutor', () => {
       },
     };
 
+    const request = await approvalGate.createApprovalRequest(
+      'approved_test_tool',
+      { value: 'ok' },
+      { userId: 'user-1', sessionId: 'test:executor', channel: 'test' },
+    );
+    await approvalGate.approve(request.id, 'test');
+
     const result = await createExecutor(tool).execute({
       toolName: 'approved_test_tool',
       input: { value: 'ok' },
@@ -152,7 +167,7 @@ describe('ToolExecutor', () => {
         sessionId: 'test:executor',
         userId: 'user-1',
       },
-      approval: { approvedBy: 'test', reason: 'regression' },
+      approvalRequestId: request.id,
     });
 
     expect(result.success).toBe(true);
