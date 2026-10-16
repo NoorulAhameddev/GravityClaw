@@ -9,6 +9,7 @@ import { approvalGate } from '../middleware/approval.ts';
 import { rateLimiter, createRateLimitErrorResponse } from '../middleware/rate-limit.ts';
 import { withSpanAsync, SpanKind } from '../lib/telemetry/tracer.js';
 import { recordToolCall } from '../lib/telemetry/metrics.js';
+import { isDangerous } from './system/shell.ts';
 
 const log = createLogger('tool-executor');
 const ajv = new Ajv({ coerceTypes: true });
@@ -279,7 +280,12 @@ export class ToolExecutor {
       return { allowed: true };
     }
 
-    if (!tool.requiresApproval && !approvalGate.isApprovalRequired(tool.name)) {
+    const isDangerousCommand =
+      tool.name === 'run_shell' &&
+      typeof request.input.command === 'string' &&
+      isDangerous(request.input.command);
+
+    if (!tool.requiresApproval && !approvalGate.isApprovalRequired(tool.name) && !isDangerousCommand) {
       return { allowed: true };
     }
 
@@ -298,6 +304,13 @@ export class ToolExecutor {
       ) {
         return { allowed: true, approvedBy: approval.approver ?? 'approval-gate' };
       }
+    }
+
+    if (isDangerousCommand) {
+      return {
+        allowed: false,
+        reason: 'Dangerous command requires explicit confirmation before execution.',
+      };
     }
 
     return { allowed: false, reason: `Approval required for tool "${tool.name}".` };

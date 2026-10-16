@@ -13,21 +13,42 @@ const DANGEROUS_PATTERNS: RegExp[] = [
   /\brm\s+-rf?\b/i,
   /\bdel\s+\/[sq]/i,
   /\brmdir\b/i,
+  /\brd\s+\/[sq]/i,
   /\bformat\b/i,
   /\bshutdown\b/i,
   /\breboot\b/i,
   /\bpoweroff\b/i,
   /\bmkfs\b/i,
   /\bdd\b.*of=/i,
-  /\bcurl\b.*\|\s*(sh|bash|zsh|fish)/i,
-  /\bwget\b.*\|\s*(sh|bash|zsh|fish)/i,
+  /\bcurl\b.*\|\s*(sh|bash|zsh|fish|powershell|pwsh)/i,
+  /\bwget\b.*\|\s*(sh|bash|zsh|fish|powershell|pwsh)/i,
   /\b>\/dev\/[a-z]+[0-9]/i,
   /\bdrop\s+(table|database)\b/i,
   /\btruncate\s+table\b/i,
+  /\bRemove-Item\b.*-Recurse\b/i,
+  /\bStop-Computer\b/i,
+  /\bRestart-Computer\b/i,
+  /\bClear-Disk\b/i,
+  /\bInitialize-Disk\b/i,
 ];
 
-/** Max bytes to return to the LLM — avoids flooding context */
-const MAX_OUTPUT_BYTES = 4096;
+/** Maximum output bytes returned to the LLM — protects context window while preserving diagnostics */
+const MAX_OUTPUT_BYTES = 16_384;
+const HEAD_PRESERVE_BYTES = 4_096;
+const TAIL_PRESERVE_BYTES = 8_192;
+
+export function truncateShellOutput(output: string): string {
+  const byteLength = Buffer.byteLength(output, 'utf8');
+  if (byteLength <= MAX_OUTPUT_BYTES) {
+    return output;
+  }
+
+  const head = output.substring(0, HEAD_PRESERVE_BYTES);
+  const tail = output.substring(output.length - TAIL_PRESERVE_BYTES);
+  const omittedBytes = byteLength - (Buffer.byteLength(head, 'utf8') + Buffer.byteLength(tail, 'utf8'));
+
+  return `${head}\n\n[... truncated ${omittedBytes} bytes ...]\n\n${tail}`;
+}
 
 export function isDangerous(command: string): boolean {
   return DANGEROUS_PATTERNS.some((p) => p.test(command));
@@ -124,10 +145,15 @@ RECOVERY HINT: Use modern PowerShell 'Get-CimInstance' instead.
     }
 
     try {
-      const { stdout, stderr } = await execAsync(command, {
+      const isWin = process.platform === 'win32';
+      const actualCommand = isWin
+        ? `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ${command}`
+        : command;
+
+      const { stdout, stderr } = await execAsync(actualCommand, {
         timeout: timeoutMs,
         cwd: cwdOverride,
-        shell: process.platform === 'win32' ? 'powershell.exe' : '/bin/sh',
+        shell: isWin ? 'powershell.exe' : '/bin/sh',
       });
 
       const output = [stdout ? `stdout:\n${stdout}` : '', stderr ? `stderr:\n${stderr}` : '']
@@ -136,13 +162,7 @@ RECOVERY HINT: Use modern PowerShell 'Get-CimInstance' instead.
         .trim();
 
       const result = output || '(no output)';
-
-      if (Buffer.byteLength(result, 'utf8') > MAX_OUTPUT_BYTES) {
-        const truncated = result.substring(0, MAX_OUTPUT_BYTES);
-        return `${truncated}\n\n[output truncated — ${Buffer.byteLength(result, 'utf8')} bytes total, showing first ${MAX_OUTPUT_BYTES}]`;
-      }
-
-      return result;
+      return truncateShellOutput(result);
     } catch (err) {
       if (err instanceof Error) {
         return `Error: ${err.message}`;
