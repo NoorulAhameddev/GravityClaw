@@ -187,20 +187,20 @@ export class ToolExecutor {
           });
         }
 
-        const approval = this.resolveApproval(tool, request);
-        if (!approval.allowed) {
-          return fail({
-            type: 'approval_required',
-            message: approval.reason,
-          });
-        }
-
         const security = this.enforceSecurityPolicy(tool, request.input);
         if (!security.allowed) {
           return fail({
             type: 'security_policy',
             message: security.reason,
             details: security.details,
+          });
+        }
+
+        const approval = this.resolveApproval(tool, request);
+        if (!approval.allowed) {
+          return fail({
+            type: 'approval_required',
+            message: approval.reason,
           });
         }
 
