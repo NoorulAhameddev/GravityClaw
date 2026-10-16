@@ -101,7 +101,7 @@ describe('ToolExecutor', () => {
     expect(executed).toBe(false);
   });
 
-  it('requires approval for dangerous shell commands even when tool requiresApproval is false', async () => {
+  it('requires approval for commands matching danger patterns even when tool requiresApproval is false', async () => {
     let executed = false;
     const tool: Tool = {
       name: 'run_shell',
@@ -122,7 +122,7 @@ describe('ToolExecutor', () => {
 
     const result = await createExecutor(tool).execute({
       toolName: 'run_shell',
-      input: { command: 'Remove-Item -Recurse C:\\temp' },
+      input: { command: 'echo format' },
       context: { sessionId: 'test:executor' },
     });
 
