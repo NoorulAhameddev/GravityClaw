@@ -248,6 +248,75 @@ export class FailoverProvider implements LLMProvider {
   }
 
   /**
+   * Chat with streaming and automatic failover before token emission
+   */
+  async chatStream(
+    messages: ChatCompletionMessageParam[],
+    toolDefinitions: ChatCompletionTool[],
+    options?: LLMChatOptions & { onToken?: (token: string, done: boolean) => void },
+  ): Promise<LLMResponse> {
+    const availableProviders = this.getAvailableProviders();
+
+    if (availableProviders.length === 0) {
+      throw new Error(
+        'All providers have open circuit breakers. No providers available for failover.',
+      );
+    }
+
+    log.info(`Starting failover streaming chat with ${availableProviders.length} available providers`);
+
+    let lastError: Error | null = null;
+    let tokensEmitted = false;
+
+    const originalOnToken = options?.onToken;
+    const wrappedOptions = originalOnToken
+      ? {
+          ...options,
+          onToken: (token: string, done: boolean) => {
+            if (token) tokensEmitted = true;
+            originalOnToken(token, done);
+          },
+        }
+      : options;
+
+    for (let i = 0; i < availableProviders.length; i++) {
+      const provider = availableProviders[i];
+      if (!provider) continue;
+
+      const isLastProvider = i === availableProviders.length - 1;
+
+      try {
+        log.debug(`Attempting streaming provider ${i + 1}/${availableProviders.length}: ${provider.name}`);
+
+        const response = provider.chatStream
+          ? await provider.chatStream(messages, toolDefinitions, wrappedOptions)
+          : await provider.chat(messages, toolDefinitions, options);
+
+        this.recordSuccess(provider.name);
+        log.info(`✓ Streaming provider ${provider.name} succeeded`);
+
+        return response;
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        lastError = err;
+
+        this.recordFailure(provider.name, err);
+
+        if (tokensEmitted || isLastProvider || !this.isRetryableError(err)) {
+          log.error(
+            `✗ Streaming provider ${provider.name} failed (emitted: ${tokensEmitted}, last: ${isLastProvider}): ${err.message}`,
+          );
+          throw err;
+        }
+
+        log.warn(`✗ Streaming provider ${provider.name} failed before tokens, trying next provider: ${err.message}`);
+      }
+    }
+
+    throw lastError || new Error('All providers failed');
+  }
+
+  /**
    * List models from primary provider (first in list)
    */
   async listModels(): Promise<string[]> {

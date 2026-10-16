@@ -51,6 +51,29 @@ class MockProvider implements LLMProvider {
     };
   }
 
+  async chatStream(
+    _messages: ChatCompletionMessageParam[],
+    _toolDefinitions: ChatCompletionTool[],
+    options?: { onToken?: (token: string, done: boolean) => void },
+  ): Promise<LLMResponse> {
+    this.callCount++;
+
+    if (this.shouldFail) {
+      throw new Error(this.failureMessage);
+    }
+
+    if (options?.onToken) {
+      options.onToken(`Streamed from ${this.name}`, true);
+    }
+
+    return {
+      text: `Streamed from ${this.name}`,
+      stopReason: 'stop',
+      toolCalls: [],
+      usage: { promptTokens: 10, completionTokens: 10, totalTokens: 20 },
+    };
+  }
+
   async listModels(): Promise<string[]> {
     return [`${this.name}-model-1`, `${this.name}-model-2`];
   }
@@ -258,5 +281,36 @@ describe('FailoverProvider', () => {
     const count = failover.countTokens([{ role: 'user', content: 'Hello world' }]);
 
     expect(count).toBe(3); // "Hello world".length / 4 = 11 / 4 = 2.75 -> 3
+  });
+
+  it('should stream from primary provider when available', async () => {
+    const failover = new FailoverProvider([provider1, provider2]);
+    const tokens: string[] = [];
+    const response = await failover.chatStream(
+      [{ role: 'user', content: 'test' }],
+      [],
+      { onToken: (token) => tokens.push(token) },
+    );
+
+    expect(response.text).toBe('Streamed from provider1');
+    expect(tokens).toContain('Streamed from provider1');
+    expect(provider1.getCallCount()).toBe(1);
+    expect(provider2.getCallCount()).toBe(0);
+  });
+
+  it('should failover to secondary provider during chatStream if primary fails before tokens', async () => {
+    provider1.setShouldFail(true, 'HTTP 429 rate limit exceeded');
+    const failover = new FailoverProvider([provider1, provider2]);
+    const tokens: string[] = [];
+    const response = await failover.chatStream(
+      [{ role: 'user', content: 'test' }],
+      [],
+      { onToken: (token) => tokens.push(token) },
+    );
+
+    expect(response.text).toBe('Streamed from provider2');
+    expect(tokens).toContain('Streamed from provider2');
+    expect(provider1.getCallCount()).toBe(1);
+    expect(provider2.getCallCount()).toBe(1);
   });
 });
