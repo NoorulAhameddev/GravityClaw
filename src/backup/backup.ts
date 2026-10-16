@@ -52,6 +52,69 @@ export class BackupManager {
     return this.backupDir;
   }
 
+  private resolveBackupPath(filename: string): string {
+    if (
+      typeof filename !== 'string' ||
+      filename.length === 0 ||
+      filename.length > 255 ||
+      filename === '.' ||
+      filename === '..' ||
+      filename.toLowerCase() === 'index.json' ||
+      filename.toLowerCase().endsWith('.tmp') ||
+      filename.startsWith('.') ||
+      filename.includes('\0') ||
+      /[\\/]/.test(filename) ||
+      path.isAbsolute(filename) ||
+      path.basename(filename) !== filename
+    ) {
+      throw new Error('Invalid backup filename');
+    }
+
+    const root = path.resolve(this.backupDir);
+    const target = path.resolve(root, filename);
+    const relative = path.relative(root, target);
+    if (
+      relative === '' ||
+      relative === '..' ||
+      relative.startsWith('..' + path.sep) ||
+      path.isAbsolute(relative)
+    ) {
+      throw new Error('Backup path escapes the backup directory');
+    }
+    return target;
+  }
+
+  private requireRegularBackupFile(filename: string): string {
+    const backupPath = this.resolveBackupPath(filename);
+    let stats: fs.Stats;
+    try {
+      stats = fs.lstatSync(backupPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
+        throw new Error('Backup file not found: ' + filename);
+      }
+      throw error;
+    }
+
+    if (stats.isSymbolicLink() || !stats.isFile()) {
+      throw new Error('Backup entry is not a regular file: ' + filename);
+    }
+    return backupPath;
+  }
+
+  private getBackupIndexPath(): string {
+    const indexPath = path.resolve(this.backupDir, 'index.json');
+    try {
+      const stats = fs.lstatSync(indexPath);
+      if (stats.isSymbolicLink() || !stats.isFile()) {
+        throw new Error('Backup index must be a regular, non-symlink file');
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') throw error;
+    }
+    return indexPath;
+  }
+
   private resolveLiveDbPath(dbPath: string): string {
     const canonical = resolveSqliteDbPath();
     if (!canonical || !fs.existsSync(canonical)) {
@@ -163,11 +226,7 @@ export class BackupManager {
     backupFilename: string,
     dbPath: string,
   ): Promise<void> {
-    const backupPath = path.join(this.backupDir, backupFilename);
-
-    if (!fs.existsSync(backupPath)) {
-      throw new Error(`Backup file not found: ${backupFilename}`);
-    }
+    const backupPath = this.requireRegularBackupFile(backupFilename);
 
     const resolvedDbPath = this.resolveLiveDbPath(dbPath);
 
@@ -235,12 +294,20 @@ export class BackupManager {
     const files = fs.readdirSync(this.backupDir);
 
     for (const file of files) {
-      if (file === 'index.json' || file.startsWith('.')) {
+      if (file.toLowerCase() === 'index.json' || file.startsWith('.') || file.toLowerCase().endsWith('.tmp')) {
         continue;
       }
 
-      const filePath = path.join(this.backupDir, file);
-      const stat = fs.statSync(filePath);
+      let filePath: string;
+      let stat: fs.Stats;
+      try {
+        filePath = this.resolveBackupPath(file);
+        stat = fs.lstatSync(filePath);
+        if (stat.isSymbolicLink() || !stat.isFile()) continue;
+      } catch (err) {
+        log.warn('Skipping unsafe backup entry ' + file, { error: err });
+        continue;
+      }
 
       try {
         const metadata = this.getBackupMetadata(file);
@@ -263,11 +330,7 @@ export class BackupManager {
    * Delete a backup
    */
   deleteBackup(filename: string): void {
-    const backupPath = path.join(this.backupDir, filename);
-
-    if (!fs.existsSync(backupPath)) {
-      throw new Error(`Backup file not found: ${filename}`);
-    }
+    const backupPath = this.requireRegularBackupFile(filename);
 
     try {
       fs.unlinkSync(backupPath);
@@ -313,10 +376,14 @@ export class BackupManager {
    * Verify backup integrity
    */
   verifyBackup(filename: string): { valid: boolean; message: string } {
-    const backupPath = path.join(this.backupDir, filename);
-
-    if (!fs.existsSync(backupPath)) {
-      return { valid: false, message: 'Backup file not found' };
+    let backupPath: string;
+    try {
+      backupPath = this.requireRegularBackupFile(filename);
+    } catch (error) {
+      return {
+        valid: false,
+        message: error instanceof Error ? error.message : String(error),
+      };
     }
 
     try {
@@ -437,7 +504,7 @@ export class BackupManager {
 
   /** Update backup index file */
   private updateBackupIndex(filename: string, metadata: BackupMetadata): void {
-    const indexPath = path.join(this.backupDir, 'index.json');
+    const indexPath = this.getBackupIndexPath();
     let index: Record<string, BackupMetadata> = {};
 
     if (fs.existsSync(indexPath)) {
@@ -459,7 +526,7 @@ export class BackupManager {
 
   /** Remove from backup index */
   private removeFromBackupIndex(filename: string): void {
-    const indexPath = path.join(this.backupDir, 'index.json');
+    const indexPath = this.getBackupIndexPath();
 
     if (!fs.existsSync(indexPath)) {
       return;
@@ -485,7 +552,7 @@ export class BackupManager {
 
   /** Get metadata for a backup */
   private getBackupMetadata(filename: string): BackupMetadata {
-    const indexPath = path.join(this.backupDir, 'index.json');
+    const indexPath = this.getBackupIndexPath();
 
     if (!fs.existsSync(indexPath)) {
       // Infer metadata from filename
