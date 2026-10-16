@@ -18,15 +18,15 @@ vi.mock('path', () => ({
   resolve: (...args: string[]) => args.filter((arg) => arg).join('/'),
   normalize: (p: string) => p,
   relative: (from: string, to: string) => {
-    const normalizedFrom = from.replace(/\\/g, '/').replace(/\\/+$/g, '');
-    const normalizedTo = to.replace(/\\/g, '/');
+    const normalizedFrom = from.replaceAll(String.fromCharCode(92), '/');
+    const normalizedTo = to.replaceAll(String.fromCharCode(92), '/');
     if (normalizedTo === normalizedFrom) return '';
     if (normalizedTo.startsWith(`${normalizedFrom}/`)) {
       return normalizedTo.substring(normalizedFrom.length + 1);
     }
     return '../' + normalizedTo.split('/').filter(Boolean).pop();
   },
-  isAbsolute: (p: string) => /^(?:[A-Za-z]:[\\/]|\\/|\\\\)/.test(p),
+  isAbsolute: (p: string) => p.startsWith('/') || /^[A-Za-z]:/.test(p),
   sep: '/',
   basename: (p: string) => {
     const parts = p.split(/[/\\]/);
