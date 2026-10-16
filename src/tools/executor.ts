@@ -26,6 +26,7 @@ export interface ToolExecutionContext {
   signal?: AbortSignal | undefined;
 }
 
+/** @deprecated Approval must be issued by ApprovalGate and referenced by approvalRequestId. */
 export interface ToolExecutionApproval {
   approvedBy: string;
   reason?: string | undefined;
@@ -289,10 +290,8 @@ export class ToolExecutor {
       return { allowed: true };
     }
 
-    if (request.approval?.approvedBy) {
-      return { allowed: true, approvedBy: request.approval.approvedBy };
-    }
-
+    // A caller-provided { approvedBy } object is not proof of approval. Only
+    // an approval record maintained by ApprovalGate can authorize execution.
     const requestId = request.approvalRequestId;
     if (requestId) {
       const approval = approvalGate.getById(requestId);
@@ -300,7 +299,8 @@ export class ToolExecutor {
         approval &&
         approval.status === 'approved' &&
         approval.toolName === tool.name &&
-        approval.sessionId === request.context.sessionId
+        approval.sessionId === request.context.sessionId &&
+        approvalGate.matchesParameters(requestId, request.input)
       ) {
         return { allowed: true, approvedBy: approval.approver ?? 'approval-gate' };
       }
