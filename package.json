@@ -134,7 +134,7 @@
     "ora": "^9.3.0",
     "pino": "^10.3.1",
     "redis": "^6.1.0",
-    "ws": "^8.19.0",
+    "ws": "^8.22.0",
     "yaml": "^2.8.2",
     "zod": "^3.23.8"
   },
@@ -152,7 +152,7 @@
     "@types/multer": "^2.1.0",
     "@types/node": "^22.13.5",
     "@types/node-cron": "^3.0.11",
-    "@types/ws": "^8.18.1",
+    "@types/ws": "^8.18.2",
     "@typescript-eslint/eslint-plugin": "^8.24.0",
     "@typescript-eslint/parser": "^8.24.0",
     "@vitest/coverage-v8": "^4.0.18",
