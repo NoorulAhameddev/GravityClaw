@@ -6,9 +6,12 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 
 describe('Backup verification', () => {
-  it('refuses to create a manager without a persistent encryption key', () => {
+  it('refuses to create an encrypted backup without a persistent key', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'backup-key-test-'));
-    expect(() => new BackupManager(dir)).toThrow(/MASTER_KEY|ephemeral/i);
+    const manager = new BackupManager(dir);
+    await expect(manager.createBackup({} as any, '/tmp/gravity.db')).rejects.toThrow(
+      /MASTER_KEY|ephemeral/i,
+    );
   });
 
   it('detects missing files', () => {
