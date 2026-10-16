@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { verifyBackup } from '../backup/verify.ts';
 import { BackupManager } from '../backup/backup.ts';
-import { writeFileSync, mkdtempSync, existsSync } from 'fs';
-import { join } from 'path';
+import { writeFileSync, readFileSync, mkdtempSync, symlinkSync } from 'fs';
+import { join, basename, dirname } from 'path';
 import { tmpdir } from 'os';
 
 describe('Backup verification', () => {
@@ -12,6 +12,36 @@ describe('Backup verification', () => {
     await expect(manager.createBackup({} as any, '/tmp/gravity.db')).rejects.toThrow(
       /MASTER_KEY|ephemeral/i,
     );
+  });
+
+  it('rejects traversal filenames in restore, delete, and verify operations', async () => {
+    const backupDir = mkdtempSync(join(tmpdir(), 'backup-guard-'));
+    const outsideDir = mkdtempSync(join(tmpdir(), 'backup-outside-'));
+    const outsideFile = join(outsideDir, 'sentinel.txt');
+    writeFileSync(outsideFile, 'do-not-change');
+    const manager = new BackupManager(backupDir, 'persistent-test-key');
+    const traversalName = '../' + basename(outsideDir) + '/sentinel.txt';
+
+    expect(() => manager.deleteBackup(traversalName)).toThrow(/filename|path/i);
+    expect(manager.verifyBackup(traversalName).valid).toBe(false);
+    await expect(
+      manager.restoreFromBackup({ close: vi.fn() } as any, traversalName, join(backupDir, 'live.db')),
+    ).rejects.toThrow(/filename|path/i);
+    expect(readFileSync(outsideFile, 'utf8')).toBe('do-not-change');
+    expect(dirname(outsideFile)).toBe(outsideDir);
+  });
+
+  it('refuses to operate on backup symlinks pointing outside the backup directory', () => {
+    const backupDir = mkdtempSync(join(tmpdir(), 'backup-symlink-'));
+    const outsideDir = mkdtempSync(join(tmpdir(), 'backup-symlink-outside-'));
+    const outsideFile = join(outsideDir, 'sentinel.backup');
+    writeFileSync(outsideFile, 'do-not-change');
+    symlinkSync(outsideFile, join(backupDir, 'backup-link.enc'));
+    const manager = new BackupManager(backupDir, 'persistent-test-key');
+
+    expect(() => manager.deleteBackup('backup-link.enc')).toThrow(/regular file/i);
+    expect(manager.verifyBackup('backup-link.enc').valid).toBe(false);
+    expect(readFileSync(outsideFile, 'utf8')).toBe('do-not-change');
   });
 
   it('detects missing files', () => {
