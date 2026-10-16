@@ -23,7 +23,8 @@ export const approvalCreateSchema = z.object({
 });
 
 export const approvalActionSchema = z.object({
-  approver: z.string().min(1, 'Approver is required'),
+  // Retained as an optional compatibility field; the server derives the actor from auth.
+  approver: z.string().min(1).optional(),
 });
 
 export const memoryQuerySchema = z.object({
