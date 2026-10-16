@@ -204,11 +204,24 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
       if (cmd === 'memory') {
         const facts = loadFactsForPrompt(sessionId);
-        const recentMessages = db
+        const rows = db
           .prepare(
-            'SELECT role, content, timestamp FROM memory WHERE session_id = ? ORDER BY id DESC LIMIT 5',
+            'SELECT message_json, timestamp FROM memory WHERE session_id = ? ORDER BY id DESC LIMIT 5',
           )
-          .all(sessionId) as Array<{ role: string; content: string; timestamp: string }>;
+          .all(sessionId) as Array<{ message_json: string; timestamp: string }>;
+
+        const recentMessages = rows.map((r) => {
+          try {
+            const parsed = JSON.parse(r.message_json) as { role?: string; content?: unknown };
+            return {
+              role: parsed.role || 'unknown',
+              content: parsed.content,
+              timestamp: r.timestamp,
+            };
+          } catch {
+            return { role: 'unknown', content: '', timestamp: r.timestamp };
+          }
+        });
 
         console.log(`\n${colors.bright}Session Memory & Facts:${colors.reset}`);
         if (facts) {

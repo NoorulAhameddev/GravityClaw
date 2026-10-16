@@ -559,7 +559,7 @@ export async function callClaude(
 
   if (configModule.MEMORY_DIRECTORY_ENABLED) {
     try {
-      const { loadMemoryPrompt } = await import('../memory/memdir.js');
+      const { loadMemoryPrompt } = await import('../memory/memdir.ts');
       const memoryPrompt = await loadMemoryPrompt();
       if (memoryPrompt) {
         systemPromptContent += `\n\n${memoryPrompt}`;

@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { config } from '../config.ts';
 import { createLogger } from '../logger.ts';
 import type { MemoryType, MemoryEntry } from './memdirTypes.js';
+import { wrapUntrustedMemoryBlock } from './sanitize.ts';
 
 const log = createLogger('memdir');
 
@@ -67,7 +68,7 @@ export async function loadMemoryPrompt(projectRoot?: string): Promise<string> {
   }
 
   const lines = content.split('\n');
-  return lines
+  const formatted = lines
     .map((line) => {
       if (line.startsWith('#')) {
         return line;
@@ -78,9 +79,11 @@ export async function loadMemoryPrompt(projectRoot?: string): Promise<string> {
       return line;
     })
     .join('\n');
+
+  return wrapUntrustedMemoryBlock(formatted);
 }
 
-function parseMemoryContent(content: string): MemoryEntry[] {
+export function parseMemoryContent(content: string): MemoryEntry[] {
   const entries: MemoryEntry[] = [];
   const lines = content.split('\n');
   let currentType: MemoryType = 'user';
@@ -88,7 +91,9 @@ function parseMemoryContent(content: string): MemoryEntry[] {
   let currentSource: string | undefined;
 
   for (const line of lines) {
-    const typeMatch = line.match(/^\[(user|feedback|project|reference)\]/i);
+    const typeMatch = line.match(
+      /^(?:-\s*\[[^\]]+\]\s*)?\[(user|feedback|project|reference)\](?:\s*#\s*(.+))?/i,
+    );
     if (typeMatch && typeMatch[1]) {
       if (currentContent.length > 0) {
         const entry: MemoryEntry = {
@@ -102,7 +107,7 @@ function parseMemoryContent(content: string): MemoryEntry[] {
       }
       currentType = typeMatch[1].toLowerCase() as MemoryType;
       currentContent = [];
-      currentSource = undefined;
+      currentSource = typeMatch[2]?.trim();
       continue;
     }
 
@@ -131,7 +136,7 @@ function parseMemoryContent(content: string): MemoryEntry[] {
   return entries;
 }
 
-function saveMemoryEntry(
+export function saveMemoryEntry(
   projectRoot: string,
   type: MemoryType,
   content: string,
@@ -157,7 +162,7 @@ function saveMemoryEntry(
   log.debug(`Saved memory entry: ${type}`);
 }
 
-function scanMemoryFiles(projectRoot?: string): string[] {
+export function scanMemoryFiles(projectRoot?: string): string[] {
   if (!isAutoMemoryEnabled()) {
     return [];
   }
