@@ -1,5 +1,5 @@
 # Build stage
-FROM node:22-trixie-slim AS builder
+FROM node:24-trixie-slim AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -9,16 +9,13 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 # Runtime stage
-FROM node:22-trixie-slim AS runtime
+FROM node:24-trixie-slim AS runtime
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends tini \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# npm and Corepack are build-time tools; the runtime only executes Node.js.
-RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
-    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 
 WORKDIR /app
 COPY --from=builder /app/dist ./dist
