@@ -209,7 +209,33 @@ export class ApprovalGate {
     return this.pendingApprovals.get(id);
   }
 
-  /** Verify that an approval covers the exact parameters being executed. */
+  /**
+   * Atomically authorize one execution and consume its approval. Reusing an
+   * approved request is rejected, even when tool/session/parameters match.
+   */
+  consumeApproved(
+    id: string,
+    toolName: string,
+    sessionId: string,
+    parameters: Record<string, unknown>,
+  ): { allowed: true; approvedBy: string } | { allowed: false } {
+    const request = this.pendingApprovals.get(id);
+    if (
+      !request ||
+      request.status !== 'approved' ||
+      request.toolName !== toolName ||
+      request.sessionId !== sessionId ||
+      this.parameterHashes.get(request) !== hashParameters(parameters)
+    ) {
+      return { allowed: false };
+    }
+
+    // Delete synchronously so concurrent calls cannot reuse this approval.
+    this.pendingApprovals.delete(id);
+    return { allowed: true, approvedBy: request.approver ?? 'approval-gate' };
+  }
+
+  /** Verify that an approval covers the exact parameters (for diagnostics/tests). */
   matchesParameters(id: string, parameters: Record<string, unknown>): boolean {
     const request = this.pendingApprovals.get(id);
     return Boolean(
