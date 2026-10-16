@@ -19,6 +19,8 @@ import {
   configCommand,
   toolsCommand,
   sessionsCommand,
+  bridgeCommand,
+  statsCommand,
   skillsCommand,
   costCommand,
   insightsCommand,
@@ -176,14 +178,12 @@ async function run(): Promise<void> {
         break;
 
       case 'bridge':
-        const { bridgeCommand } = await import('./cli/commands/bridge.ts');
         await bridgeCommand(
           args.subcommand ? [args.subcommand, ...args.positional] : args.positional,
         );
         break;
 
       case 'stats':
-        const { statsCommand } = await import('./cli/commands/stats.ts');
         await statsCommand({
           period: args.flags.period as string,
           verbose: Boolean(args.flags.verbose),
@@ -195,7 +195,6 @@ async function run(): Promise<void> {
         break;
 
       case 'cost':
-        const { costCommand } = await import('./cli/commands/cost.ts');
         await costCommand({
           period: args.flags.period as string,
           detailed: Boolean(args.flags.detailed),
@@ -204,7 +203,6 @@ async function run(): Promise<void> {
         break;
 
       case 'insights':
-        const { insightsCommand } = await import('./cli/commands/insights.ts');
         await insightsCommand({
           period: args.flags.period as string,
           html: Boolean(args.flags.html),
