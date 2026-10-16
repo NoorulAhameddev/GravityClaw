@@ -1,13 +1,14 @@
 # Build stage
-FROM node:20-slim AS builder
+FROM node:22-slim AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
+RUN npm ci --prefix dashboard && npm run build --prefix dashboard
 
 # Runtime stage
-FROM node:20-slim AS runtime
+FROM node:22-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tini \
     && rm -rf /var/lib/apt/lists/*
@@ -16,6 +17,10 @@ WORKDIR /app
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/dashboard/dist ./dashboard/dist
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/config ./config
+COPY --from=builder /app/skills ./skills
 
 # Create non-root user
 RUN groupadd -r appgroup && useradd -r -g appgroup -d /app -s /sbin/nologin appuser
