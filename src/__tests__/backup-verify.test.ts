@@ -1,10 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { verifyBackup } from '../backup/verify.ts';
+import { BackupManager } from '../backup/backup.ts';
 import { writeFileSync, mkdtempSync, existsSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
 describe('Backup verification', () => {
+  it('refuses to create a manager without a persistent encryption key', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'backup-key-test-'));
+    expect(() => new BackupManager(dir)).toThrow(/MASTER_KEY|ephemeral/i);
+  });
+
   it('detects missing files', () => {
     const result = verifyBackup('/nonexistent/path.tar.gz');
     expect(result.valid).toBe(false);
