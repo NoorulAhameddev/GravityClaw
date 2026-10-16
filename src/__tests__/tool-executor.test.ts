@@ -235,7 +235,7 @@ describe('ToolExecutor', () => {
     expect(result.result).toBe(
       JSON.stringify({
         value: 'ok',
-        sessionId: 'test:executor',
+        sessionId: 'test:executor:approved-valid',
         userId: 'user-1',
       }),
     );
