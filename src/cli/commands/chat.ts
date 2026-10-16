@@ -16,6 +16,8 @@ import { db } from '../../db.ts';
 export interface ChatOptions {
   sessionId?: string | undefined;
   verbose?: boolean;
+  message?: string | undefined;
+  autoApprove?: boolean | undefined;
 }
 
 function printBanner(sessionId: string, provider: string, model: string): void {
@@ -69,30 +71,21 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   printBanner(sessionId, activeProvider, activeModel);
 
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: `${colors.green}You${colors.reset} > `,
-  });
-
-  rl.prompt();
-
-  rl.on('line', async (line) => {
-    const rawLine = line.trim();
-
+  const handleLine = async (
+    rawLine: string,
+    rl?: { prompt: () => void; close: () => void },
+  ): Promise<void> => {
     if (!rawLine) {
-      rl.prompt();
+      rl?.prompt();
       return;
     }
 
-    // Direct exit
     if (rawLine === 'exit' || rawLine === 'quit' || rawLine === '/exit' || rawLine === '/quit') {
       success('Goodbye!');
-      rl.close();
+      rl?.close();
       return;
     }
 
-    // Slash command handling
     if (rawLine.startsWith('/')) {
       const parts = rawLine.slice(1).split(/\s+/);
       const cmd = (parts[0] || '').toLowerCase();
@@ -100,7 +93,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
       if (cmd === 'help') {
         printHelp();
-        rl.prompt();
+        rl?.prompt();
         return;
       }
 
@@ -124,7 +117,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         console.log(`  ${dim('Messages:')}       ${memoryRows?.count ?? 0} in session memory`);
         console.log(`  ${dim('Tools:')}          ${toolsCount} registered`);
         console.log(`  ${dim('Skills:')}         ${skillsCount} available\n`);
-        rl.prompt();
+        rl?.prompt();
         return;
       }
 
@@ -138,7 +131,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           updateSessionSetting(sessionId, 'model', arg);
           success(`Model switched to: ${highlight(arg)}`);
         }
-        rl.prompt();
+        rl?.prompt();
         return;
       }
 
@@ -152,7 +145,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           updateSessionSetting(sessionId, 'provider', arg);
           success(`Provider switched to: ${highlight(arg)}`);
         }
-        rl.prompt();
+        rl?.prompt();
         return;
       }
 
@@ -169,7 +162,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         } else {
           warn(`Invalid thinking level "${arg}". Choose from: off, low, medium, high.`);
         }
-        rl.prompt();
+        rl?.prompt();
         return;
       }
 
@@ -181,7 +174,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           console.log(`  ${colors.yellow}⚡${colors.reset} ${highlight(t.name.padEnd(26))} ${dim(desc)}`);
         }
         console.log('');
-        rl.prompt();
+        rl?.prompt();
         return;
       }
 
@@ -198,7 +191,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           }
           console.log('');
         }
-        rl.prompt();
+        rl?.prompt();
         return;
       }
 
@@ -241,7 +234,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           }
           console.log('');
         }
-        rl.prompt();
+        rl?.prompt();
         return;
       }
 
@@ -249,16 +242,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         db.prepare('DELETE FROM memory WHERE session_id = ?').run(sessionId);
         db.prepare('DELETE FROM session_settings WHERE session_id = ?').run(sessionId);
         success('Session conversation and settings cleared.');
-        rl.prompt();
+        rl?.prompt();
         return;
       }
 
       warn(`Unknown command: /${cmd}. Type /help for available commands.`);
-      rl.prompt();
+      rl?.prompt();
       return;
     }
 
-    // Process regular user message through agentic loop with real-time streaming
     try {
       let streamStarted = false;
       let lastPrintedNewline = true;
@@ -270,6 +262,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           userId: 'cli-user',
           platform: 'cli',
           requestConfirmation: async (command: string): Promise<boolean> => {
+            if (options.autoApprove) {
+              if (!lastPrintedNewline) {
+                process.stdout.write('\n');
+                lastPrintedNewline = true;
+              }
+              console.log(`${colors.green}⚡ [Auto-approved]:${colors.reset} ${dim(command)}`);
+              return true;
+            }
             return new Promise((resolve) => {
               if (!lastPrintedNewline) {
                 process.stdout.write('\n');
@@ -340,7 +340,6 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         }),
       );
 
-      // If streaming didn't output the final answer text (e.g. non-streaming fallback), print it
       if (!streamStarted && result.text) {
         console.log(`\n${colors.cyan}Gravity Claw${colors.reset} > ${result.text}\n`);
       } else {
@@ -355,7 +354,24 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       error(`Execution failed: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    rl.prompt();
+    rl?.prompt();
+  };
+
+  if (options.message) {
+    await handleLine(options.message);
+    return;
+  }
+
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: `${colors.green}You${colors.reset} > `,
+  });
+
+  rl.prompt();
+
+  rl.on('line', async (line) => {
+    await handleLine(line.trim(), rl);
   });
 
   rl.on('close', () => {

@@ -21,11 +21,14 @@ export class OpenCodeProvider implements LLMProvider {
   private serverReady = false;
 
   constructor(
-    defaultModel: string = 'nemotron-3.5-lightning-free',
+    defaultModel: string = 'deepseek-v4.1-flash-free',
     baseUrl: string = 'http://127.0.0.1:4096',
     autoStart: boolean = true,
   ) {
-    this.defaultModel = defaultModel;
+    this.defaultModel =
+      !defaultModel || defaultModel === 'openrouter/free' || defaultModel === 'nemotron-3.5-lightning-free'
+        ? 'deepseek-v4.1-flash-free'
+        : defaultModel;
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     const url = new URL(this.baseUrl);
     this.port = parseInt(url.port || '4096', 10);

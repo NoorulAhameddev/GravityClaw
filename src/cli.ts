@@ -154,12 +154,39 @@ async function run(): Promise<void> {
         await import('./index.ts');
         break;
 
-      case 'chat':
+      case 'exec':
+      case 'run': {
+        const message =
+          [args.subcommand, ...args.positional].filter(Boolean).join(' ') ||
+          (args.flags.m as string) ||
+          (args.flags.message as string);
+        if (!message) {
+          error('Please provide an instruction to execute.');
+          return;
+        }
         await chatCommand({
           sessionId: args.flags.session as string | undefined,
           verbose: Boolean(args.flags.verbose),
+          message,
+          autoApprove: Boolean(args.flags.yes || args.flags.y || args.flags['auto-approve']),
         });
         break;
+      }
+
+      case 'chat': {
+        const message =
+          [args.subcommand, ...args.positional].filter(Boolean).join(' ') ||
+          (args.flags.m as string) ||
+          (args.flags.message as string) ||
+          undefined;
+        await chatCommand({
+          sessionId: args.flags.session as string | undefined,
+          verbose: Boolean(args.flags.verbose),
+          message,
+          autoApprove: Boolean(args.flags.yes || args.flags.y || args.flags['auto-approve']),
+        });
+        break;
+      }
 
       case 'doctor':
         await doctorCommand();
