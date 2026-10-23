@@ -123,7 +123,7 @@
     "enquirer": "^2.4.1",
     "express": "^5.2.1",
     "fuse.js": "^7.1.0",
-    "googleapis": "^171.4.0",
+    "googleapis": "^186.0.0",
     "grammy": "^1.31.0",
     "groq-sdk": "^0.37.0",
     "helmet": "^8.3.0",
