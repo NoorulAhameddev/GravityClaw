@@ -114,7 +114,7 @@
     "ajv": "^8.18.0",
     "better-sqlite3": "^12.6.2",
     "boxen": "^8.0.1",
-    "chalk": "^5.6.2",
+    "chalk": "^6.0.1",
     "chromadb": "^3.3.1",
     "cohere-ai": "^7.20.0",
     "commander": "^15.0.0",
