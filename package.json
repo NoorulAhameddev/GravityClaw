@@ -107,7 +107,7 @@
     "@opentelemetry/sdk-trace-node": "^1.27.0",
     "@opentelemetry/semantic-conventions": "^1.27.0",
     "@sentry/node": "^10.66.0",
-    "@sentry/profiling-node": "^10.66.0",
+    "@sentry/profiling-node": "^11.8.0",
     "@supabase/supabase-js": "^2.98.0",
     "@tensorflow-models/speech-commands": "^0.5.4",
     "@tensorflow/tfjs-node": "^4.22.0",
