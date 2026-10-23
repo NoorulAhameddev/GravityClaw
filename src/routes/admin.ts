@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.ts';
+import { standardApiLimiter } from '../middleware/rate-limit.ts';
 import { db } from '../db.ts';
 import { createLogger } from '../logger.ts';
 
 const log = createLogger('admin-routes');
 
 export const router = Router();
+router.use(standardApiLimiter);
 
 router.get('/health', authMiddleware, async (_req, res) => {
   try {

@@ -40,9 +40,12 @@ import { mcpClient } from '../mcp/index.ts';
 import { isQueueWorkerRunning } from '../queue/index.ts';
 import { config } from '../config.ts';
 
+import { standardApiLimiter } from '../middleware/rate-limit.ts';
+
 const log = createLogger('metrics-api');
 const router = Router();
 
+router.use(standardApiLimiter);
 router.use(authMiddleware);
 
 /**

@@ -149,13 +149,21 @@ const BLOCKED_NODE_FLAGS = new Set([
  * @returns Validation result with parsed command details
  */
 export function validateCommand(command: string): CommandValidation {
+  if (typeof command !== 'string' || command.length > 8192) {
+    return {
+      allowed: false,
+      reason: 'Command is invalid or exceeds maximum length of 8192 characters',
+      parsed: { baseCommand: '', args: [], hasChaining: false, hasRedirection: false, hasInjection: false },
+    };
+  }
+
   // 1. Parse command into tokens
   const tokens = parseCommand(command);
   const baseCommand = tokens[0]?.toLowerCase() || '';
 
   // Strip quoted substrings before checking for chaining/redirection operators
   // to avoid false positives on legitimate arguments like commit messages (e.g. git commit -m "feat; fix")
-  const unquoted = command.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '');
+  const unquoted = command.replace(/"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'/g, '');
 
   // 2. Check for chaining operators
   const hasChaining =
@@ -270,7 +278,8 @@ function parseCommand(command: string): string[] {
   let inQuote = false;
   let quoteChar = '';
 
-  for (let i = 0; i < command.length; i++) {
+  const maxLen = Math.min(command.length, 8192);
+  for (let i = 0; i < maxLen; i++) {
     const char = command[i];
 
     if ((char === '"' || char === "'") && !inQuote) {

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { healthAuthMiddleware } from '../middleware/health-auth.ts';
+import { standardApiLimiter } from '../middleware/rate-limit.ts';
 import { db } from '../db.ts';
 import { getActualPort } from '../lib/runtime.ts';
 import { createLogger } from '../logger.ts';
@@ -9,6 +10,7 @@ import { getProvider } from '../llm/index.ts';
 
 const log = createLogger('route:health');
 export const router = Router();
+router.use(standardApiLimiter);
 
 router.get('/health', healthAuthMiddleware, (req, res) => {
   const startTime = Date.now();

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../../middleware/auth.ts';
+import { standardApiLimiter } from '../../middleware/rate-limit.ts';
 import { requirePermission } from '../../auth/rbac.ts';
 import { db } from '../../db.ts';
 import { createLogger } from '../../logger.ts';
@@ -7,6 +8,7 @@ import { createLogger } from '../../logger.ts';
 const log = createLogger('admin-users');
 export const router = Router();
 
+router.use(standardApiLimiter);
 router.use(authMiddleware);
 
 router.get('/', requirePermission('users:read'), (req, res) => {

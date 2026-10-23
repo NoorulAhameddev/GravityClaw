@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.ts';
+import { standardApiLimiter } from '../middleware/rate-limit.ts';
 import { db } from '../db.ts';
 
 export const router = Router();
+router.use(standardApiLimiter);
 router.get('/', authMiddleware, (req, res) => {
   try {
     const workflows = db

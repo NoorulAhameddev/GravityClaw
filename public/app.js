@@ -750,13 +750,11 @@ function canConnect() {
 function renderCanvas(html, js) {
   const frame = document.getElementById('canvas-frame');
   const ph = document.getElementById('canvas-ph');
-  const doc = frame.contentDocument || frame.contentWindow.document;
-  doc.open();
-  doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:0;padding:20px;background:#fff;color:#333;}*{box-sizing:border-box;}h1,h2,h3{margin-top:0;color:#1f2937;}button{cursor:pointer;padding:8px 16px;border-radius:6px;border:1px solid #ddd;background:#fff;transition:all 0.2s;} button:hover{background:#f0f0f0;border-color:#999;}</style>
-    </head><body>${html}${js ? `<script>${js}<\/script>` : ''}</body></html>`);
-  doc.close();
+    </head><body>${html}${js ? `<script>${js}<\/script>` : ''}</body></html>`;
+  frame.srcdoc = fullHtml;
   ph.style.display = 'none';
   frame.style.display = 'block';
 }

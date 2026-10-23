@@ -612,8 +612,8 @@ export class TelegramChannel implements Channel {
             const inner = part.slice(3, -3);
             const firstLine = inner.indexOf('\n');
             const body = firstLine >= 0 ? inner.substring(firstLine + 1) : inner;
-            // Escape backticks in body only (not the wrapper ones)
-            const safeBody = body.replace(/`/g, '\\`');
+            // Escape backslashes and backticks in body only (not the wrapper ones)
+            const safeBody = body.replace(/\\/g, '\\\\').replace(/`/g, '\\`');
             return '```\n' + safeBody + '\n```';
           }
           // Handle inline code and escape everything else
@@ -621,7 +621,7 @@ export class TelegramChannel implements Channel {
           return inlineParts
             .map((p) => {
               if (p.startsWith('`') && p.endsWith('`')) {
-                const code = p.slice(1, -1).replace(/`/g, '\\`');
+                const code = p.slice(1, -1).replace(/\\/g, '\\\\').replace(/`/g, '\\`');
                 return '`' + code + '`';
               }
               return escMdV2(p);

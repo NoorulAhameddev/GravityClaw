@@ -34,7 +34,12 @@ import { ensureAuditTable } from './audit/logger.ts';
 import { apiAuditMiddleware } from './audit/middleware.ts';
 import { errorHandler } from './middleware/errorHandler.ts';
 import { approvalGate } from './middleware/approval.ts';
-import { rateLimitMiddleware, rateLimiter } from './middleware/rate-limit.ts';
+import {
+  rateLimitMiddleware,
+  rateLimiter,
+  standardApiLimiter,
+  standardAuthLimiter,
+} from './middleware/rate-limit.ts';
 import { stopMemoryOptimizations } from './performance/memory-optimization.ts';
 import { stopBrowserIdleCheck } from './tools/automation/browser.ts';
 
@@ -65,7 +70,18 @@ app.use(
 import helmet from 'helmet';
 app.use(
   helmet({
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://cdnjs.cloudflare.com'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+        connectSrc: ["'self'", 'ws:', 'wss:', 'http:', 'https:'],
+        frameSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+      },
+    },
     crossOriginEmbedderPolicy: false,
   }),
 );
@@ -93,6 +109,8 @@ export const server = createServer(app);
 export const wss = new WebSocketServer({ noServer: true });
 
 // Apply rate limiting to all API and auth routes
+app.use('/api', standardApiLimiter);
+app.use('/auth', standardAuthLimiter);
 app.use('/api', rateLimitMiddleware({ maxRequests: 120, prefix: 'api' }));
 app.use('/auth', rateLimitMiddleware({ maxRequests: 30, prefix: 'auth' }));
 
@@ -305,7 +323,7 @@ app.get('/api/stats', authMiddleware, (req, res) => {
 /**
  * Webhooks list API (secrets masked)
  */
-app.get('/api/webhooks', authMiddleware, (req, res) => {
+app.get('/api/webhooks', standardApiLimiter, authMiddleware, (req, res) => {
   try {
     const webhooks = db
       .prepare(
@@ -322,7 +340,7 @@ app.get('/api/webhooks', authMiddleware, (req, res) => {
 /**
  * Sessions list API with message count
  */
-app.get('/api/sessions', authMiddleware, (req, res) => {
+app.get('/api/sessions', standardApiLimiter, authMiddleware, (req, res) => {
   try {
     const sessions = db
       .prepare(
@@ -346,7 +364,7 @@ app.get('/api/sessions', authMiddleware, (req, res) => {
 /**
  * Heartbeat tasks API
  */
-app.get('/api/heartbeats', authMiddleware, (req, res) => {
+app.get('/api/heartbeats', standardApiLimiter, authMiddleware, (req, res) => {
   try {
     const heartbeats = db
       .prepare('SELECT * FROM heartbeat_tasks ORDER BY created_at DESC LIMIT 100')
@@ -359,7 +377,7 @@ app.get('/api/heartbeats', authMiddleware, (req, res) => {
 });
 
 // SPA fallback for the modern dashboard or legacy public UI
-app.get(/^(?!\/(api|webhook|metrics|auth)).*$/, (_req, res) => {
+app.get(/^(?!\/(api|webhook|metrics|auth)).*$/, standardApiLimiter, (_req, res) => {
   const dashboardIndex = path.join(distPath, 'index.html');
   if (fs.existsSync(dashboardIndex)) {
     res.sendFile(dashboardIndex);

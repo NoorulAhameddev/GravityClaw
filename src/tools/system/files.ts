@@ -711,8 +711,9 @@ Example: search_files({ directory: "src", pattern: "*.ts" })`,
         });
       }
 
-      // Convert glob pattern to regex
-      const regexPattern = pattern.replace(/\./g, '\\.').replace(/\*/g, '.*').replace(/\?/g, '.');
+      // Convert glob pattern to regex safely
+      const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+      const regexPattern = escaped.replace(/\*/g, '.*').replace(/\?/g, '.');
       const regex = new RegExp(`^${regexPattern}$`, 'i');
 
       const matches: any[] = [];

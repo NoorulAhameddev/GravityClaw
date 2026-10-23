@@ -9,6 +9,8 @@ import { tmpdir } from 'os';
 
 const log = createLogger('route:voice');
 export const router = Router();
+import { standardApiLimiter } from '../middleware/rate-limit.ts';
+router.use(standardApiLimiter);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
 router.post(

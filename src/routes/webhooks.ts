@@ -1,11 +1,12 @@
 import { Router } from 'express';
-import { rateLimitMiddleware } from '../middleware/rate-limit.ts';
+import { rateLimitMiddleware, standardApiLimiter } from '../middleware/rate-limit.ts';
 import { validateParams, webhookParamsSchema } from '../middleware/validation.ts';
 import { getWebhookByName, verifySignature, recordDelivery } from '../webhooks/index.ts';
 import { createLogger } from '../logger.ts';
 
 const log = createLogger('route:webhooks');
 export const router = Router();
+router.use(standardApiLimiter);
 
 router.post(
   '/:session_id/:hook_name',

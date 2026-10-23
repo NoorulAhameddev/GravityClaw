@@ -14,6 +14,7 @@
  */
 
 import ws from 'ws';
+import { randomUUID } from 'node:crypto';
 import { performance } from 'perf_hooks';
 import { cpuUsage, memoryUsage } from 'process';
 
@@ -177,7 +178,7 @@ class LoadTester {
           type: 'message',
           content: 'Load test message',
           timestamp: performance.now(),
-          sessionId: 'load-test-' + Math.random().toString(36).substr(2, 9),
+          sessionId: 'load-test-' + randomUUID(),
         }),
       );
       this.messagesSent++;

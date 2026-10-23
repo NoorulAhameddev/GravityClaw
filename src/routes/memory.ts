@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.ts';
+import { standardApiLimiter } from '../middleware/rate-limit.ts';
 import { validateQuery, memoryQuerySchema } from '../middleware/validation.ts';
 import { db } from '../db.ts';
 
 export const router = Router();
+router.use(standardApiLimiter);
 
 router.get('/', authMiddleware, validateQuery(memoryQuerySchema), (req, res) => {
   try {
