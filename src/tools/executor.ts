@@ -10,6 +10,7 @@ import { rateLimiter, createRateLimitErrorResponse } from '../middleware/rate-li
 import { withSpanAsync, SpanKind } from '../lib/telemetry/tracer.js';
 import { recordToolCall } from '../lib/telemetry/metrics.js';
 import { isDangerous } from './system/shell.ts';
+import { coerceToolArgs } from './coercion.ts';
 
 const log = createLogger('tool-executor');
 const ajv = new Ajv({ coerceTypes: true });
@@ -168,7 +169,9 @@ export class ToolExecutor {
           return fail({ type: 'not_found', message: `Tool "${request.toolName}" not found.` });
         }
 
-        const validation = this.validateInput(tool, request.input);
+        const coercedInput = coerceToolArgs(tool.name, tool.inputSchema, request.input);
+
+        const validation = this.validateInput(tool, coercedInput);
         if (!validation.valid) {
           return fail({
             type: 'validation',
@@ -187,7 +190,7 @@ export class ToolExecutor {
           });
         }
 
-        const security = this.enforceSecurityPolicy(tool, request.input);
+        const security = this.enforceSecurityPolicy(tool, coercedInput);
         if (!security.allowed) {
           return fail({
             type: 'security_policy',
@@ -196,7 +199,7 @@ export class ToolExecutor {
           });
         }
 
-        const approval = this.resolveApproval(tool, request);
+        const approval = this.resolveApproval(tool, { ...request, input: coercedInput });
         if (!approval.allowed) {
           return fail({
             type: 'approval_required',
@@ -206,7 +209,7 @@ export class ToolExecutor {
 
         const signal = timeoutSignal(request.context.signal, timeoutMs);
         const injectedInput = {
-          ...request.input,
+          ...coercedInput,
           __sessionId: request.context.sessionId,
           __userId: request.context.userId,
           __platform: request.context.platform,

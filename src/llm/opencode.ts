@@ -145,16 +145,18 @@ export class OpenCodeProvider implements LLMProvider {
       parameters: t.function.parameters || {},
     }));
 
-    return `\n\nYou have access to the following system tools:
+    return `\n\n### CRITICAL: GRAVITYCLAW ACTIVE TOOLS
+You are running as the GravityClaw AI Agent. You have full permission and active access to the following registered GravityClaw tools:
 <tools>
 ${JSON.stringify(toolList, null, 2)}
 </tools>
 
-When you need to call a tool to inspect the machine or execute actions, respond ONLY with one or more <tool_call> tags:
+Whenever a task or request mentions these tools or requires actions (such as listing skills, loading skills, saving entities, searching the web, executing code, etc.), you MUST invoke them.
+To call a tool, respond with:
 <tool_call>
 {"name": "tool_name", "arguments": {"arg": "value"}}
 </tool_call>
-When you have the final answer or do not need a tool, respond normally with concise text without <tool_call> tags.`;
+Never claim that tools listed in <tools> are unavailable. They are fully registered and live in this session.`;
   }
 
   private parseToolCalls(text: string): {

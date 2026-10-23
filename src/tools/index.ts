@@ -6,6 +6,7 @@ import {
   adminTools,
   communicationTools,
   spawnAgentTool,
+  delegateTaskTool,
   aggregateResultsTool,
 } from './core/index.ts';
 import {
@@ -29,6 +30,7 @@ import {
 import {
   datetimeTool,
   shellTool,
+  executeCodeTool,
   searchAttachmentsTool,
   fileOperationTools,
   rateLimitingTools,
@@ -39,7 +41,7 @@ import { securityTools } from './security/index.ts';
 import { schedulerTools } from '../scheduler/index.ts';
 import { webhookTools } from '../webhooks/index.ts';
 import { heartbeatTools } from '../heartbeat/index.ts';
-import { skillsManager } from '../skills/index.ts';
+import { skillsManager, skillManagementTools } from '../skills/index.ts';
 import { canvasPushTool } from '../canvas/index.ts';
 import {
   exportChatHistoryTool,
@@ -113,6 +115,12 @@ class ToolRegistry implements ToolRegistryType {
       'get',
       'set',
       'update',
+      'save',
+      'store',
+      'query',
+      'load',
+      'spawn',
+      'push',
       'run',
       'execute',
       'start',
@@ -140,8 +148,14 @@ class ToolRegistry implements ToolRegistryType {
       'memory',
       'graph',
       'entity',
+      'entities',
+      'relation',
+      'relationship',
+      'relationships',
       'fact',
       'facts',
+      'skill',
+      'skills',
       'schedule',
       'task',
       'tasks',
@@ -176,11 +190,14 @@ class ToolRegistry implements ToolRegistryType {
       'model',
       'swarm',
       'agent',
+      'subagent',
+      'canvas',
+      'widget',
     ];
 
     const words = query
       .toLowerCase()
-      .split(/\s+/)
+      .split(/[\s,.'"`_/-]+/)
       .filter((w) => w.length > 1);
     const actions = words.filter((w) => actionWords.includes(w));
     const objects = words.filter((w) => objectWords.includes(w));
@@ -190,13 +207,15 @@ class ToolRegistry implements ToolRegistryType {
     const defaultTools = [
       'get_datetime',
       'run_shell',
+      'execute_code',
+      'delegate_task',
       'read_file',
       'write_file',
       'list_files',
       'search_files',
       'save_fact',
       'recall_facts',
-      'web_search',
+      'websearch',
     ];
 
     const scored = tools.map((tool) => {
@@ -207,6 +226,11 @@ class ToolRegistry implements ToolRegistryType {
       let score = 0;
       let hasActionMatch = false;
       let hasObjectMatch = false;
+
+      // Direct tool name match - HIGHEST priority (+15)
+      if (q.includes(name) || words.includes(name) || words.some((w) => w.length > 3 && (name.includes(w) || w.includes(name)))) {
+        score += 15;
+      }
 
       // (A) Object match - HIGH priority (+6)
       for (const obj of objects) {
@@ -242,6 +266,8 @@ class ToolRegistry implements ToolRegistryType {
       // (F) Boost core work tools (+4)
       const coreWorkTools = [
         'run_shell',
+        'execute_code',
+        'delegate_task',
         'spawn_agent',
         'read_file',
         'write_file',
@@ -306,6 +332,7 @@ export const toolExecutor = new ToolExecutor(registry);
 export function registerBuiltInTools(): void {
   registry.register(datetimeTool);
   registry.register(shellTool);
+  registry.register(executeCodeTool);
   registry.register(saveFactTool);
   registry.register(recallFactsTool);
   registry.register(saveEntityTool);
@@ -335,7 +362,8 @@ export function registerBuiltInTools(): void {
   webhookTools.forEach((tool) => registry.register(tool));
   heartbeatTools.forEach((tool) => registry.register(tool));
 
-  // Skills tools are dynamic
+  // Skills tools (management + dynamic)
+  skillManagementTools.forEach((tool) => registry.register(tool));
   const skillTools = skillsManager.getSkillTools();
   skillTools.forEach((tool) => registry.register(tool));
 
@@ -346,6 +374,7 @@ export function registerBuiltInTools(): void {
   registry.register(canvasPushTool);
 
   registry.register(spawnAgentTool);
+  registry.register(delegateTaskTool);
   registry.register(aggregateResultsTool);
   mcpTools.forEach((tool) => registry.register(tool));
   calendarTools.forEach((tool) => registry.register(tool));

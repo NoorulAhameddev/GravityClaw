@@ -109,6 +109,10 @@ export function saveEntity(
 
   const incomingProps = properties ?? {};
   if (existing) {
+    const finalType =
+      normalizedType === 'unknown' && existing.type && existing.type !== 'unknown'
+        ? existing.type
+        : normalizedType;
     const mergedProperties = {
       ...parseJson<Record<string, unknown>>(existing.properties, {}),
       ...incomingProps,
@@ -120,7 +124,7 @@ export function saveEntity(
         SET type = ?, properties = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `,
-    ).run(normalizedType, JSON.stringify(mergedProperties), existing.id);
+    ).run(finalType, JSON.stringify(mergedProperties), existing.id);
 
     const updated = db
       .prepare(`SELECT id, session_id, name, type, properties FROM entities WHERE id = ?`)
@@ -209,8 +213,8 @@ export function saveRelationship(
     throw new Error('relation type is required');
   }
 
-  const entity1 = saveEntity(sessionId, entity1Name, 'unknown');
-  const entity2 = saveEntity(sessionId, entity2Name, 'unknown');
+  const entity1 = getEntityByName(sessionId, entity1Name) ?? saveEntity(sessionId, entity1Name, 'unknown');
+  const entity2 = getEntityByName(sessionId, entity2Name) ?? saveEntity(sessionId, entity2Name, 'unknown');
 
   const existing = db
     .prepare(

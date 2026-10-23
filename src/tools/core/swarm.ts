@@ -36,13 +36,13 @@ export const spawnAgentTool: Tool = {
         description: 'Current agent depth (internal use only)',
       },
     },
-    required: ['role', 'task', 'parentSessionId'],
+    required: ['role', 'task'],
   },
   async execute(input: Record<string, unknown>): Promise<string> {
     const role = String(input.role || 'researcher');
     const task = String(input.task || '');
-    const parentSessionId = String(input.parentSessionId || '');
-    const depth = typeof input.depth === 'number' ? input.depth : 0;
+    const parentSessionId = String(input.parentSessionId || input.__sessionId || '');
+    const depth = typeof input.__depth === 'number' ? input.__depth : (typeof input.depth === 'number' ? input.depth : 0);
 
     if (depth > 2) {
       return JSON.stringify({
@@ -51,10 +51,17 @@ export const spawnAgentTool: Tool = {
       });
     }
 
-    if (!task || !parentSessionId) {
+    if (!task) {
       return JSON.stringify({
         success: false,
-        error: 'task and parentSessionId are required',
+        error: 'task is required',
+      });
+    }
+
+    if (!parentSessionId) {
+      return JSON.stringify({
+        success: false,
+        error: 'parentSessionId is required',
       });
     }
 
@@ -80,7 +87,9 @@ export const spawnAgentTool: Tool = {
         success: true,
         sessionId: result.sessionId,
         role,
-        message: `Agent spawned successfully`,
+        status: result.status,
+        result: result.content,
+        message: `Agent spawned and completed task successfully`,
       });
     } catch (error) {
       log.error(`Error spawning agent: ${error}`);

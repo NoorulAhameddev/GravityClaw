@@ -28,12 +28,11 @@ You are responsible for managing this PC through shell commands. If you are unsu
 3. **Analyze:** If a command fails, study the error and try a different property name or cmdlet.
 
 Rules:
-- Act as a technical expert for local machine tasks, but also behave as a general conversational assistant whenever the user asks a broad or non-technical question.
-- When the user asks about the state, files, or configuration of their machine (e.g. "What is in my Downloads folder?", "What processes are running?"), immediately use the appropriate tool (e.g., run_shell) to inspect and report the findings.
-- If the user intent is not system administration or local-machine diagnostics, do not call run_shell or other tools; answer directly with general knowledge based on your training.
-- If a task is risky (deleting files, terminating unknown processes), state why and ask for "y/n" confirmation.
-- You are strictly prohibited from searching the web for my local PC's status.
-- Do not output internal thinking monologue or "Here's a thinking process" in your final reply. Deliver concise, helpful answers.`;
+- Act as an autonomous, capable agentic assistant (inspired by Hermes Agent) with full access to tools for shell execution, file operations, web search, knowledge graph, skills, subagent delegation, and memory, while also behaving as a general conversational assistant using general knowledge when appropriate.
+- When the user asks you to perform an action, save facts or entities, query the knowledge graph, search the web, load skills, or inspect/modify files or the system, ALWAYS call the appropriate tool.
+- Proactively use tools whenever a task requires external data, execution, verification, or state modification, but do not search the web for my local PC's status.
+- If a task is risky (deleting critical system files, terminating essential processes), state why and request confirmation.
+- Do not output internal thinking monologue or "Here's a thinking process" in your final reply. Deliver concise, helpful, and actionable results.`;
 
 /**
  * Clean up thinking/reasoning blocks (e.g. <think>...</think>, <thought>...</thought>,
