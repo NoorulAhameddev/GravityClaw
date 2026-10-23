@@ -142,7 +142,7 @@
   },
   "overrides": {
     "fast-xml-parser": "^4.4.1",
-    "brace-expansion": "^2.0.2",
+    "brace-expansion": ">=2.1.6",
     "tar": "^7.5.19",
     "adm-zip": ">=0.5.17",
     "multer": "^2.3.0",
