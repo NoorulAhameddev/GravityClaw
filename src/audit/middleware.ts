@@ -5,7 +5,7 @@ import crypto from 'crypto';
 
 function maskActorId(user?: { id: string }, apiKey?: string): string {
   if (user?.id) return user.id;
-  if (apiKey) return `key_${crypto.createHmac('sha256', 'gravityclaw-audit-salt').update(apiKey).digest('hex').slice(0, 8)}`;
+  if (apiKey) return `key_${crypto.scryptSync(apiKey, 'gravityclaw-audit-salt', 8).toString('hex')}`;
   return 'anonymous';
 }
 

@@ -123,6 +123,9 @@ const BLOCKED_ABSOLUTE_PATHS = [
   /^\/Library\//i, // macOS
   /^\/Library\/Logs\//i,
   /^\/private\//i,
+  /\.aws[\/\\]/i,
+  /\.ssh[\/\\]/i,
+  /\.git[\/\\]config$/i,
 ];
 
 // Blocked file patterns (case-insensitive)
@@ -131,24 +134,21 @@ const BLOCKED_FILE_PATTERNS = [
   /\.env\./i,
   /\.bash_history$/i,
   /\.zsh_history$/i,
-  /\.aws[\/\\]/i,
   /id_rsa$/i,
   /id_ed25519$/i,
   /id_dsa$/i,
   /credentials/i,
   /password/i,
   /secret/i,
-  /private[^/\\]*key/i,
+  /private[_-]?key/i,
   /\.pem$/i,
   /\.key$/i,
   /\.crt$/i,
-  /auth[^/\\]*token/i,
-  /api[^/\\]*key/i,
+  /auth[_-]?token/i,
+  /api[_-]?key/i,
   /creds\.json$/i,
   /\.npmrc$/i,
   /\.yarnrc$/i,
-  /\.ssh[\/\\]/i,
-  /\.git[\/\\]config$/i,
   /config\.php$/i,
   /web\.config$/i,
   /\.htaccess$/i,
@@ -188,7 +188,7 @@ function matchesBlockedPatterns(filePath: string): boolean {
 
   // Check blocked file patterns
   for (const pattern of BLOCKED_FILE_PATTERNS) {
-    if (pattern.test(fileName) || pattern.test(absolutePath)) {
+    if (pattern.test(fileName)) {
       return true;
     }
   }
