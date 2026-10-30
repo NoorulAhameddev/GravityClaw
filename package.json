@@ -151,7 +151,7 @@
     "convict": "^6.2.4"
   },
   "devDependencies": {
-    "@playwright/mcp": "^0.0.68",
+    "@playwright/mcp": "^0.0.83",
     "@playwright/test": "^1.59.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.19",
