@@ -95,7 +95,7 @@
     "test:e2e:report": "npx playwright show-report"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
+    "@anthropic-ai/sdk": "^1.4.0",
     "@google/generative-ai": "^0.24.1",
     "@mistralai/mistralai": "^1.15.1",
     "@notionhq/client": "^5.13.0",
