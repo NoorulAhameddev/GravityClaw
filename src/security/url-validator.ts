@@ -1,5 +1,6 @@
 import { URL } from 'url';
 import { createLogger } from '../logger.ts';
+import { checkUrlExfiltration } from './aidefence.ts';
 
 const log = createLogger('url-validator');
 
@@ -67,6 +68,11 @@ export function validateUrl(
   }
 
   const hostname = parsed.hostname.toLowerCase();
+
+  const exfilCheck = checkUrlExfiltration(urlStr);
+  if (!exfilCheck.allowed) {
+    return { valid: false, error: exfilCheck.reason ?? 'URL exfiltration detected' };
+  }
 
   if (BLOCKED_HOSTNAMES.some((p) => p.test(hostname))) {
     return { valid: false, error: 'URL points to a blocked internal service' };

@@ -33,6 +33,22 @@ function symlinkDirectory(target: string, link: string): void {
   fs.symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir');
 }
 
+function canCreateFileSymlinks(): boolean {
+  try {
+    const testDir = fs.mkdtempSync(path.join(tmpdir(), 'symlink-check-'));
+    const testFile = path.join(testDir, 'target.txt');
+    const testLink = path.join(testDir, 'link.txt');
+    fs.writeFileSync(testFile, 'test');
+    fs.symlinkSync(testFile, testLink);
+    fs.rmSync(testDir, { recursive: true, force: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const hasFileSymlinks = canCreateFileSymlinks();
+
 describe('Path validation security', () => {
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(tmpdir(), 'gravity-path-root-'));
@@ -74,7 +90,7 @@ describe('Path validation security', () => {
     expect(validate(target).allowed).toBe(false);
   });
 
-  it('rejects a symlink whose final target is outside the allowlist', () => {
+  it.skipIf(!hasFileSymlinks)('rejects a symlink whose final target is outside the allowlist', () => {
     const secret = path.join(outside, 'secret.txt');
     const alias = path.join(root, 'secret-link.txt');
     fs.writeFileSync(secret, 'safe');
@@ -93,19 +109,19 @@ describe('Path validation security', () => {
     expect(validate(path.join(root, 'outside-link', 'new.txt')).allowed).toBe(false);
   });
 
-  it('allows a symlink when its resolved target stays inside the allowlist', () => {
+  it.skipIf(!hasFileSymlinks)('allows a symlink when its resolved target stays inside the allowlist', () => {
     const actual = path.join(root, 'actual.txt');
     fs.writeFileSync(actual, 'safe');
     fs.symlinkSync(actual, path.join(root, 'safe-link.txt'));
     expect(validate(path.join(root, 'safe-link.txt')).allowed).toBe(true);
   });
 
-  it('rejects a broken symlink instead of treating it as a missing file', () => {
+  it.skipIf(!hasFileSymlinks)('rejects a broken symlink instead of treating it as a missing file', () => {
     fs.symlinkSync(path.join(outside, 'missing.txt'), path.join(root, 'broken-link.txt'));
     expect(validate(path.join(root, 'broken-link.txt')).allowed).toBe(false);
   });
 
-  it('revalidates a path after an allowed file is replaced by an escaping symlink', () => {
+  it.skipIf(!hasFileSymlinks)('revalidates a path after an allowed file is replaced by an escaping symlink', () => {
     const target = path.join(root, 'replace-me.txt');
     const secret = path.join(outside, 'secret.txt');
     fs.writeFileSync(target, 'safe');

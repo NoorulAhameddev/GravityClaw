@@ -1,9 +1,25 @@
 import { describe, it, expect, vi } from 'vitest';
 import { verifyBackup } from '../backup/verify.ts';
 import { BackupManager } from '../backup/backup.ts';
-import { writeFileSync, readFileSync, mkdtempSync, symlinkSync } from 'fs';
+import { writeFileSync, readFileSync, mkdtempSync, symlinkSync, rmSync } from 'fs';
 import { join, basename, dirname } from 'path';
 import { tmpdir } from 'os';
+
+function canCreateFileSymlinks(): boolean {
+  try {
+    const testDir = mkdtempSync(join(tmpdir(), 'symlink-check-'));
+    const testFile = join(testDir, 'target.txt');
+    const testLink = join(testDir, 'link.txt');
+    writeFileSync(testFile, 'test');
+    symlinkSync(testFile, testLink);
+    rmSync(testDir, { recursive: true, force: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const hasFileSymlinks = canCreateFileSymlinks();
 
 describe('Backup verification', () => {
   it('refuses to create an encrypted backup without a persistent key', async () => {
@@ -31,7 +47,7 @@ describe('Backup verification', () => {
     expect(dirname(outsideFile)).toBe(outsideDir);
   });
 
-  it('refuses to operate on backup symlinks pointing outside the backup directory', () => {
+  it.skipIf(!hasFileSymlinks)('refuses to operate on backup symlinks pointing outside the backup directory', () => {
     const backupDir = mkdtempSync(join(tmpdir(), 'backup-symlink-'));
     const outsideDir = mkdtempSync(join(tmpdir(), 'backup-symlink-outside-'));
     const outsideFile = join(outsideDir, 'sentinel.backup');

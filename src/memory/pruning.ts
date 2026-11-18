@@ -20,6 +20,9 @@ import { config } from '../config.ts';
 import { createLogger } from '../logger.ts';
 import type { PruningConfig } from '../types/memory.js';
 import type { OrchestratorDependencies } from '../llm/orchestrator.ts';
+import { scoreAndRankContext } from './context-scorer.ts';
+export { scoreAndRankContext } from './context-scorer.ts';
+export type { ScoredContextItem, MemoryCategory } from './context-scorer.ts';
 
 export type { PruningConfig } from '../types/memory.js';
 
@@ -346,7 +349,7 @@ export function formatPruningResult(result: Awaited<ReturnType<typeof pruneConte
   }
 
   return (
-    `✂️ **Context Pruned**\n` +
+    `**Context Pruned**\n` +
     `• Messages summarized: ${result.messagesPruned}\n` +
     `• Summary size: ${result.summaryLength} chars\n` +
     `• Usage before: ${result.contextUsageBefore}%\n` +
